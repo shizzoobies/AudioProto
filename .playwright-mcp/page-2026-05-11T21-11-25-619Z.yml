@@ -1,0 +1,9 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]: Call Simulator
+    - button "Sign out" [ref=e5] [cursor=pointer]
+  - main [ref=e6]:
+    - generic [ref=e69]:
+      - heading "Call ended." [level=1] [ref=e70]
+      - paragraph [ref=e71]: In Phase 3 this is where your coaching report will appear.
+      - button "New call" [ref=e73] [cursor=pointer]

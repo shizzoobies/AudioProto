@@ -1,0 +1,21 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]: Call Simulator
+    - button "Sign out" [ref=e5] [cursor=pointer]
+  - main [ref=e6]:
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - button "Back to scenarios" [ref=e50] [cursor=pointer]
+        - generic [ref=e51]:
+          - generic [ref=e52]: Jordan
+          - generic [ref=e53]: The First-Time Mover
+        - button "End call" [ref=e54] [cursor=pointer]
+      - list [ref=e55]:
+        - listitem [ref=e56]:
+          - generic [ref=e57]: Jordan
+          - generic [ref=e58]: Um, hi, this is my first time renting a moving truck and I honestly don't really know what I'm doing, so I was hoping you could kind of walk me through it?
+      - generic [ref=e59]:
+        - generic [ref=e60]: Your message
+        - textbox "Your message" [active] [ref=e61]:
+          - /placeholder: Type your response...
+        - button "Send" [ref=e62] [cursor=pointer]
