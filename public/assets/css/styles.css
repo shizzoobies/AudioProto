@@ -315,12 +315,166 @@ textarea {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.welcome,
 .picker,
 .call,
 .analyzing,
 .ended,
 .error-shell {
   animation: view-fade-in 0.25s ease;
+}
+
+/* Welcome
+   ------------------------------------------------------------------ */
+.welcome {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-4) 0 var(--space-6);
+}
+
+.welcome-hero {
+  text-align: center;
+}
+
+.welcome-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: var(--space-4);
+}
+
+.welcome-title {
+  margin: 0 0 var(--space-4);
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  background: linear-gradient(180deg, var(--color-text-primary), #9ca3af);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.welcome-lead {
+  margin: 0 auto;
+  max-width: 600px;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.welcome-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.welcome-features li {
+  padding: var(--space-4) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.welcome-features strong {
+  color: var(--color-text-primary);
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.welcome-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.mode-card {
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mode-card-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.mode-card-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.mode-card-hint {
+  margin: 0;
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+.mode-toggle-large {
+  display: flex;
+  align-self: stretch;
+  width: 100%;
+  padding: 3px;
+}
+
+.mode-toggle-large .mode-option {
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.welcome-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.welcome-cta {
+  padding: 14px 32px;
+  font-size: 15px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 720px) {
+  .welcome-title {
+    font-size: 36px;
+  }
+  .welcome-grid {
+    grid-template-columns: 1fr;
+  }
+  .welcome-features {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Picker

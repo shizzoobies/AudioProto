@@ -79,9 +79,119 @@ async function init() {
   }
 
   document.body.dataset.appState = 'ready';
-  renderPicker();
+  renderWelcome();
 
   dom.signOut.addEventListener('click', signOut);
+}
+
+function renderWelcome() {
+  state.view = 'welcome';
+  state.activeScenario = null;
+  setDocumentTitle('Welcome');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  dom.root.innerHTML = `
+    <section class="welcome">
+      <header class="welcome-hero">
+        <div class="welcome-eyebrow">Customer service training</div>
+        <h1 class="welcome-title">Take a call.<br>Get coached.</h1>
+        <p class="welcome-lead">Step into a realistic customer call with an AI that stays in character. End the call when you are ready and get a scored coaching report on six dimensions, with quoted evidence from your call and one concrete thing to try next time.</p>
+      </header>
+
+      <ul class="welcome-features">
+        <li>
+          <strong>5 distinct callers</strong>
+          Each customer has a full backstory, mannerisms, and an emotional arc.
+        </li>
+        <li>
+          <strong>Streaming voice</strong>
+          Customers speak through your speakers as they think. You can speak back.
+        </li>
+        <li>
+          <strong>Coaching report</strong>
+          Six dimensions, quoted evidence, mood snapshot, and one thing to try next time.
+        </li>
+      </ul>
+
+      <div class="welcome-grid">
+        <div class="mode-card">
+          <div class="mode-card-label">Your side</div>
+          <h2 class="mode-card-title">How you respond</h2>
+          <div class="mode-toggle mode-toggle-large" role="radiogroup" aria-label="Your input mode" data-group="input">
+            <button class="mode-option" data-input-mode="text" role="radio" aria-checked="${state.inputMode === 'text'}" type="button">Type</button>
+            <button class="mode-option" data-input-mode="both" role="radio" aria-checked="${state.inputMode === 'both'}" type="button">Either</button>
+            <button class="mode-option" data-input-mode="voice" role="radio" aria-checked="${state.inputMode === 'voice'}" type="button">Speak</button>
+          </div>
+          <p class="mode-card-hint" id="welcome-input-hint"></p>
+        </div>
+
+        <div class="mode-card">
+          <div class="mode-card-label">Their side</div>
+          <h2 class="mode-card-title">How the customer responds</h2>
+          <div class="mode-toggle mode-toggle-large" role="radiogroup" aria-label="Customer voice" data-group="customer">
+            <button class="mode-option" data-customer-mode="voice" role="radio" aria-checked="${!state.audioMuted}" type="button">Voice</button>
+            <button class="mode-option" data-customer-mode="text" role="radio" aria-checked="${state.audioMuted}" type="button">Text only</button>
+          </div>
+          <p class="mode-card-hint" id="welcome-customer-hint"></p>
+        </div>
+      </div>
+
+      <div class="welcome-actions">
+        <button class="primary-button welcome-cta" id="welcome-start" type="button">Pick a scenario <span aria-hidden="true">›</span></button>
+      </div>
+    </section>
+  `;
+
+  const inputButtons = dom.root.querySelectorAll('[data-input-mode]');
+  const customerButtons = dom.root.querySelectorAll('[data-customer-mode]');
+  const inputHint = document.getElementById('welcome-input-hint');
+  const customerHint = document.getElementById('welcome-customer-hint');
+
+  const inputHints = {
+    text: 'You type. Fastest for quiet environments.',
+    both: 'Type or hold the mic. Mix as you go.',
+    voice: 'Hold to talk. Closest to a real phone call.',
+  };
+  const customerHints = {
+    voice: 'You will hear each customer through your speakers.',
+    text: 'The customer appears as text only. No audio.',
+  };
+
+  function refresh() {
+    inputButtons.forEach((b) => {
+      const active = b.dataset.inputMode === state.inputMode;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-checked', String(active));
+    });
+    customerButtons.forEach((b) => {
+      const isVoice = b.dataset.customerMode === 'voice';
+      const active = isVoice ? !state.audioMuted : state.audioMuted;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-checked', String(active));
+    });
+    inputHint.textContent = inputHints[state.inputMode] || '';
+    customerHint.textContent = customerHints[state.audioMuted ? 'text' : 'voice'];
+  }
+  refresh();
+
+  inputButtons.forEach((b) => {
+    b.addEventListener('click', () => {
+      state.inputMode = b.dataset.inputMode;
+      refresh();
+    });
+  });
+  customerButtons.forEach((b) => {
+    b.addEventListener('click', () => {
+      state.audioMuted = b.dataset.customerMode === 'text';
+      refresh();
+    });
+  });
+
+  document.getElementById('welcome-start').addEventListener('click', renderPicker);
 }
 
 function renderPickerSkeleton() {
