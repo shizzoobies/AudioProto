@@ -1,0 +1,13 @@
+node_modules/
+.dev.vars
+.wrangler/
+.DS_Store
+*.log
+.env
+.env.*
+!.dev.vars.example
+
+# Agent / session state
+.omc/
+.claude/
+

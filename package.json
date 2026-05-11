@@ -1,0 +1,21 @@
+{
+  "name": "call-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI customer service training simulator (Cloudflare Pages + Functions).",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public --project-name call-simulator",
+    "secret:password": "wrangler pages secret put APP_PASSWORD --project-name call-simulator",
+    "secret:session": "wrangler pages secret put SESSION_SECRET --project-name call-simulator",
+    "secret:anthropic": "wrangler pages secret put ANTHROPIC_API_KEY --project-name call-simulator",
+    "secret:elevenlabs": "wrangler pages secret put ELEVENLABS_API_KEY --project-name call-simulator"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

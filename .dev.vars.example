@@ -1,0 +1,4 @@
+APP_PASSWORD=changeme
+SESSION_SECRET=replace-with-a-long-random-string
+ANTHROPIC_API_KEY=
+ELEVENLABS_API_KEY=
