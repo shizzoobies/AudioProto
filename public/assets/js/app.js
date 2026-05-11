@@ -16,6 +16,7 @@ const state = {
   micDenied: false,
   inputMode: 'both',
   pttKeyHandlers: null,
+  sttController: null,
 };
 
 function teardownAudio() {
@@ -40,6 +41,10 @@ function teardownAudio() {
     document.removeEventListener('keyup', state.pttKeyHandlers.up);
     state.pttKeyHandlers = null;
   }
+  if (state.sttController) {
+    try { state.sttController.abort(); } catch {}
+    state.sttController = null;
+  }
 }
 
 const dom = {
@@ -48,6 +53,8 @@ const dom = {
 };
 
 async function init() {
+  renderPickerSkeleton();
+
   try {
     const sessionRes = await fetch('/api/session', { credentials: 'same-origin' });
     if (!sessionRes.ok) {
@@ -77,6 +84,33 @@ async function init() {
   dom.signOut.addEventListener('click', signOut);
 }
 
+function renderPickerSkeleton() {
+  document.body.dataset.appState = 'ready';
+  const cells = Array.from({ length: 5 }, () => `
+    <li class="scenario-card scenario-card-skeleton" aria-hidden="true">
+      <div class="skeleton-pill"></div>
+      <div class="skeleton-line skeleton-line-title"></div>
+      <div class="skeleton-line skeleton-line-meta"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line-short"></div>
+    </li>
+  `).join('');
+  dom.root.innerHTML = `
+    <section class="picker">
+      <header class="picker-header">
+        <h1 class="picker-title">Choose a scenario</h1>
+        <p class="picker-subtitle">Loading scenarios...</p>
+      </header>
+      <ul class="scenario-grid">${cells}</ul>
+    </section>
+  `;
+}
+
+function setDocumentTitle(suffix) {
+  const base = 'Call Simulator';
+  document.title = suffix ? `${suffix} • ${base}` : base;
+}
+
 async function signOut() {
   dom.signOut.disabled = true;
   if (state.conversation) {
@@ -103,6 +137,7 @@ function renderError(message) {
 function renderPicker() {
   state.view = 'picker';
   state.activeScenario = null;
+  setDocumentTitle('');
   if (state.conversation) {
     state.conversation.cancel();
     state.conversation = null;
@@ -153,6 +188,7 @@ function startCall(scenarioId) {
 
 function renderCall(scenario) {
   state.view = 'call';
+  setDocumentTitle(`Call: ${scenario.customer_name}`);
   teardownAudio();
 
   dom.root.innerHTML = `
@@ -435,8 +471,11 @@ function renderCall(scenario) {
       resetPttButton();
       return;
     }
+    const sttController = new AbortController();
+    state.sttController = sttController;
     try {
-      const transcript = await transcribeAudio(blob);
+      const transcript = await transcribeAudio(blob, { signal: sttController.signal });
+      if (sttController.signal.aborted) return;
       if (!transcript) {
         setStatus('We could not hear anything in that clip.');
         resetPttButton();
@@ -448,8 +487,11 @@ function renderCall(scenario) {
       // Auto-send after transcription
       composer.requestSubmit();
     } catch (err) {
+      if (err?.name === 'AbortError') return;
       setStatus(`Transcription failed (${err.message || 'unknown'}).`);
       resetPttButton();
+    } finally {
+      if (state.sttController === sttController) state.sttController = null;
     }
   }
 
@@ -523,6 +565,7 @@ function renderCall(scenario) {
 
 async function runCoaching(scenario, messages) {
   state.view = 'analyzing';
+  setDocumentTitle('Analyzing call');
   renderAnalyzing(scenario);
 
   try {
@@ -547,6 +590,7 @@ function renderAnalyzing(scenario) {
 
 function renderReport(scenario, report) {
   state.view = 'report';
+  setDocumentTitle(`Report: ${scenario.customer_name}`);
   const node = renderReportHtml(scenario, report, {
     onNewCall: renderPicker,
     onRetry: () => startCall(scenario.id),

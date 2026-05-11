@@ -16,6 +16,16 @@
     <h1 id="auth-title" class="auth-title">Call Simulator</h1>
     <p class="auth-subtitle">Enter the access password to continue.</p>
     <form id="auth-form" class="auth-form" novalidate>
+      <input
+        type="text"
+        name="username"
+        value="demo"
+        autocomplete="username"
+        class="visually-hidden"
+        tabindex="-1"
+        aria-hidden="true"
+        readonly
+      >
       <label for="password" class="auth-label">Password</label>
       <input
         type="password"
