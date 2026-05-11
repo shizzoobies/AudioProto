@@ -1,5 +1,6 @@
 import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
+import { AudioPlayer, attachVisualizer, synthesizeSentence } from './audio.js';
 
 const state = {
   scenarios: [],
@@ -7,7 +8,26 @@ const state = {
   view: 'picker',
   activeScenario: null,
   conversation: null,
+  audioPlayer: null,
+  visualizerCleanup: null,
+  audioMuted: false,
+  ttsControllers: new Set(),
 };
+
+function teardownAudio() {
+  for (const c of state.ttsControllers) {
+    try { c.abort(); } catch {}
+  }
+  state.ttsControllers.clear();
+  if (state.visualizerCleanup) {
+    state.visualizerCleanup();
+    state.visualizerCleanup = null;
+  }
+  if (state.audioPlayer) {
+    state.audioPlayer.destroy();
+    state.audioPlayer = null;
+  }
+}
 
 const dom = {
   root: document.getElementById('app-root'),
@@ -50,6 +70,7 @@ async function signOut() {
     state.conversation.cancel();
     state.conversation = null;
   }
+  teardownAudio();
   try {
     await fetch('/api/auth', { method: 'DELETE', credentials: 'same-origin' });
   } finally {
@@ -73,6 +94,7 @@ function renderPicker() {
     state.conversation.cancel();
     state.conversation = null;
   }
+  teardownAudio();
 
   const cards = state.scenarios
     .map(
@@ -118,6 +140,7 @@ function startCall(scenarioId) {
 
 function renderCall(scenario) {
   state.view = 'call';
+  teardownAudio();
 
   dom.root.innerHTML = `
     <section class="call">
@@ -127,8 +150,17 @@ function renderCall(scenario) {
           <div class="call-customer-name">${escapeHtml(scenario.customer_name)}</div>
           <div class="call-scenario-title">${escapeHtml(scenario.title)}</div>
         </div>
-        <button class="danger-button" id="end-call" type="button">End call</button>
+        <div class="call-actions">
+          <button class="ghost-button mute-toggle" id="mute-toggle" type="button" aria-pressed="false" title="Mute customer audio">
+            <span class="mute-icon mute-on" aria-hidden="true">●</span>
+            <span class="mute-label">Audio on</span>
+          </button>
+          <button class="danger-button" id="end-call" type="button">End call</button>
+        </div>
       </header>
+      <div class="visualizer-wrap" id="visualizer-wrap" data-active="false">
+        <canvas class="visualizer" id="visualizer"></canvas>
+      </div>
       <ol class="transcript" id="transcript" aria-live="polite"></ol>
       <form class="composer" id="composer" autocomplete="off">
         <label class="visually-hidden" for="composer-input">Your message</label>
@@ -144,6 +176,12 @@ function renderCall(scenario) {
   `;
 
   const transcript = document.getElementById('transcript');
+  const visualizerWrap = document.getElementById('visualizer-wrap');
+  const visualizerCanvas = document.getElementById('visualizer');
+  const muteToggle = document.getElementById('mute-toggle');
+  const muteLabel = muteToggle.querySelector('.mute-label');
+  const muteIcon = muteToggle.querySelector('.mute-icon');
+
   appendMessage(transcript, 'customer', scenario.customer_name, scenario.opening_line);
 
   const composer = document.getElementById('composer');
@@ -151,6 +189,54 @@ function renderCall(scenario) {
   const composerSend = document.getElementById('composer-send');
   const endCallBtn = document.getElementById('end-call');
   const backBtn = document.getElementById('call-back');
+
+  const audioPlayer = new AudioPlayer({
+    onStart: () => visualizerWrap.dataset.active = 'true',
+    onEnd: () => visualizerWrap.dataset.active = 'false',
+    onError: (err) => console.warn('audio error', err),
+  });
+  state.audioPlayer = audioPlayer;
+  audioPlayer.setMuted(state.audioMuted);
+  updateMuteUI();
+
+  state.visualizerCleanup = attachVisualizer(visualizerCanvas, () => audioPlayer.getAnalyser());
+
+  muteToggle.addEventListener('click', () => {
+    state.audioMuted = !state.audioMuted;
+    audioPlayer.setMuted(state.audioMuted);
+    updateMuteUI();
+  });
+
+  // Speak the opening line as soon as user lands in the call.
+  speakSentence(scenario.opening_line);
+
+  function updateMuteUI() {
+    const muted = state.audioMuted;
+    muteToggle.setAttribute('aria-pressed', String(muted));
+    muteLabel.textContent = muted ? 'Audio off' : 'Audio on';
+    muteIcon.classList.toggle('mute-on', !muted);
+    muteIcon.classList.toggle('mute-off', muted);
+    muteIcon.textContent = muted ? '○' : '●';
+  }
+
+  function speakSentence(text) {
+    if (state.audioMuted) return;
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+    const controller = new AbortController();
+    state.ttsControllers.add(controller);
+    synthesizeSentence({ scenarioId: scenario.id, text: trimmed, signal: controller.signal })
+      .then((blob) => {
+        state.ttsControllers.delete(controller);
+        return audioPlayer.enqueueBlob(blob);
+      })
+      .catch((err) => {
+        state.ttsControllers.delete(controller);
+        if (err?.name !== 'AbortError') {
+          console.warn('tts error', err.message || err);
+        }
+      });
+  }
 
   let streamingBubble = null;
   const startStreamingBubble = (label) => {
@@ -175,6 +261,7 @@ function renderCall(scenario) {
     onAssistantStart: () => startStreamingBubble(scenario.customer_name),
     onAssistantDelta: (text) => appendToStreamingBubble(text),
     onAssistantEnd: () => endStreamingBubble(),
+    onSentence: (sentence) => speakSentence(sentence),
     onError: (err) => {
       endStreamingBubble();
       appendMessage(
@@ -215,6 +302,7 @@ function renderCall(scenario) {
   endCallBtn.addEventListener('click', () => {
     const messages = conversation.getMessages();
     conversation.cancel();
+    teardownAudio();
     if (messages.length < 2) {
       renderShortCall(scenario);
       return;
@@ -224,6 +312,7 @@ function renderCall(scenario) {
 
   backBtn.addEventListener('click', () => {
     conversation.cancel();
+    teardownAudio();
     renderPicker();
   });
 

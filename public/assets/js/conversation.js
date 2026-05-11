@@ -1,13 +1,15 @@
 export class Conversation {
-  constructor({ scenario, onAssistantDelta, onAssistantStart, onAssistantEnd, onError }) {
+  constructor({ scenario, onAssistantDelta, onAssistantStart, onAssistantEnd, onSentence, onError }) {
     this.scenario = scenario;
     this.messages = [];
     this.controller = null;
     this.streaming = false;
     this.cancelled = false;
+    this._sentenceBuffer = '';
     this.onAssistantDelta = onAssistantDelta;
     this.onAssistantStart = onAssistantStart;
     this.onAssistantEnd = onAssistantEnd;
+    this.onSentence = onSentence;
     this.onError = onError;
   }
 
@@ -40,6 +42,7 @@ export class Conversation {
   async _stream() {
     this.streaming = true;
     this.controller = new AbortController();
+    this._sentenceBuffer = '';
     let buffer = '';
     let started = false;
 
@@ -95,6 +98,7 @@ export class Conversation {
             }
             buffer += parsed.text;
             this.onAssistantDelta?.(parsed.text);
+            this._flushSentences(parsed.text);
           } else if (parsed.type === 'error') {
             throw new Error(parsed.message || 'stream_error');
           }
@@ -116,11 +120,32 @@ export class Conversation {
 
   _finishAssistant(text) {
     if (this.cancelled) return;
+    const remainder = this._sentenceBuffer.trim();
+    if (remainder) {
+      this.onSentence?.(remainder);
+    }
+    this._sentenceBuffer = '';
     const trimmed = (text || '').trim();
     if (trimmed) {
       this.messages.push({ role: 'assistant', content: trimmed });
     }
     this.streaming = false;
     this.onAssistantEnd?.(trimmed);
+  }
+
+  _flushSentences(deltaText) {
+    if (!this.onSentence) return;
+    this._sentenceBuffer += deltaText;
+    const boundary = /[.?!]+\s+/;
+    while (true) {
+      const match = this._sentenceBuffer.match(boundary);
+      if (!match) break;
+      const end = match.index + match[0].length;
+      const sentence = this._sentenceBuffer.slice(0, end).trim();
+      this._sentenceBuffer = this._sentenceBuffer.slice(end);
+      if (sentence.length >= 2) {
+        this.onSentence(sentence);
+      }
+    }
   }
 }
