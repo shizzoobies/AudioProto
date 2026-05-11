@@ -158,13 +158,31 @@ function renderPicker() {
     )
     .join('');
 
+  const randomCard = `
+    <li class="scenario-card scenario-card-random" data-scenario-id="__random__" tabindex="0" role="button" aria-label="Start a random scenario without knowing who is calling">
+      <div class="scenario-difficulty difficulty-random">
+        <svg viewBox="0 0 24 24" class="random-icon" aria-hidden="true">
+          <rect x="2.5" y="2.5" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <rect x="12.5" y="12.5" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M11.5 6 L17 6 L17 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12.5 17.5 L7 17.5 L7 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Random
+      </div>
+      <h2 class="scenario-title">Surprise me</h2>
+      <p class="scenario-customer">Caller unknown</p>
+      <p class="scenario-description">Pick one of the five at random. You will not know who is on the line until you take the call.</p>
+      <div class="scenario-cta">Take the call <span aria-hidden="true">›</span></div>
+    </li>
+  `;
+
   dom.root.innerHTML = `
     <section class="picker">
       <header class="picker-header">
         <h1 class="picker-title">Choose a scenario</h1>
-        <p class="picker-subtitle">Each scenario is a different customer with a different problem. Pick one and step into the call.</p>
+        <p class="picker-subtitle">Each scenario is a different customer with a different problem. Pick one, or hit Surprise me to be tested cold.</p>
       </header>
-      <ul class="scenario-grid">${cards}</ul>
+      <ul class="scenario-grid">${cards}${randomCard}</ul>
     </section>
   `;
 
@@ -180,28 +198,39 @@ function renderPicker() {
 }
 
 function startCall(scenarioId) {
-  const base = state.scenarioById.get(scenarioId);
+  let blind = false;
+  let resolvedId = scenarioId;
+  if (scenarioId === '__random__') {
+    blind = true;
+    const ids = state.scenarios.map((s) => s.id);
+    if (!ids.length) return;
+    resolvedId = ids[Math.floor(Math.random() * ids.length)];
+  }
+  const base = state.scenarioById.get(resolvedId);
   if (!base) return;
   const lines = Array.isArray(base.opening_lines) && base.opening_lines.length
     ? base.opening_lines
     : [base.opening_line || ''];
   const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
-  state.activeScenario = { ...base, opening_line: chosen };
+  state.activeScenario = { ...base, opening_line: chosen, blind };
   renderCall(state.activeScenario);
 }
 
 function renderCall(scenario) {
   state.view = 'call';
-  setDocumentTitle(`Call: ${scenario.customer_name}`);
+  setDocumentTitle(scenario.blind ? 'Live call' : `Call: ${scenario.customer_name}`);
   teardownAudio();
+
+  const displayName = scenario.blind ? 'Caller' : scenario.customer_name;
+  const displayTitle = scenario.blind ? 'Incoming call' : scenario.title;
 
   dom.root.innerHTML = `
     <section class="call">
       <header class="call-header">
         <button class="ghost-button call-back" id="call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
-          <div class="call-customer-name">${escapeHtml(scenario.customer_name)}</div>
-          <div class="call-scenario-title">${escapeHtml(scenario.title)}</div>
+          <div class="call-customer-name">${escapeHtml(displayName)}</div>
+          <div class="call-scenario-title">${escapeHtml(displayTitle)}</div>
         </div>
         <div class="call-actions">
           <button class="ghost-button mute-toggle" id="mute-toggle" type="button" aria-pressed="false" title="Mute customer audio">
@@ -252,7 +281,9 @@ function renderCall(scenario) {
   const muteLabel = muteToggle.querySelector('.mute-label');
   const muteIcon = muteToggle.querySelector('.mute-icon');
 
-  appendMessage(transcript, 'customer', scenario.customer_name, scenario.opening_line);
+  const customerLabel = scenario.blind ? 'Caller' : scenario.customer_name;
+
+  appendMessage(transcript, 'customer', customerLabel, scenario.opening_line);
 
   const composer = document.getElementById('composer');
   const composerWrap = document.getElementById('composer-wrap');
@@ -343,7 +374,7 @@ function renderCall(scenario) {
 
   const conversation = new Conversation({
     scenario,
-    onAssistantStart: () => startStreamingBubble(scenario.customer_name),
+    onAssistantStart: () => startStreamingBubble(customerLabel),
     onAssistantDelta: (text) => appendToStreamingBubble(text),
     onAssistantEnd: () => endStreamingBubble(),
     onSentence: (sentence) => speakSentence(sentence),

@@ -406,6 +406,39 @@ textarea {
   color: #fca5a5;
 }
 
+.scenario-difficulty.difficulty-random {
+  background: var(--color-customer-muted);
+  color: #c4b5fd;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.random-icon {
+  width: 11px;
+  height: 11px;
+}
+
+.scenario-card-random {
+  border-style: dashed;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.scenario-card-random:hover,
+.scenario-card-random:focus-visible {
+  border-style: solid;
+  border-color: rgba(139, 92, 246, 0.55);
+  background: var(--color-customer-muted);
+}
+
+.scenario-card-random .scenario-cta {
+  color: #c4b5fd;
+}
+
+.scenario-card-random:hover .scenario-cta {
+  color: #ddd6fe;
+}
+
 .scenario-title {
   margin: var(--space-2) 0 0;
   font-size: 18px;
