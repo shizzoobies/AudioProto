@@ -1164,7 +1164,110 @@ textarea {
   letter-spacing: 0.02em;
 }
 
-/* Push-to-talk
+/* Phone status (continuous voice mode)
+   ------------------------------------------------------------------ */
+.phone-status {
+  padding: var(--space-5) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: center;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+
+.phone-status-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.phone-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phone-status-text {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.phone-status-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  min-height: 18px;
+}
+
+.phone-status[data-state="connecting"] .phone-status-dot {
+  background: var(--color-text-secondary);
+  animation: phone-pulse 1.2s ease-in-out infinite;
+}
+
+.phone-status[data-state="customer_talking"] {
+  border-color: rgba(245, 165, 36, 0.35);
+}
+.phone-status[data-state="customer_talking"] .phone-status-dot {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent-muted);
+  animation: phone-pulse 1s ease-in-out infinite;
+}
+
+.phone-status[data-state="your_turn"] {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.phone-status[data-state="your_turn"] .phone-status-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+.phone-status[data-state="listening"] {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(96, 165, 250, 0.06);
+}
+.phone-status[data-state="listening"] .phone-status-dot {
+  background: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18);
+  animation: phone-pulse 0.7s ease-in-out infinite;
+}
+
+.phone-status[data-state="processing"],
+.phone-status[data-state="thinking"] {
+  border-color: var(--color-border-strong);
+}
+.phone-status[data-state="processing"] .phone-status-dot,
+.phone-status[data-state="thinking"] .phone-status-dot {
+  background: var(--color-text-secondary);
+  animation: phone-pulse 1s ease-in-out infinite;
+}
+
+.phone-status[data-state="error"] {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: var(--color-danger-muted);
+}
+.phone-status[data-state="error"] .phone-status-dot {
+  background: var(--color-danger);
+}
+.phone-status[data-state="error"] .phone-status-text {
+  color: #fca5a5;
+}
+
+@keyframes phone-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.9); }
+}
+
+/* Push-to-talk (legacy, retained for any future PTT use)
    ------------------------------------------------------------------ */
 .ptt-button {
   position: relative;
