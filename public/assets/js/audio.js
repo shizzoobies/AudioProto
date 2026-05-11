@@ -135,11 +135,10 @@ export class AudioPlayer {
   }
 }
 
-export function attachVisualizer(canvas, getAnalyser, { barCount = 32, color = '#f5a524' } = {}) {
-  let analyser = null;
+export function attachVisualizer(canvas, getAnalyser, { barCount = 32, color = '#f5a524', getColor } = {}) {
   const ctx = canvas.getContext('2d');
   let rafId = null;
-  const data = new Uint8Array(64);
+  const fallback = new Uint8Array(64);
 
   const dpr = window.devicePixelRatio || 1;
   function resize() {
@@ -157,16 +156,17 @@ export function attachVisualizer(canvas, getAnalyser, { barCount = 32, color = '
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    if (!analyser) {
-      try {
-        analyser = getAnalyser();
-      } catch {
-        analyser = null;
-      }
+    let analyser = null;
+    try {
+      analyser = getAnalyser();
+    } catch {
+      analyser = null;
     }
 
-    const freq = new Uint8Array(analyser ? analyser.frequencyBinCount : data.length);
+    const freq = analyser ? new Uint8Array(analyser.frequencyBinCount) : fallback;
     if (analyser) analyser.getByteFrequencyData(freq);
+
+    const currentColor = (typeof getColor === 'function' ? getColor() : null) || color;
 
     const gap = 3 * dpr;
     const barW = Math.max(1, (w - gap * (barCount - 1)) / barCount);
@@ -178,7 +178,7 @@ export function attachVisualizer(canvas, getAnalyser, { barCount = 32, color = '
       const barH = Math.max(minBar, v * h * 0.95);
       const x = i * (barW + gap);
       const y = (h - barH) / 2;
-      ctx.fillStyle = color;
+      ctx.fillStyle = currentColor;
       ctx.globalAlpha = 0.25 + v * 0.75;
       const radius = Math.min(barW / 2, 2 * dpr);
       roundedRect(ctx, x, y, barW, barH, radius);
@@ -233,10 +233,17 @@ export class MicRecorder {
     this.recorder = null;
     this.chunks = [];
     this.mimeType = null;
+    this.audioContext = null;
+    this.sourceNode = null;
+    this.analyser = null;
   }
 
   isRecording() {
     return !!this.recorder && this.recorder.state === 'recording';
+  }
+
+  getAnalyser() {
+    return this.analyser;
   }
 
   async start() {
@@ -268,6 +275,22 @@ export class MicRecorder {
     this.recorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) this.chunks.push(e.data);
     };
+
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        this.audioContext = new Ctx();
+        if (this.audioContext.state === 'suspended') this.audioContext.resume().catch(() => {});
+        this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 128;
+        this.analyser.smoothingTimeConstant = 0.7;
+        this.sourceNode.connect(this.analyser);
+      }
+    } catch {
+      this.analyser = null;
+    }
+
     this.recorder.start();
   }
 
@@ -304,6 +327,15 @@ export class MicRecorder {
   }
 
   _cleanup() {
+    if (this.sourceNode) {
+      try { this.sourceNode.disconnect(); } catch {}
+      this.sourceNode = null;
+    }
+    if (this.audioContext) {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+    }
+    this.analyser = null;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.recorder = null;

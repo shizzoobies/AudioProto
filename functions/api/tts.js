@@ -4,6 +4,13 @@ const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
 const TTS_MODEL = 'eleven_turbo_v2_5';
 const TTS_OUTPUT = 'mp3_44100_128';
 
+const DEFAULT_VOICE_SETTINGS = {
+  stability: 0.45,
+  similarity_boost: 0.7,
+  style: 0.2,
+  use_speaker_boost: true,
+};
+
 export async function onRequestPost({ request, env }) {
   if (!env.ELEVENLABS_API_KEY) {
     return jsonError('elevenlabs_key_missing', 500);
@@ -21,11 +28,15 @@ export async function onRequestPost({ request, env }) {
   if (text.length > 1500) return jsonError('text_too_long', 400);
 
   let voiceId = null;
+  let voiceSettings = DEFAULT_VOICE_SETTINGS;
 
   if (body?.scenario_id) {
     const scenario = getScenario(body.scenario_id);
     if (!scenario) return jsonError('unknown_scenario', 400);
     voiceId = scenario.voice_id;
+    if (scenario.voice_settings) {
+      voiceSettings = { ...DEFAULT_VOICE_SETTINGS, ...scenario.voice_settings };
+    }
   } else if (typeof body?.voice_id === 'string') {
     if (!/^[A-Za-z0-9]{12,}$/.test(body.voice_id)) {
       return jsonError('invalid_voice_id', 400);
@@ -49,12 +60,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         text,
         model_id: TTS_MODEL,
-        voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.7,
-          style: 0.2,
-          use_speaker_boost: true,
-        },
+        voice_settings: voiceSettings,
       }),
     });
   } catch {

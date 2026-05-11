@@ -7,11 +7,11 @@ const RUBRIC_DISPLAY = [
   { key: 'resolution', label: 'Overall Resolution' },
 ];
 
-export async function requestCoachingReport(scenarioId, transcript) {
+export async function requestCoachingReport(scenarioId, transcript, openingLine) {
   const res = await fetch('/api/coach', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenario_id: scenarioId, transcript }),
+    body: JSON.stringify({ scenario_id: scenarioId, transcript, opening_line: openingLine }),
     credentials: 'same-origin',
   });
   if (!res.ok) {
@@ -31,10 +31,20 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
   const root = document.createElement('section');
   root.className = 'report';
 
+  const mood = sanitizeMood(report.final_mood);
+  const moodNote = (report.final_mood_note || '').trim();
+
   root.innerHTML = `
     <header class="report-header">
       <div class="report-scenario-tag">${escapeHtml(scenario.title)}</div>
       <h1 class="report-title">Coaching report</h1>
+      ${mood ? `
+        <div class="report-mood" data-mood="${mood}">
+          <span class="report-mood-dot" aria-hidden="true"></span>
+          <span class="report-mood-label">${escapeHtml(scenario.customer_name)} left the call <strong>${mood}</strong></span>
+          ${moodNote ? `<span class="report-mood-note">${escapeHtml(moodNote)}</span>` : ''}
+        </div>
+      ` : ''}
     </header>
 
     <div class="report-overall">
@@ -118,6 +128,13 @@ function paintScoreRing(ring, score) {
   const pct = ((clamped - 1) / 4) * 100;
   ring.style.setProperty('--ring-percent', `${pct}%`);
   ring.classList.add('animated');
+}
+
+const MOOD_VALUES = new Set(['satisfied', 'neutral', 'frustrated', 'unresolved', 'hostile']);
+function sanitizeMood(value) {
+  if (typeof value !== 'string') return '';
+  const v = value.toLowerCase().trim();
+  return MOOD_VALUES.has(v) ? v : '';
 }
 
 function clampScore(s) {

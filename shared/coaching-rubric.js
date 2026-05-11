@@ -14,6 +14,7 @@ Your job:
 - Be honest. Do not inflate scores. A 3 is fine. A 4 is good. A 5 is rare and earned.
 - Identify 2 to 4 strengths and 2 to 4 growth areas, each as a short concrete sentence.
 - End with the single most impactful thing the trainee should try next time, written in second person ("Try opening with...").
+- Capture the customer's emotional state at the moment the call ended, in two fields: a one-word mood label (one of satisfied, neutral, frustrated, unresolved, hostile) and a short one-sentence note explaining how the customer was feeling when the call wrapped up.
 
 Tone: warm, direct, specific. Not gushy. Not harsh. Talk to a colleague, not a child.
 
@@ -96,8 +97,17 @@ export const COACHING_TOOL = {
         type: 'string',
         description: "The single most impactful thing for the trainee to try next time, written in second person.",
       },
+      final_mood: {
+        type: 'string',
+        enum: ['satisfied', 'neutral', 'frustrated', 'unresolved', 'hostile'],
+        description: 'The customer\'s overall emotional state at the moment the call ended.',
+      },
+      final_mood_note: {
+        type: 'string',
+        description: 'One short sentence describing how the customer was feeling at the end of the call. No more than 12 words.',
+      },
     },
-    required: ['overall_score', 'scores', 'strengths', 'growth_areas', 'one_thing_to_try_next_time'],
+    required: ['overall_score', 'scores', 'strengths', 'growth_areas', 'one_thing_to_try_next_time', 'final_mood', 'final_mood_note'],
   },
 };
 

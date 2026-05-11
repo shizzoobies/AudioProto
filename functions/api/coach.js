@@ -27,7 +27,11 @@ export async function onRequestPost({ request, env }) {
     return jsonError('transcript_too_short', 400);
   }
 
-  const userPrompt = buildUserPrompt(scenario, transcript);
+  const openingLine = typeof body?.opening_line === 'string' && body.opening_line.trim()
+    ? body.opening_line.trim().slice(0, 600)
+    : (scenario.opening_lines?.[0] || scenario.opening_line || '');
+
+  const userPrompt = buildUserPrompt(scenario, transcript, openingLine);
 
   let upstream;
   try {
@@ -93,13 +97,13 @@ function sanitizeTranscript(transcript) {
   return out.slice(-80);
 }
 
-function buildUserPrompt(scenario, transcript) {
+function buildUserPrompt(scenario, transcript, openingLine) {
   const criteria = (scenario.success_criteria || [])
     .map((c, i) => `${i + 1}. ${c}`)
     .join('\n');
 
   const lines = [];
-  lines.push(`[Customer opening] ${scenario.customer_name}: ${scenario.opening_line}`);
+  lines.push(`[Customer opening] ${scenario.customer_name}: ${openingLine}`);
   for (const m of transcript) {
     const speaker = m.role === 'assistant' ? `${scenario.customer_name}` : 'Agent';
     lines.push(`[${speaker}] ${m.content}`);

@@ -180,10 +180,14 @@ function renderPicker() {
 }
 
 function startCall(scenarioId) {
-  const scenario = state.scenarioById.get(scenarioId);
-  if (!scenario) return;
-  state.activeScenario = scenario;
-  renderCall(scenario);
+  const base = state.scenarioById.get(scenarioId);
+  if (!base) return;
+  const lines = Array.isArray(base.opening_lines) && base.opening_lines.length
+    ? base.opening_lines
+    : [base.opening_line || ''];
+  const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
+  state.activeScenario = { ...base, opening_line: chosen };
+  renderCall(state.activeScenario);
 }
 
 function renderCall(scenario) {
@@ -269,7 +273,18 @@ function renderCall(scenario) {
   audioPlayer.setMuted(state.audioMuted);
   updateMuteUI();
 
-  state.visualizerCleanup = attachVisualizer(visualizerCanvas, () => audioPlayer.getAnalyser());
+  state.visualizerCleanup = attachVisualizer(
+    visualizerCanvas,
+    () => {
+      if (state.micRecorder?.isRecording()) {
+        return state.micRecorder.getAnalyser();
+      }
+      return audioPlayer.getAnalyser();
+    },
+    {
+      getColor: () => state.micRecorder?.isRecording() ? '#60a5fa' : '#f5a524',
+    }
+  );
 
   muteToggle.addEventListener('click', () => {
     state.audioMuted = !state.audioMuted;
@@ -434,6 +449,8 @@ function renderCall(scenario) {
       pttButton.dataset.state = 'recording';
       pttButton.querySelector('.ptt-label').textContent = 'Listening...';
       setStatus('Recording. Release to send.');
+      visualizerWrap.dataset.active = 'true';
+      visualizerWrap.dataset.source = 'mic';
     } catch (err) {
       if (err.message === 'mic_denied') {
         state.micDenied = true;
@@ -456,6 +473,8 @@ function renderCall(scenario) {
     pttButton.dataset.state = 'transcribing';
     pttButton.querySelector('.ptt-label').textContent = 'Transcribing...';
     setStatus('Transcribing...');
+    visualizerWrap.dataset.active = audioPlayer.playing ? 'true' : 'false';
+    visualizerWrap.dataset.source = 'tts';
     let blob;
     try {
       blob = await state.micRecorder.stop();
@@ -503,6 +522,8 @@ function renderCall(scenario) {
       state.micRecorder = null;
     }
     recordingActive = false;
+    visualizerWrap.dataset.active = audioPlayer.playing ? 'true' : 'false';
+    visualizerWrap.dataset.source = 'tts';
     resetPttButton();
     setStatus('');
   }
@@ -569,7 +590,7 @@ async function runCoaching(scenario, messages) {
   renderAnalyzing(scenario);
 
   try {
-    const report = await requestCoachingReport(scenario.id, messages);
+    const report = await requestCoachingReport(scenario.id, messages, scenario.opening_line);
     renderReport(scenario, report);
   } catch (err) {
     renderCoachingError(scenario, messages, err);
