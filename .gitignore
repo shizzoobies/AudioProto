@@ -11,3 +11,7 @@ node_modules/
 .omc/
 .claude/
 
+# Playwright + test artifacts
+.playwright-mcp/
+phase*-*.png
+

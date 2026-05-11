@@ -1,8 +1,0 @@
-- main "Call Simulator" [ref=e2]:
-  - heading "Call Simulator" [level=1] [ref=e4]
-  - paragraph [ref=e5]: Enter the access password to continue.
-  - generic [ref=e6]:
-    - generic [ref=e7]: Password
-    - textbox "Password" [active] [ref=e8]
-    - button "Continue" [ref=e9] [cursor=pointer]
-    - alert [ref=e10]

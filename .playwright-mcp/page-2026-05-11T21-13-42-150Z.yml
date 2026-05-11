@@ -1,6 +1,0 @@
-- generic [active] [ref=e1]:
-  - banner [ref=e2]:
-    - generic [ref=e3]: Call Simulator
-    - button "Sign out" [ref=e5] [cursor=pointer]
-  - main [ref=e6]:
-    - generic [ref=e7]: Checking session...
