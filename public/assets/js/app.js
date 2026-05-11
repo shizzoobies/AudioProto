@@ -371,35 +371,63 @@ function renderCall(scenario) {
         </div>
         <button class="danger-button" id="end-call" type="button">End call</button>
       </header>
-      ${isPhone ? `
-      <div class="visualizer-wrap" id="visualizer-wrap" data-active="false">
-        <canvas class="visualizer" id="visualizer"></canvas>
-      </div>
-      ` : ''}
-      <ol class="transcript" id="transcript" aria-live="polite"></ol>
-      ${isPhone ? `
-      <div class="phone-status" id="phone-status" data-state="connecting">
-        <div class="phone-status-row">
-          <span class="phone-status-dot" aria-hidden="true"></span>
-          <span class="phone-status-text" id="phone-status-text">Connecting...</span>
+      <div class="call-body">
+        <div class="call-main">
+          ${isPhone ? `
+          <div class="visualizer-wrap" id="visualizer-wrap" data-active="false">
+            <canvas class="visualizer" id="visualizer"></canvas>
+          </div>
+          ` : ''}
+          <ol class="transcript" id="transcript" aria-live="polite"></ol>
+          ${isPhone ? `
+          <div class="phone-status" id="phone-status" data-state="connecting">
+            <div class="phone-status-row">
+              <span class="phone-status-dot" aria-hidden="true"></span>
+              <span class="phone-status-text" id="phone-status-text">Connecting...</span>
+            </div>
+            <p class="phone-status-hint" id="phone-status-hint">When the customer finishes, just talk. Pause for a beat and your reply sends.</p>
+          </div>
+          ` : `
+          <div class="composer-wrap" id="composer-wrap" data-mode="text">
+            <form class="composer" id="composer" autocomplete="off">
+              <label class="visually-hidden" for="composer-input">Your message</label>
+              <textarea
+                id="composer-input"
+                class="composer-input"
+                placeholder="${escapeAttr(placeholder)}"
+                rows="2"
+              ></textarea>
+              <button type="submit" class="composer-send" id="composer-send">Send</button>
+            </form>
+            <p class="composer-status" id="composer-status" aria-live="polite"></p>
+          </div>
+          `}
         </div>
-        <p class="phone-status-hint" id="phone-status-hint">When the customer finishes, just talk. Pause for a beat and your reply sends.</p>
+        <aside class="crm-panel" id="crm-panel" aria-label="Customer lookup">
+          <header class="crm-header">
+            <div class="crm-eyebrow">Meridian CSR</div>
+            <div class="crm-title">Customer Lookup</div>
+          </header>
+          <form class="crm-form" id="crm-form" autocomplete="off">
+            <label class="crm-field">
+              <span class="crm-field-label">Phone</span>
+              <input class="crm-input" id="crm-phone" type="tel" placeholder="555-123-4567">
+            </label>
+            <label class="crm-field">
+              <span class="crm-field-label">Email</span>
+              <input class="crm-input" id="crm-email" type="text" inputmode="email" placeholder="name@example.com">
+            </label>
+            <label class="crm-field">
+              <span class="crm-field-label">Last name</span>
+              <input class="crm-input" id="crm-name" type="text" placeholder="Chen">
+            </label>
+            <button type="submit" class="crm-submit">Search</button>
+          </form>
+          <div class="crm-result" id="crm-result" data-state="empty">
+            <p class="crm-empty">Enter phone, email, or last name to look up the caller. Any one field works; partial matches are fine.</p>
+          </div>
+        </aside>
       </div>
-      ` : `
-      <div class="composer-wrap" id="composer-wrap" data-mode="text">
-        <form class="composer" id="composer" autocomplete="off">
-          <label class="visually-hidden" for="composer-input">Your message</label>
-          <textarea
-            id="composer-input"
-            class="composer-input"
-            placeholder="${escapeAttr(placeholder)}"
-            rows="2"
-          ></textarea>
-          <button type="submit" class="composer-send" id="composer-send">Send</button>
-        </form>
-        <p class="composer-status" id="composer-status" aria-live="polite"></p>
-      </div>
-      `}
     </section>
   `;
 
@@ -666,6 +694,131 @@ function renderCall(scenario) {
     composerInput.disabled = !enabled;
     composerSend.disabled = !enabled;
     composerSend.textContent = enabled ? 'Send' : 'Sending';
+  }
+
+  // ---- CRM lookup panel ----
+  const crmForm = document.getElementById('crm-form');
+  const crmPhone = document.getElementById('crm-phone');
+  const crmEmail = document.getElementById('crm-email');
+  const crmName = document.getElementById('crm-name');
+  const crmResult = document.getElementById('crm-result');
+
+  crmForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const query = {
+      phone: crmPhone.value,
+      email: crmEmail.value,
+      name: crmName.value,
+    };
+    if (!query.phone.trim() && !query.email.trim() && !query.name.trim()) {
+      renderCrmEmpty('Enter at least one field to search.');
+      return;
+    }
+    const record = scenario.customer_record;
+    const match = matchCustomerRecord(record, query);
+    if (match) {
+      renderCrmCard(record);
+    } else if (record && record.found === false) {
+      renderCrmNotFound(record.notes, true);
+    } else {
+      renderCrmNotFound('No customer matches those details. Ask the caller to confirm their info.', false);
+    }
+  });
+
+  function renderCrmEmpty(text) {
+    crmResult.dataset.state = 'empty';
+    crmResult.innerHTML = `<p class="crm-empty">${escapeHtml(text)}</p>`;
+  }
+
+  function renderCrmNotFound(notes, isProspect) {
+    crmResult.dataset.state = isProspect ? 'prospect' : 'notfound';
+    crmResult.innerHTML = `
+      <div class="crm-card crm-card-empty">
+        <div class="crm-card-status">${isProspect ? 'New prospect' : 'No match'}</div>
+        <p class="crm-card-blurb">${escapeHtml(notes || (isProspect ? 'No record in the system.' : 'No customer matched those details.'))}</p>
+      </div>
+    `;
+  }
+
+  function renderCrmCard(r) {
+    crmResult.dataset.state = 'found';
+    const past = (r.past_rentals || []);
+    const reservations = (r.active_reservations || []);
+    const claims = (r.claims_cases || []);
+    crmResult.innerHTML = `
+      <div class="crm-card">
+        <div class="crm-card-status crm-card-status-found">Record found</div>
+        <div class="crm-section">
+          <div class="crm-section-title">Identity</div>
+          <dl class="crm-kv">
+            <div><dt>Name</dt><dd>${escapeHtml(r.full_name)}</dd></div>
+            <div><dt>Phone</dt><dd class="mono">${escapeHtml(r.phone)}</dd></div>
+            <div><dt>Email</dt><dd class="mono">${escapeHtml(r.email)}</dd></div>
+            <div><dt>Account</dt><dd class="mono">${escapeHtml(r.account_id)}</dd></div>
+            <div><dt>Member since</dt><dd>${escapeHtml(String(r.member_since))}</dd></div>
+          </dl>
+        </div>
+        ${reservations.length ? `
+        <div class="crm-section crm-section-accent">
+          <div class="crm-section-title">Active reservations</div>
+          <ul class="crm-list">
+            ${reservations.map((res) => `
+              <li>
+                <div class="crm-list-head"><span class="mono">${escapeHtml(res.confirmation)}</span></div>
+                <div class="crm-list-body">${escapeHtml(res.truck)} · ${escapeHtml(res.location)} · ${escapeHtml(res.date)}</div>
+                <div class="crm-list-meta">${escapeHtml(res.total)} · <em>${escapeHtml(res.status)}</em></div>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+        ` : ''}
+        ${claims.length ? `
+        <div class="crm-section crm-section-warn">
+          <div class="crm-section-title">Open Claims cases</div>
+          <ul class="crm-list">
+            ${claims.map((c) => `
+              <li>
+                <div class="crm-list-head"><span class="mono">${escapeHtml(c.case_id)}</span> · <strong>${escapeHtml(c.amount)}</strong></div>
+                <div class="crm-list-body">${escapeHtml(c.description)}</div>
+                <div class="crm-list-meta">Opened ${escapeHtml(c.opened)} · <em>${escapeHtml(c.status)}</em></div>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+        ` : ''}
+        ${past.length ? `
+        <div class="crm-section">
+          <div class="crm-section-title">Past rentals (${past.length})</div>
+          <ul class="crm-list crm-list-compact">
+            ${past.map((p) => `
+              <li>
+                <span class="mono">${escapeHtml(p.date)}</span> · ${escapeHtml(p.truck)} · ${escapeHtml(p.location)} · ${escapeHtml(p.total)} · <em>${escapeHtml(p.status)}</em>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+        ` : ''}
+        ${r.notes ? `
+        <div class="crm-section crm-section-notes">
+          <div class="crm-section-title">Agent notes</div>
+          <p>${escapeHtml(r.notes)}</p>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function matchCustomerRecord(record, query) {
+    if (!record || record.found === false) return false;
+    const phoneDigits = (s) => String(s || '').replace(/\D/g, '');
+    const norm = (s) => String(s || '').toLowerCase().trim();
+    const qPhone = phoneDigits(query.phone);
+    const qEmail = norm(query.email);
+    const qName = norm(query.name);
+    if (qPhone && phoneDigits(record.phone).includes(qPhone) && qPhone.length >= 4) return true;
+    if (qEmail && norm(record.email).includes(qEmail) && qEmail.length >= 3) return true;
+    if (qName && norm(record.full_name).includes(qName) && qName.length >= 2) return true;
+    return false;
   }
 }
 

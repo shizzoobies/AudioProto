@@ -973,7 +973,315 @@ const PERSONA_DEFS = {
   },
 };
 
-// Build full persona records with system_prompt + id, keyed by id.
+// Customer record / "CRM" data — what the trainee sees when they look up the
+// caller in the Meridian CSR system. Some personas are returning customers
+// with full histories; others are new prospects with no record.
+
+const CUSTOMER_RECORDS = {
+  lost_reservation_marcus: {
+    found: true,
+    full_name: 'Marcus Chen',
+    phone: '512-334-7821',
+    email: 'marcus.chen.dev@gmail.com',
+    account_id: 'MER-294781',
+    member_since: 2019,
+    past_rentals: [
+      { date: '2022-04-12', truck: '15ft', location: 'Mueller', total: '$89.32', status: 'completed' },
+      { date: '2021-08-21', truck: '10ft', location: 'Downtown', total: '$58.20', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'Three-time customer. No prior issues. Reservation MR-7821 for 09:00 today is NOT appearing in the system.',
+  },
+  lost_reservation_tanya: {
+    found: true,
+    full_name: 'Tanya Brooks',
+    phone: '440-228-9015',
+    email: 'tbrooks78@yahoo.com',
+    account_id: 'MER-118334',
+    member_since: 2024,
+    past_rentals: [
+      { date: '2024-11-09', truck: '10ft', location: 'Lakewood', total: '$62.05', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'First-year customer. Reservation MR-9015 for 11:00 today is NOT in the system. No prepayment on file.',
+  },
+  lost_reservation_robert: {
+    found: true,
+    full_name: 'Robert Hensley',
+    phone: '703-555-0148',
+    email: 'r.hensley.usaf@gmail.com',
+    account_id: 'MER-006219',
+    member_since: 2014,
+    past_rentals: [
+      { date: '2023-06-04', truck: '20ft', location: 'Alexandria', total: '$148.10', status: 'completed' },
+      { date: '2019-09-15', truck: '15ft', location: 'Alexandria', total: '$94.20', status: 'completed' },
+      { date: '2015-05-22', truck: '15ft', location: 'Reston', total: '$87.00', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'Veteran. Long-time customer. Reservation MR-2206-26FT for 07:00 today at Riverside is NOT in the system.',
+  },
+  lost_reservation_cesar: {
+    found: true,
+    full_name: 'Cesar Diaz',
+    phone: '305-441-2237',
+    email: 'cesar.j.diaz@outlook.com',
+    account_id: 'MER-409102',
+    member_since: 2024,
+    past_rentals: [],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'Created account online last week. Reservation MR-DIAZ-15 at West Bay not appearing today.',
+  },
+  lost_reservation_patel: {
+    found: true,
+    full_name: 'Anjali Patel',
+    phone: '617-559-8404',
+    email: 'a.patel@medical-group.org',
+    account_id: 'MER-227715',
+    member_since: 2022,
+    past_rentals: [
+      { date: '2024-05-30', truck: '15ft', location: 'Maple', total: '$112.40', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'Doctor. Reservation MR-PATEL-0600 at Maple for 06:00 today is NOT in the system.',
+  },
+
+  price_shopper_diane: {
+    found: false,
+    notes: 'No customer record. Treat as new prospect; collect lead details if she books.',
+  },
+  price_shopper_trevor: {
+    found: true,
+    full_name: 'Trevor Whitlock',
+    phone: '415-200-0911',
+    email: 'trevor@stacklab.io',
+    account_id: 'MER-552003',
+    member_since: 2023,
+    past_rentals: [
+      { date: '2024-02-18', truck: '20ft', location: 'SoMa', total: '$165.20', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'Tech founder. Past rental came in with no issues. Time-sensitive caller.',
+  },
+  price_shopper_linda: {
+    found: false,
+    notes: 'No customer record. New prospect downsizing into a smaller place.',
+  },
+  price_shopper_marcusw: {
+    found: false,
+    notes: 'No customer record. First-time homebuyer researching options.',
+  },
+  price_shopper_greta: {
+    found: true,
+    full_name: 'Greta Köhler',
+    phone: '503-771-0419',
+    email: 'greta@kohlersflowers.com',
+    account_id: 'MER-330872',
+    member_since: 2015,
+    past_rentals: [
+      { date: '2015-03-04', truck: '15ft', location: 'Pearl District', total: '$102.40', status: 'completed (damage claim filed - resolved in customer favor)' },
+    ],
+    active_reservations: [],
+    claims_cases: [],
+    notes: 'Floral shop owner. One past rental in 2015 ended in a damage claim that was resolved in her favor. Be precise with her.',
+  },
+
+  first_time_mover_jordan: {
+    found: false,
+    notes: 'No customer record. New customer; first move.',
+  },
+  first_time_mover_riya: {
+    found: false,
+    notes: 'No customer record. College student; mother is in the room with her on the call.',
+  },
+  first_time_mover_tomas: {
+    found: false,
+    notes: 'No customer record. New customer; recent immigrant, second-language English speaker.',
+  },
+  first_time_mover_maddie: {
+    found: false,
+    notes: 'No customer record. New customer; sensitive personal context (recent divorce).',
+  },
+  first_time_mover_brandon: {
+    found: false,
+    notes: 'No customer record. New customer; out of his depth on logistics.',
+  },
+
+  damage_dispute_karen: {
+    found: true,
+    full_name: 'Karen Walsh',
+    phone: '216-557-0083',
+    email: 'kwalsh.dentaloh@gmail.com',
+    account_id: 'MER-091844',
+    member_since: 2018,
+    past_rentals: [
+      { date: '2026-05-04', truck: '20ft', location: 'Akron', total: '$214.80', status: 'returned' },
+      { date: '2024-07-19', truck: '15ft', location: 'Cleveland', total: '$98.60', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [
+      { case_id: 'CLM-2026-7732', opened: '2026-05-11', amount: '$487.00', description: 'Dent on lower-left cargo door noted at return; not noted at pickup.', status: 'pending charge' },
+    ],
+    notes: 'Dental practice office manager. Returning customer. Active Claims case pending.',
+  },
+  damage_dispute_vincent: {
+    found: true,
+    full_name: 'Vincent Russo',
+    phone: '513-220-7714',
+    email: 'vincent.russo.contracting@gmail.com',
+    account_id: 'MER-004488',
+    member_since: 2011,
+    past_rentals: [
+      { date: '2026-05-07', truck: '26ft', location: 'Norwood', total: '$284.10', status: 'returned' },
+      { date: '2024-09-12', truck: '20ft', location: 'Norwood', total: '$182.50', status: 'completed' },
+      { date: '2022-11-04', truck: '15ft', location: 'Norwood', total: '$112.00', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [
+      { case_id: 'CLM-2026-7780', opened: '2026-05-11', amount: '$612.00', description: 'Rear bumper deformation noted at return; not noted at pickup.', status: 'pending charge' },
+    ],
+    notes: 'Retired contractor. Long-time customer; no previous claims. Knows trucks.',
+  },
+  damage_dispute_aisha: {
+    found: true,
+    full_name: 'Aisha Coleman',
+    phone: '404-336-2241',
+    email: 'a.coleman@colemanlaw.com',
+    account_id: 'MER-178902',
+    member_since: 2020,
+    past_rentals: [
+      { date: '2026-05-04', truck: '15ft', location: 'Decatur', total: '$96.40', status: 'returned' },
+      { date: '2023-03-10', truck: '15ft', location: 'Decatur', total: '$88.20', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [
+      { case_id: 'CLM-2026-7795', opened: '2026-05-10', amount: '$385.00', description: 'Windshield chip noted at return; not noted at pickup.', status: 'pending charge' },
+    ],
+    notes: 'Attorney specializing in consumer matters. Will document everything.',
+  },
+  damage_dispute_donny: {
+    found: true,
+    full_name: 'Donald Tate',
+    phone: '602-887-0030',
+    email: 'd.tate1981@gmail.com',
+    account_id: 'MER-512277',
+    member_since: 2022,
+    past_rentals: [
+      { date: '2026-05-05', truck: '15ft', location: 'Glendale', total: '$104.60', status: 'returned' },
+      { date: '2023-08-14', truck: '10ft', location: 'Glendale', total: '$54.80', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [
+      { case_id: 'CLM-2026-7801', opened: '2026-05-11', amount: '$295.00', description: 'Interior cargo wall scuff noted at return; not noted at pickup.', status: 'pending charge' },
+    ],
+    notes: 'Returning customer. Recent rental tied to moving his mother into memory care.',
+  },
+  damage_dispute_margaret: {
+    found: true,
+    full_name: 'Margaret Ellsworth',
+    phone: '585-433-9912',
+    email: 'mellsworth1955@aol.com',
+    account_id: 'MER-027660',
+    member_since: 2013,
+    past_rentals: [
+      { date: '2026-05-04', truck: '20ft', location: 'Rochester', total: '$176.30', status: 'returned' },
+      { date: '2021-06-19', truck: '15ft', location: 'Rochester', total: '$94.10', status: 'completed' },
+      { date: '2017-04-08', truck: '10ft', location: 'Rochester', total: '$58.00', status: 'completed' },
+    ],
+    active_reservations: [],
+    claims_cases: [
+      { case_id: 'CLM-2026-7810', opened: '2026-05-08', amount: '$510.00', description: 'Side mirror crack noted at return; not noted at pickup.', status: 'pending charge' },
+    ],
+    notes: 'Retired hospice nurse. Long-time customer. Very thorough; has the dispute letter in front of her.',
+  },
+
+  upsell_priya: {
+    found: true,
+    full_name: 'Priya Bhatt',
+    phone: '650-441-0287',
+    email: 'priya.bhatt@design.io',
+    account_id: 'MER-682041',
+    member_since: 2024,
+    past_rentals: [],
+    active_reservations: [
+      { confirmation: 'MR-PRIYA-0800', truck: '10ft', location: 'Mountain View', date: 'tomorrow 08:00', total: '$32.45 (estimated)', status: 'confirmed (online booking)' },
+    ],
+    claims_cases: [],
+    notes: 'First Meridian rental. Online booking; no Meridian phone agent has spoken with her yet.',
+  },
+  upsell_connor: {
+    found: true,
+    full_name: 'Connor Reilly',
+    phone: '617-883-2200',
+    email: 'connor@cargoboi.show',
+    account_id: 'MER-741206',
+    member_since: 2025,
+    past_rentals: [
+      { date: '2025-11-02', truck: '10ft', location: 'Allston', total: '$48.20', status: 'completed' },
+    ],
+    active_reservations: [
+      { confirmation: 'MR-CONNOR-15', truck: '15ft', location: 'Allston', date: 'Friday 09:00', total: '$48.95 (estimated)', status: 'confirmed (online booking)' },
+    ],
+    claims_cases: [],
+    notes: 'Podcaster. One past 10ft rental in November.',
+  },
+  upsell_renee: {
+    found: true,
+    full_name: 'Renee Fletcher',
+    phone: '203-558-0190',
+    email: 'rfletcher.home@gmail.com',
+    account_id: 'MER-104882',
+    member_since: 2010,
+    past_rentals: [
+      { date: '2014-08-20', truck: '20ft', location: 'Stamford', total: '$184.60', status: 'completed' },
+    ],
+    active_reservations: [
+      { confirmation: 'MR-FLETCHER-10', truck: '10ft', location: 'Stamford', date: 'next Thursday 09:00', total: '$32.45 (estimated)', status: 'confirmed (online booking)' },
+    ],
+    claims_cases: [],
+    notes: 'Loyal customer (15+ years). One past 20ft rental in 2014. Downsizing from a 4-bedroom home.',
+  },
+  upsell_hunter: {
+    found: true,
+    full_name: 'Hunter Fields',
+    phone: '512-770-3322',
+    email: 'hunter@fieldsre.com',
+    account_id: 'MER-220019',
+    member_since: 2021,
+    past_rentals: [
+      { date: '2024-03-22', truck: '15ft', location: 'East Austin', total: '$94.10', status: 'completed' },
+      { date: '2022-10-14', truck: '10ft', location: 'East Austin', total: '$56.20', status: 'completed' },
+    ],
+    active_reservations: [
+      { confirmation: 'MR-FIELDS-15', truck: '15ft', location: 'East Austin', date: 'Sunday 10:00', total: '$48.95 (estimated)', status: 'confirmed (online booking)' },
+    ],
+    claims_cases: [],
+    notes: 'Realtor. Refers customers per his own claim. Two past rentals.',
+  },
+  upsell_joon: {
+    found: true,
+    full_name: 'Joon Park',
+    phone: '510-339-2284',
+    email: 'joonpark.edits@gmail.com',
+    account_id: 'MER-481057',
+    member_since: 2022,
+    past_rentals: [
+      { date: '2023-06-11', truck: '10ft', location: 'Oakland', total: '$58.20', status: 'completed' },
+    ],
+    active_reservations: [
+      { confirmation: 'MR-PARK-15', truck: '15ft', location: 'Oakland', date: 'end of month, 09:00', total: '$48.95 (estimated)', status: 'confirmed (online booking)' },
+    ],
+    claims_cases: [],
+    notes: 'Freelance video editor. Asked about insurance for electronics in transit.',
+  },
+};
+
+// Build full persona records with system_prompt + id + customer_record.
 export const SCENARIOS = Object.fromEntries(
   Object.entries(PERSONA_DEFS).map(([id, def]) => [
     id,
@@ -981,6 +1289,7 @@ export const SCENARIOS = Object.fromEntries(
       ...def,
       id,
       system_prompt: buildPersonaPrompt(def),
+      customer_record: CUSTOMER_RECORDS[id] || { found: false, notes: 'No record.' },
     },
   ])
 );
@@ -1068,6 +1377,7 @@ export function listScenarioTypesForDisplay() {
         customer_name: p.customer_name,
         customer_short: p.customer_short,
         opening_lines: p.opening_lines,
+        customer_record: p.customer_record,
       };
     }),
   }));
