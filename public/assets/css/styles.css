@@ -638,14 +638,164 @@ textarea {
 
 /* Composer
    ------------------------------------------------------------------ */
+.composer-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-self: flex-end;
+  padding: 2px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  gap: 0;
+}
+
+.mode-option {
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  font-family: inherit;
+}
+
+.mode-option:hover:not(.active) {
+  color: var(--color-text-secondary);
+}
+
+.mode-option.active {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
 .composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: var(--space-3);
   padding: var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  align-items: stretch;
+}
+
+.composer-wrap[data-mode="text"] .ptt-button {
+  display: none;
+}
+
+.composer-wrap[data-mode="voice"] .composer-input,
+.composer-wrap[data-mode="voice"] .composer-send {
+  display: none;
+}
+
+.composer-wrap[data-mode="voice"] .composer {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.composer-wrap[data-mode="voice"] .ptt-button {
+  width: 100%;
+  max-width: 240px;
+  height: 64px;
+  font-size: 14px;
+  padding: 0 var(--space-5);
+  justify-content: center;
+}
+
+.composer-wrap[data-mode="voice"] .ptt-label {
+  display: inline;
+}
+
+.composer-status {
+  margin: 0;
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* Push-to-talk
+   ------------------------------------------------------------------ */
+.ptt-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+  overflow: hidden;
+}
+
+.ptt-button:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.ptt-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.ptt-button[data-state="recording"] {
+  background: var(--color-danger-muted);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fecaca;
+}
+
+.ptt-button[data-state="transcribing"] {
+  background: var(--color-accent-muted);
+  border-color: rgba(245, 165, 36, 0.5);
+  color: var(--color-accent);
+}
+
+.ptt-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.ptt-label {
+  display: none;
+}
+
+.ptt-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  border: 2px solid var(--color-danger);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ptt-button[data-state="recording"] .ptt-pulse {
+  opacity: 1;
+  animation: ptt-pulse 1.2s ease-out infinite;
+}
+
+@keyframes ptt-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.05); opacity: 0; }
 }
 
 .composer-input {

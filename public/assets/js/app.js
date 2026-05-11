@@ -1,6 +1,6 @@
 import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
-import { AudioPlayer, attachVisualizer, synthesizeSentence } from './audio.js';
+import { AudioPlayer, attachVisualizer, synthesizeSentence, MicRecorder, transcribeAudio } from './audio.js';
 
 const state = {
   scenarios: [],
@@ -12,6 +12,10 @@ const state = {
   visualizerCleanup: null,
   audioMuted: false,
   ttsControllers: new Set(),
+  micRecorder: null,
+  micDenied: false,
+  inputMode: 'both',
+  pttKeyHandlers: null,
 };
 
 function teardownAudio() {
@@ -26,6 +30,15 @@ function teardownAudio() {
   if (state.audioPlayer) {
     state.audioPlayer.destroy();
     state.audioPlayer = null;
+  }
+  if (state.micRecorder) {
+    state.micRecorder.cancel();
+    state.micRecorder = null;
+  }
+  if (state.pttKeyHandlers) {
+    document.removeEventListener('keydown', state.pttKeyHandlers.down);
+    document.removeEventListener('keyup', state.pttKeyHandlers.up);
+    state.pttKeyHandlers = null;
   }
 }
 
@@ -162,16 +175,33 @@ function renderCall(scenario) {
         <canvas class="visualizer" id="visualizer"></canvas>
       </div>
       <ol class="transcript" id="transcript" aria-live="polite"></ol>
-      <form class="composer" id="composer" autocomplete="off">
-        <label class="visually-hidden" for="composer-input">Your message</label>
-        <textarea
-          id="composer-input"
-          class="composer-input"
-          placeholder="Type your response..."
-          rows="2"
-        ></textarea>
-        <button type="submit" class="composer-send" id="composer-send">Send</button>
-      </form>
+      <div class="composer-wrap" id="composer-wrap" data-mode="${escapeAttr(state.inputMode)}">
+        <div class="mode-toggle" role="radiogroup" aria-label="Input mode">
+          <button class="mode-option" data-mode="text" role="radio" aria-checked="${state.inputMode === 'text'}" type="button">Text</button>
+          <button class="mode-option" data-mode="both" role="radio" aria-checked="${state.inputMode === 'both'}" type="button">Both</button>
+          <button class="mode-option" data-mode="voice" role="radio" aria-checked="${state.inputMode === 'voice'}" type="button">Voice</button>
+        </div>
+        <form class="composer" id="composer" autocomplete="off">
+          <label class="visually-hidden" for="composer-input">Your message</label>
+          <textarea
+            id="composer-input"
+            class="composer-input"
+            placeholder="Type your response, or hold the mic to speak..."
+            rows="2"
+          ></textarea>
+          <button type="button" class="ptt-button" id="ptt-button" aria-label="Hold to talk" title="Hold to talk">
+            <svg class="ptt-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="12" rx="3" fill="currentColor"/>
+              <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span class="ptt-pulse" aria-hidden="true"></span>
+            <span class="ptt-label">Hold to talk</span>
+          </button>
+          <button type="submit" class="composer-send" id="composer-send">Send</button>
+        </form>
+        <p class="composer-status" id="composer-status" aria-live="polite"></p>
+      </div>
     </section>
   `;
 
@@ -185,8 +215,12 @@ function renderCall(scenario) {
   appendMessage(transcript, 'customer', scenario.customer_name, scenario.opening_line);
 
   const composer = document.getElementById('composer');
+  const composerWrap = document.getElementById('composer-wrap');
   const composerInput = document.getElementById('composer-input');
   const composerSend = document.getElementById('composer-send');
+  const composerStatus = document.getElementById('composer-status');
+  const pttButton = document.getElementById('ptt-button');
+  const modeButtons = composerWrap.querySelectorAll('.mode-option');
   const endCallBtn = document.getElementById('end-call');
   const backBtn = document.getElementById('call-back');
 
@@ -315,6 +349,170 @@ function renderCall(scenario) {
     teardownAudio();
     renderPicker();
   });
+
+  modeButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setInputMode(btn.dataset.mode);
+    });
+  });
+
+  function setInputMode(mode) {
+    if (!['text', 'voice', 'both'].includes(mode)) return;
+    state.inputMode = mode;
+    composerWrap.dataset.mode = mode;
+    modeButtons.forEach((b) => {
+      const active = b.dataset.mode === mode;
+      b.setAttribute('aria-checked', String(active));
+      b.classList.toggle('active', active);
+    });
+    if (mode === 'voice') {
+      composerInput.value = '';
+    }
+    if (mode !== 'text') {
+      composerInput.placeholder = 'Type, or hold the mic to speak...';
+    } else {
+      composerInput.placeholder = 'Type your response...';
+    }
+  }
+
+  setInputMode(state.inputMode);
+
+  let recordingActive = false;
+  let recordingCancelled = false;
+
+  async function startRecording() {
+    if (recordingActive) return;
+    if (state.micDenied) {
+      setStatus('Mic access was denied. Switch to Text mode or grant permission and reload.');
+      return;
+    }
+    if (conversation.isStreaming()) {
+      setStatus('Wait for the customer to finish before you talk.');
+      return;
+    }
+    try {
+      state.micRecorder = new MicRecorder();
+      await state.micRecorder.start();
+      recordingActive = true;
+      recordingCancelled = false;
+      pttButton.dataset.state = 'recording';
+      pttButton.querySelector('.ptt-label').textContent = 'Listening...';
+      setStatus('Recording. Release to send.');
+    } catch (err) {
+      if (err.message === 'mic_denied') {
+        state.micDenied = true;
+        setStatus('Mic access denied. Switching to Text mode.');
+        setInputMode('text');
+      } else if (err.message === 'mic_unsupported') {
+        setStatus('Your browser does not support mic input. Switching to Text mode.');
+        setInputMode('text');
+      } else {
+        setStatus(`Could not start the mic (${err.message || 'unknown'}).`);
+      }
+      state.micRecorder = null;
+      recordingActive = false;
+    }
+  }
+
+  async function stopRecording() {
+    if (!recordingActive || !state.micRecorder) return;
+    recordingActive = false;
+    pttButton.dataset.state = 'transcribing';
+    pttButton.querySelector('.ptt-label').textContent = 'Transcribing...';
+    setStatus('Transcribing...');
+    let blob;
+    try {
+      blob = await state.micRecorder.stop();
+    } catch (err) {
+      setStatus(`Recording stopped unexpectedly (${err.message || 'unknown'}).`);
+      resetPttButton();
+      state.micRecorder = null;
+      return;
+    }
+    state.micRecorder = null;
+    if (recordingCancelled || !blob || blob.size < 800) {
+      setStatus(recordingCancelled ? '' : 'That was too short to transcribe. Try holding a bit longer.');
+      resetPttButton();
+      return;
+    }
+    try {
+      const transcript = await transcribeAudio(blob);
+      if (!transcript) {
+        setStatus('We could not hear anything in that clip.');
+        resetPttButton();
+        return;
+      }
+      composerInput.value = transcript;
+      resetPttButton();
+      setStatus('');
+      // Auto-send after transcription
+      composer.requestSubmit();
+    } catch (err) {
+      setStatus(`Transcription failed (${err.message || 'unknown'}).`);
+      resetPttButton();
+    }
+  }
+
+  function cancelRecording() {
+    if (!recordingActive) return;
+    recordingCancelled = true;
+    if (state.micRecorder) {
+      state.micRecorder.cancel();
+      state.micRecorder = null;
+    }
+    recordingActive = false;
+    resetPttButton();
+    setStatus('');
+  }
+
+  function resetPttButton() {
+    pttButton.dataset.state = 'idle';
+    pttButton.querySelector('.ptt-label').textContent = 'Hold to talk';
+  }
+
+  function setStatus(text) {
+    composerStatus.textContent = text || '';
+  }
+
+  // PTT: mouse + touch + keyboard (Space)
+  pttButton.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    pttButton.setPointerCapture?.(e.pointerId);
+    startRecording();
+  });
+  pttButton.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    pttButton.releasePointerCapture?.(e.pointerId);
+    stopRecording();
+  });
+  pttButton.addEventListener('pointercancel', () => cancelRecording());
+  pttButton.addEventListener('pointerleave', (e) => {
+    if (recordingActive && !pttButton.hasPointerCapture?.(e.pointerId)) {
+      // pointer dragged off without capture; let pointerup still handle it
+    }
+  });
+  pttButton.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  state.pttKeyHandlers = { down: pttKeyHandler, up: pttKeyUpHandler };
+  document.addEventListener('keydown', pttKeyHandler);
+  document.addEventListener('keyup', pttKeyUpHandler);
+
+  function pttKeyHandler(e) {
+    if (state.view !== 'call') return;
+    if (e.code !== 'Space') return;
+    if (state.inputMode === 'text') return;
+    if (document.activeElement === composerInput) return;
+    if (e.repeat) return;
+    e.preventDefault();
+    startRecording();
+  }
+  function pttKeyUpHandler(e) {
+    if (e.code !== 'Space') return;
+    if (state.view !== 'call') return;
+    if (!recordingActive) return;
+    e.preventDefault();
+    stopRecording();
+  }
 
   function setComposerEnabled(enabled) {
     composerInput.disabled = !enabled;

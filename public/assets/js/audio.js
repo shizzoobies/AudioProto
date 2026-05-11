@@ -226,3 +226,112 @@ export async function synthesizeSentence({ scenarioId, text, signal }) {
   }
   return res.blob();
 }
+
+export class MicRecorder {
+  constructor() {
+    this.stream = null;
+    this.recorder = null;
+    this.chunks = [];
+    this.mimeType = null;
+  }
+
+  isRecording() {
+    return !!this.recorder && this.recorder.state === 'recording';
+  }
+
+  async start() {
+    if (this.recorder) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('mic_unsupported');
+    }
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      throw new Error(err?.name === 'NotAllowedError' ? 'mic_denied' : 'mic_unavailable');
+    }
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ];
+    let mimeType = '';
+    for (const c of candidates) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(c)) {
+        mimeType = c;
+        break;
+      }
+    }
+    this.mimeType = mimeType || '';
+    this.recorder = mimeType ? new MediaRecorder(this.stream, { mimeType }) : new MediaRecorder(this.stream);
+    this.chunks = [];
+    this.recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) this.chunks.push(e.data);
+    };
+    this.recorder.start();
+  }
+
+  async stop() {
+    if (!this.recorder) return null;
+    if (this.recorder.state === 'inactive') {
+      this._cleanup();
+      return null;
+    }
+    return new Promise((resolve) => {
+      const finalize = () => {
+        const type = this.recorder?.mimeType || this.mimeType || 'audio/webm';
+        const blob = new Blob(this.chunks, { type });
+        this._cleanup();
+        resolve(blob);
+      };
+      this.recorder.onstop = finalize;
+      try {
+        this.recorder.stop();
+      } catch {
+        finalize();
+      }
+    });
+  }
+
+  cancel() {
+    if (this.recorder && this.recorder.state !== 'inactive') {
+      try {
+        this.recorder.onstop = null;
+        this.recorder.stop();
+      } catch {}
+    }
+    this._cleanup();
+  }
+
+  _cleanup() {
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
+    this.recorder = null;
+    this.chunks = [];
+  }
+}
+
+export async function transcribeAudio(blob, { signal } = {}) {
+  if (!blob || blob.size === 0) {
+    throw new Error('empty_recording');
+  }
+  const form = new FormData();
+  const ext = (blob.type.split(';')[0] || '').split('/')[1] || 'webm';
+  form.append('audio', blob, `recording.${ext}`);
+  const res = await fetch('/api/stt', {
+    method: 'POST',
+    body: form,
+    credentials: 'same-origin',
+    signal,
+  });
+  if (!res.ok) {
+    let detail = `http_${res.status}`;
+    try {
+      const data = await res.json();
+      if (data?.error) detail = data.error;
+    } catch {}
+    throw new Error(detail);
+  }
+  const data = await res.json();
+  return data?.transcript || '';
+}
