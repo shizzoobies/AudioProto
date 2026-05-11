@@ -1,11 +1,14 @@
-import { listScenariosForDisplay } from '../../shared/scenarios.js';
+import { listScenarioTypesForDisplay } from '../../shared/scenarios.js';
 
 export async function onRequestGet() {
-  return new Response(JSON.stringify({ scenarios: listScenariosForDisplay() }), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'private, max-age=60',
-    },
-  });
+  return new Response(
+    JSON.stringify({ scenario_types: listScenarioTypesForDisplay() }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+    }
+  );
 }

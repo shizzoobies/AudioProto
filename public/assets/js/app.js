@@ -3,8 +3,10 @@ import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, MicRecorder, transcribeAudio } from './audio.js';
 
 const state = {
-  scenarios: [],
-  scenarioById: new Map(),
+  scenarioTypes: [],
+  typeById: new Map(),
+  personaById: new Map(),
+  allPersonaIds: [],
   view: 'picker',
   activeScenario: null,
   conversation: null,
@@ -18,6 +20,7 @@ const state = {
   pttKeyHandlers: null,
   sttController: null,
   callMode: 'phone',
+  silenceTimer: null,
 };
 
 function setCallMode(mode) {
@@ -33,6 +36,10 @@ function setCallMode(mode) {
 }
 
 function teardownAudio() {
+  if (state.silenceTimer) {
+    clearTimeout(state.silenceTimer);
+    state.silenceTimer = null;
+  }
   for (const c of state.ttsControllers) {
     try { c.abort(); } catch {}
   }
@@ -83,8 +90,17 @@ async function init() {
     const res = await fetch('/api/scenarios', { credentials: 'same-origin' });
     if (!res.ok) throw new Error('scenarios_failed');
     const data = await res.json();
-    state.scenarios = data.scenarios || [];
-    state.scenarioById = new Map(state.scenarios.map((s) => [s.id, s]));
+    state.scenarioTypes = data.scenario_types || [];
+    state.typeById = new Map(state.scenarioTypes.map((t) => [t.id, t]));
+    state.personaById = new Map();
+    state.allPersonaIds = [];
+    for (const t of state.scenarioTypes) {
+      for (const p of t.personas || []) {
+        const enriched = { ...p, type_id: t.id, type_title: t.title, difficulty: t.difficulty };
+        state.personaById.set(p.id, enriched);
+        state.allPersonaIds.push(p.id);
+      }
+    }
   } catch (err) {
     document.body.dataset.appState = 'ready';
     renderError('We could not load the scenarios. Refresh to try again.');
@@ -229,14 +245,14 @@ function renderPicker() {
   }
   teardownAudio();
 
-  const cards = state.scenarios
+  const cards = state.scenarioTypes
     .map(
-      (s) => `
-      <li class="scenario-card" data-scenario-id="${escapeAttr(s.id)}" tabindex="0" role="button" aria-label="Start scenario: ${escapeAttr(s.title)}">
-        <div class="scenario-difficulty difficulty-${escapeAttr(s.difficulty)}">${capitalize(s.difficulty)}</div>
-        <h2 class="scenario-title">${escapeHtml(s.title)}</h2>
-        <p class="scenario-customer">${escapeHtml(s.customer_short)}</p>
-        <p class="scenario-description">${escapeHtml(s.description)}</p>
+      (t) => `
+      <li class="scenario-card" data-scenario-id="${escapeAttr(t.id)}" tabindex="0" role="button" aria-label="Start scenario: ${escapeAttr(t.title)}">
+        <div class="scenario-difficulty difficulty-${escapeAttr(t.difficulty)}">${capitalize(t.difficulty)}</div>
+        <h2 class="scenario-title">${escapeHtml(t.title)}</h2>
+        <p class="scenario-customer">${t.persona_count} different callers</p>
+        <p class="scenario-description">${escapeHtml(t.description)}</p>
         <div class="scenario-cta">Start call <span aria-hidden="true">›</span></div>
       </li>
     `
@@ -256,7 +272,7 @@ function renderPicker() {
       </div>
       <h2 class="scenario-title">Surprise me</h2>
       <p class="scenario-customer">Caller unknown</p>
-      <p class="scenario-description">Pick one of the five at random. You will not know who is on the line until you take the call.</p>
+      <p class="scenario-description">Pick one of the ${state.allPersonaIds.length} callers at random. You will not know who is on the line until you take the call.</p>
       <div class="scenario-cta">Take the call <span aria-hidden="true">›</span></div>
     </li>
   `;
@@ -292,22 +308,37 @@ function renderPicker() {
   });
 }
 
-function startCall(scenarioId) {
+function startCall(typeOrPersonaId) {
   let blind = false;
-  let resolvedId = scenarioId;
-  if (scenarioId === '__random__') {
+  let personaId = null;
+
+  if (typeOrPersonaId === '__random__') {
     blind = true;
-    const ids = state.scenarios.map((s) => s.id);
-    if (!ids.length) return;
-    resolvedId = ids[Math.floor(Math.random() * ids.length)];
+    if (!state.allPersonaIds.length) return;
+    personaId = state.allPersonaIds[Math.floor(Math.random() * state.allPersonaIds.length)];
+  } else if (state.typeById.has(typeOrPersonaId)) {
+    const type = state.typeById.get(typeOrPersonaId);
+    const pool = type.personas || [];
+    if (!pool.length) return;
+    personaId = pool[Math.floor(Math.random() * pool.length)].id;
+  } else if (state.personaById.has(typeOrPersonaId)) {
+    personaId = typeOrPersonaId;
+  } else {
+    return;
   }
-  const base = state.scenarioById.get(resolvedId);
-  if (!base) return;
-  const lines = Array.isArray(base.opening_lines) && base.opening_lines.length
-    ? base.opening_lines
-    : [base.opening_line || ''];
+
+  const persona = state.personaById.get(personaId);
+  if (!persona) return;
+  const lines = Array.isArray(persona.opening_lines) && persona.opening_lines.length
+    ? persona.opening_lines
+    : [persona.opening_line || ''];
   const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
-  state.activeScenario = { ...base, opening_line: chosen, blind };
+  state.activeScenario = {
+    ...persona,
+    title: persona.type_title,
+    opening_line: chosen,
+    blind,
+  };
   renderCall(state.activeScenario);
 }
 
@@ -447,11 +478,35 @@ function renderCall(scenario) {
     }
   };
 
+  const SILENCE_TIMEOUT_MS = 30000;
+
+  function armSilenceTimer() {
+    clearSilenceTimer();
+    state.silenceTimer = setTimeout(() => {
+      state.silenceTimer = null;
+      if (state.view !== 'call' || conversation.isStreaming()) return;
+      appendSilenceMarker(transcript);
+      conversation.sendUserMessage('[silence: 30s]');
+    }, SILENCE_TIMEOUT_MS);
+  }
+  function clearSilenceTimer() {
+    if (state.silenceTimer) {
+      clearTimeout(state.silenceTimer);
+      state.silenceTimer = null;
+    }
+  }
+
   const conversation = new Conversation({
     scenario,
-    onAssistantStart: () => startStreamingBubble(customerLabel),
+    onAssistantStart: () => {
+      clearSilenceTimer();
+      startStreamingBubble(customerLabel);
+    },
     onAssistantDelta: (text) => appendToStreamingBubble(text),
-    onAssistantEnd: () => endStreamingBubble(),
+    onAssistantEnd: () => {
+      endStreamingBubble();
+      armSilenceTimer();
+    },
     onSentence: (sentence) => speakSentence(sentence),
     onError: (err) => {
       endStreamingBubble();
@@ -472,6 +527,7 @@ function renderCall(scenario) {
     e.preventDefault();
     const text = composerInput.value;
     if (!text.trim() || conversation.isStreaming()) return;
+    clearSilenceTimer();
     appendMessage(transcript, 'agent', 'You', text);
     composerInput.value = '';
     setComposerEnabled(false);
@@ -482,6 +538,8 @@ function renderCall(scenario) {
       composerInput.focus();
     }
   });
+
+  composerInput.addEventListener('input', () => clearSilenceTimer());
 
   composerInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -632,6 +690,7 @@ function renderCall(scenario) {
   pttButton.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     pttButton.setPointerCapture?.(e.pointerId);
+    clearSilenceTimer();
     startRecording();
   });
   pttButton.addEventListener('pointerup', (e) => {
@@ -750,6 +809,15 @@ function appendMessage(transcript, kind, label, text) {
     <div class="message-bubble"></div>
   `;
   li.querySelector('.message-bubble').textContent = text;
+  transcript.appendChild(li);
+  transcript.scrollTop = transcript.scrollHeight;
+  return li;
+}
+
+function appendSilenceMarker(transcript) {
+  const li = document.createElement('li');
+  li.className = 'silence-marker';
+  li.textContent = '· silence on the line ·';
   transcript.appendChild(li);
   transcript.scrollTop = transcript.scrollHeight;
   return li;
