@@ -1,4 +1,5 @@
 import { Conversation } from './conversation.js';
+import { requestCoachingReport, renderReportHtml } from './coach.js';
 
 const state = {
   scenarios: [],
@@ -212,8 +213,13 @@ function renderCall(scenario) {
   });
 
   endCallBtn.addEventListener('click', () => {
+    const messages = conversation.getMessages();
     conversation.cancel();
-    renderEnded(scenario, conversation.getMessages());
+    if (messages.length < 2) {
+      renderShortCall(scenario);
+      return;
+    }
+    runCoaching(scenario, messages);
   });
 
   backBtn.addEventListener('click', () => {
@@ -228,20 +234,69 @@ function renderCall(scenario) {
   }
 }
 
-function renderEnded(scenario, _messages) {
-  state.view = 'ended';
+async function runCoaching(scenario, messages) {
+  state.view = 'analyzing';
+  renderAnalyzing(scenario);
 
+  try {
+    const report = await requestCoachingReport(scenario.id, messages);
+    renderReport(scenario, report);
+  } catch (err) {
+    renderCoachingError(scenario, messages, err);
+  }
+}
+
+function renderAnalyzing(scenario) {
+  dom.root.innerHTML = `
+    <section class="analyzing">
+      <div class="analyzing-ring" aria-hidden="true">
+        <div class="analyzing-ring-spin"></div>
+      </div>
+      <h1 class="analyzing-title">Analyzing your call...</h1>
+      <p class="analyzing-text">Reviewing the transcript with ${escapeHtml(scenario.customer_name)} and scoring against the rubric. This usually takes a few seconds.</p>
+    </section>
+  `;
+}
+
+function renderReport(scenario, report) {
+  state.view = 'report';
+  const node = renderReportHtml(scenario, report, {
+    onNewCall: renderPicker,
+    onRetry: () => startCall(scenario.id),
+  });
+  dom.root.replaceChildren(node);
+}
+
+function renderShortCall(scenario) {
+  state.view = 'ended';
   dom.root.innerHTML = `
     <section class="ended">
-      <h1 class="ended-title">Call ended.</h1>
-      <p class="ended-text">In Phase 3 this is where your coaching report will appear.</p>
+      <h1 class="ended-title">Call ended early.</h1>
+      <p class="ended-text">That call was a little too short to coach on. Try going at least a few exchanges before ending.</p>
       <div class="ended-actions">
-        <button class="primary-button" id="new-call" type="button">New call</button>
+        <button class="ghost-button" id="ended-back" type="button">Back to scenarios</button>
+        <button class="primary-button" id="ended-retry" type="button">Try ${escapeHtml(scenario.title)} again</button>
       </div>
     </section>
   `;
+  document.getElementById('ended-back').addEventListener('click', renderPicker);
+  document.getElementById('ended-retry').addEventListener('click', () => startCall(scenario.id));
+}
 
-  document.getElementById('new-call').addEventListener('click', renderPicker);
+function renderCoachingError(scenario, messages, err) {
+  state.view = 'coaching_error';
+  dom.root.innerHTML = `
+    <section class="ended">
+      <h1 class="ended-title">We could not finish the report.</h1>
+      <p class="ended-text">Something went wrong analyzing the call (${escapeHtml(err?.message || 'unknown error')}). Your transcript is still intact, so you can try generating the report again.</p>
+      <div class="ended-actions">
+        <button class="ghost-button" id="error-back" type="button">Back to scenarios</button>
+        <button class="primary-button" id="error-retry" type="button">Retry analysis</button>
+      </div>
+    </section>
+  `;
+  document.getElementById('error-back').addEventListener('click', renderPicker);
+  document.getElementById('error-retry').addEventListener('click', () => runCoaching(scenario, messages));
 }
 
 function appendMessage(transcript, kind, label, text) {
