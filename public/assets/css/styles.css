@@ -398,10 +398,126 @@ textarea {
   letter-spacing: -0.01em;
 }
 
-.welcome-grid {
+.welcome-section {
+  text-align: center;
+}
+
+.welcome-section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.welcome-section-sub {
+  margin: 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  max-width: 520px;
+}
+
+.welcome-modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+.mode-choice {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.mode-choice:hover,
+.mode-choice:focus-visible {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+  outline: none;
+}
+
+.mode-choice-phone:hover,
+.mode-choice-phone:focus-visible {
+  border-color: rgba(245, 165, 36, 0.45);
+}
+
+.mode-choice-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.mode-choice-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mode-choice-phone .mode-choice-icon {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.mode-choice:hover .mode-choice-icon {
+  color: var(--color-text-primary);
+}
+
+.mode-choice-phone:hover .mode-choice-icon {
+  color: var(--color-accent-hover);
+}
+
+.mode-choice-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.mode-choice-text {
+  margin: 0;
+  flex: 1;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.mode-choice-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.mode-choice-phone .mode-choice-cta {
+  color: var(--color-accent);
+}
+
+.mode-choice:hover .mode-choice-cta {
+  color: var(--color-text-primary);
+}
+
+.mode-choice-phone:hover .mode-choice-cta {
+  color: var(--color-accent-hover);
 }
 
 .mode-card {
@@ -469,7 +585,7 @@ textarea {
   .welcome-title {
     font-size: 36px;
   }
-  .welcome-grid {
+  .welcome-modes {
     grid-template-columns: 1fr;
   }
   .welcome-features {
@@ -488,6 +604,38 @@ textarea {
 .picker-header {
   margin-bottom: var(--space-6);
   max-width: 640px;
+}
+
+.picker-format-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+}
+
+.picker-format {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px 6px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.picker-format-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.picker-format-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
 .picker-title {
@@ -795,6 +943,20 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.call-mode-pill {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  border: 1px solid rgba(245, 165, 36, 0.25);
 }
 
 .transcript {

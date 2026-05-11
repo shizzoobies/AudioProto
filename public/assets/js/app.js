@@ -14,10 +14,23 @@ const state = {
   ttsControllers: new Set(),
   micRecorder: null,
   micDenied: false,
-  inputMode: 'both',
+  inputMode: 'voice',
   pttKeyHandlers: null,
   sttController: null,
+  callMode: 'phone',
 };
+
+function setCallMode(mode) {
+  if (mode === 'chat') {
+    state.callMode = 'chat';
+    state.inputMode = 'text';
+    state.audioMuted = true;
+  } else {
+    state.callMode = 'phone';
+    state.inputMode = 'voice';
+    state.audioMuted = false;
+  }
+}
 
 function teardownAudio() {
   for (const c of state.ttsControllers) {
@@ -109,7 +122,7 @@ function renderWelcome() {
         </li>
         <li>
           <strong>Streaming voice</strong>
-          Customers speak through your speakers as they think. You can speak back.
+          Phone-call mode runs voice both ways. Chat mode keeps it silent.
         </li>
         <li>
           <strong>Coaching report</strong>
@@ -117,81 +130,43 @@ function renderWelcome() {
         </li>
       </ul>
 
-      <div class="welcome-grid">
-        <div class="mode-card">
-          <div class="mode-card-label">Your side</div>
-          <h2 class="mode-card-title">How you respond</h2>
-          <div class="mode-toggle mode-toggle-large" role="radiogroup" aria-label="Your input mode" data-group="input">
-            <button class="mode-option" data-input-mode="text" role="radio" aria-checked="${state.inputMode === 'text'}" type="button">Type</button>
-            <button class="mode-option" data-input-mode="both" role="radio" aria-checked="${state.inputMode === 'both'}" type="button">Either</button>
-            <button class="mode-option" data-input-mode="voice" role="radio" aria-checked="${state.inputMode === 'voice'}" type="button">Speak</button>
-          </div>
-          <p class="mode-card-hint" id="welcome-input-hint"></p>
-        </div>
-
-        <div class="mode-card">
-          <div class="mode-card-label">Their side</div>
-          <h2 class="mode-card-title">How the customer responds</h2>
-          <div class="mode-toggle mode-toggle-large" role="radiogroup" aria-label="Customer voice" data-group="customer">
-            <button class="mode-option" data-customer-mode="voice" role="radio" aria-checked="${!state.audioMuted}" type="button">Voice</button>
-            <button class="mode-option" data-customer-mode="text" role="radio" aria-checked="${state.audioMuted}" type="button">Text only</button>
-          </div>
-          <p class="mode-card-hint" id="welcome-customer-hint"></p>
-        </div>
+      <div class="welcome-section">
+        <div class="welcome-section-eyebrow">Pick your format</div>
+        <p class="welcome-section-sub">Lock in how this call will run. Same as a real shift, you do not switch formats mid-call.</p>
       </div>
 
-      <div class="welcome-actions">
-        <button class="primary-button welcome-cta" id="welcome-start" type="button">Pick a scenario <span aria-hidden="true">›</span></button>
+      <div class="welcome-modes">
+        <button class="mode-choice" data-call-mode="chat" type="button">
+          <div class="mode-choice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 0 1-4.5-1.05L3 20l1.05-4.5A8.04 8.04 0 0 1 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 11h.01M12 11h.01M16 11h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="mode-choice-title">Chat</h3>
+          <p class="mode-choice-text">You type. The customer replies in text. Quiet, fast, no audio at all.</p>
+          <span class="mode-choice-cta">Start a chat call <span aria-hidden="true">›</span></span>
+        </button>
+        <button class="mode-choice mode-choice-phone" data-call-mode="phone" type="button">
+          <div class="mode-choice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="mode-choice-title">Phone call</h3>
+          <p class="mode-choice-text">Hold to talk. The customer speaks back through your speakers. Like the real thing.</p>
+          <span class="mode-choice-cta">Start a phone call <span aria-hidden="true">›</span></span>
+        </button>
       </div>
     </section>
   `;
 
-  const inputButtons = dom.root.querySelectorAll('[data-input-mode]');
-  const customerButtons = dom.root.querySelectorAll('[data-customer-mode]');
-  const inputHint = document.getElementById('welcome-input-hint');
-  const customerHint = document.getElementById('welcome-customer-hint');
-
-  const inputHints = {
-    text: 'You type. Fastest for quiet environments.',
-    both: 'Type or hold the mic. Mix as you go.',
-    voice: 'Hold to talk. Closest to a real phone call.',
-  };
-  const customerHints = {
-    voice: 'You will hear each customer through your speakers.',
-    text: 'The customer appears as text only. No audio.',
-  };
-
-  function refresh() {
-    inputButtons.forEach((b) => {
-      const active = b.dataset.inputMode === state.inputMode;
-      b.classList.toggle('active', active);
-      b.setAttribute('aria-checked', String(active));
-    });
-    customerButtons.forEach((b) => {
-      const isVoice = b.dataset.customerMode === 'voice';
-      const active = isVoice ? !state.audioMuted : state.audioMuted;
-      b.classList.toggle('active', active);
-      b.setAttribute('aria-checked', String(active));
-    });
-    inputHint.textContent = inputHints[state.inputMode] || '';
-    customerHint.textContent = customerHints[state.audioMuted ? 'text' : 'voice'];
-  }
-  refresh();
-
-  inputButtons.forEach((b) => {
-    b.addEventListener('click', () => {
-      state.inputMode = b.dataset.inputMode;
-      refresh();
+  dom.root.querySelectorAll('[data-call-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setCallMode(btn.dataset.callMode);
+      renderPicker();
     });
   });
-  customerButtons.forEach((b) => {
-    b.addEventListener('click', () => {
-      state.audioMuted = b.dataset.customerMode === 'text';
-      refresh();
-    });
-  });
-
-  document.getElementById('welcome-start').addEventListener('click', renderPicker);
 }
 
 function renderPickerSkeleton() {
@@ -286,15 +261,25 @@ function renderPicker() {
     </li>
   `;
 
+  const modeLabel = state.callMode === 'chat' ? 'Chat' : 'Phone call';
   dom.root.innerHTML = `
     <section class="picker">
       <header class="picker-header">
+        <div class="picker-format-row">
+          <div class="picker-format">
+            <span class="picker-format-label">Format</span>
+            <span class="picker-format-value">${escapeHtml(modeLabel)}</span>
+          </div>
+          <button class="ghost-button" id="picker-change-format" type="button">Change format</button>
+        </div>
         <h1 class="picker-title">Choose a scenario</h1>
         <p class="picker-subtitle">Each scenario is a different customer with a different problem. Pick one, or hit Surprise me to be tested cold.</p>
       </header>
       <ul class="scenario-grid">${cards}${randomCard}</ul>
     </section>
   `;
+
+  document.getElementById('picker-change-format').addEventListener('click', renderWelcome);
 
   dom.root.querySelectorAll('.scenario-card').forEach((card) => {
     card.addEventListener('click', () => startCall(card.dataset.scenarioId));
@@ -334,38 +319,36 @@ function renderCall(scenario) {
   const displayName = scenario.blind ? 'Caller' : scenario.customer_name;
   const displayTitle = scenario.blind ? 'Incoming call' : scenario.title;
 
+  const isPhone = state.callMode === 'phone';
+  const composerMode = state.inputMode;
+  const placeholder = isPhone
+    ? 'Hold the mic to talk to the customer.'
+    : 'Type your response...';
+  const modeBadge = isPhone ? 'Phone call' : 'Chat';
+
   dom.root.innerHTML = `
-    <section class="call">
+    <section class="call" data-call-mode="${escapeAttr(state.callMode)}">
       <header class="call-header">
         <button class="ghost-button call-back" id="call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
           <div class="call-customer-name">${escapeHtml(displayName)}</div>
-          <div class="call-scenario-title">${escapeHtml(displayTitle)}</div>
+          <div class="call-scenario-title">${escapeHtml(displayTitle)} <span class="call-mode-pill">${escapeHtml(modeBadge)}</span></div>
         </div>
-        <div class="call-actions">
-          <button class="ghost-button mute-toggle" id="mute-toggle" type="button" aria-pressed="false" title="Mute customer audio">
-            <span class="mute-icon mute-on" aria-hidden="true">●</span>
-            <span class="mute-label">Audio on</span>
-          </button>
-          <button class="danger-button" id="end-call" type="button">End call</button>
-        </div>
+        <button class="danger-button" id="end-call" type="button">End call</button>
       </header>
+      ${isPhone ? `
       <div class="visualizer-wrap" id="visualizer-wrap" data-active="false">
         <canvas class="visualizer" id="visualizer"></canvas>
       </div>
+      ` : ''}
       <ol class="transcript" id="transcript" aria-live="polite"></ol>
-      <div class="composer-wrap" id="composer-wrap" data-mode="${escapeAttr(state.inputMode)}">
-        <div class="mode-toggle" role="radiogroup" aria-label="Input mode">
-          <button class="mode-option" data-mode="text" role="radio" aria-checked="${state.inputMode === 'text'}" type="button">Text</button>
-          <button class="mode-option" data-mode="both" role="radio" aria-checked="${state.inputMode === 'both'}" type="button">Both</button>
-          <button class="mode-option" data-mode="voice" role="radio" aria-checked="${state.inputMode === 'voice'}" type="button">Voice</button>
-        </div>
+      <div class="composer-wrap" id="composer-wrap" data-mode="${escapeAttr(composerMode)}">
         <form class="composer" id="composer" autocomplete="off">
           <label class="visually-hidden" for="composer-input">Your message</label>
           <textarea
             id="composer-input"
             class="composer-input"
-            placeholder="Type your response, or hold the mic to speak..."
+            placeholder="${escapeAttr(placeholder)}"
             rows="2"
           ></textarea>
           <button type="button" class="ptt-button" id="ptt-button" aria-label="Hold to talk" title="Hold to talk">
@@ -387,9 +370,6 @@ function renderCall(scenario) {
   const transcript = document.getElementById('transcript');
   const visualizerWrap = document.getElementById('visualizer-wrap');
   const visualizerCanvas = document.getElementById('visualizer');
-  const muteToggle = document.getElementById('mute-toggle');
-  const muteLabel = muteToggle.querySelector('.mute-label');
-  const muteIcon = muteToggle.querySelector('.mute-icon');
 
   const customerLabel = scenario.blind ? 'Caller' : scenario.customer_name;
 
@@ -401,49 +381,34 @@ function renderCall(scenario) {
   const composerSend = document.getElementById('composer-send');
   const composerStatus = document.getElementById('composer-status');
   const pttButton = document.getElementById('ptt-button');
-  const modeButtons = composerWrap.querySelectorAll('.mode-option');
   const endCallBtn = document.getElementById('end-call');
   const backBtn = document.getElementById('call-back');
 
   const audioPlayer = new AudioPlayer({
-    onStart: () => visualizerWrap.dataset.active = 'true',
-    onEnd: () => visualizerWrap.dataset.active = 'false',
+    onStart: () => { if (visualizerWrap) visualizerWrap.dataset.active = 'true'; },
+    onEnd: () => { if (visualizerWrap) visualizerWrap.dataset.active = 'false'; },
     onError: (err) => console.warn('audio error', err),
   });
   state.audioPlayer = audioPlayer;
   audioPlayer.setMuted(state.audioMuted);
-  updateMuteUI();
 
-  state.visualizerCleanup = attachVisualizer(
-    visualizerCanvas,
-    () => {
-      if (state.micRecorder?.isRecording()) {
-        return state.micRecorder.getAnalyser();
+  if (visualizerCanvas) {
+    state.visualizerCleanup = attachVisualizer(
+      visualizerCanvas,
+      () => {
+        if (state.micRecorder?.isRecording()) {
+          return state.micRecorder.getAnalyser();
+        }
+        return audioPlayer.getAnalyser();
+      },
+      {
+        getColor: () => state.micRecorder?.isRecording() ? '#60a5fa' : '#f5a524',
       }
-      return audioPlayer.getAnalyser();
-    },
-    {
-      getColor: () => state.micRecorder?.isRecording() ? '#60a5fa' : '#f5a524',
-    }
-  );
-
-  muteToggle.addEventListener('click', () => {
-    state.audioMuted = !state.audioMuted;
-    audioPlayer.setMuted(state.audioMuted);
-    updateMuteUI();
-  });
+    );
+  }
 
   // Speak the opening line as soon as user lands in the call.
   speakSentence(scenario.opening_line);
-
-  function updateMuteUI() {
-    const muted = state.audioMuted;
-    muteToggle.setAttribute('aria-pressed', String(muted));
-    muteLabel.textContent = muted ? 'Audio off' : 'Audio on';
-    muteIcon.classList.toggle('mute-on', !muted);
-    muteIcon.classList.toggle('mute-off', muted);
-    muteIcon.textContent = muted ? '○' : '●';
-  }
 
   function speakSentence(text) {
     if (state.audioMuted) return;
@@ -542,32 +507,11 @@ function renderCall(scenario) {
     renderPicker();
   });
 
-  modeButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      setInputMode(btn.dataset.mode);
-    });
-  });
-
   function setInputMode(mode) {
     if (!['text', 'voice', 'both'].includes(mode)) return;
     state.inputMode = mode;
     composerWrap.dataset.mode = mode;
-    modeButtons.forEach((b) => {
-      const active = b.dataset.mode === mode;
-      b.setAttribute('aria-checked', String(active));
-      b.classList.toggle('active', active);
-    });
-    if (mode === 'voice') {
-      composerInput.value = '';
-    }
-    if (mode !== 'text') {
-      composerInput.placeholder = 'Type, or hold the mic to speak...';
-    } else {
-      composerInput.placeholder = 'Type your response...';
-    }
   }
-
-  setInputMode(state.inputMode);
 
   let recordingActive = false;
   let recordingCancelled = false;
@@ -590,8 +534,10 @@ function renderCall(scenario) {
       pttButton.dataset.state = 'recording';
       pttButton.querySelector('.ptt-label').textContent = 'Listening...';
       setStatus('Recording. Release to send.');
-      visualizerWrap.dataset.active = 'true';
-      visualizerWrap.dataset.source = 'mic';
+      if (visualizerWrap) {
+        visualizerWrap.dataset.active = 'true';
+        visualizerWrap.dataset.source = 'mic';
+      }
     } catch (err) {
       if (err.message === 'mic_denied') {
         state.micDenied = true;
@@ -614,8 +560,10 @@ function renderCall(scenario) {
     pttButton.dataset.state = 'transcribing';
     pttButton.querySelector('.ptt-label').textContent = 'Transcribing...';
     setStatus('Transcribing...');
-    visualizerWrap.dataset.active = audioPlayer.playing ? 'true' : 'false';
-    visualizerWrap.dataset.source = 'tts';
+    if (visualizerWrap) {
+      visualizerWrap.dataset.active = audioPlayer.playing ? 'true' : 'false';
+      visualizerWrap.dataset.source = 'tts';
+    }
     let blob;
     try {
       blob = await state.micRecorder.stop();
@@ -663,8 +611,10 @@ function renderCall(scenario) {
       state.micRecorder = null;
     }
     recordingActive = false;
-    visualizerWrap.dataset.active = audioPlayer.playing ? 'true' : 'false';
-    visualizerWrap.dataset.source = 'tts';
+    if (visualizerWrap) {
+      visualizerWrap.dataset.active = audioPlayer.playing ? 'true' : 'false';
+      visualizerWrap.dataset.source = 'tts';
+    }
     resetPttButton();
     setStatus('');
   }
