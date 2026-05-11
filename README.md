@@ -54,6 +54,12 @@ shared/                 Helpers reused by Functions
   auth.js                 HMAC-SHA256 token signing and verification
 ```
 
+Build config lives in the Cloudflare Pages dashboard, not in a `wrangler.toml`. That lets the dashboard manage secrets directly without lockout. Required dashboard settings on first deploy:
+
+- **Build output directory:** `public`
+- **Compatibility date:** `2026-05-01` or later (set under Settings → Functions)
+- **Secrets** (Settings → Variables and Secrets → Secrets): `APP_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`
+
 ## Auth
 
 - POST `/api/auth` with `{ "password": "..." }`. On success, the Worker sets an `HttpOnly` `SameSite=Strict` cookie named `session` and returns `{ ok: true, expires_at: <unix-seconds> }`. On failure, returns `401 { "error": "invalid_password" }`.
@@ -64,23 +70,20 @@ shared/                 Helpers reused by Functions
 
 This is a small simplification of the API contract in the handoff: protected routes read the cookie via the middleware instead of expecting an `Authorization: Bearer <token>` header. Same-origin makes this cleaner and keeps the token out of JS.
 
-## Deploying (do not run without Alex's go-ahead)
+## Deploying
 
-```powershell
-# First-time deploy (creates the Pages project)
-npm run deploy
+The Cloudflare Pages dashboard manages this project (git integration off `main`). Pushing to `main` triggers a deploy.
 
-# Set production secrets
-npm run secret:password
-npm run secret:session
-npm run secret:anthropic
-npm run secret:elevenlabs
+Secrets are managed in the dashboard under Settings → Variables and Secrets → Secrets. The four required values are:
 
-# Generate a strong session secret
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+- `APP_PASSWORD` - the demo login password
+- `SESSION_SECRET` - any long random string. Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- `ANTHROPIC_API_KEY`
+- `ELEVENLABS_API_KEY`
 
-After deploy, attach the custom domain `call-sim.ka-testing.com` from the Cloudflare Pages dashboard.
+After adding or rotating secrets, trigger a fresh deploy (Deployments → Retry deployment on the latest) so the running worker picks them up.
+
+Attach the custom domain `call-sim.ka-testing.com` from the Pages project's Custom domains tab.
 
 ## Rotating secrets
 
