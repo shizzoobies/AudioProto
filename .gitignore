@@ -13,5 +13,5 @@ node_modules/
 
 # Playwright + test artifacts
 .playwright-mcp/
-phase*-*.png
+/*.png
 
