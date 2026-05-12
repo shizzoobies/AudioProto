@@ -21,6 +21,7 @@ const state = {
   sttController: null,
   callMode: 'phone',
   silenceTimer: null,
+  demoUnlocked: false,
 };
 
 function setCallMode(mode) {
@@ -88,6 +89,16 @@ async function init() {
   } catch {
     window.location.replace('/');
     return;
+  }
+
+  try {
+    const demoRes = await fetch('/api/demo-status', { credentials: 'same-origin' });
+    if (demoRes.ok) {
+      const data = await demoRes.json();
+      state.demoUnlocked = !!data?.demo;
+    }
+  } catch {
+    // Non-fatal; default to locked.
   }
 
   try {
@@ -224,8 +235,12 @@ async function signOut() {
   }
   teardownAudio();
   try {
+    await fetch('/api/demo-unlock', { method: 'DELETE', credentials: 'same-origin' });
+  } catch {}
+  try {
     await fetch('/api/auth', { method: 'DELETE', credentials: 'same-origin' });
   } finally {
+    state.demoUnlocked = false;
     window.location.replace('/');
   }
 }
@@ -320,7 +335,7 @@ function renderPicker() {
   });
 }
 
-function startCall(typeOrPersonaId) {
+async function startCall(typeOrPersonaId) {
   let blind = false;
   let personaId = null;
 
@@ -341,6 +356,12 @@ function startCall(typeOrPersonaId) {
 
   const persona = state.personaById.get(personaId);
   if (!persona) return;
+
+  if (personaId.startsWith('showcase_') && !state.demoUnlocked) {
+    const unlocked = await promptDemoPassword();
+    state.demoUnlocked = unlocked;
+  }
+
   const lines = Array.isArray(persona.opening_lines) && persona.opening_lines.length
     ? persona.opening_lines
     : [persona.opening_line || ''];
@@ -368,6 +389,10 @@ function renderCall(scenario) {
     ? 'Hold the mic to talk to the customer.'
     : 'Type your response...';
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
+  const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
+  const premiumBadge = (isShowcaseCall && state.demoUnlocked)
+    ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
+    : '';
 
   dom.root.innerHTML = `
     <section class="call" data-call-mode="${escapeAttr(state.callMode)}">
@@ -375,7 +400,7 @@ function renderCall(scenario) {
         <button class="ghost-button call-back" id="call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
           <div class="call-customer-name">${escapeHtml(displayName)}</div>
-          <div class="call-scenario-title">${escapeHtml(displayTitle)} <span class="call-mode-pill">${escapeHtml(modeBadge)}</span></div>
+          <div class="call-scenario-title">${escapeHtml(displayTitle)} <span class="call-mode-pill">${escapeHtml(modeBadge)}</span>${premiumBadge}</div>
         </div>
         <button class="danger-button" id="end-call" type="button">End call</button>
       </header>
@@ -1646,6 +1671,85 @@ function escapeAttr(s) {
 
 function capitalize(s) {
   return String(s).charAt(0).toUpperCase() + String(s).slice(1);
+}
+
+function promptDemoPassword() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'demo-modal';
+    overlay.innerHTML = `
+      <div class="demo-modal-inner" role="dialog" aria-modal="true" aria-labelledby="demo-modal-title">
+        <div class="demo-modal-eyebrow">Premium demo mode</div>
+        <h3 class="demo-modal-title" id="demo-modal-title">Unlock the premium voice</h3>
+        <p class="demo-modal-text">This persona uses the premium voice model (Eleven v3). Enter the demo password to unlock it for this session, or skip to use the standard voice.</p>
+        <form class="demo-modal-form" autocomplete="off">
+          <label class="demo-modal-label" for="demo-modal-input">Demo password</label>
+          <input type="password" class="demo-modal-input" id="demo-modal-input" autocomplete="off">
+          <p class="demo-modal-error" hidden></p>
+          <div class="demo-modal-actions">
+            <button type="button" class="ghost-button demo-modal-skip">Skip · use standard voice</button>
+            <button type="submit" class="primary-button">Unlock</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector('input');
+    const form = overlay.querySelector('form');
+    const errEl = overlay.querySelector('.demo-modal-error');
+    const skipBtn = overlay.querySelector('.demo-modal-skip');
+    setTimeout(() => input.focus(), 50);
+
+    let settled = false;
+    function cleanup(result) {
+      if (settled) return;
+      settled = true;
+      overlay.removeEventListener('click', onOverlayClick);
+      document.removeEventListener('keydown', onKey);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      resolve(result);
+    }
+    function onOverlayClick(e) {
+      if (e.target === overlay) cleanup(false);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') cleanup(false);
+    }
+    overlay.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onKey);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pw = input.value;
+      if (!pw) return;
+      input.disabled = true;
+      errEl.hidden = true;
+      try {
+        const res = await fetch('/api/demo-unlock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ password: pw }),
+        });
+        if (res.ok) {
+          cleanup(true);
+        } else {
+          input.disabled = false;
+          errEl.textContent = 'Incorrect password. Try again, or skip to use the standard voice.';
+          errEl.hidden = false;
+          input.focus();
+          input.select();
+        }
+      } catch {
+        input.disabled = false;
+        errEl.textContent = 'Could not reach the server. Try again in a moment.';
+        errEl.hidden = false;
+      }
+    });
+
+    skipBtn.addEventListener('click', () => cleanup(false));
+  });
 }
 
 // Strip stage-direction artifacts before sending text to TTS. The persona

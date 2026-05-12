@@ -1,7 +1,10 @@
 import { getScenario } from '../../shared/scenarios.js';
+import { verifyToken } from '../../shared/auth.js';
 
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
-const TTS_MODEL = 'eleven_multilingual_v2';
+const STANDARD_TTS_MODEL = 'eleven_multilingual_v2';
+const PREMIUM_TTS_MODEL = 'eleven_v3';
+const SHOWCASE_PERSONA_PREFIX = 'showcase_';
 const TTS_OUTPUT = 'mp3_44100_128';
 
 const DEFAULT_VOICE_SETTINGS = {
@@ -29,6 +32,7 @@ export async function onRequestPost({ request, env }) {
 
   let voiceId = null;
   let voiceSettings = DEFAULT_VOICE_SETTINGS;
+  let isShowcaseScenario = false;
 
   if (body?.scenario_id) {
     const scenario = getScenario(body.scenario_id);
@@ -37,6 +41,7 @@ export async function onRequestPost({ request, env }) {
     if (scenario.voice_settings) {
       voiceSettings = { ...DEFAULT_VOICE_SETTINGS, ...scenario.voice_settings };
     }
+    isShowcaseScenario = String(body.scenario_id).startsWith(SHOWCASE_PERSONA_PREFIX);
   } else if (typeof body?.voice_id === 'string') {
     if (!/^[A-Za-z0-9]{12,}$/.test(body.voice_id)) {
       return jsonError('invalid_voice_id', 400);
@@ -45,6 +50,9 @@ export async function onRequestPost({ request, env }) {
   } else {
     return jsonError('scenario_id_or_voice_id_required', 400);
   }
+
+  const demoUnlocked = await isDemoUnlocked(request, env.SESSION_SECRET);
+  const modelId = (isShowcaseScenario && demoUnlocked) ? PREMIUM_TTS_MODEL : STANDARD_TTS_MODEL;
 
   const url = `${ELEVENLABS_BASE}/${encodeURIComponent(voiceId)}?output_format=${TTS_OUTPUT}`;
 
@@ -59,7 +67,7 @@ export async function onRequestPost({ request, env }) {
       },
       body: JSON.stringify({
         text,
-        model_id: TTS_MODEL,
+        model_id: modelId,
         voice_settings: voiceSettings,
       }),
     });
@@ -80,8 +88,37 @@ export async function onRequestPost({ request, env }) {
     headers: {
       'Content-Type': 'audio/mpeg',
       'Cache-Control': 'no-store',
+      'X-TTS-Model': modelId,
     },
   });
+}
+
+async function isDemoUnlocked(request, secret) {
+  if (!secret) return false;
+  const cookies = parseCookies(request.headers.get('Cookie') || '');
+  const token = cookies.cs_demo;
+  if (!token) return false;
+  try {
+    const payload = await verifyToken(token, secret);
+    return !!payload?.demo;
+  } catch {
+    return false;
+  }
+}
+
+function parseCookies(header) {
+  const out = {};
+  if (!header) return out;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    const k = part.slice(0, eq).trim();
+    const v = part.slice(eq + 1).trim();
+    if (k) {
+      try { out[k] = decodeURIComponent(v); } catch { out[k] = v; }
+    }
+  }
+  return out;
 }
 
 async function safeReadText(res) {
