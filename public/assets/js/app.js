@@ -203,9 +203,9 @@ function renderWelcome() {
               <path d="M12 2l2.7 7.4h7.8l-6.3 4.6 2.4 7.5L12 17.3l-6.6 4.2 2.4-7.5L1.5 9.4h7.8L12 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
             </svg>
           </div>
-          <h3 class="mode-choice-title">Showcase demo</h3>
-          <p class="mode-choice-text">A deeply built bilingual persona on the premium voice model, designed for stakeholder demos. Phone mode, password required.</p>
-          <span class="mode-choice-cta">Start the showcase <span aria-hidden="true">›</span></span>
+          <h3 class="mode-choice-title">Meet Elena</h3>
+          <p class="mode-choice-text">The showcase persona introduces herself to the team and chats freely. Ask her about her life, her work, or the simulator. She drops into a customer roleplay on request. Phone mode, premium models unlock with the demo password.</p>
+          <span class="mode-choice-cta">Open the showcase <span aria-hidden="true">›</span></span>
         </button>
       </div>
     </section>

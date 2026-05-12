@@ -1,8 +1,12 @@
 import { getScenario } from '../../shared/scenarios.js';
+import { verifyToken } from '../../shared/auth.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-6';
+const STANDARD_MODEL = 'claude-sonnet-4-6';
+const PREMIUM_MODEL = 'claude-opus-4-7';
+const SHOWCASE_PERSONA_PREFIX = 'showcase_';
 const MAX_TOKENS = 512;
+const PREMIUM_MAX_TOKENS = 768;
 
 export async function onRequestPost({ request, env }) {
   if (!env.ANTHROPIC_API_KEY) {
@@ -26,6 +30,12 @@ export async function onRequestPost({ request, env }) {
     return jsonError('messages_required', 400);
   }
 
+  const isShowcase = String(body.scenario_id || '').startsWith(SHOWCASE_PERSONA_PREFIX);
+  const demoUnlocked = await isDemoUnlocked(request, env.SESSION_SECRET);
+  const usePremium = isShowcase && demoUnlocked;
+  const modelId = usePremium ? PREMIUM_MODEL : STANDARD_MODEL;
+  const maxTokens = usePremium ? PREMIUM_MAX_TOKENS : MAX_TOKENS;
+
   let upstream;
   try {
     upstream = await fetch(ANTHROPIC_URL, {
@@ -36,8 +46,8 @@ export async function onRequestPost({ request, env }) {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
+        model: modelId,
+        max_tokens: maxTokens,
         system: scenario.system_prompt,
         messages,
         stream: true,
@@ -63,8 +73,37 @@ export async function onRequestPost({ request, env }) {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-store, no-transform',
       'X-Accel-Buffering': 'no',
+      'X-Chat-Model': modelId,
     },
   });
+}
+
+async function isDemoUnlocked(request, secret) {
+  if (!secret) return false;
+  const cookies = parseCookies(request.headers.get('Cookie') || '');
+  const token = cookies.cs_demo;
+  if (!token) return false;
+  try {
+    const payload = await verifyToken(token, secret);
+    return !!payload?.demo;
+  } catch {
+    return false;
+  }
+}
+
+function parseCookies(header) {
+  const out = {};
+  if (!header) return out;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    const k = part.slice(0, eq).trim();
+    const v = part.slice(eq + 1).trim();
+    if (k) {
+      try { out[k] = decodeURIComponent(v); } catch { out[k] = v; }
+    }
+  }
+  return out;
 }
 
 function sanitizeMessages(messages) {
