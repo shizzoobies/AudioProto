@@ -113,7 +113,9 @@ async function init() {
       for (const p of t.personas || []) {
         const enriched = { ...p, type_id: t.id, type_title: t.title, difficulty: t.difficulty };
         state.personaById.set(p.id, enriched);
-        state.allPersonaIds.push(p.id);
+        // Showcase persona is launched from the welcome screen only; exclude
+        // it from the random pool and from the picker grid below.
+        if (t.id !== 'showcase') state.allPersonaIds.push(p.id);
       }
     }
   } catch (err) {
@@ -189,6 +191,23 @@ function renderWelcome() {
           <span class="mode-choice-cta">Start a phone call <span aria-hidden="true">›</span></span>
         </button>
       </div>
+
+      <div class="welcome-divider" aria-hidden="true">
+        <span class="welcome-divider-text">or</span>
+      </div>
+
+      <div class="welcome-showcase">
+        <button class="mode-choice mode-choice-showcase" data-action="showcase" type="button">
+          <div class="mode-choice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l2.7 7.4h7.8l-6.3 4.6 2.4 7.5L12 17.3l-6.6 4.2 2.4-7.5L1.5 9.4h7.8L12 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <h3 class="mode-choice-title">Showcase demo</h3>
+          <p class="mode-choice-text">A deeply built bilingual persona on the premium voice model, designed for stakeholder demos. Phone mode, password required.</p>
+          <span class="mode-choice-cta">Start the showcase <span aria-hidden="true">›</span></span>
+        </button>
+      </div>
     </section>
   `;
 
@@ -198,6 +217,14 @@ function renderWelcome() {
       renderPicker();
     });
   });
+
+  const showcaseBtn = dom.root.querySelector('[data-action="showcase"]');
+  if (showcaseBtn) {
+    showcaseBtn.addEventListener('click', () => {
+      setCallMode('phone');
+      startCall('showcase_elena');
+    });
+  }
 }
 
 function renderPickerSkeleton() {
@@ -265,22 +292,16 @@ function renderPicker() {
   teardownAudio();
 
   const cards = state.scenarioTypes
+    .filter((t) => t.id !== 'showcase')
     .map((t) => {
-      const isShowcase = t.id === 'showcase';
-      const cardClass = isShowcase ? 'scenario-card scenario-card-showcase' : 'scenario-card';
-      const callerLabel = isShowcase
-        ? 'Featured persona · deep build'
-        : t.persona_count === 1
-        ? '1 caller'
-        : `${t.persona_count} different callers`;
-      const ctaText = isShowcase ? 'Try the deep persona' : 'Start call';
+      const callerLabel = t.persona_count === 1 ? '1 caller' : `${t.persona_count} different callers`;
       return `
-        <li class="${cardClass}" data-scenario-id="${escapeAttr(t.id)}" tabindex="0" role="button" aria-label="Start scenario: ${escapeAttr(t.title)}">
+        <li class="scenario-card" data-scenario-id="${escapeAttr(t.id)}" tabindex="0" role="button" aria-label="Start scenario: ${escapeAttr(t.title)}">
           <div class="scenario-difficulty difficulty-${escapeAttr(t.difficulty)}">${capitalize(t.difficulty)}</div>
           <h2 class="scenario-title">${escapeHtml(t.title)}</h2>
           <p class="scenario-customer">${escapeHtml(callerLabel)}</p>
           <p class="scenario-description">${escapeHtml(t.description)}</p>
-          <div class="scenario-cta">${escapeHtml(ctaText)} <span aria-hidden="true">›</span></div>
+          <div class="scenario-cta">Start call <span aria-hidden="true">›</span></div>
         </li>
       `;
     })
