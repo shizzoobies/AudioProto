@@ -1,7 +1,7 @@
 import { getScenario } from '../../shared/scenarios.js';
 
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
-const TTS_MODEL = 'eleven_turbo_v2_5';
+const TTS_MODEL = 'eleven_multilingual_v2';
 const TTS_OUTPUT = 'mp3_44100_128';
 
 const DEFAULT_VOICE_SETTINGS = {
