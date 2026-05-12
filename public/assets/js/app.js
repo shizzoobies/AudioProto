@@ -745,11 +745,11 @@ function renderCall(scenario) {
 
   function speakSentence(text) {
     if (state.audioMuted) return;
-    const trimmed = (text || '').trim();
-    if (!trimmed) return;
+    const cleaned = scrubForSpeech(text);
+    if (!cleaned) return;
     const controller = new AbortController();
     state.ttsControllers.add(controller);
-    synthesizeSentence({ scenarioId: scenario.id, text: trimmed, signal: controller.signal })
+    synthesizeSentence({ scenarioId: scenario.id, text: cleaned, signal: controller.signal })
       .then((blob) => {
         state.ttsControllers.delete(controller);
         return audioPlayer.enqueueBlob(blob);
@@ -985,8 +985,13 @@ function renderCall(scenario) {
       <div class="crm-card crm-card-empty">
         <div class="crm-card-status">${isProspect ? 'New prospect' : 'No match'}</div>
         <p class="crm-card-blurb">${escapeHtml(notes || (isProspect ? 'No record in the system.' : 'No customer matched those details.'))}</p>
+        <button type="button" class="crm-card-cta" data-action="start-reservation">
+          Start a new reservation
+          <span aria-hidden="true">›</span>
+        </button>
       </div>
     `;
+    crmResult.querySelector('[data-action="start-reservation"]')?.addEventListener('click', () => switchCrmTab('reservation'));
   }
 
   function renderCrmCard(r) {
@@ -1073,6 +1078,10 @@ function renderCall(scenario) {
   // ---- CRM tabs + reservation builder ----
   const crmTabs = dom.root.querySelectorAll('.crm-tab');
   const crmPanes = dom.root.querySelectorAll('.crm-pane');
+  function switchCrmTab(name) {
+    const target = crmTabs && Array.from(crmTabs).find((b) => b.dataset.tab === name);
+    if (target) target.click();
+  }
   crmTabs.forEach((btn) => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.tab;
@@ -1629,6 +1638,26 @@ function escapeAttr(s) {
 
 function capitalize(s) {
   return String(s).charAt(0).toUpperCase() + String(s).slice(1);
+}
+
+// Strip stage-direction artifacts before sending text to TTS. The persona
+// prompt forbids these, but the model occasionally slips in *small laugh*,
+// [chuckles], or (sighs) — which the voice synthesizer would otherwise read
+// out loud as literal words.
+const SPEECH_CUE_VERBS = /(?:laugh|laughs|laughing|sigh|sighs|sighing|chuckl[a-z]*|pause|pauses|breath[a-z]*|cough[a-z]*|mumbles?|whispers?|grumbl[a-z]*|huff[a-z]*|exhal[a-z]*|inhal[a-z]*|smil[a-z]*|smirks?|gasp[a-z]*|sniffl[a-z]*|grunt[a-z]*|clears? throat|beat)/i;
+function scrubForSpeech(text) {
+  return String(text || '')
+    .replace(/\*[^*\n]+\*/g, '')
+    .replace(/\[[^\]\n]+\]/g, '')
+    .replace(/\(\s*([^)\n]{1,30})\s*\)/g, (match, inner) => {
+      const trimmed = inner.trim();
+      if (/[.!?]/.test(trimmed)) return match;
+      return SPEECH_CUE_VERBS.test(trimmed) ? '' : match;
+    })
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .replace(/[,;:]+\s*([.?!])/g, '$1')
+    .trim();
 }
 
 init();
