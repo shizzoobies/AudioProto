@@ -433,128 +433,246 @@ function renderCall(scenario) {
             </div>
           </div>
 
-          <div class="crm-pane" data-tab="reservation" hidden>
-            <form class="crm-reservation" id="crm-reservation" autocomplete="off">
-              <div class="crm-section">
-                <div class="crm-section-title">Customer</div>
-                <p class="crm-hint">Try: "Can I get your name, phone, and the best email for you?"</p>
-                <label class="crm-field">
-                  <span class="crm-field-label">Full name</span>
-                  <input class="crm-input" data-rsv="full_name" type="text" placeholder="Customer name">
-                </label>
-                <label class="crm-field">
-                  <span class="crm-field-label">Phone</span>
-                  <input class="crm-input" data-rsv="phone" type="tel" placeholder="555-123-4567">
-                </label>
-                <label class="crm-field">
-                  <span class="crm-field-label">Email</span>
-                  <input class="crm-input" data-rsv="email" type="text" inputmode="email" placeholder="name@example.com">
-                </label>
-              </div>
+          <div class="crm-pane crm-pane-reservation" data-tab="reservation" hidden>
+            <div class="rsv-wizard" id="rsv-wizard" data-step="1">
+              <ol class="rsv-stepper" aria-label="Reservation steps">
+                <li class="rsv-stepper-item active" data-step="1">
+                  <span class="rsv-stepper-num">1</span>
+                  <span class="rsv-stepper-label">Customer</span>
+                </li>
+                <li class="rsv-stepper-item" data-step="2">
+                  <span class="rsv-stepper-num">2</span>
+                  <span class="rsv-stepper-label">Trip</span>
+                </li>
+                <li class="rsv-stepper-item" data-step="3">
+                  <span class="rsv-stepper-num">3</span>
+                  <span class="rsv-stepper-label">Equipment</span>
+                </li>
+                <li class="rsv-stepper-item" data-step="4">
+                  <span class="rsv-stepper-num">4</span>
+                  <span class="rsv-stepper-label">Payment</span>
+                </li>
+              </ol>
 
-              <div class="crm-section">
-                <div class="crm-section-title">Move details</div>
-                <p class="crm-hint">Try: "What date are you moving, and where are you going from and to?"</p>
-                <label class="crm-field">
-                  <span class="crm-field-label">Pickup date</span>
-                  <input class="crm-input" data-rsv="pickup_date" type="date">
-                </label>
-                <label class="crm-field">
-                  <span class="crm-field-label">Pickup time</span>
-                  <input class="crm-input" data-rsv="pickup_time" type="time" value="09:00">
-                </label>
-                <label class="crm-field">
-                  <span class="crm-field-label">Pickup location</span>
-                  <select class="crm-input" data-rsv="location">
-                    <option value="">Choose...</option>
-                    <option>Downtown</option>
-                    <option>Northgate</option>
-                    <option>Riverside</option>
-                    <option>Westside</option>
-                    <option>Airport</option>
-                  </select>
-                </label>
-                <label class="crm-field">
-                  <span class="crm-field-label">Estimated miles</span>
-                  <input class="crm-input" data-rsv="miles" type="number" min="0" step="1" placeholder="e.g. 12">
-                </label>
-              </div>
+              <form class="crm-reservation" id="crm-reservation" autocomplete="off" novalidate>
+                <section class="rsv-step" data-step="1">
+                  <header class="rsv-step-head">
+                    <div class="rsv-step-eyebrow">Step 1 of 4</div>
+                    <h3 class="rsv-step-title">Who's on the line?</h3>
+                  </header>
+                  <p class="crm-hint">Try: "Can I get your full name, the best phone number for you, and an email for the confirmation?"</p>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Full name</span>
+                    <input class="crm-input" data-rsv="full_name" type="text" placeholder="Customer name">
+                  </label>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Phone</span>
+                    <input class="crm-input" data-rsv="phone" type="tel" placeholder="555-123-4567">
+                  </label>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Email</span>
+                    <input class="crm-input" data-rsv="email" type="text" inputmode="email" placeholder="name@example.com">
+                  </label>
+                </section>
 
-              <div class="crm-section">
-                <div class="crm-section-title">Inventory</div>
-                <p class="crm-hint">Try: "Walk me through the biggest stuff. How many bedrooms? Any appliances?"</p>
-                <label class="crm-field">
-                  <span class="crm-field-label">Bedrooms</span>
-                  <select class="crm-input" data-rsv="bedrooms" data-numeric="1">
-                    <option value="0">Studio</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4+</option>
-                  </select>
-                </label>
-                <fieldset class="crm-checks">
-                  <legend class="crm-field-label">Major furniture</legend>
-                  <label><input type="checkbox" data-rsv-furniture="bed_queenking"> Queen/king bed</label>
-                  <label><input type="checkbox" data-rsv-furniture="bed_other"> Full/twin bed</label>
-                  <label><input type="checkbox" data-rsv-furniture="sofa"> Sofa / sectional</label>
-                  <label><input type="checkbox" data-rsv-furniture="dining"> Dining set</label>
-                  <label><input type="checkbox" data-rsv-furniture="dresser"> Dresser / armoire</label>
-                  <label><input type="checkbox" data-rsv-furniture="bookshelves"> Bookshelves</label>
-                </fieldset>
-                <fieldset class="crm-checks">
-                  <legend class="crm-field-label">Major appliances</legend>
-                  <label><input type="checkbox" data-rsv-appliance="washer"> Washer</label>
-                  <label><input type="checkbox" data-rsv-appliance="dryer"> Dryer</label>
-                  <label><input type="checkbox" data-rsv-appliance="fridge"> Fridge</label>
-                  <label><input type="checkbox" data-rsv-appliance="other"> Other large</label>
-                </fieldset>
-                <label class="crm-field">
-                  <span class="crm-field-label">Boxes (estimate)</span>
-                  <input class="crm-input" data-rsv="boxes" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 25" value="0">
-                </label>
-              </div>
+                <section class="rsv-step" data-step="2" hidden>
+                  <header class="rsv-step-head">
+                    <div class="rsv-step-eyebrow">Step 2 of 4</div>
+                    <h3 class="rsv-step-title">Trip details</h3>
+                  </header>
+                  <p class="crm-hint">Try: "When are you picking up, when are you bringing it back, and how far are you going?"</p>
+                  <div class="rsv-row">
+                    <label class="crm-field">
+                      <span class="crm-field-label">Pickup date</span>
+                      <input class="crm-input" data-rsv="pickup_date" type="date">
+                    </label>
+                    <label class="crm-field">
+                      <span class="crm-field-label">Pickup time</span>
+                      <input class="crm-input" data-rsv="pickup_time" type="time" value="09:00">
+                    </label>
+                  </div>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Pickup location</span>
+                    <select class="crm-input" data-rsv="location">
+                      <option value="">Choose a branch...</option>
+                      <option>Downtown</option>
+                      <option>Northgate</option>
+                      <option>Riverside</option>
+                      <option>Westside</option>
+                      <option>Airport</option>
+                    </select>
+                  </label>
+                  <div class="rsv-row">
+                    <label class="crm-field">
+                      <span class="crm-field-label">Return date</span>
+                      <input class="crm-input" data-rsv="return_date" type="date">
+                    </label>
+                    <label class="crm-field">
+                      <span class="crm-field-label">Return time</span>
+                      <input class="crm-input" data-rsv="return_time" type="time" value="17:00">
+                    </label>
+                  </div>
+                  <label class="crm-check-row">
+                    <input type="checkbox" id="rsv-same-location" checked>
+                    <span>Returning to the same location</span>
+                  </label>
+                  <label class="crm-field" id="rsv-return-loc-field" hidden>
+                    <span class="crm-field-label">Return location</span>
+                    <select class="crm-input" data-rsv="return_location">
+                      <option value="">Choose a branch...</option>
+                      <option>Downtown</option>
+                      <option>Northgate</option>
+                      <option>Riverside</option>
+                      <option>Westside</option>
+                      <option>Airport</option>
+                    </select>
+                  </label>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Estimated miles</span>
+                    <input class="crm-input" data-rsv="miles" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 12" value="0">
+                  </label>
+                </section>
 
-              <div class="crm-section crm-section-accent">
-                <div class="crm-section-title">Truck recommendation</div>
-                <div class="crm-truck" id="crm-truck" data-size="?">
-                  <div class="crm-truck-size" id="crm-truck-size">Enter inventory to see a recommendation.</div>
-                  <div class="crm-truck-rate" id="crm-truck-rate"></div>
+                <section class="rsv-step" data-step="3" hidden>
+                  <header class="rsv-step-head">
+                    <div class="rsv-step-eyebrow">Step 3 of 4</div>
+                    <h3 class="rsv-step-title">Equipment and add-ons</h3>
+                  </header>
+                  <p class="crm-hint">Try: "Walk me through the biggest stuff. How many bedrooms? Any appliances?"</p>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Bedrooms</span>
+                    <select class="crm-input" data-rsv="bedrooms" data-numeric="1">
+                      <option value="0">Studio</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4+</option>
+                    </select>
+                  </label>
+                  <fieldset class="crm-checks">
+                    <legend class="crm-field-label">Major furniture</legend>
+                    <label><input type="checkbox" data-rsv-furniture="bed_queenking"> Queen or king bed</label>
+                    <label><input type="checkbox" data-rsv-furniture="bed_other"> Full or twin bed</label>
+                    <label><input type="checkbox" data-rsv-furniture="sofa"> Sofa / sectional</label>
+                    <label><input type="checkbox" data-rsv-furniture="dining"> Dining set</label>
+                    <label><input type="checkbox" data-rsv-furniture="dresser"> Dresser / armoire</label>
+                    <label><input type="checkbox" data-rsv-furniture="bookshelves"> Bookshelves</label>
+                  </fieldset>
+                  <fieldset class="crm-checks">
+                    <legend class="crm-field-label">Major appliances</legend>
+                    <label><input type="checkbox" data-rsv-appliance="washer"> Washer</label>
+                    <label><input type="checkbox" data-rsv-appliance="dryer"> Dryer</label>
+                    <label><input type="checkbox" data-rsv-appliance="fridge"> Fridge</label>
+                    <label><input type="checkbox" data-rsv-appliance="other"> Other large item</label>
+                  </fieldset>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Boxes (estimate)</span>
+                    <input class="crm-input" data-rsv="boxes" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 25" value="0">
+                  </label>
+
+                  <div class="rsv-truck" id="rsv-truck" data-size="?">
+                    <div class="rsv-truck-head">
+                      <span class="rsv-truck-tag" id="rsv-truck-tag">Recommendation</span>
+                      <span class="rsv-truck-label" id="rsv-truck-label">Add inventory to see a fit.</span>
+                    </div>
+                    <div class="rsv-truck-rate" id="rsv-truck-rate"></div>
+                    <label class="crm-field">
+                      <span class="crm-field-label">Override truck size</span>
+                      <select class="crm-input" data-rsv="truck_override">
+                        <option value="">Use system recommendation</option>
+                        <option value="10">10-foot ($19.95/day + $0.79/mi)</option>
+                        <option value="15">15-foot ($29.95/day + $0.89/mi)</option>
+                        <option value="20">20-foot ($39.95/day + $0.99/mi)</option>
+                        <option value="26">26-foot ($49.95/day + $1.19/mi)</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <fieldset class="crm-section-block">
+                    <legend class="crm-section-title">Damage waiver</legend>
+                    <p class="crm-hint">Try: "Want me to add the damage waiver? Basic is $15 a day for $5k, premium is $25 a day for $25k."</p>
+                    <label class="crm-field">
+                      <span class="crm-field-label">Coverage</span>
+                      <select class="crm-input" data-rsv="waiver">
+                        <option value="none">Decline coverage</option>
+                        <option value="basic">Basic ($15/day, up to $5k)</option>
+                        <option value="premium">Premium ($25/day, up to $25k)</option>
+                      </select>
+                    </label>
+                  </fieldset>
+
+                  <fieldset class="crm-checks">
+                    <legend class="crm-field-label">Equipment add-ons</legend>
+                    <label><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
+                    <label><input type="checkbox" data-rsv-equipment="dolly"> Utility dolly ($7/day)</label>
+                  </fieldset>
+                </section>
+
+                <section class="rsv-step" data-step="4" hidden>
+                  <header class="rsv-step-head">
+                    <div class="rsv-step-eyebrow">Step 4 of 4</div>
+                    <h3 class="rsv-step-title">Payment</h3>
+                  </header>
+                  <div class="rsv-test-banner">
+                    <span class="rsv-test-icon" aria-hidden="true">i</span>
+                    Training mode. Card details are not stored or charged.
+                  </div>
+
+                  <div class="rsv-summary" id="rsv-summary"></div>
+
+                  <p class="crm-hint">Try: "To secure the truck I'll just need a card. Can I get the number, the expiration, and the security code on the back?"</p>
+
+                  <div class="card-preview" id="card-preview" data-brand="unknown">
+                    <div class="card-preview-band">
+                      <span class="card-preview-issuer">Meridian · Card on File</span>
+                      <span class="card-preview-brand" id="card-preview-brand">CARD</span>
+                    </div>
+                    <div class="card-preview-number" id="card-preview-number">•••• •••• •••• ••••</div>
+                    <div class="card-preview-row">
+                      <div>
+                        <div class="card-preview-key">Cardholder</div>
+                        <div class="card-preview-val" id="card-preview-name">FULL NAME</div>
+                      </div>
+                      <div>
+                        <div class="card-preview-key">Expires</div>
+                        <div class="card-preview-val" id="card-preview-exp">MM/YY</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <label class="crm-field">
+                    <span class="crm-field-label">Cardholder name</span>
+                    <input class="crm-input" data-rsv="card_name" type="text" autocomplete="cc-name" placeholder="As it appears on the card">
+                  </label>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Card number</span>
+                    <input class="crm-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4111 1111 1111 1111" maxlength="23">
+                  </label>
+                  <div class="rsv-row rsv-row-3">
+                    <label class="crm-field">
+                      <span class="crm-field-label">Expiry</span>
+                      <input class="crm-input" data-rsv="card_exp" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" maxlength="5">
+                    </label>
+                    <label class="crm-field">
+                      <span class="crm-field-label">CVV</span>
+                      <input class="crm-input" data-rsv="card_cvv" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4">
+                    </label>
+                    <label class="crm-field">
+                      <span class="crm-field-label">Billing ZIP</span>
+                      <input class="crm-input" data-rsv="card_zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="98101" maxlength="5">
+                    </label>
+                  </div>
+                </section>
+
+                <div class="rsv-error" id="rsv-error" hidden></div>
+
+                <div class="rsv-nav">
+                  <button type="button" class="ghost-button" id="rsv-back" hidden>Back</button>
+                  <div class="rsv-nav-total" id="rsv-nav-total" hidden></div>
+                  <button type="submit" class="primary-button rsv-next-btn" id="rsv-next">Continue</button>
                 </div>
-                <label class="crm-field">
-                  <span class="crm-field-label">Override size</span>
-                  <select class="crm-input" data-rsv="truck_override">
-                    <option value="">Use system recommendation</option>
-                    <option value="10">10-foot ($19.95/day + $0.79/mi)</option>
-                    <option value="15">15-foot ($29.95/day + $0.89/mi)</option>
-                    <option value="20">20-foot ($39.95/day + $0.99/mi)</option>
-                    <option value="26">26-foot ($49.95/day + $1.19/mi)</option>
-                  </select>
-                </label>
-              </div>
-
-              <div class="crm-section">
-                <div class="crm-section-title">Add-ons</div>
-                <p class="crm-hint">Try: "Want me to add the damage waiver? It's $15 a day for basic, $25 for premium."</p>
-                <label class="crm-field">
-                  <span class="crm-field-label">Damage waiver</span>
-                  <select class="crm-input" data-rsv="waiver">
-                    <option value="none">Decline</option>
-                    <option value="basic">Basic ($15/day, up to $5k)</option>
-                    <option value="premium">Premium ($25/day, up to $25k)</option>
-                  </select>
-                </label>
-                <fieldset class="crm-checks">
-                  <legend class="crm-field-label">Equipment</legend>
-                  <label><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
-                  <label><input type="checkbox" data-rsv-equipment="dolly"> Dolly ($7/day)</label>
-                </fieldset>
-              </div>
-
-              <div class="crm-actions">
-                <button type="submit" class="crm-submit">Save reservation</button>
-              </div>
-            </form>
+              </form>
+            </div>
             <div class="crm-rsv-result" id="crm-rsv-result"></div>
           </div>
         </aside>
@@ -969,138 +1087,444 @@ function renderCall(scenario) {
     });
   });
 
+  const rsvWizard = document.getElementById('rsv-wizard');
   const rsvForm = document.getElementById('crm-reservation');
   const rsvResult = document.getElementById('crm-rsv-result');
-  const rsvTruckLabel = document.getElementById('crm-truck-size');
-  const rsvTruckRate = document.getElementById('crm-truck-rate');
-  const rsvTruckBox = document.getElementById('crm-truck');
+  const rsvNextBtn = document.getElementById('rsv-next');
+  const rsvBackBtn = document.getElementById('rsv-back');
+  const rsvNavTotal = document.getElementById('rsv-nav-total');
+  const rsvErrorEl = document.getElementById('rsv-error');
+  const rsvSummary = document.getElementById('rsv-summary');
+  const rsvTruckBox = document.getElementById('rsv-truck');
+  const rsvTruckTag = document.getElementById('rsv-truck-tag');
+  const rsvTruckLabel = document.getElementById('rsv-truck-label');
+  const rsvTruckRate = document.getElementById('rsv-truck-rate');
+  const cardPreview = document.getElementById('card-preview');
+  const cardPrevBrand = document.getElementById('card-preview-brand');
+  const cardPrevNumber = document.getElementById('card-preview-number');
+  const cardPrevName = document.getElementById('card-preview-name');
+  const cardPrevExp = document.getElementById('card-preview-exp');
+  const sameLocCheck = document.getElementById('rsv-same-location');
+  const returnLocField = document.getElementById('rsv-return-loc-field');
 
   const TRUCK_INFO = {
-    10: { label: '10-foot truck', rate: '$19.95/day + $0.79/mile' },
-    15: { label: '15-foot truck', rate: '$29.95/day + $0.89/mile' },
-    20: { label: '20-foot truck', rate: '$39.95/day + $0.99/mile' },
-    26: { label: '26-foot truck', rate: '$49.95/day + $1.19/mile' },
+    10: { label: '10-foot truck', daily: 19.95, per_mile: 0.79 },
+    15: { label: '15-foot truck', daily: 29.95, per_mile: 0.89 },
+    20: { label: '20-foot truck', daily: 39.95, per_mile: 0.99 },
+    26: { label: '26-foot truck', daily: 49.95, per_mile: 1.19 },
   };
 
-  function recomputeReservation() {
-    const f = (sel) => rsvForm.querySelector(sel);
-    const bedrooms = Number(f('[data-rsv="bedrooms"]')?.value || 0);
-    const boxes = Number(f('[data-rsv="boxes"]')?.value || 0);
+  const WAIVER_INFO = {
+    none: { label: 'Waiver declined', daily: 0 },
+    basic: { label: 'Basic waiver', daily: 15 },
+    premium: { label: 'Premium waiver', daily: 25 },
+  };
+
+  const TAX_RATE = 0.09;
+  const TOTAL_STEPS = 4;
+  let rsvStep = 1;
+
+  function getRsv(name) {
+    const el = rsvForm.querySelector(`[data-rsv="${name}"]`);
+    return el?.value || '';
+  }
+
+  function fmtMoney(n) {
+    return '$' + Number(n || 0).toFixed(2);
+  }
+
+  function computeRecommendedTruck() {
+    const bedrooms = Number(getRsv('bedrooms') || 0);
+    const boxes = Number(getRsv('boxes') || 0);
     const furnitureCount = rsvForm.querySelectorAll('[data-rsv-furniture]:checked').length;
     const applianceCount = rsvForm.querySelectorAll('[data-rsv-appliance]:checked').length;
     const score = bedrooms * 2 + furnitureCount + applianceCount * 2 + boxes / 10;
+    let size;
+    if (score < 4) size = 10;
+    else if (score < 9) size = 15;
+    else if (score < 16) size = 20;
+    else size = 26;
+    return { size, score };
+  }
 
-    let recommended;
-    if (score < 4) recommended = 10;
-    else if (score < 9) recommended = 15;
-    else if (score < 16) recommended = 20;
-    else recommended = 26;
+  function currentTruckSize() {
+    const override = getRsv('truck_override');
+    if (override) return Number(override);
+    return computeRecommendedTruck().size;
+  }
 
-    const override = f('[data-rsv="truck_override"]')?.value;
-    const finalSize = override ? Number(override) : recommended;
-    const info = TRUCK_INFO[finalSize];
+  function computeRentalDays() {
+    const pd = getRsv('pickup_date');
+    const rd = getRsv('return_date');
+    if (!pd || !rd) return 1;
+    const start = new Date(pd + 'T00:00:00');
+    const end = new Date(rd + 'T00:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
+    const ms = end - start;
+    const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+    return Math.max(1, days || 1);
+  }
 
-    rsvTruckBox.dataset.size = String(finalSize);
-    if (score === 0 && !override) {
-      rsvTruckLabel.textContent = 'Enter inventory to see a recommendation.';
-      rsvTruckRate.textContent = '';
-    } else {
-      const tag = override ? 'Override' : 'Recommended';
-      rsvTruckLabel.textContent = `${tag}: ${info.label}`;
-      rsvTruckRate.textContent = info.rate;
+  function computeQuote() {
+    const days = computeRentalDays();
+    const miles = Number(getRsv('miles') || 0);
+    const truckSize = currentTruckSize();
+    const truck = TRUCK_INFO[truckSize];
+    const recommended = computeRecommendedTruck();
+    const waiverKey = getRsv('waiver') || 'none';
+    const waiver = WAIVER_INFO[waiverKey] || WAIVER_INFO.none;
+    const padsChecked = !!rsvForm.querySelector('[data-rsv-equipment="pads"]:checked');
+    const dollyChecked = !!rsvForm.querySelector('[data-rsv-equipment="dolly"]:checked');
+
+    const truckCost = truck.daily * days;
+    const milesCost = truck.per_mile * miles;
+    const waiverCost = waiver.daily * days;
+    const padsCost = padsChecked ? 10 : 0;
+    const dollyCost = dollyChecked ? 7 * days : 0;
+
+    const subtotal = truckCost + milesCost + waiverCost + padsCost + dollyCost;
+    const tax = subtotal * TAX_RATE;
+    const total = subtotal + tax;
+
+    const lines = [];
+    lines.push({ label: `${truck.label} × ${days} day${days === 1 ? '' : 's'}`, amount: truckCost });
+    if (miles > 0) lines.push({ label: `Mileage (${miles} mi × $${truck.per_mile.toFixed(2)})`, amount: milesCost });
+    if (waiverCost > 0) lines.push({ label: `${waiver.label} × ${days} day${days === 1 ? '' : 's'}`, amount: waiverCost });
+    if (padsChecked) lines.push({ label: 'Furniture pads (1 pack)', amount: padsCost });
+    if (dollyChecked) lines.push({ label: `Utility dolly × ${days} day${days === 1 ? '' : 's'}`, amount: dollyCost });
+
+    return {
+      days, miles, truckSize, truck, recommended, waiver, waiverKey,
+      padsChecked, dollyChecked, lines, subtotal, tax, total,
+    };
+  }
+
+  function recomputeReservation() {
+    const quote = computeQuote();
+
+    if (rsvTruckBox) {
+      rsvTruckBox.dataset.size = String(quote.truckSize);
+      const override = getRsv('truck_override');
+      const hasInventory = quote.recommended.score > 0;
+      if (!hasInventory && !override) {
+        rsvTruckTag.textContent = 'Recommendation';
+        rsvTruckLabel.textContent = 'Add inventory to see a fit.';
+        rsvTruckRate.textContent = '';
+      } else {
+        rsvTruckTag.textContent = override ? 'Override' : 'Recommendation';
+        rsvTruckLabel.textContent = quote.truck.label;
+        rsvTruckRate.textContent = `$${quote.truck.daily.toFixed(2)}/day + $${quote.truck.per_mile.toFixed(2)}/mile`;
+      }
+    }
+
+    if (rsvNavTotal) {
+      const hasInventory = quote.recommended.score > 0 || Boolean(getRsv('truck_override'));
+      if (hasInventory) {
+        rsvNavTotal.innerHTML = `
+          <span class="rsv-nav-total-label">Est. total</span>
+          <span class="rsv-nav-total-amount mono">${fmtMoney(quote.total)}</span>
+        `;
+        rsvNavTotal.hidden = false;
+      } else {
+        rsvNavTotal.hidden = true;
+      }
+    }
+
+    if (rsvSummary) {
+      const linesHtml = quote.lines.map((l) => `
+        <div class="rsv-summary-line"><span>${escapeHtml(l.label)}</span><span class="mono">${fmtMoney(l.amount)}</span></div>
+      `).join('');
+      rsvSummary.innerHTML = `
+        <div class="rsv-summary-head">
+          <span>Authorization hold</span>
+          <span class="rsv-summary-head-amount mono">${fmtMoney(quote.total)}</span>
+        </div>
+        <div class="rsv-summary-body">
+          ${linesHtml || '<p class="rsv-summary-empty">No charges yet.</p>'}
+          <div class="rsv-summary-rule"></div>
+          <div class="rsv-summary-line"><span>Subtotal</span><span class="mono">${fmtMoney(quote.subtotal)}</span></div>
+          <div class="rsv-summary-line rsv-summary-line-muted"><span>Estimated tax (${(TAX_RATE * 100).toFixed(0)}%)</span><span class="mono">${fmtMoney(quote.tax)}</span></div>
+          <div class="rsv-summary-rule"></div>
+          <div class="rsv-summary-line rsv-summary-total"><span>Total to authorize</span><span class="mono">${fmtMoney(quote.total)}</span></div>
+        </div>
+      `;
+    }
+
+    if (rsvStep === TOTAL_STEPS && rsvNextBtn) {
+      rsvNextBtn.textContent = `Authorize ${fmtMoney(quote.total)} & save`;
     }
   }
+
+  function showStep(n) {
+    rsvStep = Math.max(1, Math.min(TOTAL_STEPS, n));
+    rsvWizard.dataset.step = String(rsvStep);
+    rsvForm.querySelectorAll('.rsv-step').forEach((sec) => {
+      sec.hidden = Number(sec.dataset.step) !== rsvStep;
+    });
+    rsvWizard.querySelectorAll('.rsv-stepper-item').forEach((it) => {
+      const stepNum = Number(it.dataset.step);
+      it.classList.toggle('active', stepNum === rsvStep);
+      it.classList.toggle('done', stepNum < rsvStep);
+    });
+    rsvBackBtn.hidden = rsvStep === 1;
+    rsvErrorEl.hidden = true;
+    if (rsvStep === TOTAL_STEPS) {
+      const quote = computeQuote();
+      rsvNextBtn.textContent = `Authorize ${fmtMoney(quote.total)} & save`;
+    } else {
+      rsvNextBtn.textContent = 'Continue';
+    }
+    recomputeReservation();
+    const pane = rsvWizard.closest('.crm-pane');
+    if (pane) pane.scrollTop = 0;
+  }
+
+  function validateStep(n) {
+    if (n === 1) {
+      if (!getRsv('full_name').trim()) return 'Confirm the customer\'s full name before continuing.';
+      if (!getRsv('phone').trim()) return 'Confirm a phone number before continuing.';
+    } else if (n === 2) {
+      if (!getRsv('pickup_date')) return 'Set the pickup date.';
+      if (!getRsv('location')) return 'Choose the pickup location.';
+      if (!getRsv('return_date')) return 'Set the return date.';
+      const pd = new Date(getRsv('pickup_date'));
+      const rd = new Date(getRsv('return_date'));
+      if (rd < pd) return 'Return date must be on or after the pickup date.';
+      if (!sameLocCheck.checked && !getRsv('return_location')) return 'Choose the return location, or check "Returning to the same location".';
+    } else if (n === 3) {
+      if (computeRecommendedTruck().score === 0 && !getRsv('truck_override')) {
+        return 'Add at least one inventory item, or override the truck size.';
+      }
+    } else if (n === 4) {
+      if (!getRsv('card_name').trim()) return 'Cardholder name is required.';
+      const num = getRsv('card_number').replace(/\D/g, '');
+      if (num.length < 13) return 'Card number looks too short.';
+      const exp = getRsv('card_exp');
+      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(exp)) return 'Expiry must be MM/YY.';
+      const cvv = getRsv('card_cvv');
+      if (!/^\d{3,4}$/.test(cvv)) return 'CVV should be 3 or 4 digits.';
+      const zip = getRsv('card_zip');
+      if (!/^\d{5}$/.test(zip)) return 'Billing ZIP should be 5 digits.';
+    }
+    return null;
+  }
+
+  function showRsvError(text) {
+    rsvErrorEl.textContent = text;
+    rsvErrorEl.hidden = false;
+  }
+
+  rsvBackBtn.addEventListener('click', () => showStep(rsvStep - 1));
+
+  function detectBrand(num) {
+    const n = String(num || '').replace(/\D/g, '');
+    if (/^4/.test(n)) return 'visa';
+    if (/^(34|37)/.test(n)) return 'amex';
+    if (/^(5[1-5]|2[2-7])/.test(n)) return 'mastercard';
+    if (/^6(011|5)/.test(n)) return 'discover';
+    return 'unknown';
+  }
+
+  function formatCardNumber(raw) {
+    const digits = String(raw || '').replace(/\D/g, '').slice(0, 19);
+    const brand = detectBrand(digits);
+    let groups;
+    if (brand === 'amex') {
+      groups = [digits.slice(0, 4), digits.slice(4, 10), digits.slice(10, 15)];
+    } else {
+      groups = digits.match(/.{1,4}/g) || [];
+    }
+    return groups.filter(Boolean).join(' ');
+  }
+
+  function formatExp(raw) {
+    const digits = String(raw || '').replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return digits.slice(0, 2) + '/' + digits.slice(2);
+  }
+
+  function updateCardPreview() {
+    const num = getRsv('card_number').replace(/\D/g, '');
+    const brand = detectBrand(num);
+    cardPreview.dataset.brand = brand;
+    cardPrevBrand.textContent = brand === 'unknown' ? 'CARD' : brand.toUpperCase();
+    const last4 = num.slice(-4);
+    let masked;
+    if (brand === 'amex') {
+      masked = '•••• •••••• ' + (last4.length === 4 ? last4 + '•' : (last4 || '•••••'));
+    } else {
+      masked = '•••• •••• •••• ' + (last4 || '••••');
+    }
+    cardPrevNumber.textContent = masked;
+    const name = getRsv('card_name').trim().toUpperCase() || 'FULL NAME';
+    cardPrevName.textContent = name;
+    cardPrevExp.textContent = getRsv('card_exp') || 'MM/YY';
+  }
+
+  const cardNumInput = rsvForm.querySelector('[data-rsv="card_number"]');
+  const cardExpInput = rsvForm.querySelector('[data-rsv="card_exp"]');
+  const cardCvvInput = rsvForm.querySelector('[data-rsv="card_cvv"]');
+  const cardZipInput = rsvForm.querySelector('[data-rsv="card_zip"]');
+  const cardNameInput = rsvForm.querySelector('[data-rsv="card_name"]');
+
+  cardNumInput.addEventListener('input', (e) => {
+    e.target.value = formatCardNumber(e.target.value);
+    updateCardPreview();
+  });
+  cardExpInput.addEventListener('input', (e) => {
+    e.target.value = formatExp(e.target.value);
+    updateCardPreview();
+  });
+  cardCvvInput.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+  });
+  cardZipInput.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
+  });
+  cardNameInput.addEventListener('input', () => updateCardPreview());
+
+  sameLocCheck?.addEventListener('change', () => {
+    returnLocField.hidden = sameLocCheck.checked;
+  });
 
   rsvForm.addEventListener('input', recomputeReservation);
   rsvForm.addEventListener('change', recomputeReservation);
 
-  // Prefill known caller identifiers if we have them
+  // Prefill from persona record
   const rec = scenario.customer_record || {};
-  if (rec.full_name) rsvForm.querySelector('[data-rsv="full_name"]').value = rec.full_name;
+  if (rec.full_name) {
+    rsvForm.querySelector('[data-rsv="full_name"]').value = rec.full_name;
+    cardNameInput.value = rec.full_name;
+  }
   if (rec.phone) rsvForm.querySelector('[data-rsv="phone"]').value = rec.phone;
   if (rec.email) rsvForm.querySelector('[data-rsv="email"]').value = rec.email;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  rsvForm.querySelector('[data-rsv="pickup_date"]').value = todayStr;
+  rsvForm.querySelector('[data-rsv="return_date"]').value = tomorrowStr;
 
   rsvForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const data = collectReservation();
-    if (!data.full_name || !data.phone) {
-      rsvResult.innerHTML = `<div class="crm-card crm-card-empty"><div class="crm-card-status">Missing info</div><p class="crm-card-blurb">Confirm the customer's name and phone before saving.</p></div>`;
+    const err = validateStep(rsvStep);
+    if (err) {
+      showRsvError(err);
       return;
     }
-    if (!data.pickup_date || !data.location) {
-      rsvResult.innerHTML = `<div class="crm-card crm-card-empty"><div class="crm-card-status">Missing info</div><p class="crm-card-blurb">Set the pickup date and location to save the reservation.</p></div>`;
+    if (rsvStep < TOTAL_STEPS) {
+      showStep(rsvStep + 1);
       return;
     }
-    const confirmation = 'MR-' + Math.floor(100000 + Math.random() * 900000);
-    const truck = TRUCK_INFO[data.truck_size];
+    saveReservation();
+  });
+
+  function saveReservation() {
+    const quote = computeQuote();
+    const cardNumDigits = getRsv('card_number').replace(/\D/g, '');
+    const data = {
+      full_name: getRsv('full_name'),
+      phone: getRsv('phone'),
+      email: getRsv('email'),
+      pickup_date: getRsv('pickup_date'),
+      pickup_time: getRsv('pickup_time'),
+      location: getRsv('location'),
+      return_date: getRsv('return_date'),
+      return_time: getRsv('return_time'),
+      return_location: sameLocCheck.checked ? getRsv('location') : getRsv('return_location'),
+      miles: getRsv('miles') || '0',
+      card_brand: detectBrand(cardNumDigits),
+      card_last4: cardNumDigits.slice(-4),
+      card_exp: getRsv('card_exp'),
+      card_name: getRsv('card_name'),
+      confirmation: 'MR-' + Math.floor(100000 + Math.random() * 900000),
+    };
+
+    const linesHtml = quote.lines.map((l) => `
+      <div class="rsv-summary-line"><span>${escapeHtml(l.label)}</span><span class="mono">${fmtMoney(l.amount)}</span></div>
+    `).join('');
+
+    rsvWizard.hidden = true;
     rsvResult.innerHTML = `
-      <div class="crm-card">
-        <div class="crm-card-status crm-card-status-found">Reservation saved</div>
-        <div class="crm-section">
-          <div class="crm-section-title">Confirmation</div>
-          <dl class="crm-kv">
-            <div><dt>Number</dt><dd class="mono">${escapeHtml(confirmation)}</dd></div>
-            <div><dt>Name</dt><dd>${escapeHtml(data.full_name)}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">${escapeHtml(data.phone)}</dd></div>
-            <div><dt>Pickup</dt><dd>${escapeHtml(data.pickup_date)} at ${escapeHtml(data.pickup_time)} - ${escapeHtml(data.location)}</dd></div>
-            <div><dt>Truck</dt><dd>${escapeHtml(truck.label)}</dd></div>
-            <div><dt>Rate</dt><dd>${escapeHtml(truck.rate)}</dd></div>
-            <div><dt>Waiver</dt><dd>${escapeHtml(data.waiver_label)}</dd></div>
-            ${data.equipment_label ? `<div><dt>Equipment</dt><dd>${escapeHtml(data.equipment_label)}</dd></div>` : ''}
-          </dl>
+      <div class="rsv-receipt">
+        <div class="rsv-receipt-head">
+          <div class="rsv-receipt-tag">
+            <span class="rsv-receipt-check" aria-hidden="true">✓</span>
+            Reservation confirmed
+          </div>
+          <div class="rsv-receipt-confirmation">
+            <span class="rsv-receipt-confirmation-label">Confirmation number</span>
+            <span class="rsv-receipt-confirmation-num mono">${escapeHtml(data.confirmation)}</span>
+          </div>
         </div>
-        <div class="crm-section crm-section-notes">
-          <div class="crm-section-title">Read back to customer</div>
-          <p>Read the confirmation number, pickup time and location, truck size, and total expected cost.</p>
+
+        <div class="rsv-receipt-grid">
+          <div class="rsv-receipt-section">
+            <div class="rsv-receipt-section-title">Customer</div>
+            <div class="rsv-receipt-section-body">
+              <div class="rsv-receipt-line"><span>Name</span><span>${escapeHtml(data.full_name)}</span></div>
+              <div class="rsv-receipt-line"><span>Phone</span><span class="mono">${escapeHtml(data.phone)}</span></div>
+              ${data.email ? `<div class="rsv-receipt-line"><span>Email</span><span class="mono">${escapeHtml(data.email)}</span></div>` : ''}
+            </div>
+          </div>
+          <div class="rsv-receipt-section">
+            <div class="rsv-receipt-section-title">Trip</div>
+            <div class="rsv-receipt-section-body">
+              <div class="rsv-receipt-line"><span>Pickup</span><span>${escapeHtml(data.pickup_date)} · ${escapeHtml(data.pickup_time)}</span></div>
+              <div class="rsv-receipt-line"><span>From</span><span>${escapeHtml(data.location)}</span></div>
+              <div class="rsv-receipt-line"><span>Return</span><span>${escapeHtml(data.return_date)} · ${escapeHtml(data.return_time)}</span></div>
+              <div class="rsv-receipt-line"><span>Drop-off</span><span>${escapeHtml(data.return_location)}</span></div>
+              <div class="rsv-receipt-line"><span>Mileage est.</span><span class="mono">${escapeHtml(String(data.miles))} mi</span></div>
+            </div>
+          </div>
+          <div class="rsv-receipt-section">
+            <div class="rsv-receipt-section-title">Equipment</div>
+            <div class="rsv-receipt-section-body">
+              <div class="rsv-receipt-line"><span>Truck</span><span>${escapeHtml(quote.truck.label)}</span></div>
+              <div class="rsv-receipt-line"><span>Waiver</span><span>${escapeHtml(quote.waiver.label)}</span></div>
+              ${(quote.padsChecked || quote.dollyChecked) ? `<div class="rsv-receipt-line"><span>Add-ons</span><span>${[quote.padsChecked && 'Pads', quote.dollyChecked && 'Dolly'].filter(Boolean).join(', ')}</span></div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="rsv-summary rsv-summary-final">
+          <div class="rsv-summary-head">
+            <span>Card on file · authorized</span>
+            <span class="rsv-summary-head-amount mono">${fmtMoney(quote.total)}</span>
+          </div>
+          <div class="rsv-summary-body">
+            ${linesHtml}
+            <div class="rsv-summary-rule"></div>
+            <div class="rsv-summary-line"><span>Subtotal</span><span class="mono">${fmtMoney(quote.subtotal)}</span></div>
+            <div class="rsv-summary-line rsv-summary-line-muted"><span>Estimated tax</span><span class="mono">${fmtMoney(quote.tax)}</span></div>
+            <div class="rsv-summary-rule"></div>
+            <div class="rsv-summary-line rsv-summary-total"><span>Authorized</span><span class="mono">${fmtMoney(quote.total)}</span></div>
+          </div>
+          <div class="rsv-card-chip" data-brand="${escapeAttr(data.card_brand)}">
+            <span class="rsv-card-chip-brand">${escapeHtml(data.card_brand === 'unknown' ? 'CARD' : data.card_brand.toUpperCase())}</span>
+            <span class="mono">•••• ${escapeHtml(data.card_last4 || '••••')}</span>
+            <span class="rsv-card-chip-exp mono">exp ${escapeHtml(data.card_exp || 'MM/YY')}</span>
+          </div>
+        </div>
+
+        <div class="rsv-receipt-readback">
+          <div class="rsv-receipt-readback-title">Read back to the caller</div>
+          <p>"Your confirmation number is <strong class="mono">${escapeHtml(data.confirmation)}</strong>. We're holding a ${escapeHtml(quote.truck.label)} for you at the ${escapeHtml(data.location)} location on ${escapeHtml(data.pickup_date)} at ${escapeHtml(data.pickup_time)}, due back ${escapeHtml(data.return_date)} at ${escapeHtml(data.return_time)}. Total comes to ${escapeHtml(fmtMoney(quote.total))} on the card ending in ${escapeHtml(data.card_last4 || '....')}. Anything else I can help you with?"</p>
+        </div>
+
+        <div class="rsv-receipt-actions">
+          <button class="ghost-button" type="button" id="rsv-new">Start another reservation</button>
         </div>
       </div>
     `;
-  });
 
-  function collectReservation() {
-    const get = (sel) => rsvForm.querySelector(sel)?.value || '';
-    const checked = (attr) => Array.from(rsvForm.querySelectorAll(`[${attr}]:checked`)).map((i) => i.getAttribute(attr));
-    const bedrooms = Number(get('[data-rsv="bedrooms"]') || 0);
-    const boxes = Number(get('[data-rsv="boxes"]') || 0);
-    const furnitureCount = rsvForm.querySelectorAll('[data-rsv-furniture]:checked').length;
-    const applianceCount = rsvForm.querySelectorAll('[data-rsv-appliance]:checked').length;
-    const score = bedrooms * 2 + furnitureCount + applianceCount * 2 + boxes / 10;
-    let recommended;
-    if (score < 4) recommended = 10;
-    else if (score < 9) recommended = 15;
-    else if (score < 16) recommended = 20;
-    else recommended = 26;
-    const override = get('[data-rsv="truck_override"]');
-    const truck_size = override ? Number(override) : recommended;
-
-    const waiverVal = get('[data-rsv="waiver"]');
-    const waiverLabels = {
-      none: 'Declined',
-      basic: 'Basic ($15/day, up to $5k)',
-      premium: 'Premium ($25/day, up to $25k)',
-    };
-    const equipment = checked('data-rsv-equipment');
-    const equipmentLabels = { pads: 'Furniture pads', dolly: 'Dolly' };
-    const equipment_label = equipment.map((k) => equipmentLabels[k]).filter(Boolean).join(', ');
-
-    return {
-      full_name: get('[data-rsv="full_name"]'),
-      phone: get('[data-rsv="phone"]'),
-      email: get('[data-rsv="email"]'),
-      pickup_date: get('[data-rsv="pickup_date"]'),
-      pickup_time: get('[data-rsv="pickup_time"]'),
-      location: get('[data-rsv="location"]'),
-      miles: get('[data-rsv="miles"]'),
-      bedrooms,
-      boxes,
-      furniture: checked('data-rsv-furniture'),
-      appliances: checked('data-rsv-appliance'),
-      truck_size,
-      waiver_label: waiverLabels[waiverVal] || 'Declined',
-      equipment_label,
-    };
+    document.getElementById('rsv-new').addEventListener('click', () => {
+      rsvResult.innerHTML = '';
+      rsvWizard.hidden = false;
+      showStep(1);
+    });
   }
 
+  showStep(1);
+  updateCardPreview();
   recomputeReservation();
 }
 

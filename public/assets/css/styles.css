@@ -2083,6 +2083,10 @@ textarea {
   gap: 4px;
 }
 
+.crm-field[hidden] {
+  display: none;
+}
+
 .crm-field-label {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -2323,6 +2327,696 @@ textarea {
 .error-text {
   color: var(--color-text-secondary);
   margin: 0;
+}
+
+/* Reservation wizard
+   ------------------------------------------------------------------ */
+.crm-pane-reservation {
+  position: relative;
+}
+
+.rsv-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rsv-wizard[hidden] {
+  display: none;
+}
+
+.rsv-stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.rsv-stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.rsv-stepper-item.active {
+  border-color: rgba(245, 165, 36, 0.45);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.rsv-stepper-item.done {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+  color: #86efac;
+}
+
+.rsv-stepper-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.rsv-stepper-item.active .rsv-stepper-num {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #1a1500;
+}
+
+.rsv-stepper-item.done .rsv-stepper-num {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #052e16;
+}
+
+.rsv-stepper-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rsv-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: rsv-fade 0.18s ease;
+}
+
+.rsv-step[hidden] {
+  display: none;
+}
+
+@keyframes rsv-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rsv-step-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rsv-step-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.rsv-step-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.rsv-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.rsv-row-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 1100px) {
+  .rsv-row-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.crm-check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.crm-check-row input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.crm-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.crm-section-block > .crm-section-title {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.rsv-truck {
+  background: linear-gradient(180deg, var(--color-surface-elevated), var(--color-surface));
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.rsv-truck-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rsv-truck-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.rsv-truck-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.rsv-truck-rate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-accent);
+  min-height: 14px;
+}
+
+.rsv-truck[data-size="10"],
+.rsv-truck[data-size="15"] {
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08);
+}
+
+.rsv-truck[data-size="20"] {
+  border-color: rgba(245, 165, 36, 0.45);
+  box-shadow: 0 0 0 3px var(--color-accent-muted);
+}
+
+.rsv-truck[data-size="26"] {
+  border-color: rgba(239, 68, 68, 0.45);
+  box-shadow: 0 0 0 3px var(--color-danger-muted);
+}
+
+.rsv-truck[data-size="?"] {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.rsv-test-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: #93c5fd;
+  line-height: 1.5;
+}
+
+.rsv-test-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(96, 165, 250, 0.18);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.rsv-summary {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.rsv-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--space-3);
+  background: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.rsv-summary-head-amount {
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.rsv-summary-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+}
+
+.rsv-summary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+.rsv-summary-line > span:first-child {
+  color: var(--color-text-secondary);
+  flex: 1;
+}
+
+.rsv-summary-line-muted > span {
+  color: var(--color-text-tertiary) !important;
+}
+
+.rsv-summary-rule {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 0;
+}
+
+.rsv-summary-total {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rsv-summary-total > span:first-child {
+  color: var(--color-text-primary) !important;
+}
+
+.rsv-summary-total > span:last-child {
+  color: var(--color-accent);
+}
+
+.rsv-summary-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* Fake credit card preview
+   ------------------------------------------------------------------ */
+.card-preview {
+  position: relative;
+  margin: var(--space-2) 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 132px;
+  overflow: hidden;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.card-preview::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 165, 36, 0.16), transparent 60%);
+  pointer-events: none;
+}
+
+.card-preview[data-brand="visa"] {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0c0c10 100%);
+}
+
+.card-preview[data-brand="mastercard"] {
+  background: linear-gradient(135deg, #7f1d1d 0%, #0c0c10 100%);
+}
+
+.card-preview[data-brand="amex"] {
+  background: linear-gradient(135deg, #065f46 0%, #0c0c10 100%);
+}
+
+.card-preview[data-brand="discover"] {
+  background: linear-gradient(135deg, #b45309 0%, #0c0c10 100%);
+}
+
+.card-preview-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.card-preview-issuer {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.card-preview-brand {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+.card-preview-number {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-primary);
+  position: relative;
+  margin-top: 6px;
+}
+
+.card-preview-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  position: relative;
+}
+
+.card-preview-key {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.card-preview-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Wizard navigation
+   ------------------------------------------------------------------ */
+.rsv-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.rsv-nav-total {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+  padding-right: var(--space-2);
+}
+
+.rsv-nav-total[hidden] {
+  display: none;
+}
+
+.rsv-nav-total-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.rsv-nav-total-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.rsv-next-btn {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.rsv-error {
+  background: var(--color-danger-muted);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px var(--space-3);
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+.rsv-error[hidden] {
+  display: none;
+}
+
+/* Reservation receipt
+   ------------------------------------------------------------------ */
+.rsv-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  animation: view-fade-in 0.25s ease;
+}
+
+.rsv-receipt-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rsv-receipt-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #86efac;
+  align-self: flex-start;
+}
+
+.rsv-receipt-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-success);
+  color: #052e16;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rsv-receipt-confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rsv-receipt-confirmation-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.rsv-receipt-confirmation-num {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.rsv-receipt-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rsv-receipt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rsv-receipt-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.rsv-receipt-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rsv-receipt-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 12px;
+}
+
+.rsv-receipt-line > span:first-child {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.rsv-receipt-line > span:last-child {
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.rsv-card-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-3);
+  padding: 6px 10px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  align-self: flex-start;
+}
+
+.rsv-card-chip-brand {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.rsv-card-chip[data-brand="visa"] .rsv-card-chip-brand {
+  background: rgba(30, 58, 138, 0.45);
+  color: #93c5fd;
+}
+
+.rsv-card-chip[data-brand="mastercard"] .rsv-card-chip-brand {
+  background: rgba(127, 29, 29, 0.5);
+  color: #fca5a5;
+}
+
+.rsv-card-chip[data-brand="amex"] .rsv-card-chip-brand {
+  background: rgba(6, 95, 70, 0.5);
+  color: #86efac;
+}
+
+.rsv-card-chip[data-brand="discover"] .rsv-card-chip-brand {
+  background: rgba(180, 83, 9, 0.5);
+  color: #fde68a;
+}
+
+.rsv-card-chip-exp {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.rsv-receipt-readback {
+  padding: var(--space-3);
+  background: var(--color-accent-muted);
+  border: 1px solid rgba(245, 165, 36, 0.25);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.rsv-receipt-readback-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+}
+
+.rsv-receipt-readback p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-primary);
+}
+
+.rsv-receipt-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Responsive
