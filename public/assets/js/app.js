@@ -403,28 +403,159 @@ function renderCall(scenario) {
           </div>
           `}
         </div>
-        <aside class="crm-panel" id="crm-panel" aria-label="Customer lookup">
+        <aside class="crm-panel" id="crm-panel" aria-label="CSR system">
           <header class="crm-header">
             <div class="crm-eyebrow">Meridian CSR</div>
-            <div class="crm-title">Customer Lookup</div>
+            <div class="crm-tabs" role="tablist">
+              <button class="crm-tab active" data-tab="lookup" role="tab" type="button" aria-selected="true">Lookup</button>
+              <button class="crm-tab" data-tab="reservation" role="tab" type="button" aria-selected="false">New Reservation</button>
+            </div>
           </header>
-          <form class="crm-form" id="crm-form" autocomplete="off">
-            <label class="crm-field">
-              <span class="crm-field-label">Phone</span>
-              <input class="crm-input" id="crm-phone" type="tel" placeholder="555-123-4567">
-            </label>
-            <label class="crm-field">
-              <span class="crm-field-label">Email</span>
-              <input class="crm-input" id="crm-email" type="text" inputmode="email" placeholder="name@example.com">
-            </label>
-            <label class="crm-field">
-              <span class="crm-field-label">Last name</span>
-              <input class="crm-input" id="crm-name" type="text" placeholder="Chen">
-            </label>
-            <button type="submit" class="crm-submit">Search</button>
-          </form>
-          <div class="crm-result" id="crm-result" data-state="empty">
-            <p class="crm-empty">Enter phone, email, or last name to look up the caller. Any one field works; partial matches are fine.</p>
+
+          <div class="crm-pane" data-tab="lookup">
+            <form class="crm-form" id="crm-form" autocomplete="off">
+              <label class="crm-field">
+                <span class="crm-field-label">Phone</span>
+                <input class="crm-input" id="crm-phone" type="tel" placeholder="555-123-4567">
+              </label>
+              <label class="crm-field">
+                <span class="crm-field-label">Email</span>
+                <input class="crm-input" id="crm-email" type="text" inputmode="email" placeholder="name@example.com">
+              </label>
+              <label class="crm-field">
+                <span class="crm-field-label">Last name</span>
+                <input class="crm-input" id="crm-name" type="text" placeholder="Chen">
+              </label>
+              <button type="submit" class="crm-submit">Search</button>
+            </form>
+            <div class="crm-result" id="crm-result" data-state="empty">
+              <p class="crm-empty">Enter phone, email, or last name to look up the caller. Any one field works; partial matches are fine.</p>
+            </div>
+          </div>
+
+          <div class="crm-pane" data-tab="reservation" hidden>
+            <form class="crm-reservation" id="crm-reservation" autocomplete="off">
+              <div class="crm-section">
+                <div class="crm-section-title">Customer</div>
+                <p class="crm-hint">Try: "Can I get your name, phone, and the best email for you?"</p>
+                <label class="crm-field">
+                  <span class="crm-field-label">Full name</span>
+                  <input class="crm-input" data-rsv="full_name" type="text" placeholder="Customer name">
+                </label>
+                <label class="crm-field">
+                  <span class="crm-field-label">Phone</span>
+                  <input class="crm-input" data-rsv="phone" type="tel" placeholder="555-123-4567">
+                </label>
+                <label class="crm-field">
+                  <span class="crm-field-label">Email</span>
+                  <input class="crm-input" data-rsv="email" type="text" inputmode="email" placeholder="name@example.com">
+                </label>
+              </div>
+
+              <div class="crm-section">
+                <div class="crm-section-title">Move details</div>
+                <p class="crm-hint">Try: "What date are you moving, and where are you going from and to?"</p>
+                <label class="crm-field">
+                  <span class="crm-field-label">Pickup date</span>
+                  <input class="crm-input" data-rsv="pickup_date" type="date">
+                </label>
+                <label class="crm-field">
+                  <span class="crm-field-label">Pickup time</span>
+                  <input class="crm-input" data-rsv="pickup_time" type="time" value="09:00">
+                </label>
+                <label class="crm-field">
+                  <span class="crm-field-label">Pickup location</span>
+                  <select class="crm-input" data-rsv="location">
+                    <option value="">Choose...</option>
+                    <option>Downtown</option>
+                    <option>Northgate</option>
+                    <option>Riverside</option>
+                    <option>Westside</option>
+                    <option>Airport</option>
+                  </select>
+                </label>
+                <label class="crm-field">
+                  <span class="crm-field-label">Estimated miles</span>
+                  <input class="crm-input" data-rsv="miles" type="number" min="0" step="1" placeholder="e.g. 12">
+                </label>
+              </div>
+
+              <div class="crm-section">
+                <div class="crm-section-title">Inventory</div>
+                <p class="crm-hint">Try: "Walk me through the biggest stuff. How many bedrooms? Any appliances?"</p>
+                <label class="crm-field">
+                  <span class="crm-field-label">Bedrooms</span>
+                  <select class="crm-input" data-rsv="bedrooms" data-numeric="1">
+                    <option value="0">Studio</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4+</option>
+                  </select>
+                </label>
+                <fieldset class="crm-checks">
+                  <legend class="crm-field-label">Major furniture</legend>
+                  <label><input type="checkbox" data-rsv-furniture="bed_queenking"> Queen/king bed</label>
+                  <label><input type="checkbox" data-rsv-furniture="bed_other"> Full/twin bed</label>
+                  <label><input type="checkbox" data-rsv-furniture="sofa"> Sofa / sectional</label>
+                  <label><input type="checkbox" data-rsv-furniture="dining"> Dining set</label>
+                  <label><input type="checkbox" data-rsv-furniture="dresser"> Dresser / armoire</label>
+                  <label><input type="checkbox" data-rsv-furniture="bookshelves"> Bookshelves</label>
+                </fieldset>
+                <fieldset class="crm-checks">
+                  <legend class="crm-field-label">Major appliances</legend>
+                  <label><input type="checkbox" data-rsv-appliance="washer"> Washer</label>
+                  <label><input type="checkbox" data-rsv-appliance="dryer"> Dryer</label>
+                  <label><input type="checkbox" data-rsv-appliance="fridge"> Fridge</label>
+                  <label><input type="checkbox" data-rsv-appliance="other"> Other large</label>
+                </fieldset>
+                <label class="crm-field">
+                  <span class="crm-field-label">Boxes (estimate)</span>
+                  <input class="crm-input" data-rsv="boxes" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 25" value="0">
+                </label>
+              </div>
+
+              <div class="crm-section crm-section-accent">
+                <div class="crm-section-title">Truck recommendation</div>
+                <div class="crm-truck" id="crm-truck" data-size="?">
+                  <div class="crm-truck-size" id="crm-truck-size">Enter inventory to see a recommendation.</div>
+                  <div class="crm-truck-rate" id="crm-truck-rate"></div>
+                </div>
+                <label class="crm-field">
+                  <span class="crm-field-label">Override size</span>
+                  <select class="crm-input" data-rsv="truck_override">
+                    <option value="">Use system recommendation</option>
+                    <option value="10">10-foot ($19.95/day + $0.79/mi)</option>
+                    <option value="15">15-foot ($29.95/day + $0.89/mi)</option>
+                    <option value="20">20-foot ($39.95/day + $0.99/mi)</option>
+                    <option value="26">26-foot ($49.95/day + $1.19/mi)</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="crm-section">
+                <div class="crm-section-title">Add-ons</div>
+                <p class="crm-hint">Try: "Want me to add the damage waiver? It's $15 a day for basic, $25 for premium."</p>
+                <label class="crm-field">
+                  <span class="crm-field-label">Damage waiver</span>
+                  <select class="crm-input" data-rsv="waiver">
+                    <option value="none">Decline</option>
+                    <option value="basic">Basic ($15/day, up to $5k)</option>
+                    <option value="premium">Premium ($25/day, up to $25k)</option>
+                  </select>
+                </label>
+                <fieldset class="crm-checks">
+                  <legend class="crm-field-label">Equipment</legend>
+                  <label><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
+                  <label><input type="checkbox" data-rsv-equipment="dolly"> Dolly ($7/day)</label>
+                </fieldset>
+              </div>
+
+              <div class="crm-actions">
+                <button type="submit" class="crm-submit">Save reservation</button>
+              </div>
+            </form>
+            <div class="crm-rsv-result" id="crm-rsv-result"></div>
           </div>
         </aside>
       </div>
@@ -820,6 +951,157 @@ function renderCall(scenario) {
     if (qName && norm(record.full_name).includes(qName) && qName.length >= 2) return true;
     return false;
   }
+
+  // ---- CRM tabs + reservation builder ----
+  const crmTabs = dom.root.querySelectorAll('.crm-tab');
+  const crmPanes = dom.root.querySelectorAll('.crm-pane');
+  crmTabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+      crmTabs.forEach((b) => {
+        const active = b.dataset.tab === target;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', String(active));
+      });
+      crmPanes.forEach((p) => {
+        p.hidden = p.dataset.tab !== target;
+      });
+    });
+  });
+
+  const rsvForm = document.getElementById('crm-reservation');
+  const rsvResult = document.getElementById('crm-rsv-result');
+  const rsvTruckLabel = document.getElementById('crm-truck-size');
+  const rsvTruckRate = document.getElementById('crm-truck-rate');
+  const rsvTruckBox = document.getElementById('crm-truck');
+
+  const TRUCK_INFO = {
+    10: { label: '10-foot truck', rate: '$19.95/day + $0.79/mile' },
+    15: { label: '15-foot truck', rate: '$29.95/day + $0.89/mile' },
+    20: { label: '20-foot truck', rate: '$39.95/day + $0.99/mile' },
+    26: { label: '26-foot truck', rate: '$49.95/day + $1.19/mile' },
+  };
+
+  function recomputeReservation() {
+    const f = (sel) => rsvForm.querySelector(sel);
+    const bedrooms = Number(f('[data-rsv="bedrooms"]')?.value || 0);
+    const boxes = Number(f('[data-rsv="boxes"]')?.value || 0);
+    const furnitureCount = rsvForm.querySelectorAll('[data-rsv-furniture]:checked').length;
+    const applianceCount = rsvForm.querySelectorAll('[data-rsv-appliance]:checked').length;
+    const score = bedrooms * 2 + furnitureCount + applianceCount * 2 + boxes / 10;
+
+    let recommended;
+    if (score < 4) recommended = 10;
+    else if (score < 9) recommended = 15;
+    else if (score < 16) recommended = 20;
+    else recommended = 26;
+
+    const override = f('[data-rsv="truck_override"]')?.value;
+    const finalSize = override ? Number(override) : recommended;
+    const info = TRUCK_INFO[finalSize];
+
+    rsvTruckBox.dataset.size = String(finalSize);
+    if (score === 0 && !override) {
+      rsvTruckLabel.textContent = 'Enter inventory to see a recommendation.';
+      rsvTruckRate.textContent = '';
+    } else {
+      const tag = override ? 'Override' : 'Recommended';
+      rsvTruckLabel.textContent = `${tag}: ${info.label}`;
+      rsvTruckRate.textContent = info.rate;
+    }
+  }
+
+  rsvForm.addEventListener('input', recomputeReservation);
+  rsvForm.addEventListener('change', recomputeReservation);
+
+  // Prefill known caller identifiers if we have them
+  const rec = scenario.customer_record || {};
+  if (rec.full_name) rsvForm.querySelector('[data-rsv="full_name"]').value = rec.full_name;
+  if (rec.phone) rsvForm.querySelector('[data-rsv="phone"]').value = rec.phone;
+  if (rec.email) rsvForm.querySelector('[data-rsv="email"]').value = rec.email;
+
+  rsvForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = collectReservation();
+    if (!data.full_name || !data.phone) {
+      rsvResult.innerHTML = `<div class="crm-card crm-card-empty"><div class="crm-card-status">Missing info</div><p class="crm-card-blurb">Confirm the customer's name and phone before saving.</p></div>`;
+      return;
+    }
+    if (!data.pickup_date || !data.location) {
+      rsvResult.innerHTML = `<div class="crm-card crm-card-empty"><div class="crm-card-status">Missing info</div><p class="crm-card-blurb">Set the pickup date and location to save the reservation.</p></div>`;
+      return;
+    }
+    const confirmation = 'MR-' + Math.floor(100000 + Math.random() * 900000);
+    const truck = TRUCK_INFO[data.truck_size];
+    rsvResult.innerHTML = `
+      <div class="crm-card">
+        <div class="crm-card-status crm-card-status-found">Reservation saved</div>
+        <div class="crm-section">
+          <div class="crm-section-title">Confirmation</div>
+          <dl class="crm-kv">
+            <div><dt>Number</dt><dd class="mono">${escapeHtml(confirmation)}</dd></div>
+            <div><dt>Name</dt><dd>${escapeHtml(data.full_name)}</dd></div>
+            <div><dt>Phone</dt><dd class="mono">${escapeHtml(data.phone)}</dd></div>
+            <div><dt>Pickup</dt><dd>${escapeHtml(data.pickup_date)} at ${escapeHtml(data.pickup_time)} - ${escapeHtml(data.location)}</dd></div>
+            <div><dt>Truck</dt><dd>${escapeHtml(truck.label)}</dd></div>
+            <div><dt>Rate</dt><dd>${escapeHtml(truck.rate)}</dd></div>
+            <div><dt>Waiver</dt><dd>${escapeHtml(data.waiver_label)}</dd></div>
+            ${data.equipment_label ? `<div><dt>Equipment</dt><dd>${escapeHtml(data.equipment_label)}</dd></div>` : ''}
+          </dl>
+        </div>
+        <div class="crm-section crm-section-notes">
+          <div class="crm-section-title">Read back to customer</div>
+          <p>Read the confirmation number, pickup time and location, truck size, and total expected cost.</p>
+        </div>
+      </div>
+    `;
+  });
+
+  function collectReservation() {
+    const get = (sel) => rsvForm.querySelector(sel)?.value || '';
+    const checked = (attr) => Array.from(rsvForm.querySelectorAll(`[${attr}]:checked`)).map((i) => i.getAttribute(attr));
+    const bedrooms = Number(get('[data-rsv="bedrooms"]') || 0);
+    const boxes = Number(get('[data-rsv="boxes"]') || 0);
+    const furnitureCount = rsvForm.querySelectorAll('[data-rsv-furniture]:checked').length;
+    const applianceCount = rsvForm.querySelectorAll('[data-rsv-appliance]:checked').length;
+    const score = bedrooms * 2 + furnitureCount + applianceCount * 2 + boxes / 10;
+    let recommended;
+    if (score < 4) recommended = 10;
+    else if (score < 9) recommended = 15;
+    else if (score < 16) recommended = 20;
+    else recommended = 26;
+    const override = get('[data-rsv="truck_override"]');
+    const truck_size = override ? Number(override) : recommended;
+
+    const waiverVal = get('[data-rsv="waiver"]');
+    const waiverLabels = {
+      none: 'Declined',
+      basic: 'Basic ($15/day, up to $5k)',
+      premium: 'Premium ($25/day, up to $25k)',
+    };
+    const equipment = checked('data-rsv-equipment');
+    const equipmentLabels = { pads: 'Furniture pads', dolly: 'Dolly' };
+    const equipment_label = equipment.map((k) => equipmentLabels[k]).filter(Boolean).join(', ');
+
+    return {
+      full_name: get('[data-rsv="full_name"]'),
+      phone: get('[data-rsv="phone"]'),
+      email: get('[data-rsv="email"]'),
+      pickup_date: get('[data-rsv="pickup_date"]'),
+      pickup_time: get('[data-rsv="pickup_time"]'),
+      location: get('[data-rsv="location"]'),
+      miles: get('[data-rsv="miles"]'),
+      bedrooms,
+      boxes,
+      furniture: checked('data-rsv-furniture'),
+      appliances: checked('data-rsv-appliance'),
+      truck_size,
+      waiver_label: waiverLabels[waiverVal] || 'Declined',
+      equipment_label,
+    };
+  }
+
+  recomputeReservation();
 }
 
 async function runCoaching(scenario, messages) {

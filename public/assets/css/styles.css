@@ -1913,6 +1913,9 @@ textarea {
 .crm-header {
   border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .crm-eyebrow {
@@ -1928,6 +1931,144 @@ textarea {
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-top: 2px;
+}
+
+.crm-tabs {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  gap: 0;
+  align-self: flex-start;
+}
+
+.crm-tab {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.crm-tab:hover:not(.active) {
+  color: var(--color-text-secondary);
+}
+
+.crm-tab.active {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.crm-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.crm-pane[hidden] {
+  display: none;
+}
+
+.crm-reservation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.crm-hint {
+  margin: 0 0 var(--space-2);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  padding: 6px 8px;
+  background: var(--color-surface-elevated);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--color-border-strong);
+}
+
+.crm-checks {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-bg);
+}
+
+.crm-checks legend {
+  padding: 0 4px;
+  margin-bottom: 4px;
+}
+
+.crm-checks label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.crm-checks input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.crm-truck {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crm-truck-size {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.crm-truck-rate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-accent);
+  min-height: 14px;
+}
+
+.crm-truck[data-size="10"],
+.crm-truck[data-size="15"] {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.crm-truck[data-size="20"] {
+  border-color: rgba(245, 165, 36, 0.4);
+}
+
+.crm-truck[data-size="26"] {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.crm-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.crm-rsv-result {
+  margin-top: var(--space-3);
 }
 
 .crm-form {
