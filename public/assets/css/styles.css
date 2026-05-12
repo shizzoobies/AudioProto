@@ -716,6 +716,30 @@ textarea {
   gap: 5px;
 }
 
+.scenario-difficulty.difficulty-showcase {
+  background: rgba(96, 165, 250, 0.14);
+  color: #93c5fd;
+}
+
+.scenario-card-showcase {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.05), var(--color-surface));
+}
+
+.scenario-card-showcase:hover,
+.scenario-card-showcase:focus-visible {
+  border-color: rgba(96, 165, 250, 0.55);
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.09), var(--color-surface-elevated));
+}
+
+.scenario-card-showcase .scenario-cta {
+  color: #93c5fd;
+}
+
+.scenario-card-showcase:hover .scenario-cta {
+  color: #bfdbfe;
+}
+
 .random-icon {
   width: 11px;
   height: 11px;

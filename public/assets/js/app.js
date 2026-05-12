@@ -250,17 +250,25 @@ function renderPicker() {
   teardownAudio();
 
   const cards = state.scenarioTypes
-    .map(
-      (t) => `
-      <li class="scenario-card" data-scenario-id="${escapeAttr(t.id)}" tabindex="0" role="button" aria-label="Start scenario: ${escapeAttr(t.title)}">
-        <div class="scenario-difficulty difficulty-${escapeAttr(t.difficulty)}">${capitalize(t.difficulty)}</div>
-        <h2 class="scenario-title">${escapeHtml(t.title)}</h2>
-        <p class="scenario-customer">${t.persona_count} different callers</p>
-        <p class="scenario-description">${escapeHtml(t.description)}</p>
-        <div class="scenario-cta">Start call <span aria-hidden="true">›</span></div>
-      </li>
-    `
-    )
+    .map((t) => {
+      const isShowcase = t.id === 'showcase';
+      const cardClass = isShowcase ? 'scenario-card scenario-card-showcase' : 'scenario-card';
+      const callerLabel = isShowcase
+        ? 'Featured persona · deep build'
+        : t.persona_count === 1
+        ? '1 caller'
+        : `${t.persona_count} different callers`;
+      const ctaText = isShowcase ? 'Try the deep persona' : 'Start call';
+      return `
+        <li class="${cardClass}" data-scenario-id="${escapeAttr(t.id)}" tabindex="0" role="button" aria-label="Start scenario: ${escapeAttr(t.title)}">
+          <div class="scenario-difficulty difficulty-${escapeAttr(t.difficulty)}">${capitalize(t.difficulty)}</div>
+          <h2 class="scenario-title">${escapeHtml(t.title)}</h2>
+          <p class="scenario-customer">${escapeHtml(callerLabel)}</p>
+          <p class="scenario-description">${escapeHtml(t.description)}</p>
+          <div class="scenario-cta">${escapeHtml(ctaText)} <span aria-hidden="true">›</span></div>
+        </li>
+      `;
+    })
     .join('');
 
   const randomCard = `
