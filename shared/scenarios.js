@@ -28,6 +28,15 @@ Behavioral rules:
 - Do not use em dashes in your speech. Use commas, periods, or restart the sentence.
 - You have a real life outside this call. Only mention pieces of it if the agent asks, or if a detail naturally surfaces in what you are feeling right now. Do not dump backstory.
 
+How to say numbers, emails, and names out loud (this is a voice call - the text you write is being spoken):
+- Phone numbers: speak digit by digit in natural chunks. Write the digits as words separated by commas and pauses so the voice paces them correctly. For US numbers use a 3-3-4 rhythm. Use "oh" or "zero" naturally. Example: "five one two, three three four, seven eight two one." NEVER write "the number is 5123347821" or "five hundred twelve, three thousand three hundred forty seven..." - those sound robotic when spoken.
+- Account numbers, confirmation codes, case numbers: read each character separately, optionally in small chunks. Example: "M R, dash, two seven nine four, dash, seven eight two one." Spell letters one at a time.
+- Email addresses: spell the local part letter by letter, then "at" for the @ symbol, then the domain with "dot" for periods. Example: "M A R C U S, dot, chen, dot, dev, at gmail, dot com." Slow it down so the agent can write it.
+- Your own last name (or any name the agent might need to write down): when asked, spell it letter by letter after saying it. Example: "Chen. C, H, E, N." or "Walsh. W A L S H."
+- Dates and times: natural, not digit-by-digit. "May fourth, two thousand twenty-six" or "around nine in the morning."
+- Dollar amounts: natural ("four hundred eighty-seven dollars" or "four eighty-seven"), not digit-by-digit.
+- Volunteer your identifiers in pieces, not all at once. If the agent asks "what's your phone number," say the phone. Do not immediately follow with account number, email, and address unless asked.
+
 Universal triggers (react in character; do not announce that you are reacting):
 - If the agent uses your name in their reply, you soften a small amount on the next turn.
 - If the agent offers generic empathy ("I understand", "I hear you", "that must be hard") without an action, your patience goes down. After two of these in a row without action, push back.
@@ -37,7 +46,26 @@ Universal triggers (react in character; do not announce that you are reacting):
 - If you have stated a key concern twice and the agent has not engaged with it, escalate.
 `;
 
-function buildPersonaPrompt(persona) {
+function buildIdentifierBlock(record) {
+  if (!record) return '';
+  const lines = [];
+  if (record.full_name) lines.push(`- Your full name: ${record.full_name}`);
+  if (record.phone) lines.push(`- Your phone number: ${record.phone}`);
+  if (record.email) lines.push(`- Your email on file: ${record.email}`);
+  if (record.account_id) lines.push(`- Your Meridian account number: ${record.account_id}`);
+  if (record.member_since) lines.push(`- Member since: ${record.member_since}`);
+  const reservation = record.active_reservations?.[0];
+  if (reservation?.confirmation) lines.push(`- Your reservation confirmation number: ${reservation.confirmation}`);
+  const claim = record.claims_cases?.[0];
+  if (claim?.case_id) lines.push(`- Your Claims case number: ${claim.case_id} (amount: ${claim.amount})`);
+  if (!lines.length) return '';
+  const accountState = record.found
+    ? 'You are already a Meridian customer with a record in their system. These identifiers are real and consistent; do not invent different numbers or spellings.'
+    : 'You do not have a Meridian account yet. These are simply your own personal contact details that you would give if asked.';
+  return `\nYour identifying information (when the agent asks, give the relevant piece in the natural spoken form per the number-and-spelling rules below):\n${lines.join('\n')}\n\n${accountState}\n`;
+}
+
+function buildPersonaPrompt(persona, record) {
   return `You are ${persona.name}, ${persona.identity}. You are ${persona.emotional_state} right now.
 
 Situation:
@@ -45,7 +73,7 @@ ${persona.situation.map((b) => `- ${b}`).join('\n')}
 
 Your life (do not lecture the agent; surface only when asked or when the stress naturally pulls it out):
 ${persona.life.map((b) => `- ${b}`).join('\n')}
-
+${buildIdentifierBlock(record)}
 Speech mannerisms:
 ${persona.mannerisms.map((b) => `- ${b}`).join('\n')}
 
@@ -1052,6 +1080,9 @@ const CUSTOMER_RECORDS = {
 
   price_shopper_diane: {
     found: false,
+    full_name: 'Diane Pritchett',
+    phone: '480-555-0117',
+    email: 'diane.pritchett.az@gmail.com',
     notes: 'No customer record. Treat as new prospect; collect lead details if she books.',
   },
   price_shopper_trevor: {
@@ -1070,10 +1101,16 @@ const CUSTOMER_RECORDS = {
   },
   price_shopper_linda: {
     found: false,
+    full_name: 'Linda Harper',
+    phone: '480-555-0142',
+    email: 'linda.k.harper@gmail.com',
     notes: 'No customer record. New prospect downsizing into a smaller place.',
   },
   price_shopper_marcusw: {
     found: false,
+    full_name: 'Marcus Whitfield',
+    phone: '425-555-0288',
+    email: 'marcus.whitfield29@gmail.com',
     notes: 'No customer record. First-time homebuyer researching options.',
   },
   price_shopper_greta: {
@@ -1093,22 +1130,37 @@ const CUSTOMER_RECORDS = {
 
   first_time_mover_jordan: {
     found: false,
+    full_name: 'Jordan Boyer',
+    phone: '512-555-0307',
+    email: 'jordan.boyer.atx@gmail.com',
     notes: 'No customer record. New customer; first move.',
   },
   first_time_mover_riya: {
     found: false,
+    full_name: 'Riya Singh',
+    phone: '408-555-0419',
+    email: 'riya.singh07@gmail.com',
     notes: 'No customer record. College student; mother is in the room with her on the call.',
   },
   first_time_mover_tomas: {
     found: false,
+    full_name: 'Tomas Benitez',
+    phone: '305-555-0521',
+    email: 'tomas.benitez.dev@gmail.com',
     notes: 'No customer record. New customer; recent immigrant, second-language English speaker.',
   },
   first_time_mover_maddie: {
     found: false,
+    full_name: 'Madison Castle',
+    phone: '615-555-0633',
+    email: 'm.castle.nash@gmail.com',
     notes: 'No customer record. New customer; sensitive personal context (recent divorce).',
   },
   first_time_mover_brandon: {
     found: false,
+    full_name: 'Brandon Currie',
+    phone: '614-555-0744',
+    email: 'bcurrie21@gmail.com',
     notes: 'No customer record. New customer; out of his depth on logistics.',
   },
 
@@ -1283,15 +1335,18 @@ const CUSTOMER_RECORDS = {
 
 // Build full persona records with system_prompt + id + customer_record.
 export const SCENARIOS = Object.fromEntries(
-  Object.entries(PERSONA_DEFS).map(([id, def]) => [
-    id,
-    {
-      ...def,
+  Object.entries(PERSONA_DEFS).map(([id, def]) => {
+    const record = CUSTOMER_RECORDS[id] || { found: false, notes: 'No record.' };
+    return [
       id,
-      system_prompt: buildPersonaPrompt(def),
-      customer_record: CUSTOMER_RECORDS[id] || { found: false, notes: 'No record.' },
-    },
-  ])
+      {
+        ...def,
+        id,
+        system_prompt: buildPersonaPrompt(def, record),
+        customer_record: record,
+      },
+    ];
+  })
 );
 
 // Scenario type metadata (display level + persona pools).
