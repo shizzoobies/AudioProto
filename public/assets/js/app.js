@@ -740,7 +740,7 @@ function renderCall(scenario) {
 
   const customerLabel = scenario.blind ? 'Caller' : scenario.customer_name;
 
-  appendMessage(transcript, 'customer', customerLabel, scenario.opening_line);
+  appendMessage(transcript, 'customer', customerLabel, normalizeForTranscript(scenario.opening_line));
 
   const composer = isPhone ? null : document.getElementById('composer');
   const composerInput = isPhone ? null : document.getElementById('composer-input');
@@ -829,6 +829,11 @@ function renderCall(scenario) {
   };
   const endStreamingBubble = () => {
     if (streamingBubble) {
+      const raw = streamingBubble.textContent || '';
+      const normalized = normalizeForTranscript(raw);
+      if (normalized !== raw) {
+        streamingBubble.textContent = normalized;
+      }
       streamingBubble.classList.remove('streaming');
       streamingBubble = null;
     }
@@ -1791,6 +1796,80 @@ function scrubForSpeech(text) {
     .replace(/\s+([,.!?;:])/g, '$1')
     .replace(/[,;:]+\s*([.?!])/g, '$1')
     .trim();
+}
+
+// Convert the AI's spelled-out phone numbers, emails, and account numbers
+// back to their natural printed form for the transcript bubble. The AI is
+// instructed to spell them digit-by-digit so the TTS pronounces them like a
+// human would; the transcript is the only place where the spelled form
+// looks awkward. Apply ONLY to display - the conversation history and TTS
+// pipeline keep the original text.
+const DIGIT_WORD_TO_CHAR = {
+  zero: '0', oh: '0', one: '1', two: '2', three: '3', four: '4',
+  five: '5', six: '6', seven: '7', eight: '8', nine: '9',
+};
+const DIGIT_WORD_PATTERN = '(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)';
+
+function normalizeForTranscript(text) {
+  if (!text) return text;
+  let result = String(text);
+
+  // 10-digit phone numbers in 3-3-4 rhythm:
+  //   "five one two, three three four, seven eight two one" -> "512-334-7821"
+  result = result.replace(
+    new RegExp(`\\b${DIGIT_WORD_PATTERN}(?:[,\\s]+${DIGIT_WORD_PATTERN}){9}\\b`, 'gi'),
+    (match) => {
+      const digits = match
+        .match(new RegExp(DIGIT_WORD_PATTERN, 'gi'))
+        .map((w) => DIGIT_WORD_TO_CHAR[w.toLowerCase()])
+        .join('');
+      if (digits.length === 10) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+      }
+      return digits;
+    }
+  );
+
+  // Email addresses spelled out (uppercase letters required so we don't
+  // accidentally grab letters from words like "email's"):
+  //   "M A R C U S, dot, chen, dot, dev, at gmail, dot com" -> "marcus.chen.dev@gmail.com"
+  result = result.replace(
+    /\b([A-Z](?:[,\s]+[A-Z]){2,}(?:[,\s]+(?:dot|\.)[,\s]+[a-z]+){0,5})[,\s]+at[,\s]+([a-z]+(?:[,\s]+(?:dot|\.)[,\s]+[a-z]+)+)\b/g,
+    (_match, local, domain) => {
+      const cleanLocal = local
+        .toLowerCase()
+        .replace(/[,\s]+(?:dot|\.)[,\s]+/g, '.')
+        .replace(/[,\s]+/g, '');
+      const cleanDomain = domain
+        .toLowerCase()
+        .replace(/[,\s]+(?:dot|\.)[,\s]+/g, '.');
+      return `${cleanLocal}@${cleanDomain}`;
+    }
+  );
+
+  // Account / confirmation numbers like "M R, dash, two seven nine four, dash, seven eight two one"
+  // -> "MR-2794-7821". Leading letters must be uppercase (same reason).
+  result = result.replace(
+    new RegExp(
+      `\\b([A-Z](?:[,\\s]+[A-Z]){0,2})((?:[,\\s]+(?:dash|-)[,\\s]+${DIGIT_WORD_PATTERN}(?:[,\\s]+${DIGIT_WORD_PATTERN}){2,9})+)\\b`,
+      'g'
+    ),
+    (_match, letters, rest) => {
+      const letterPart = letters.replace(/[,\s]+/g, '').toUpperCase();
+      const digitChunks = rest
+        .split(/[,\s]+(?:dash|-)[,\s]+/i)
+        .slice(1)
+        .map((chunk) =>
+          chunk
+            .match(new RegExp(DIGIT_WORD_PATTERN, 'gi'))
+            .map((w) => DIGIT_WORD_TO_CHAR[w.toLowerCase()])
+            .join('')
+        );
+      return `${letterPart}-${digitChunks.join('-')}`;
+    }
+  );
+
+  return result;
 }
 
 init();
