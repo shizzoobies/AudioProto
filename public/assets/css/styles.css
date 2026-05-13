@@ -1005,28 +1005,55 @@ textarea {
 }
 
 /* Orb (showcase premium hero)
-   ------------------------------------------------------------------ */
+   ------------------------------------------------------------------
+   In meta mode the orb sits free in the call body with no frame, no
+   chrome around it. The transcript and CRM are hidden. When Elena drops
+   into customer roleplay she emits [mode:scenario] which flips the
+   layout back to the standard transcript+CRM call shell with the orb
+   reduced to a compact band above the transcript. */
 .orb-zone {
   position: relative;
-  height: min(340px, 38vh);
+  overflow: hidden;
+  transition:
+    height 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.4s ease,
+    box-shadow 0.4s ease,
+    margin 0.5s ease,
+    background 0.5s ease;
+}
+
+/* Meta mode: orb is the whole stage. No frame, transparent background,
+   spans the full call body height. */
+.call[data-orb-mode="meta"] .call-body {
+  grid-template-columns: 1fr;
+}
+.call[data-orb-mode="meta"] .orb-zone {
+  height: 100%;
+  min-height: min(560px, 70vh);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+.call[data-orb-mode="meta"] .crm-panel,
+.call[data-orb-mode="meta"] .transcript,
+.call[data-orb-mode="meta"] .phone-status,
+.call[data-orb-mode="meta"] .composer-wrap {
+  display: none;
+}
+
+/* Scenario mode: standard call layout, orb shrinks to a compact band
+   above the transcript so the CRM and reservation tools have room. */
+.call[data-orb-mode="scenario"] .orb-zone {
+  height: min(148px, 22vh);
   margin-bottom: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background:
-    radial-gradient(120% 90% at 50% 60%, rgba(245, 165, 36, 0.04), transparent 70%),
+    radial-gradient(120% 90% at 50% 60%, rgba(245, 165, 36, 0.05), transparent 70%),
     linear-gradient(180deg, #0c0d14 0%, #07080d 100%);
-  overflow: hidden;
-  transition:
-    height 0.65s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.4s ease,
-    box-shadow 0.4s ease;
 }
-
-.orb-zone[data-orb-mode="scenario"] {
-  height: min(148px, 22vh);
-}
-
-.orb-zone[data-active="true"] {
+.call[data-orb-mode="scenario"] .orb-zone[data-active="true"] {
   border-color: rgba(245, 165, 36, 0.28);
   box-shadow: 0 0 0 4px var(--color-accent-muted);
 }

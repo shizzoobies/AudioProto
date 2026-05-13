@@ -422,7 +422,7 @@ function renderCall(scenario) {
     : '';
 
   dom.root.innerHTML = `
-    <section class="call" data-call-mode="${escapeAttr(state.callMode)}">
+    <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}>
       <header class="call-header">
         <button class="ghost-button call-back" id="call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
@@ -903,6 +903,8 @@ function renderCall(scenario) {
     onSentence: (sentence) => speakSentence(sentence),
     onMode: (mode) => {
       if (orbZone) orbZone.dataset.orbMode = mode;
+      const callEl = dom.root.querySelector('.call');
+      if (callEl && useOrb) callEl.dataset.orbMode = mode;
       state.orb?.setMode(mode);
     },
     onError: (err) => {
