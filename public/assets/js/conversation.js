@@ -1,5 +1,5 @@
 export class Conversation {
-  constructor({ scenario, onAssistantDelta, onAssistantStart, onAssistantEnd, onSentence, onError }) {
+  constructor({ scenario, onAssistantDelta, onAssistantStart, onAssistantEnd, onSentence, onError, onMode }) {
     this.scenario = scenario;
     this.messages = [];
     this.controller = null;
@@ -11,6 +11,7 @@ export class Conversation {
     this.onAssistantEnd = onAssistantEnd;
     this.onSentence = onSentence;
     this.onError = onError;
+    this.onMode = onMode;
   }
 
   isStreaming() {
@@ -43,8 +44,64 @@ export class Conversation {
     this.streaming = true;
     this.controller = new AbortController();
     this._sentenceBuffer = '';
-    let buffer = '';
+    let rawBuffer = '';
     let started = false;
+
+    // Mode marker parsing. The showcase persona prefixes turns where she
+    // transitions between meta-chat and customer-roleplay with
+    // [mode:scenario] or [mode:meta]. We keep the marker in rawBuffer (so
+    // the model sees it in conversation history) but strip it from the
+    // delta/sentence callbacks so it never reaches the transcript or TTS.
+    let modeChecked = false;
+    let pendingPrefix = '';
+
+    const emitDelta = (text) => {
+      if (!text) return;
+      if (!started) {
+        started = true;
+        this.onAssistantStart?.();
+      }
+      this.onAssistantDelta?.(text);
+      this._flushSentences(text);
+    };
+
+    const consume = (text) => {
+      if (!text) return;
+      if (modeChecked) {
+        emitDelta(text);
+        return;
+      }
+      pendingPrefix += text;
+      const trimmed = pendingPrefix.replace(/^\s+/, '');
+      if (trimmed.length === 0) return;
+      if (!trimmed.startsWith('[')) {
+        modeChecked = true;
+        emitDelta(pendingPrefix);
+        pendingPrefix = '';
+        return;
+      }
+      const match = trimmed.match(/^\[mode:(scenario|meta)\]\s?([\s\S]*)$/);
+      if (match) {
+        try { this.onMode?.(match[1]); } catch {}
+        modeChecked = true;
+        const remainder = match[2];
+        pendingPrefix = '';
+        if (remainder) emitDelta(remainder);
+        return;
+      }
+      if (trimmed.includes(']') || pendingPrefix.length > 32) {
+        modeChecked = true;
+        emitDelta(pendingPrefix);
+        pendingPrefix = '';
+      }
+    };
+
+    const flushPending = () => {
+      if (modeChecked || !pendingPrefix) return;
+      emitDelta(pendingPrefix);
+      pendingPrefix = '';
+      modeChecked = true;
+    };
 
     try {
       const res = await fetch('/api/chat', {
@@ -82,7 +139,8 @@ export class Conversation {
           if (!rawEvent.startsWith('data: ')) continue;
           const data = rawEvent.slice(6);
           if (data === '[DONE]') {
-            this._finishAssistant(buffer);
+            flushPending();
+            this._finishAssistant(rawBuffer);
             return;
           }
           let parsed;
@@ -92,19 +150,15 @@ export class Conversation {
             continue;
           }
           if (parsed.type === 'text_delta' && typeof parsed.text === 'string') {
-            if (!started) {
-              started = true;
-              this.onAssistantStart?.();
-            }
-            buffer += parsed.text;
-            this.onAssistantDelta?.(parsed.text);
-            this._flushSentences(parsed.text);
+            rawBuffer += parsed.text;
+            consume(parsed.text);
           } else if (parsed.type === 'error') {
             throw new Error(parsed.message || 'stream_error');
           }
         }
       }
-      this._finishAssistant(buffer);
+      flushPending();
+      this._finishAssistant(rawBuffer);
     } catch (err) {
       if (err?.name === 'AbortError') {
         return;

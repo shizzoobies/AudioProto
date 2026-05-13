@@ -1004,6 +1004,46 @@ textarea {
   display: block;
 }
 
+/* Orb (showcase premium hero)
+   ------------------------------------------------------------------ */
+.orb-zone {
+  position: relative;
+  height: min(340px, 38vh);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 90% at 50% 60%, rgba(245, 165, 36, 0.04), transparent 70%),
+    linear-gradient(180deg, #0c0d14 0%, #07080d 100%);
+  overflow: hidden;
+  transition:
+    height 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+.orb-zone[data-orb-mode="scenario"] {
+  height: min(148px, 22vh);
+}
+
+.orb-zone[data-active="true"] {
+  border-color: rgba(245, 165, 36, 0.28);
+  box-shadow: 0 0 0 4px var(--color-accent-muted);
+}
+
+.orb-mount {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.orb-mount canvas,
+.orb-mount .orb-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
 .call-meta {
   text-align: center;
 }

@@ -22,6 +22,7 @@ const state = {
   callMode: 'phone',
   silenceTimer: null,
   demoUnlocked: false,
+  orb: null,
 };
 
 function setCallMode(mode) {
@@ -48,6 +49,10 @@ function teardownAudio() {
   if (state.visualizerCleanup) {
     state.visualizerCleanup();
     state.visualizerCleanup = null;
+  }
+  if (state.orb) {
+    try { state.orb.dispose(); } catch {}
+    state.orb = null;
   }
   if (state.audioPlayer) {
     state.audioPlayer.destroy();
@@ -411,6 +416,7 @@ function renderCall(scenario) {
     : 'Type your response...';
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
   const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
+  const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
   const premiumBadge = (isShowcaseCall && state.demoUnlocked)
     ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
     : '';
@@ -427,11 +433,15 @@ function renderCall(scenario) {
       </header>
       <div class="call-body">
         <div class="call-main">
-          ${isPhone ? `
+          ${isPhone ? (useOrb ? `
+          <div class="orb-zone" id="orb-zone" data-orb-mode="meta" data-active="false">
+            <div class="orb-mount" id="orb-mount"></div>
+          </div>
+          ` : `
           <div class="visualizer-wrap" id="visualizer-wrap" data-active="false">
             <canvas class="visualizer" id="visualizer"></canvas>
           </div>
-          ` : ''}
+          `) : ''}
           <ol class="transcript" id="transcript" aria-live="polite"></ol>
           ${isPhone ? `
           <div class="phone-status" id="phone-status" data-state="connecting">
@@ -737,6 +747,8 @@ function renderCall(scenario) {
   const transcript = document.getElementById('transcript');
   const visualizerWrap = document.getElementById('visualizer-wrap');
   const visualizerCanvas = document.getElementById('visualizer');
+  const orbZone = document.getElementById('orb-zone');
+  const orbMount = document.getElementById('orb-mount');
 
   const customerLabel = scenario.blind ? 'Caller' : scenario.customer_name;
 
@@ -762,6 +774,8 @@ function renderCall(scenario) {
   const audioPlayer = new AudioPlayer({
     onStart: () => {
       if (visualizerWrap) visualizerWrap.dataset.active = 'true';
+      if (orbZone) orbZone.dataset.active = 'true';
+      state.orb?.setActive(true);
       if (isPhone) {
         if (state.continuousRecorder) {
           state.continuousRecorder.cancel();
@@ -772,6 +786,8 @@ function renderCall(scenario) {
     },
     onEnd: () => {
       if (visualizerWrap) visualizerWrap.dataset.active = 'false';
+      if (orbZone) orbZone.dataset.active = 'false';
+      state.orb?.setActive(false);
       if (isPhone && state.view === 'call' && !conversation.isStreaming() && !state.continuousRecorder) {
         startListening();
       }
@@ -792,6 +808,22 @@ function renderCall(scenario) {
         getColor: () => state.continuousRecorder?.isSpeaking() ? '#60a5fa' : '#f5a524',
       }
     );
+  }
+
+  if (orbMount) {
+    import('./orb.js')
+      .then(({ createOrb }) => {
+        if (state.view !== 'call' || !document.body.contains(orbMount)) return;
+        try {
+          state.orb = createOrb({
+            container: orbMount,
+            getAnalyser: () => audioPlayer.getAnalyser(),
+          });
+        } catch (err) {
+          console.warn('orb init failed', err);
+        }
+      })
+      .catch((err) => console.warn('orb load failed', err));
   }
 
   // Speak the opening line as soon as user lands in the call.
@@ -869,6 +901,10 @@ function renderCall(scenario) {
       armSilenceTimer();
     },
     onSentence: (sentence) => speakSentence(sentence),
+    onMode: (mode) => {
+      if (orbZone) orbZone.dataset.orbMode = mode;
+      state.orb?.setMode(mode);
+    },
     onError: (err) => {
       endStreamingBubble();
       appendMessage(
