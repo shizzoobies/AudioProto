@@ -1,27 +1,23 @@
-// Audio-reactive contour-ring sphere with emanating echo ripples.
+// Audio-reactive contour-ring sphere for the showcase persona.
 //
-// The base is a stack of 28 horizontal latitude rings forming a sphere
-// silhouette. All rings share one underlying wave field so adjacent
-// rings align into a continuous wobbling surface.
+// A stack of horizontal latitude rings forms a sphere silhouette. The
+// wave field is travelling (the wave phase moves around each ring AND
+// across latitudes over time), so adjacent rings stay coherent and the
+// surface visibly ripples as Elena talks. The sphere expands outward
+// with audio energy, but stays contained around the body - the rings
+// wrap around the sphere, they don't fly off as Saturn-style halos.
 //
-// Around that sphere, 6 echo rings continuously emanate outward from
-// the sphere surface, fading as they expand. They make the "waves
-// rippling and expanding outward" behavior obvious.
-//
-// Audio drives:
-//   - Wave amplitude (sphere visibly ripples harder when she talks)
-//   - Overall radial expansion (sphere puffs outward with bass)
-//   - Echo ripple intensity and reach
+// Spherical particle dust adds subtle motion noise inside and just
+// around the sphere.
 //
 // Three.js (~365 KB) is dynamic-imported by the caller so it only loads
 // when the showcase flow is entered.
 
 import * as THREE from '../vendor/three.module.js';
 
-const SPHERE_RING_COUNT = 28;
-const ECHO_RING_COUNT = 6;
+const SPHERE_RING_COUNT = 30;
 const POINTS_PER_RING = 240;
-const PARTICLE_COUNT = 120;
+const PARTICLE_COUNT = 140;
 
 const SPHERE_RING_VERTEX = `
   uniform float uTime;
@@ -43,25 +39,26 @@ const SPHERE_RING_VERTEX = `
     float y = uY;
     float baseR = sqrt(max(0.0, 1.0 - y * y));
 
-    // Travelling wave field: phase moves around the ring AND across
-    // latitudes over time, so adjacent rings stay coherent and the
-    // ripples are clearly in motion.
-    float tt = uTime * 1.1;
+    // Travelling wave: phase moves around the ring AND across latitudes
+    // so adjacent rings stay coherent and ripples visibly flow.
+    float tt = uTime * 1.05;
     float w1 = sin(aTheta * 5.0 + y * 3.4 + tt + uPhase * 0.15);
-    float w2 = sin(aTheta * 3.0 - y * 4.0 - tt * 0.8 + uPhase * 0.25) * 0.45;
-    float w3 = sin(aTheta * 8.0 + y * 5.0 + tt * 1.6) * 0.20;
+    float w2 = sin(aTheta * 3.0 - y * 4.2 - tt * 0.8 + uPhase * 0.25) * 0.45;
+    float w3 = sin(aTheta * 8.0 + y * 5.5 + tt * 1.6) * 0.20;
     float wave = w1 + w2 + w3;
     vRipple = wave;
 
-    float idleAmp = 0.025 + 0.020 * sin(uTime * 0.7 + uPhase * 0.3);
-    float liveAmp = 0.065 * uActivation + 0.045 * uMid + 0.020 * uHigh;
+    float idleAmp = 0.025 + 0.018 * sin(uTime * 0.7 + uPhase * 0.3);
+    float liveAmp = 0.060 * uActivation + 0.040 * uMid + 0.018 * uHigh;
     float waveAmp = idleAmp + liveAmp;
 
-    // Strong global radial expansion when she talks.
-    float expand = 1.0 + 0.08 * uActivation + 0.18 * uBass + 0.08 * uAmplitude;
+    // Radial expansion is capped so the rings stay wrapped around the
+    // sphere and never grow into Saturn-style halos.
+    float expandRaw = 0.06 * uActivation + 0.12 * uBass + 0.05 * uAmplitude;
+    float expand = 1.0 + min(expandRaw, 0.22);
     float r = (baseR + wave * waveAmp) * expand;
 
-    float yWobble = sin(uTime * 0.6 + uPhase * 0.5) * 0.008 * (0.5 + uActivation);
+    float yWobble = sin(uTime * 0.6 + uPhase * 0.5) * 0.006 * (0.5 + uActivation);
     float yOut = y * expand + yWobble;
 
     vec3 p = vec3(r * position.x, yOut, r * position.z);
@@ -82,86 +79,10 @@ const SPHERE_RING_FRAGMENT = `
 
   void main() {
     float crest = clamp(vRipple * 0.5 + 0.5, 0.0, 1.0);
-    float depth = clamp((vDepth + 5.0) / 2.2, 0.0, 1.0);
+    float depth = clamp((vDepth + 5.6) / 2.2, 0.0, 1.0);
     float depthFade = mix(0.45, 1.0, depth);
-    float bright = (0.8 + crest * 0.55) * depthFade * vLatBright;
-    float alpha = (0.36 + uActivation * 0.30 + uAmplitude * 0.10) * (0.7 + crest * 0.30) * depthFade * vLatBright;
-    gl_FragColor = vec4(uAccentColor * bright, alpha);
-  }
-`;
-
-// Echo ripple: starts near the sphere surface, expands outward to a
-// larger radius over its life cycle, fading out as it reaches the edge.
-const ECHO_RING_VERTEX = `
-  uniform float uTime;
-  uniform float uActivation;
-  uniform float uAmplitude;
-  uniform float uBass;
-  uniform float uMid;
-  uniform float uHigh;
-  uniform float uY;
-  uniform float uOffset;
-  uniform float uSpeed;
-  uniform float uPhase;
-  attribute float aTheta;
-  varying float vT;
-  varying float vPhase;
-  varying float vRipple;
-  varying float vDepth;
-  varying float vLatBright;
-
-  void main() {
-    vT = aTheta;
-    float y = uY;
-    float baseR = sqrt(max(0.0, 1.0 - y * y));
-
-    // Life-cycle phase 0..1 per echo, looping.
-    float speed = 0.12 + uActivation * 0.22 + uBass * 0.12;
-    float phase = fract(uTime * (speed * uSpeed) + uOffset);
-    vPhase = phase;
-
-    // Expand from just outside the sphere out to a generous reach.
-    float minR = 1.0;
-    float maxR = 1.55 + uActivation * 0.55 + uBass * 0.30;
-    float radiusFactor = mix(minR, maxR, pow(phase, 0.8));
-
-    float tt = uTime * 1.0;
-    float w1 = sin(aTheta * 5.0 + y * 3.4 + tt + uPhase * 0.4);
-    float w2 = sin(aTheta * 3.0 - y * 4.0 - tt * 0.7 + uPhase * 1.1) * 0.45;
-    float wave = w1 + w2;
-    vRipple = wave;
-
-    float waveAmp = 0.025 + 0.06 * uActivation + 0.035 * uMid;
-    waveAmp *= 0.4 + phase * 0.9;
-
-    float r = (baseR + wave * waveAmp) * radiusFactor;
-    vec3 p = vec3(r * position.x, y * radiusFactor, r * position.z);
-    vec4 mv = modelViewMatrix * vec4(p, 1.0);
-    vDepth = mv.z;
-    vLatBright = mix(0.7, 1.0, 1.0 - abs(y));
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-
-const ECHO_RING_FRAGMENT = `
-  uniform vec3 uAccentColor;
-  uniform float uActivation;
-  uniform float uAmplitude;
-  varying float vPhase;
-  varying float vRipple;
-  varying float vDepth;
-  varying float vLatBright;
-
-  void main() {
-    // Life curve: fade in fast, fade out slow.
-    float fadeIn = smoothstep(0.0, 0.18, vPhase);
-    float fadeOut = smoothstep(1.0, 0.65, vPhase);
-    float life = fadeIn * fadeOut;
-    float crest = clamp(vRipple * 0.5 + 0.5, 0.0, 1.0);
-    float depth = clamp((vDepth + 5.0) / 2.2, 0.0, 1.0);
-    float depthFade = mix(0.55, 1.0, depth);
-    float bright = (0.85 + crest * 0.4) * depthFade * vLatBright * life;
-    float alpha = (0.22 + uActivation * 0.40 + uAmplitude * 0.14) * life * (0.55 + crest * 0.4) * depthFade * vLatBright;
+    float bright = (0.80 + crest * 0.5) * depthFade * vLatBright;
+    float alpha = (0.34 + uActivation * 0.32 + uAmplitude * 0.10) * (0.7 + crest * 0.30) * depthFade * vLatBright;
     gl_FragColor = vec4(uAccentColor * bright, alpha);
   }
 `;
@@ -221,8 +142,10 @@ export function createOrb({ container, getAnalyser }) {
   if (!container) throw new Error('orb_container_required');
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-  camera.position.set(0, 0.05, 4.0);
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  // Camera pulled back so the sphere sits with comfortable headroom
+  // inside the canvas instead of crowding the edges.
+  camera.position.set(0, 0.05, 5.0);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -243,10 +166,8 @@ export function createOrb({ container, getAnalyser }) {
   };
 
   const baseGeo = buildRingGeometry();
-  const allMaterials = [];
-
-  // Sphere contour rings.
   const sphere = new THREE.Group();
+  const ringMaterials = [];
   for (let i = 0; i < SPHERE_RING_COUNT; i++) {
     const t = (i + 0.5) / SPHERE_RING_COUNT;
     const lat = -Math.PI / 2 + t * Math.PI;
@@ -269,44 +190,12 @@ export function createOrb({ container, getAnalyser }) {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
-    allMaterials.push(mat);
+    ringMaterials.push(mat);
     sphere.add(new THREE.LineLoop(baseGeo, mat));
   }
   scene.add(sphere);
 
-  // Echo ripple rings: one per latitude band around the equator, life
-  // cycles staggered so ripples continuously emanate outward.
-  const echos = new THREE.Group();
-  for (let i = 0; i < ECHO_RING_COUNT; i++) {
-    // Echo rings cluster around the equator with slight vertical spread,
-    // so the ripples look like they come from the sphere's middle band.
-    const y = (i / (ECHO_RING_COUNT - 1) - 0.5) * 0.45;
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: ECHO_RING_VERTEX,
-      fragmentShader: ECHO_RING_FRAGMENT,
-      uniforms: {
-        uTime: shared.uTime,
-        uActivation: shared.uActivation,
-        uAmplitude: shared.uAmplitude,
-        uBass: shared.uBass,
-        uMid: shared.uMid,
-        uHigh: shared.uHigh,
-        uAccentColor: shared.uAccentColor,
-        uY: { value: y },
-        uOffset: { value: i / ECHO_RING_COUNT },
-        uSpeed: { value: 0.85 + Math.random() * 0.30 },
-        uPhase: { value: Math.random() * Math.PI * 2 },
-      },
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    allMaterials.push(mat);
-    echos.add(new THREE.LineLoop(baseGeo, mat));
-  }
-  scene.add(echos);
-
-  // Particle dust (subtle ambient motion).
+  // Particle dust hugs the sphere.
   const pGeo = new THREE.BufferGeometry();
   const pPositions = new Float32Array(PARTICLE_COUNT * 3);
   const pAngles = new Float32Array(PARTICLE_COUNT);
@@ -319,11 +208,12 @@ export function createOrb({ container, getAnalyser }) {
     pPositions[i * 3 + 1] = 0;
     pPositions[i * 3 + 2] = 0;
     pAngles[i] = Math.random() * Math.PI * 2;
-    pRadius[i] = 0.4 + Math.random() * 1.6;
+    // Particles live inside and just around the sphere (not far out).
+    pRadius[i] = 0.5 + Math.random() * 0.7;
     pSpeed[i] = (0.04 + Math.random() * 0.14) * (Math.random() > 0.5 ? 1 : -1);
     pSize[i] = 0.3 + Math.random() * 0.7;
     const u = (Math.random() - 0.5) * 2;
-    pY[i] = Math.sign(u) * Math.pow(Math.abs(u), 1.5) * 0.9;
+    pY[i] = Math.sign(u) * Math.pow(Math.abs(u), 1.5) * 0.85;
   }
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
   pGeo.setAttribute('aAngle', new THREE.BufferAttribute(pAngles, 1));
@@ -362,7 +252,7 @@ export function createOrb({ container, getAnalyser }) {
     const h = Math.max(1, rect.height);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    const targetZ = h < 220 ? 3.4 : 4.0;
+    const targetZ = h < 220 ? 4.0 : 5.0;
     camera.position.z += (targetZ - camera.position.z) * 0.4;
     camera.updateProjectionMatrix();
   }
@@ -415,7 +305,6 @@ export function createOrb({ container, getAnalyser }) {
     shared.uTime.value += dt;
 
     sphere.rotation.y += dt * (0.05 + midS * 0.04);
-    echos.rotation.y += dt * (0.03 + midS * 0.02);
     particles.rotation.y += dt * 0.01;
 
     renderer.render(scene, camera);
@@ -438,7 +327,7 @@ export function createOrb({ container, getAnalyser }) {
       disposed = true;
       try { resizeObserver.disconnect(); } catch {}
       try { baseGeo.dispose(); } catch {}
-      for (const m of allMaterials) { try { m.dispose(); } catch {} }
+      for (const m of ringMaterials) { try { m.dispose(); } catch {} }
       try { pGeo.dispose(); pMat.dispose(); } catch {}
       try { renderer.dispose(); } catch {}
       if (renderer.domElement.parentNode === container) {
