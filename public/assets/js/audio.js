@@ -43,7 +43,7 @@ export class AudioPlayer {
     return this.muted;
   }
 
-  async enqueueBlob(blob) {
+  async enqueueBlob(blob, onSegmentStart = null) {
     if (this.muted || this.cancelled) return;
     try {
       this._ensureContext();
@@ -56,7 +56,7 @@ export class AudioPlayer {
       const arrayBuffer = await blob.arrayBuffer();
       const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
       if (this.cancelled || this.muted) return;
-      this.queue.push(audioBuffer);
+      this.queue.push({ buffer: audioBuffer, onSegmentStart });
       this._maybeStart();
     } catch (err) {
       this.onError?.(err);
@@ -90,7 +90,9 @@ export class AudioPlayer {
       this.onEnd?.();
       return;
     }
-    const buffer = this.queue.shift();
+    const item = this.queue.shift();
+    const buffer = item.buffer;
+    const onSegmentStart = item.onSegmentStart;
     const source = this.audioContext.createBufferSource();
     source.buffer = buffer;
     source.connect(this.analyser);
@@ -103,6 +105,7 @@ export class AudioPlayer {
     try {
       source.start();
       this.currentSource = source;
+      try { onSegmentStart?.(); } catch (err) { /* swallow callback errors */ }
     } catch (err) {
       this.onError?.(err);
       this._playNext();
@@ -122,6 +125,10 @@ export class AudioPlayer {
       this.playing = false;
       this.onEnd?.();
     }
+  }
+
+  isBusy() {
+    return this.playing || this.decoding > 0 || this.queue.length > 0;
   }
 
   destroy() {

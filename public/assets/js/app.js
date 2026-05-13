@@ -752,8 +752,6 @@ function renderCall(scenario) {
 
   const customerLabel = scenario.blind ? 'Caller' : scenario.customer_name;
 
-  appendMessage(transcript, 'customer', customerLabel, normalizeForTranscript(scenario.opening_line));
-
   const composer = isPhone ? null : document.getElementById('composer');
   const composerInput = isPhone ? null : document.getElementById('composer-input');
   const composerSend = isPhone ? null : document.getElementById('composer-send');
@@ -789,6 +787,7 @@ function renderCall(scenario) {
       if (orbZone) orbZone.dataset.active = 'false';
       state.orb?.setActive(false);
       if (isPhone && state.view === 'call' && !conversation.isStreaming() && !state.continuousRecorder) {
+        finalizeTurnBubble();
         startListening();
       }
     },
@@ -826,40 +825,103 @@ function renderCall(scenario) {
       .catch((err) => console.warn('orb load failed', err));
   }
 
-  // Speak the opening line as soon as user lands in the call.
-  speakSentence(scenario.opening_line);
+  // Per-call TTS sequencing. We synthesize sentences in parallel for
+  // throughput but enqueue the resulting blobs in strict submission
+  // order, so audio always plays the sentences in the order Elena
+  // produced them - never tail-first.
+  let ttsSeq = 0;
+  let ttsNextEnqueue = 0;
+  const ttsPending = new Map();
 
-  function speakSentence(text) {
-    if (state.audioMuted) return;
+  function speakSentence(text, opts = {}) {
+    const onPlay = opts.onPlay;
+    // Chat mode (or any muted state): no audio. Fire onPlay so the
+    // transcript still surfaces in the same code path.
+    if (state.audioMuted) {
+      try { onPlay?.(); } catch {}
+      return;
+    }
     const cleaned = scrubForSpeech(text);
-    if (!cleaned) return;
+    if (!cleaned) {
+      try { onPlay?.(); } catch {}
+      return;
+    }
+    const seq = ttsSeq++;
     const controller = new AbortController();
     state.ttsControllers.add(controller);
     synthesizeSentence({ scenarioId: scenario.id, text: cleaned, signal: controller.signal })
       .then((blob) => {
         state.ttsControllers.delete(controller);
-        return audioPlayer.enqueueBlob(blob);
+        ttsPending.set(seq, { blob, onPlay });
+        drainTts();
       })
       .catch((err) => {
         state.ttsControllers.delete(controller);
         if (err?.name !== 'AbortError') {
           console.warn('tts error', err.message || err);
         }
+        ttsPending.set(seq, { blob: null, onPlay });
+        drainTts();
       });
   }
 
+  function drainTts() {
+    while (ttsPending.has(ttsNextEnqueue)) {
+      const item = ttsPending.get(ttsNextEnqueue);
+      ttsPending.delete(ttsNextEnqueue);
+      ttsNextEnqueue++;
+      if (item.blob) {
+        audioPlayer.enqueueBlob(item.blob, item.onPlay);
+      } else {
+        // Synthesis failed for this sentence. Fire the onPlay anyway
+        // so the transcript stays sync'd with what she's already said.
+        try { item.onPlay?.(); } catch {}
+      }
+    }
+  }
+
+  // Speak the opening line. In phone mode the bubble fills when the
+  // audio actually starts so the text never beats the voice. In chat
+  // mode the line is shown immediately (no audio to wait for).
+  let openingMessage = null;
+  if (isPhone) {
+    openingMessage = appendMessage(transcript, 'customer', customerLabel, '');
+    const openingBubble = openingMessage.querySelector('.message-bubble');
+    if (openingBubble) openingBubble.classList.add('streaming');
+    speakSentence(scenario.opening_line, {
+      onPlay: () => {
+        if (!openingBubble) return;
+        openingBubble.textContent = normalizeForTranscript(scenario.opening_line);
+        openingBubble.classList.remove('streaming');
+      },
+    });
+  } else {
+    appendMessage(transcript, 'customer', customerLabel, normalizeForTranscript(scenario.opening_line));
+  }
+
+  // In phone mode the bubble is created on first audio-segment play so
+  // text never beats the voice. In chat mode the bubble is created on
+  // assistant start and filled by streaming deltas as usual.
   let streamingBubble = null;
-  const startStreamingBubble = (label) => {
+  const ensureStreamingBubble = (label) => {
+    if (streamingBubble) return streamingBubble;
     const li = appendMessage(transcript, 'customer', label, '');
     streamingBubble = li.querySelector('.message-bubble');
     streamingBubble.classList.add('streaming');
+    return streamingBubble;
   };
   const appendToStreamingBubble = (text) => {
     if (!streamingBubble) return;
     streamingBubble.textContent += text;
     transcript.scrollTop = transcript.scrollHeight;
   };
-  const endStreamingBubble = () => {
+  const appendSentenceToBubble = (sentence) => {
+    const bub = ensureStreamingBubble(customerLabel);
+    const prefix = bub.textContent ? ' ' : '';
+    bub.textContent += prefix + normalizeForTranscript(sentence);
+    transcript.scrollTop = transcript.scrollHeight;
+  };
+  const finalizeTurnBubble = () => {
     if (streamingBubble) {
       const raw = streamingBubble.textContent || '';
       const normalized = normalizeForTranscript(raw);
@@ -893,14 +955,26 @@ function renderCall(scenario) {
     scenario,
     onAssistantStart: () => {
       clearSilenceTimer();
-      startStreamingBubble(customerLabel);
+      // Chat mode shows text as it streams. Phone mode creates the
+      // bubble lazily on first audio-segment play so text never
+      // beats the voice.
+      if (!isPhone) ensureStreamingBubble(customerLabel);
     },
-    onAssistantDelta: (text) => appendToStreamingBubble(text),
+    onAssistantDelta: (text) => {
+      if (!isPhone) appendToStreamingBubble(text);
+    },
     onAssistantEnd: () => {
-      endStreamingBubble();
+      // Chat mode finalizes immediately. Phone mode finalizes when the
+      // audio queue drains (audioPlayer.onEnd above) so the trailing
+      // sentences land in sync.
+      if (!isPhone) finalizeTurnBubble();
       armSilenceTimer();
     },
-    onSentence: (sentence) => speakSentence(sentence),
+    onSentence: (sentence) => speakSentence(sentence, {
+      onPlay: () => {
+        if (isPhone) appendSentenceToBubble(sentence);
+      },
+    }),
     onMode: (mode) => {
       if (orbZone) orbZone.dataset.orbMode = mode;
       const callEl = dom.root.querySelector('.call');
@@ -908,7 +982,7 @@ function renderCall(scenario) {
       state.orb?.setMode(mode);
     },
     onError: (err) => {
-      endStreamingBubble();
+      finalizeTurnBubble();
       appendMessage(
         transcript,
         'system',
