@@ -53,7 +53,12 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         model: modelId,
         max_tokens: maxTokens,
-        system: [scenario.system_prompt, currentDateBlock(), weatherBlock].filter(Boolean).join('\n\n'),
+        system: [
+          scenario.system_prompt,
+          currentDateBlock(),
+          weatherBlock,
+          usePremium ? premiumVoiceDirectionBlock() : '',
+        ].filter(Boolean).join('\n\n'),
         messages,
         stream: true,
       }),
@@ -106,6 +111,22 @@ function currentDateBlock() {
     `- Today's date is ${today}.`,
     '- Any date you mention must be computed relative to today and stated accurately. If your situation says something is "about nine weeks out" or "next month", count forward from today and name the correct month and day. Never reference a month that does not line up with that math.',
     '- Speak dates naturally per the number rules above (for example "August fourth" or "the first week of August"), not in digits.',
+  ].join('\n');
+}
+
+// Only sent when the showcase persona is running on the premium voice
+// model (eleven_v3), which performs square-bracket delivery tags instead
+// of speaking them. Gives Elena real moment-to-moment range and keeps her
+// from sounding identical on every call.
+function premiumVoiceDirectionBlock() {
+  return [
+    'Premium voice delivery (you are currently running on an expressive voice model):',
+    '- You may place square-bracket delivery tags inline. They are performed, not spoken aloud. Use them sparingly and only where they earn it - most sentences need none, never more than one per short reply, never two in a row.',
+    '- Emotional tone tags you may use: [warmly], [gently], [softly], [hesitant], [reassuring], [thoughtful], [tired], [excited], [amused], [wistful].',
+    '- Non-verbal tags you may use: [sighs], [laughs softly], [chuckles], [exhales].',
+    '- Match the tag to the moment: warmth in greetings and small talk, a soft [sighs] or [wistful] before a heavy topic (your dad Hector, your estranged brother Felipe), gentle energy about Mateo, brisk focus when you are deep in move logistics, [amused] or [laughs softly] when something is genuinely funny.',
+    '- Never use asterisks or parenthetical actions like *laughs* or (sighs). Only square-bracket tags from the lists above.',
+    '- Vary your wording, rhythm, and energy from call to call so you never sound scripted. Do not reuse the same stock opening every time; greet the way the moment calls for.',
   ].join('\n');
 }
 

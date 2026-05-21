@@ -54,6 +54,14 @@ export async function onRequestPost({ request, env }) {
   const demoUnlocked = await isDemoUnlocked(request, env.SESSION_SECRET);
   const modelId = (isShowcaseScenario && demoUnlocked) ? PREMIUM_TTS_MODEL : STANDARD_TTS_MODEL;
 
+  // eleven_v3 performs square-bracket delivery tags ([sighs], [warmly]).
+  // The standard model would speak them aloud, so strip them defensively
+  // whenever we are not on the premium model.
+  const speechText = modelId === PREMIUM_TTS_MODEL
+    ? text
+    : text.replace(/\[[^\]\n]+\]/g, '').replace(/\s{2,}/g, ' ').replace(/\s+([,.!?;:])/g, '$1').trim();
+  if (!speechText) return jsonError('text_required', 400);
+
   const url = `${ELEVENLABS_BASE}/${encodeURIComponent(voiceId)}?output_format=${TTS_OUTPUT}`;
 
   let upstream;
@@ -66,7 +74,7 @@ export async function onRequestPost({ request, env }) {
         accept: 'audio/mpeg',
       },
       body: JSON.stringify({
-        text,
+        text: speechText,
         model_id: modelId,
         voice_settings: voiceSettings,
       }),

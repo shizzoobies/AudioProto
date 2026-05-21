@@ -142,6 +142,101 @@ export class AudioPlayer {
   }
 }
 
+// Procedural ambient room-tone bed, played under the showcase persona's
+// voice so she feels like she's in a real space. Pure Web Audio - no
+// asset files, so it stays CSP-clean and dependency-free. A brown-noise
+// bed heavily low-passed into a warm room rumble, with a slow LFO
+// breathing the level so it never sounds like flat static. Kept very
+// quiet so it never competes with her voice or buries an identifier the
+// trainee needs to copy down. Its own AudioContext, separate from the
+// voice player, so it never feeds the orb's analyser.
+export class AmbientBed {
+  constructor({ level = 0.06 } = {}) {
+    this.level = level;
+    this.ctx = null;
+    this.master = null;
+    this.source = null;
+    this.lfo = null;
+    this.started = false;
+    this.muted = false;
+  }
+
+  start() {
+    if (this.started) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      this.ctx = new Ctx();
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+
+      const seconds = 4;
+      const len = Math.floor(this.ctx.sampleRate * seconds);
+      const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const white = Math.random() * 2 - 1;
+        last = (last + 0.02 * white) / 1.02;
+        data[i] = last * 3.2;
+      }
+
+      this.source = this.ctx.createBufferSource();
+      this.source.buffer = buffer;
+      this.source.loop = true;
+
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 40;
+
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 480;
+      lp.Q.value = 0.4;
+
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0;
+
+      // Slow breath so the bed has life.
+      this.lfo = this.ctx.createOscillator();
+      this.lfo.frequency.value = 0.07;
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = this.level * 0.3;
+      this.lfo.connect(lfoGain).connect(this.master.gain);
+
+      this.source.connect(hp).connect(lp).connect(this.master).connect(this.ctx.destination);
+      this.source.start();
+      this.lfo.start();
+
+      const now = this.ctx.currentTime;
+      this.master.gain.setValueAtTime(0, now);
+      this.master.gain.linearRampToValueAtTime(this.muted ? 0 : this.level, now + 1.5);
+
+      this.started = true;
+    } catch {
+      this.stop();
+    }
+  }
+
+  setMuted(muted) {
+    this.muted = !!muted;
+    if (!this.ctx || !this.master) return;
+    const now = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(now);
+    this.master.gain.linearRampToValueAtTime(this.muted ? 0 : this.level, now + 0.4);
+  }
+
+  stop() {
+    try { this.source?.stop(); } catch {}
+    try { this.lfo?.stop(); } catch {}
+    try { this.ctx?.close(); } catch {}
+    this.ctx = null;
+    this.master = null;
+    this.source = null;
+    this.lfo = null;
+    this.started = false;
+  }
+}
+
 export function attachVisualizer(canvas, getAnalyser, { barCount = 32, color = '#f5a524', getColor } = {}) {
   const ctx = canvas.getContext('2d');
   let rafId = null;

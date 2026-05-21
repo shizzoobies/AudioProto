@@ -1,6 +1,6 @@
 import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
-import { AudioPlayer, attachVisualizer, synthesizeSentence, MicRecorder, ContinuousRecorder, transcribeAudio } from './audio.js';
+import { AudioPlayer, AmbientBed, attachVisualizer, synthesizeSentence, MicRecorder, ContinuousRecorder, transcribeAudio } from './audio.js';
 
 const state = {
   scenarioTypes: [],
@@ -23,6 +23,7 @@ const state = {
   silenceTimer: null,
   demoUnlocked: false,
   orb: null,
+  ambientBed: null,
 };
 
 function setCallMode(mode) {
@@ -53,6 +54,10 @@ function teardownAudio() {
   if (state.orb) {
     try { state.orb.dispose(); } catch {}
     state.orb = null;
+  }
+  if (state.ambientBed) {
+    try { state.ambientBed.stop(); } catch {}
+    state.ambientBed = null;
   }
   if (state.audioPlayer) {
     state.audioPlayer.destroy();
@@ -417,6 +422,10 @@ function renderCall(scenario) {
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
   const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
+  // Premium voice (eleven_v3) performs square-bracket delivery tags. When
+  // active we keep those tags in the text we send to TTS but strip them
+  // from the transcript. Standard tier strips them everywhere.
+  const premiumVoice = isShowcaseCall && state.demoUnlocked;
   const premiumBadge = (isShowcaseCall && state.demoUnlocked)
     ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
     : '';
@@ -825,6 +834,18 @@ function renderCall(scenario) {
       .catch((err) => console.warn('orb load failed', err));
   }
 
+  // Ambient room-tone under premium Elena so she feels present in a real
+  // space. Starts within the click-initiated call flow so the AudioContext
+  // is allowed to play. Standard tier and other personas get no bed.
+  if (premiumVoice && isPhone) {
+    try {
+      state.ambientBed = new AmbientBed();
+      state.ambientBed.start();
+    } catch (err) {
+      console.warn('ambient bed failed', err);
+    }
+  }
+
   // Per-call TTS sequencing. We synthesize sentences in parallel for
   // throughput but enqueue the resulting blobs in strict submission
   // order, so audio always plays the sentences in the order Elena
@@ -841,7 +862,7 @@ function renderCall(scenario) {
       try { onPlay?.(); } catch {}
       return;
     }
-    const cleaned = scrubForSpeech(text);
+    const cleaned = premiumVoice ? scrubForSpeechKeepTags(text) : scrubForSpeech(text);
     if (!cleaned) {
       try { onPlay?.(); } catch {}
       return;
@@ -891,7 +912,7 @@ function renderCall(scenario) {
     speakSentence(scenario.opening_line, {
       onPlay: () => {
         if (!openingBubble) return;
-        openingBubble.textContent = normalizeForTranscript(scenario.opening_line);
+        openingBubble.textContent = normalizeForTranscript(stripVoiceTags(scenario.opening_line));
         openingBubble.classList.remove('streaming');
       },
     });
@@ -918,7 +939,7 @@ function renderCall(scenario) {
   const appendSentenceToBubble = (sentence) => {
     const bub = ensureStreamingBubble(customerLabel);
     const prefix = bub.textContent ? ' ' : '';
-    bub.textContent += prefix + normalizeForTranscript(sentence);
+    bub.textContent += prefix + normalizeForTranscript(stripVoiceTags(sentence));
     transcript.scrollTop = transcript.scrollHeight;
   };
   const finalizeTurnBubble = () => {
@@ -1907,6 +1928,34 @@ function scrubForSpeech(text) {
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([,.!?;:])/g, '$1')
     .replace(/[,;:]+\s*([.?!])/g, '$1')
+    .trim();
+}
+
+// Premium (eleven_v3) speech scrub: keep square-bracket delivery tags so
+// the expressive model can perform them, but still strip asterisk
+// directions and short parenthetical cue-verbs it would read aloud.
+function scrubForSpeechKeepTags(text) {
+  return String(text || '')
+    .replace(/\*[^*\n]+\*/g, '')
+    .replace(/\(\s*([^)\n]{1,30})\s*\)/g, (match, inner) => {
+      const trimmed = inner.trim();
+      if (/[.!?]/.test(trimmed)) return match;
+      return SPEECH_CUE_VERBS.test(trimmed) ? '' : match;
+    })
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .replace(/[,;:]+\s*([.?!])/g, '$1')
+    .trim();
+}
+
+// Remove every delivery tag/stage direction for the on-screen transcript,
+// so the reader never sees "[sighs]" even when v3 is performing it.
+function stripVoiceTags(text) {
+  return String(text || '')
+    .replace(/\[[^\]\n]+\]/g, '')
+    .replace(/\*[^*\n]+\*/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.!?;:])/g, '$1')
     .trim();
 }
 
