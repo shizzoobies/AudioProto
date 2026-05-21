@@ -25,6 +25,46 @@ const state = {
   orb: null,
 };
 
+// Meridian's San Antonio branch network. Surfaced in the CSR panel so the
+// trainee can match the pickup branch to where the customer is loading.
+const BRANCHES = [
+  {
+    name: 'Downtown',
+    area: 'Central',
+    address: '410 S Santa Rosa Ave, San Antonio, TX 78207',
+    hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
+    serves: 'Downtown, Southtown, King William, Tobin Hill',
+  },
+  {
+    name: 'Northgate',
+    area: 'North Central',
+    address: '14200 San Pedro Ave, San Antonio, TX 78232',
+    hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
+    serves: 'Stone Oak, Northwest Hills, Hollywood Park, North Central',
+  },
+  {
+    name: 'Riverside',
+    area: 'Southeast',
+    address: '800 SE Military Dr, San Antonio, TX 78214',
+    hours: 'Mon-Sat 7a-6p, Sun closed',
+    serves: 'Riverside, Highland Park, Southeast Side',
+  },
+  {
+    name: 'Westside',
+    area: 'West',
+    address: '2100 Culebra Rd, San Antonio, TX 78228',
+    hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
+    serves: 'West Side, Leon Valley, Loma Park',
+  },
+  {
+    name: 'Airport',
+    area: 'North / Airport',
+    address: '9800 Airport Blvd, San Antonio, TX 78216',
+    hours: 'Daily 6a-9p',
+    serves: 'Airport corridor, North Central, Uptown',
+  },
+];
+
 function setCallMode(mode) {
   if (mode === 'chat') {
     state.callMode = 'chat';
@@ -425,6 +465,18 @@ function renderCall(scenario) {
     ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
     : '';
 
+  const branchesHtml = BRANCHES.map((b) => `
+    <div class="branch-card">
+      <div class="branch-card-head">
+        <span class="branch-name">${escapeHtml(b.name)}</span>
+        <span class="branch-area">${escapeHtml(b.area)}</span>
+      </div>
+      <div class="branch-addr mono">${escapeHtml(b.address)}</div>
+      <div class="branch-hours">${escapeHtml(b.hours)}</div>
+      <div class="branch-serves"><span class="branch-serves-label">Serves</span>${escapeHtml(b.serves)}</div>
+    </div>
+  `).join('');
+
   dom.root.innerHTML = `
     <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}>
       <header class="call-header">
@@ -477,6 +529,7 @@ function renderCall(scenario) {
             <div class="crm-tabs" role="tablist">
               <button class="crm-tab active" data-tab="lookup" role="tab" type="button" aria-selected="true">Lookup</button>
               <button class="crm-tab" data-tab="reservation" role="tab" type="button" aria-selected="false">New Reservation</button>
+              <button class="crm-tab" data-tab="branches" role="tab" type="button" aria-selected="false">Branches</button>
             </div>
           </header>
 
@@ -742,6 +795,11 @@ function renderCall(scenario) {
               </form>
             </div>
             <div class="crm-rsv-result" id="crm-rsv-result"></div>
+          </div>
+
+          <div class="crm-pane crm-pane-branches" data-tab="branches" hidden>
+            <p class="crm-hint">Meridian San Antonio locations. Pick the pickup branch nearest where the customer is loading.</p>
+            <div class="branch-list">${branchesHtml}</div>
           </div>
         </aside>
       </div>
