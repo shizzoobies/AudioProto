@@ -48,6 +48,12 @@ Universal triggers (react in character; do not announce that you are reacting):
 - If you have stated a key concern twice and the agent has not engaged with it, escalate.
 `;
 
+// Personas know the live weather where they are. Meridian operates in
+// Central Texas, so unstated personas default to San Antonio; personas
+// who name a city in their backstory override this. chat.js fetches the
+// actual current conditions for these coordinates per request.
+const DEFAULT_LOCATION = { label: 'San Antonio, TX', lat: 29.4241, lon: -98.4936 };
+
 function buildIdentifierBlock(record) {
   if (!record) return '';
   const lines = [];
@@ -115,6 +121,7 @@ const PERSONA_DEFS = {
     customer_short: 'Marcus, 34 - software dev, dad of 2',
     voice_id: 'iP95p4xoKVk53GoZ742B',
     voice_settings: { stability: 0.38, similarity_boost: 0.75, style: 0.5, use_speaker_boost: true },
+    location: { label: 'Austin, TX', lat: 30.2672, lon: -97.7431 },
     identity: 'a 34-year-old software developer calling Meridian Moving & Storage',
     emotional_state: 'stressed and frustrated, running on five hours of sleep',
     situation: [
@@ -1024,6 +1031,7 @@ const PERSONA_DEFS = {
     customer_short: 'Elena Vasquez · showcase persona · ER nurse, bilingual, fully built life',
     voice_id: 'h2sm0NbeIZXHBzJOMYcQ',
     voice_settings: { stability: 0.55, similarity_boost: 0.78, style: 0.3, use_speaker_boost: true },
+    location: { label: 'San Antonio, TX', lat: 29.4241, lon: -98.4936 },
     identity: 'a 42-year-old bilingual ER charge nurse in San Antonio, currently appearing as the showcase persona for an AI customer service training simulator',
     emotional_state: 'warm, friendly, in tour-guide mode - relaxed and ready to chat about anything or step into a customer roleplay when asked',
     situation: [
@@ -1551,6 +1559,7 @@ export const SCENARIOS = Object.fromEntries(
       {
         ...def,
         id,
+        location: def.location || DEFAULT_LOCATION,
         system_prompt: buildPersonaPrompt(def, record),
         customer_record: record,
       },

@@ -31,7 +31,12 @@ export async function onRequestPost({ request, env }) {
   }
 
   const isShowcase = String(body.scenario_id || '').startsWith(SHOWCASE_PERSONA_PREFIX);
-  const demoUnlocked = await isDemoUnlocked(request, env.SESSION_SECRET);
+  // Fetch the demo-cookie check and the live weather in parallel so the
+  // weather lookup adds no extra latency to the turn.
+  const [demoUnlocked, weatherBlock] = await Promise.all([
+    isDemoUnlocked(request, env.SESSION_SECRET),
+    fetchWeatherBlock(scenario.location),
+  ]);
   const usePremium = isShowcase && demoUnlocked;
   const modelId = usePremium ? PREMIUM_MODEL : STANDARD_MODEL;
   const maxTokens = usePremium ? PREMIUM_MAX_TOKENS : MAX_TOKENS;
@@ -48,7 +53,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         model: modelId,
         max_tokens: maxTokens,
-        system: `${scenario.system_prompt}\n\n${currentDateBlock()}`,
+        system: [scenario.system_prompt, currentDateBlock(), weatherBlock].filter(Boolean).join('\n\n'),
         messages,
         stream: true,
       }),
@@ -102,6 +107,52 @@ function currentDateBlock() {
     '- Any date you mention must be computed relative to today and stated accurately. If your situation says something is "about nine weeks out" or "next month", count forward from today and name the correct month and day. Never reference a month that does not line up with that math.',
     '- Speak dates naturally per the number rules above (for example "August fourth" or "the first week of August"), not in digits.',
   ].join('\n');
+}
+
+// WMO weather interpretation codes -> plain English.
+const WMO_DESCRIPTIONS = {
+  0: 'clear sky', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
+  45: 'fog', 48: 'freezing fog',
+  51: 'light drizzle', 53: 'drizzle', 55: 'heavy drizzle',
+  56: 'freezing drizzle', 57: 'freezing drizzle',
+  61: 'light rain', 63: 'rain', 65: 'heavy rain',
+  66: 'freezing rain', 67: 'freezing rain',
+  71: 'light snow', 73: 'snow', 75: 'heavy snow', 77: 'snow grains',
+  80: 'light rain showers', 81: 'rain showers', 82: 'heavy rain showers',
+  85: 'snow showers', 86: 'heavy snow showers',
+  95: 'thunderstorms', 96: 'thunderstorms with hail', 99: 'severe thunderstorms with hail',
+};
+
+// Live local weather for the persona's city, so they react to the world
+// like a real person ("it's brutal out today"). Open-Meteo is free and
+// needs no key. The subrequest is edge-cached for 15 minutes so it costs
+// nothing on the hot path, and any failure degrades gracefully to no
+// weather block at all.
+async function fetchWeatherBlock(location) {
+  const loc = location || { label: 'your area', lat: 29.4241, lon: -98.4936 };
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
+      '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m' +
+      '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago';
+    const res = await fetch(url, { cf: { cacheTtl: 900, cacheEverything: true } });
+    if (!res.ok) return '';
+    const data = await res.json();
+    const c = data?.current;
+    if (!c || typeof c.temperature_2m !== 'number') return '';
+    const temp = Math.round(c.temperature_2m);
+    const feels = Math.round(c.apparent_temperature);
+    const desc = WMO_DESCRIPTIONS[c.weather_code] || 'mixed conditions';
+    const wind = Math.round(c.wind_speed_10m);
+    const feelsClause =
+      Number.isFinite(feels) && Math.abs(feels - temp) >= 3 ? ` (feels like ${feels}°F)` : '';
+    return [
+      `Local weather right now (${loc.label}): ${temp}°F${feelsClause}, ${desc}, wind ${wind} mph.`,
+      'This is ambient knowledge. Reference the weather only if it comes up naturally (small talk, the agent asks about your day, or it bears on your move). Never open the call with a weather report.',
+    ].join('\n');
+  } catch {
+    return '';
+  }
 }
 
 async function isDemoUnlocked(request, secret) {
