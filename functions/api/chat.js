@@ -48,7 +48,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         model: modelId,
         max_tokens: maxTokens,
-        system: scenario.system_prompt,
+        system: `${scenario.system_prompt}\n\n${currentDateBlock()}`,
         messages,
         stream: true,
       }),
@@ -76,6 +76,32 @@ export async function onRequestPost({ request, env }) {
       'X-Chat-Model': modelId,
     },
   });
+}
+
+// Personas have no idea what day it is unless we tell them. Without this
+// the model invents dates ("about nine weeks out" -> a random month), so
+// we anchor it to the real wall clock on every request. Central time is a
+// fine default - the personas live in Texas. This is appended after the
+// static persona prompt so it never collides with the persona's identity.
+function currentDateBlock() {
+  let today;
+  try {
+    today = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date());
+  } catch {
+    today = new Date().toISOString().slice(0, 10);
+  }
+  return [
+    'Real-world clock (authoritative - you live in the present):',
+    `- Today's date is ${today}.`,
+    '- Any date you mention must be computed relative to today and stated accurately. If your situation says something is "about nine weeks out" or "next month", count forward from today and name the correct month and day. Never reference a month that does not line up with that math.',
+    '- Speak dates naturally per the number rules above (for example "August fourth" or "the first week of August"), not in digits.',
+  ].join('\n');
 }
 
 async function isDemoUnlocked(request, secret) {
