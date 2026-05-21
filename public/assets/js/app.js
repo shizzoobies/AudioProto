@@ -1,6 +1,6 @@
 import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
-import { AudioPlayer, AmbientBed, attachVisualizer, synthesizeSentence, MicRecorder, ContinuousRecorder, transcribeAudio } from './audio.js';
+import { AudioPlayer, attachVisualizer, synthesizeSentence, MicRecorder, ContinuousRecorder, transcribeAudio } from './audio.js';
 
 const state = {
   scenarioTypes: [],
@@ -23,7 +23,6 @@ const state = {
   silenceTimer: null,
   demoUnlocked: false,
   orb: null,
-  ambientBed: null,
 };
 
 function setCallMode(mode) {
@@ -54,10 +53,6 @@ function teardownAudio() {
   if (state.orb) {
     try { state.orb.dispose(); } catch {}
     state.orb = null;
-  }
-  if (state.ambientBed) {
-    try { state.ambientBed.stop(); } catch {}
-    state.ambientBed = null;
   }
   if (state.audioPlayer) {
     state.audioPlayer.destroy();
@@ -832,18 +827,6 @@ function renderCall(scenario) {
         }
       })
       .catch((err) => console.warn('orb load failed', err));
-  }
-
-  // Ambient room-tone under premium Elena so she feels present in a real
-  // space. Starts within the click-initiated call flow so the AudioContext
-  // is allowed to play. Standard tier and other personas get no bed.
-  if (premiumVoice && isPhone) {
-    try {
-      state.ambientBed = new AmbientBed();
-      state.ambientBed.start();
-    } catch (err) {
-      console.warn('ambient bed failed', err);
-    }
   }
 
   // Per-call TTS sequencing. We synthesize sentences in parallel for
