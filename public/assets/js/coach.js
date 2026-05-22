@@ -55,6 +55,10 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
       <div class="report-overall-label">Overall</div>
     </div>
 
+    <div class="report-disclaimer">
+      <p>Every call has room to grow, even a strong one. This report is built to surface those opportunities, not to grade you. A score below five is not a failure, it simply marks where your next improvement lives. Take one thing from it into your next call.</p>
+    </div>
+
     <div class="report-callouts">
       <div class="report-callout report-callout-strengths">
         <h2 class="callout-title">Strengths</h2>

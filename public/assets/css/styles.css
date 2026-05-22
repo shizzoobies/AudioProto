@@ -2102,6 +2102,22 @@ textarea {
   color: var(--color-text-tertiary);
 }
 
+.report-disclaimer {
+  max-width: 640px;
+  margin: var(--space-4) auto var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-accent-muted);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.report-disclaimer p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
 .report-callouts {
   display: grid;
   grid-template-columns: 1fr 1fr;
