@@ -71,7 +71,9 @@ export function createOrb({ container, getAnalyser }) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-  camera.position.set(0, 0, 3.8);
+  // Pulled back ~35% further than the source widget so the cloud sits
+  // centered with margin instead of reaching the frame edges.
+  camera.position.set(0, 0, 5.85);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -160,7 +162,7 @@ export function createOrb({ container, getAnalyser }) {
     camera.aspect = w / h;
     // Pull the camera back when the orb is in the compact scenario band so
     // the whole cloud stays in frame.
-    const targetZ = h < 220 ? 4.7 : 3.8;
+    const targetZ = h < 220 ? 7.2 : 5.85;
     camera.position.z += (targetZ - camera.position.z) * 0.5;
     camera.updateProjectionMatrix();
   }
