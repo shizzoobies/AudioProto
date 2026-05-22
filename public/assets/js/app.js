@@ -899,6 +899,7 @@ function renderCall(scenario) {
   // produced them - never tail-first.
   let ttsSeq = 0;
   let ttsNextEnqueue = 0;
+  let ttsDraining = false;
   const ttsPending = new Map();
 
   function speakSentence(text, opts = {}) {
@@ -933,19 +934,31 @@ function renderCall(scenario) {
       });
   }
 
-  function drainTts() {
-    while (ttsPending.has(ttsNextEnqueue)) {
-      const item = ttsPending.get(ttsNextEnqueue);
-      ttsPending.delete(ttsNextEnqueue);
-      ttsNextEnqueue++;
-      if (item.blob) {
-        audioPlayer.enqueueBlob(item.blob, item.onPlay);
-      } else {
-        // Synthesis failed for this sentence. Fire the onPlay anyway
-        // so the transcript stays sync'd with what she's already said.
-        try { item.onPlay?.(); } catch {}
+  async function drainTts() {
+    if (ttsDraining) return;
+    ttsDraining = true;
+    try {
+      while (ttsPending.has(ttsNextEnqueue)) {
+        const item = ttsPending.get(ttsNextEnqueue);
+        ttsPending.delete(ttsNextEnqueue);
+        ttsNextEnqueue++;
+        if (item.blob) {
+          // Await so each clip is decoded AND pushed to the play queue
+          // before the next one. enqueueBlob decodes asynchronously, so
+          // without awaiting, a later (often larger) clip can finish
+          // decoding first and play out of order or smoosh together.
+          await audioPlayer.enqueueBlob(item.blob, item.onPlay);
+        } else {
+          // Synthesis failed for this chunk. Fire onPlay anyway so the
+          // transcript stays in sync with what she has already said.
+          try { item.onPlay?.(); } catch {}
+        }
       }
+    } finally {
+      ttsDraining = false;
     }
+    // An item may have arrived during the final await; pick it up.
+    if (ttsPending.has(ttsNextEnqueue)) drainTts();
   }
 
   // Speak the opening line. In phone mode the bubble fills when the
