@@ -367,8 +367,11 @@ export class ContinuousRecorder {
     this.mimeType = null;
     this.speechStartTime = null;
     this.silenceStartTime = null;
-    this.SILENCE_RMS = 0.012;
-    this.SILENCE_DURATION_MS = 1400;
+    // Slightly more sensitive to quiet speech, and a longer end-of-turn
+    // silence window, so natural pauses (gathering a thought, reading out a
+    // confirmation number digit by digit) don't get cut off mid-turn.
+    this.SILENCE_RMS = 0.010;
+    this.SILENCE_DURATION_MS = 2000;
     this.MIN_SPEECH_DURATION_MS = 450;
     this.MAX_RECORDING_MS = 25000;
   }
