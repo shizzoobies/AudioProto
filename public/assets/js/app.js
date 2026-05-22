@@ -769,7 +769,7 @@ function renderCall(scenario) {
                     <span class="crm-field-label">Card number</span>
                     <input class="crm-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4111 1111 1111 1111" maxlength="23">
                   </label>
-                  <div class="rsv-row rsv-row-3">
+                  <div class="rsv-row">
                     <label class="crm-field">
                       <span class="crm-field-label">Expiry</span>
                       <input class="crm-input" data-rsv="card_exp" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" maxlength="5">
@@ -778,11 +778,11 @@ function renderCall(scenario) {
                       <span class="crm-field-label">CVV</span>
                       <input class="crm-input" data-rsv="card_cvv" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4">
                     </label>
-                    <label class="crm-field">
-                      <span class="crm-field-label">Billing ZIP</span>
-                      <input class="crm-input" data-rsv="card_zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="98101" maxlength="5">
-                    </label>
                   </div>
+                  <label class="crm-field">
+                    <span class="crm-field-label">Billing ZIP</span>
+                    <input class="crm-input" data-rsv="card_zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="98101" maxlength="5">
+                  </label>
                 </section>
 
                 <div class="rsv-error" id="rsv-error" hidden></div>
