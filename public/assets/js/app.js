@@ -612,9 +612,12 @@ function renderCall(scenario) {
                       <input class="crm-input" data-rsv="pickup_time" type="time" value="09:00">
                     </label>
                   </div>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Pickup location</span>
-                    <select class="crm-input" data-rsv="location">
+                  <div class="crm-field">
+                    <div class="crm-field-head">
+                      <span class="crm-field-label">Pickup location</span>
+                      <button type="button" class="branch-info-btn" data-branch-picker="location" title="View branch details and select" aria-label="View branch details and select a pickup branch">i</button>
+                    </div>
+                    <select class="crm-input" data-rsv="location" aria-label="Pickup location">
                       <option value="">Choose a branch...</option>
                       <option>Downtown</option>
                       <option>Northgate</option>
@@ -622,7 +625,7 @@ function renderCall(scenario) {
                       <option>Westside</option>
                       <option>Airport</option>
                     </select>
-                  </label>
+                  </div>
                   <div class="rsv-row">
                     <label class="crm-field">
                       <span class="crm-field-label">Return date</span>
@@ -637,9 +640,12 @@ function renderCall(scenario) {
                     <input type="checkbox" id="rsv-same-location" checked>
                     <span>Returning to the same location</span>
                   </label>
-                  <label class="crm-field" id="rsv-return-loc-field" hidden>
-                    <span class="crm-field-label">Return location</span>
-                    <select class="crm-input" data-rsv="return_location">
+                  <div class="crm-field" id="rsv-return-loc-field" hidden>
+                    <div class="crm-field-head">
+                      <span class="crm-field-label">Return location</span>
+                      <button type="button" class="branch-info-btn" data-branch-picker="return_location" title="View branch details and select" aria-label="View branch details and select a return branch">i</button>
+                    </div>
+                    <select class="crm-input" data-rsv="return_location" aria-label="Return location">
                       <option value="">Choose a branch...</option>
                       <option>Downtown</option>
                       <option>Northgate</option>
@@ -647,7 +653,7 @@ function renderCall(scenario) {
                       <option>Westside</option>
                       <option>Airport</option>
                     </select>
-                  </label>
+                  </div>
                   <label class="crm-field">
                     <span class="crm-field-label">Estimated miles</span>
                     <input class="crm-input" data-rsv="miles" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 12" value="0">
@@ -1765,6 +1771,17 @@ function renderCall(scenario) {
     });
   }
 
+  // Branch info buttons open the picker modal for their target select.
+  dom.root.querySelectorAll('.branch-info-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const target = btn.dataset.branchPicker;
+      const sel = rsvForm.querySelector(`[data-rsv="${target}"]`);
+      openBranchPicker(sel);
+    });
+  });
+
   showStep(1);
   updateCardPreview();
   recomputeReservation();
@@ -1857,6 +1874,64 @@ function appendSilenceMarker(transcript) {
   transcript.appendChild(li);
   transcript.scrollTop = transcript.scrollHeight;
   return li;
+}
+
+// Branch picker modal. Lets the trainee see each branch's full details
+// and lock one in without leaving the reservation form. Writes the chosen
+// branch into the given select and fires a change event so the cost
+// estimate recomputes.
+function openBranchPicker(selectEl) {
+  if (!selectEl) return;
+  const current = selectEl.value;
+  const cards = BRANCHES.map((b) => `
+    <button type="button" class="branch-pick${b.name === current ? ' selected' : ''}" data-branch="${escapeAttr(b.name)}">
+      <div class="branch-card-head">
+        <span class="branch-name">${escapeHtml(b.name)}</span>
+        <span class="branch-area">${escapeHtml(b.area)}</span>
+      </div>
+      <div class="branch-addr mono">${escapeHtml(b.address)}</div>
+      <div class="branch-hours">${escapeHtml(b.hours)}</div>
+      <div class="branch-serves"><span class="branch-serves-label">Serves</span>${escapeHtml(b.serves)}</div>
+    </button>
+  `).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'branch-modal';
+  overlay.innerHTML = `
+    <div class="branch-modal-inner" role="dialog" aria-modal="true" aria-labelledby="branch-modal-title">
+      <div class="branch-modal-head">
+        <h3 class="branch-modal-title" id="branch-modal-title">Choose a branch</h3>
+        <button type="button" class="branch-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <p class="branch-modal-sub">Pick the branch nearest where the customer is loading.</p>
+      <div class="branch-modal-list">${cards}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  let settled = false;
+  function cleanup() {
+    if (settled) return;
+    settled = true;
+    overlay.removeEventListener('click', onClick);
+    document.removeEventListener('keydown', onKey);
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  }
+  function onClick(e) {
+    if (e.target === overlay || e.target.closest('.branch-modal-close')) {
+      cleanup();
+      return;
+    }
+    const pick = e.target.closest('.branch-pick');
+    if (pick) {
+      selectEl.value = pick.dataset.branch;
+      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+      cleanup();
+    }
+  }
+  function onKey(e) { if (e.key === 'Escape') cleanup(); }
+  overlay.addEventListener('click', onClick);
+  document.addEventListener('keydown', onKey);
 }
 
 function escapeHtml(s) {
