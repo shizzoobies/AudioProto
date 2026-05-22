@@ -1021,6 +1021,7 @@ function renderCall(scenario) {
 
   const conversation = new Conversation({
     scenario,
+    openingLine: scenario.opening_line,
     onAssistantStart: () => {
       clearSilenceTimer();
       // Chat mode shows text as it streams. Phone mode creates the

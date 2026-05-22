@@ -1,6 +1,7 @@
 export class Conversation {
-  constructor({ scenario, onAssistantDelta, onAssistantStart, onAssistantEnd, onSentence, onError, onMode }) {
+  constructor({ scenario, openingLine, onAssistantDelta, onAssistantStart, onAssistantEnd, onSentence, onError, onMode }) {
     this.scenario = scenario;
+    this.openingLine = openingLine || '';
     this.messages = [];
     this.controller = null;
     this.streaming = false;
@@ -110,6 +111,7 @@ export class Conversation {
         body: JSON.stringify({
           scenario_id: this.scenario.id,
           messages: this.messages,
+          opening_line: this.openingLine,
         }),
         credentials: 'same-origin',
         signal: this.controller.signal,

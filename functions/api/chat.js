@@ -57,6 +57,7 @@ export async function onRequestPost({ request, env }) {
           scenario.system_prompt,
           currentDateBlock(),
           weatherBlock,
+          openingContinuationBlock(body?.opening_line),
           usePremium ? premiumVoiceDirectionBlock() : '',
         ].filter(Boolean).join('\n\n'),
         messages,
@@ -127,6 +128,20 @@ function premiumVoiceDirectionBlock() {
     '- Match the tag to the moment: warmth in greetings and small talk, a soft [sighs] or [wistful] before a heavy topic (your dad Hector, your estranged brother Felipe), gentle energy about Mateo, brisk focus when you are deep in move logistics, [amused] or [laughs softly] when something is genuinely funny.',
     '- Never use asterisks or parenthetical actions like *laughs* or (sighs). Only square-bracket tags from the lists above.',
     '- Vary your wording, rhythm, and energy from call to call so you never sound scripted. Do not reuse the same stock opening every time; greet the way the moment calls for.',
+  ].join('\n');
+}
+
+// The persona's opening line is delivered client-side and is NOT part of
+// the message history the model receives, so without this the model thinks
+// the conversation just started and re-introduces itself on the first
+// reply. Telling it exactly what it already said anchors it to continue.
+function openingContinuationBlock(openingLine) {
+  const line = String(openingLine || '').trim().slice(0, 600);
+  if (!line) return '';
+  return [
+    'Conversation state: you have ALREADY opened this call. Your first words, which the other person has already heard, were:',
+    `"${line}"`,
+    'Do not greet again, do not say your name again, do not re-introduce yourself. Just continue the conversation naturally, responding directly to what the other person says next.',
   ].join('\n');
 }
 
