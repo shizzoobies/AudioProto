@@ -45,6 +45,7 @@ export class Conversation {
     this.streaming = true;
     this.controller = new AbortController();
     this._sentenceBuffer = '';
+    this._emittedFirst = false;
     let rawBuffer = '';
     let started = false;
 
@@ -192,16 +193,25 @@ export class Conversation {
   _flushSentences(deltaText) {
     if (!this.onSentence) return;
     this._sentenceBuffer += deltaText;
-    const boundary = /[.?!]+\s+/;
-    while (true) {
-      const match = this._sentenceBuffer.match(boundary);
-      if (!match) break;
-      const end = match.index + match[0].length;
-      const sentence = this._sentenceBuffer.slice(0, end).trim();
-      this._sentenceBuffer = this._sentenceBuffer.slice(end);
-      if (sentence.length >= 2) {
-        this.onSentence(sentence);
-      }
+    // Flush chunks that end on a sentence boundary but are long enough to
+    // synthesize and play smoothly. Tiny one-word sentences sent as their
+    // own TTS clips cause audible gaps ("dropping in and out"), because the
+    // next clip is not ready when the short one finishes. We gather all
+    // complete sentences up to the last boundary and only emit once the
+    // chunk is sizeable. The first chunk flushes sooner so audio still
+    // starts quickly; later chunks are larger for gapless playback.
+    const boundary = /[.?!]+["')\]]*\s/g;
+    let lastEnd = -1;
+    let m;
+    while ((m = boundary.exec(this._sentenceBuffer)) !== null) {
+      lastEnd = m.index + m[0].length;
     }
+    if (lastEnd === -1) return;
+    const ready = this._sentenceBuffer.slice(0, lastEnd).trim();
+    const minLen = this._emittedFirst ? 100 : 40;
+    if (ready.length < minLen) return;
+    this._sentenceBuffer = this._sentenceBuffer.slice(lastEnd);
+    this._emittedFirst = true;
+    if (ready.length >= 2) this.onSentence(ready);
   }
 }
