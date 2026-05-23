@@ -32,6 +32,8 @@ const BRANCHES = [
     address: '410 S Santa Rosa Ave, San Antonio, TX 78207',
     hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
     serves: 'Downtown, Southtown, King William, Tobin Hill',
+    lat: 29.4218,
+    lng: -98.4980,
   },
   {
     name: 'Northgate',
@@ -39,6 +41,8 @@ const BRANCHES = [
     address: '14200 San Pedro Ave, San Antonio, TX 78232',
     hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
     serves: 'Stone Oak, Northwest Hills, Hollywood Park, North Central',
+    lat: 29.6010,
+    lng: -98.4910,
   },
   {
     name: 'Riverside',
@@ -46,6 +50,8 @@ const BRANCHES = [
     address: '800 SE Military Dr, San Antonio, TX 78214',
     hours: 'Mon-Sat 7a-6p, Sun closed',
     serves: 'Riverside, Highland Park, Southeast Side',
+    lat: 29.3517,
+    lng: -98.4799,
   },
   {
     name: 'Westside',
@@ -53,6 +59,8 @@ const BRANCHES = [
     address: '2100 Culebra Rd, San Antonio, TX 78228',
     hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
     serves: 'West Side, Leon Valley, Loma Park',
+    lat: 29.4561,
+    lng: -98.5475,
   },
   {
     name: 'Airport',
@@ -60,6 +68,8 @@ const BRANCHES = [
     address: '9800 Airport Blvd, San Antonio, TX 78216',
     hours: 'Daily 6a-9p',
     serves: 'Airport corridor, North Central, Uptown',
+    lat: 29.5293,
+    lng: -98.4690,
   },
 ];
 
@@ -527,20 +537,6 @@ function renderCall(scenario) {
       return `<option value="${String(yy).slice(-2)}">${yy}</option>`;
     })).join('');
 
-  const posLocationsHtml = POS_LOCATIONS.map((loc, i) => `
-    <button type="button" class="pos-loc${i === 0 ? ' recommended' : ''}" data-location="${escapeAttr(loc.name)}">
-      <div class="pos-loc-rank">${i + 1}</div>
-      <div class="pos-loc-main">
-        <div class="pos-loc-name">Meridian Moving &amp; Storage of ${escapeHtml(loc.name)}${i === 0 ? ' <span class="pos-loc-badge">Recommended</span>' : ''}</div>
-        <div class="pos-loc-addr mono">${escapeHtml(loc.address)}</div>
-        <div class="pos-loc-meta">${escapeHtml(loc.distance)} mi away &middot; ${escapeHtml(loc.hours)}</div>
-        <div class="pos-loc-equip">
-          ${TRUCK_SIZES.map((t) => `<span class="pos-loc-chip${loc.available_sizes.includes(t.size) ? '' : ' out'}">${t.size}' ${loc.available_sizes.includes(t.size) ? '$' + t.base.toFixed(2) : 'N/A'}</span>`).join('')}
-        </div>
-      </div>
-    </button>
-  `).join('');
-
   dom.root.innerHTML = `
     <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}>
       <header class="call-header">
@@ -638,6 +634,8 @@ function renderCall(scenario) {
                   </label>
                 </div>
 
+                <div class="pos-geo-status" id="pos-geo-status" hidden></div>
+
                 <div class="pos-field">
                   <span class="pos-field-label">Move Type</span>
                   <div class="pos-radio-row">
@@ -732,7 +730,7 @@ function renderCall(scenario) {
                   <h3 class="pos-step-title">Select Pick Up Location</h3>
                 </header>
                 <p class="pos-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
-                <div class="pos-loc-list" id="pos-loc-list">${posLocationsHtml}</div>
+                <div class="pos-loc-list" id="pos-loc-list"></div>
               </section>
 
               <section class="pos-step" data-step="4" hidden>
@@ -1314,6 +1312,7 @@ function renderCall(scenario) {
   const posLookupInput = document.getElementById('pos-lookup-input');
   const posLookupBtn = document.getElementById('pos-lookup-btn');
   const posLookupResult = document.getElementById('pos-lookup-result');
+  const posGeoStatus = document.getElementById('pos-geo-status');
 
   const WAIVER_INFO = {
     none: { label: 'Waiver declined', daily: 0 },
@@ -1329,6 +1328,12 @@ function renderCall(scenario) {
   let selectedLocation = null;
   let selectedRecord = null;
   let storageAsked = false;
+  // Geocoded origin/destination for distance-ranked branches and one-way
+  // mileage. Null until the trainee enters a place we can resolve.
+  let originGeo = null;
+  let destGeo = null;
+  let geoSeq = 0;
+  let geoTimer = null;
 
   function fmtMoney(n) { return '$' + Number(n || 0).toFixed(2); }
 
@@ -1474,6 +1479,150 @@ function renderCall(scenario) {
       <div class="pos-kv"><span>Address</span><span class="mono">${escapeHtml(loc.address)}</span></div>
       <div class="pos-kv"><span>Phone</span><span class="mono">${escapeHtml(loc.phone)}</span></div>
     `;
+  }
+
+  function haversineMiles(a, b) {
+    const toRad = (d) => (d * Math.PI) / 180;
+    const R = 3958.8; // earth radius, miles
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function nearestBranch() {
+    if (!originGeo) return null;
+    let best = null;
+    for (const loc of POS_LOCATIONS) {
+      if (!Number.isFinite(loc.lat) || !Number.isFinite(loc.lng)) continue;
+      const mi = haversineMiles(originGeo, { lat: loc.lat, lng: loc.lng });
+      if (!best || mi < best.mi) best = { loc, mi };
+    }
+    return best;
+  }
+
+  // Build the pickup-location list. With a geocoded origin the branches are
+  // sorted nearest-first with real haversine distances and the closest is
+  // tagged Recommended; without one we keep the original order and the static
+  // distance estimates so the step still works before any ZIP is entered.
+  function renderLocations() {
+    const items = POS_LOCATIONS.map((loc) => ({
+      loc,
+      mi: originGeo && Number.isFinite(loc.lat) && Number.isFinite(loc.lng)
+        ? haversineMiles(originGeo, { lat: loc.lat, lng: loc.lng })
+        : null,
+    }));
+    const located = items.every((it) => it.mi != null);
+    if (located) items.sort((a, b) => a.mi - b.mi);
+    posLocList.innerHTML = items.map((item, i) => {
+      const loc = item.loc;
+      const recommended = i === 0;
+      const distText = item.mi != null ? item.mi.toFixed(1) : loc.distance;
+      const sel = loc.name === selectedLocation ? ' selected' : '';
+      return `
+      <button type="button" class="pos-loc${recommended ? ' recommended' : ''}${sel}" data-location="${escapeAttr(loc.name)}">
+        <div class="pos-loc-rank">${i + 1}</div>
+        <div class="pos-loc-main">
+          <div class="pos-loc-name">Meridian Moving &amp; Storage of ${escapeHtml(loc.name)}${recommended ? ' <span class="pos-loc-badge">Recommended</span>' : ''}</div>
+          <div class="pos-loc-addr mono">${escapeHtml(loc.address)}</div>
+          <div class="pos-loc-meta">${escapeHtml(distText)} mi away &middot; ${escapeHtml(loc.hours)}</div>
+          <div class="pos-loc-equip">
+            ${TRUCK_SIZES.map((t) => `<span class="pos-loc-chip${loc.available_sizes.includes(t.size) ? '' : ' out'}">${t.size}' ${loc.available_sizes.includes(t.size) ? '$' + t.base.toFixed(2) : 'N/A'}</span>`).join('')}
+          </div>
+        </div>
+      </button>
+    `;
+    }).join('');
+  }
+
+  function setGeoStatus(text, kind) {
+    if (!posGeoStatus) return;
+    if (!text) {
+      posGeoStatus.hidden = true;
+      posGeoStatus.textContent = '';
+      posGeoStatus.removeAttribute('data-state');
+      return;
+    }
+    posGeoStatus.hidden = false;
+    posGeoStatus.dataset.state = kind || '';
+    posGeoStatus.textContent = text;
+  }
+
+  async function geocodeQuery(query) {
+    const q = (query || '').trim();
+    if (!q) return null;
+    try {
+      const res = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ query: q }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data && data.found ? { lat: data.lat, lng: data.lng, label: data.label } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Resolve the typed origin (and, for one-way, destination), re-rank the
+  // branches, and auto-fill one-way mileage. geoSeq guards against an earlier
+  // slow lookup landing after a newer one and clobbering fresher results.
+  async function refreshGeo() {
+    const seq = ++geoSeq;
+    const from = getRsv('moving_from');
+    const to = getRsv('moving_to');
+    const oneWay = getRsv('move_type') === 'one_way';
+
+    if (!from) {
+      originGeo = null;
+      destGeo = null;
+      setGeoStatus('', '');
+      renderLocations();
+      return;
+    }
+
+    setGeoStatus(`Locating ${from}...`, 'pending');
+    const origin = await geocodeQuery(from);
+    if (seq !== geoSeq) return;
+    originGeo = origin;
+
+    if (!origin) {
+      setGeoStatus(`Could not place "${from}". Branches shown in default order.`, 'warn');
+      renderLocations();
+      return;
+    }
+
+    let dest = null;
+    if (oneWay && to) {
+      dest = await geocodeQuery(to);
+      if (seq !== geoSeq) return;
+    }
+    destGeo = dest;
+
+    renderLocations();
+
+    const nearest = nearestBranch();
+    let msg = nearest ? `Nearest branch: Meridian of ${nearest.loc.name}, ${nearest.mi.toFixed(1)} mi.` : '';
+    if (oneWay) {
+      if (dest) {
+        const tripMi = Math.max(1, Math.round(haversineMiles(origin, dest)));
+        setRsv('miles', String(tripMi));
+        onPosChange();
+        msg += ` One-way distance set to ${tripMi} mi.`;
+      } else if (to) {
+        msg += ' Could not place the destination; enter one-way miles manually.';
+      }
+    }
+    setGeoStatus(msg, 'ok');
+  }
+
+  function scheduleGeo() {
+    clearTimeout(geoTimer);
+    geoTimer = setTimeout(refreshGeo, 600);
   }
 
   function renderSched() {
@@ -1710,6 +1859,19 @@ function renderCall(scenario) {
     renderLeftRail();
   });
 
+  // Geocode the move addresses (debounced) so the Location step ranks branches
+  // by real distance and one-way mileage auto-fills. move_type changes re-run
+  // it because switching to One Way needs the destination resolved.
+  ['moving_from', 'moving_to'].forEach((name) => {
+    const el = pos.querySelector(`[data-rsv="${name}"]`);
+    if (!el) return;
+    el.addEventListener('input', scheduleGeo);
+    el.addEventListener('blur', () => { clearTimeout(geoTimer); refreshGeo(); });
+  });
+  pos.querySelectorAll('[data-rsv="move_type"]').forEach((el) => {
+    el.addEventListener('change', () => { clearTimeout(geoTimer); refreshGeo(); });
+  });
+
   posLookupBtn.addEventListener('click', doLookup);
   posLookupInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
@@ -1805,13 +1967,16 @@ function renderCall(scenario) {
       truckOverride = null;
       selectedLocation = null;
       storageAsked = false;
-      pos.querySelectorAll('.pos-loc').forEach((c) => c.classList.remove('selected'));
+      originGeo = null;
+      destGeo = null;
+      setGeoStatus('', '');
       posEntityCard.hidden = true;
       updateCardChip();
       setRsv('pickup_date', new Date().toISOString().slice(0, 10));
       renderCart();
       renderLeftRail();
       renderSched();
+      renderLocations();
       showStep(1);
     });
   }
@@ -1891,6 +2056,7 @@ function renderCall(scenario) {
   renderCart();
   renderEquip();
   renderSched();
+  renderLocations();
   updateCardChip();
   showStep(1);
 }
@@ -2086,15 +2252,38 @@ function promptDemoPassword() {
 // [chuckles], or (sighs) — which the voice synthesizer would otherwise read
 // out loud as literal words.
 const SPEECH_CUE_VERBS = /(?:laugh|laughs|laughing|sigh|sighs|sighing|chuckl[a-z]*|pause|pauses|breath[a-z]*|cough[a-z]*|mumbles?|whispers?|grumbl[a-z]*|huff[a-z]*|exhal[a-z]*|inhal[a-z]*|smil[a-z]*|smirks?|gasp[a-z]*|sniffl[a-z]*|grunt[a-z]*|clears? throat|beat)/i;
+// Sensory/body nouns that anchor a wordless stage direction the verb list
+// misses, e.g. "(heart beating)", "(voice trembling)", "(eyes welling up)".
+const SPEECH_CUE_NOUNS = /\b(?:heart|breath|voice|chest|throat|eyes?|jaw|shoulders?|teeth|fists?|tears?|lips?|hands?)\b/i;
+
+// Decide whether a parenthetical is a stage direction the voice model would
+// read aloud, versus a real spoken aside we must keep. The expressive v3
+// model leaks multi-word directions ("heart beating") that the single-verb
+// check never caught. Guard the genuine cases first: anything with sentence
+// punctuation or a digit (spelled numbers, suite/phone fragments) is content,
+// and long parentheticals are sentences, not directions.
+function isSpeechCueParenthetical(inner) {
+  const trimmed = inner.trim();
+  if (!trimmed) return false;
+  if (/[.!?]/.test(trimmed)) return false;
+  if (/\d/.test(trimmed)) return false;
+  const words = trimmed.split(/\s+/);
+  if (words.length > 4) return false;
+  if (SPEECH_CUE_VERBS.test(trimmed)) return true;
+  // Short, subjectless physical/emotional descriptions read as directions:
+  // a present participle ("beating"), a manner adverb ("softly"), or a
+  // sensory noun ("heart"). Real asides ("the big one") have none of these.
+  const hasParticiple = words.some((w) => /[a-z]{3,}ing$/i.test(w));
+  const hasMannerAdverb = words.some((w) => /[a-z]{3,}ly$/i.test(w));
+  return hasParticiple || hasMannerAdverb || SPEECH_CUE_NOUNS.test(trimmed);
+}
+
 function scrubForSpeech(text) {
   return String(text || '')
     .replace(/\*[^*\n]+\*/g, '')
     .replace(/\[[^\]\n]+\]/g, '')
-    .replace(/\(\s*([^)\n]{1,30})\s*\)/g, (match, inner) => {
-      const trimmed = inner.trim();
-      if (/[.!?]/.test(trimmed)) return match;
-      return SPEECH_CUE_VERBS.test(trimmed) ? '' : match;
-    })
+    .replace(/\(\s*([^)\n]{1,40})\s*\)/g, (match, inner) =>
+      isSpeechCueParenthetical(inner) ? '' : match)
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([,.!?;:])/g, '$1')
     .replace(/[,;:]+\s*([.?!])/g, '$1')
@@ -2103,15 +2292,12 @@ function scrubForSpeech(text) {
 
 // Premium (eleven_v3) speech scrub: keep square-bracket delivery tags so
 // the expressive model can perform them, but still strip asterisk
-// directions and short parenthetical cue-verbs it would read aloud.
+// directions and parenthetical cue phrases it would read aloud.
 function scrubForSpeechKeepTags(text) {
   return String(text || '')
     .replace(/\*[^*\n]+\*/g, '')
-    .replace(/\(\s*([^)\n]{1,30})\s*\)/g, (match, inner) => {
-      const trimmed = inner.trim();
-      if (/[.!?]/.test(trimmed)) return match;
-      return SPEECH_CUE_VERBS.test(trimmed) ? '' : match;
-    })
+    .replace(/\(\s*([^)\n]{1,40})\s*\)/g, (match, inner) =>
+      isSpeechCueParenthetical(inner) ? '' : match)
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([,.!?;:])/g, '$1')
     .replace(/[,;:]+\s*([.?!])/g, '$1')

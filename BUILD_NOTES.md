@@ -34,7 +34,7 @@ Browser (Cloudflare Pages)        Pages Functions (Workers)        External APIs
     |     |                    ---->  |  /api/stt          --------->  ElevenLabs Scribe v1
     |     |                           |  /api/demo-unlock            |
     |     |                           |  /api/demo-status            |
-    |     +-- app.js (UI + POS)       |
+    |     +-- app.js (UI + POS)  -->  |  /api/geocode      --------->  Nominatim (OSM, keyless)
     +-- assets/css/styles.css         |  shared/scenarios.js
                                       |  shared/coaching-rubric.js
                                       |  shared/auth.js (HMAC tokens for both cookies)
@@ -73,7 +73,7 @@ As of the 2026-05-23 rebuild, the reservation tool is a **full-screen, three-pan
 1. **Reservation Details (intake)** — customer lookup by phone/email; Moving From, Moving To (optional), Move Type (In Town / One Way), Move/Pickup Date, "How many bedrooms" load-size dropdown, towing-a-vehicle and need-a-trailer questions.
 2. **Storage-upsell modal** — "Will the customer need storage?" (No thanks / Yes, add storage).
 3. **Choose Equipment** — recommended truck (driven by load size), rental length (in-town) or estimated distance (one-way), dolly + pads upsell, damage waiver, and a "Show all moving equipment" expander to override the truck size.
-4. **Select Pick Up Location** — the 5 Meridian branches as selectable cards sorted by distance, each with per-branch equipment availability + pricing. Picking one populates the Entity # card.
+4. **Select Pick Up Location** — the 5 Meridian branches as selectable cards sorted by real distance from the customer's geocoded origin (nearest tagged Recommended), each with per-branch equipment availability + pricing. Picking one populates the Entity # card. See "Location geocoding".
 5. **Scheduling (Time)** — selected truck + rate summary, pickup-location details, an available-times dropdown, In Store / TruckShare, Send to Traffic.
 6. **Checkout** — credit-card confirm, Additional Products (storage), Verify Contact Info (email/phone, preferred contact method email/phone/text, current address, preferred language), and Reserve Now → confirmation receipt with confirmation number, summary, card-on-file chip, and a read-back script.
 
@@ -89,6 +89,12 @@ Gates live only where they are the natural action of the step, so the trainee is
 - **Location** requires a branch.
 - **Checkout** requires a card number, expiration, and 5-digit billing ZIP.
 Validation errors scroll into view.
+
+### Location geocoding (2026-05-23)
+The Details step's **Moving From** / **Moving To** fields are no longer decorative. When the trainee types a ZIP, city, or landmark, a debounced call to **`/api/geocode`** resolves it to coordinates, and the Location step then ranks the 5 branches by real haversine distance (nearest tagged Recommended) instead of the old fixed `1.6 + i*2.4` placeholder order. For a **One Way** move the destination is geocoded too and the one-way **Estimated distance (miles)** field auto-fills from the origin→destination distance (still editable). A small status line under the address fields reports the nearest branch / auto-filled mileage, or warns and falls back to the default order when a place can't be resolved.
+- **Provider:** OpenStreetMap **Nominatim**, keyless, proxied by `functions/api/geocode.js` (so **no new Cloudflare secret**). The shared auth middleware gates it; the Worker sends a real `User-Agent`, biases bare city/landmark queries to San Antonio TX, uses the `postalcode` param for 5-digit ZIPs, and caches results in `caches.default` per Nominatim's usage policy.
+- **Branch coordinates** are static `lat`/`lng` on each `BRANCHES` entry in `app.js` (the addresses are fixed and real); only the *customer's* input is geocoded. The haversine + `renderLocations` + geocode wiring all live in `renderCall`.
+- Without a resolved origin the step behaves exactly as before (original order, static distance estimates, Downtown recommended), so the flow never depends on the network.
 
 ## Personas (25 + 1 showcase)
 
@@ -140,6 +146,8 @@ functions/api/
   coach.js                    POST = Opus tool-use coaching report
   tts.js                      POST = ElevenLabs TTS proxy (multilingual_v2 default, eleven_v3 premium showcase)
   stt.js                      POST = ElevenLabs Scribe STT proxy
+  geocode.js                  POST = Nominatim (OSM) proxy. { query } -> { found, lat, lng, label }.
+                              Keyless (no secret), cached, biases bare queries to San Antonio TX.
   demo-unlock.js              POST = validate DEMO_PASSWORD, issue cs_demo. DELETE = clear.
   demo-status.js              GET = whether cs_demo is valid
 
@@ -174,7 +182,8 @@ Everything below shipped to `main` on 2026-05-23.
 - **Rate model (commit `384f035`).** In-town = 24-hour day rate × days + per-mile on estimated miles. One-way = distance-bundled flat rate. Rental length is now in days, not hours.
 - **Elena character-break fix (commit `c21efca`).** Added `SHOWCASE_RULES` so the meta-aware persona no longer gets the contradictory standard customer rules. She stays in character, never becomes Meridian, and steps into the scenario on intake questions.
 - **Relaxed validation (commit `2b20fef`).** Removed the Details/Time hard gates so entering a city/zip no longer dead-ends the flow. The reservation is fully traversable end-to-end.
-- **Hygiene pass (this commit).** Removed ~1.4k lines of dead CSS from the old reservation system (`.crm-*`, `.rsv-*`, `.branch-*`, `.card-preview-*`, `.call-main`, `.mute-*`, `.call-actions`, the `data-source="mic"` visualizer rule), the unused `MicRecorder` class from `audio.js`, and the legacy push-to-talk CSS. Brought this doc current.
+- **Hygiene pass (commit `d8dfd30`).** Removed ~1.4k lines of dead CSS from the old reservation system (`.crm-*`, `.rsv-*`, `.branch-*`, `.card-preview-*`, `.call-main`, `.mute-*`, `.call-actions`, the `data-source="mic"` visualizer rule), the unused `MicRecorder` class from `audio.js`, and the legacy push-to-talk CSS. Brought this doc current.
+- **Premium parenthetical scrub hardened + location geocoding (this session).** Hardened the eleven_v3 stage-direction scrubber (see watch-outs) and made the Location step rank branches by real distance from a geocoded origin via the new `/api/geocode` route, with one-way mileage auto-fill (see "Location geocoding").
 
 ## Watch-outs / gotchas
 
@@ -185,16 +194,16 @@ Everything below shipped to `main` on 2026-05-23.
 - **`eleven_v3` is alpha** at ElevenLabs. Works in production but the API may shift. Same `voice_settings` shape as v2 has worked.
 - **ElevenLabs voice IDs** must be in Alex's workspace library. If voices break, run a TTS smoke test against each persona to find the missing ID.
 - **The demo cookie is `cs_demo`** (HttpOnly, signed with `SESSION_SECRET`). Use `/api/demo-status` to query it from the client.
-- **Premium parenthetical leak:** the premium (eleven_v3) showcase voice can occasionally emit two-word parenthetical stage directions like "(heart beating)" that slip past the single-word scrubber. Known minor item; not yet hardened.
+- **Geocoding uses Nominatim (no key).** `/api/geocode` proxies OpenStreetMap, which has a fair-use policy (~1 req/sec, real User-Agent required, cache results). The Worker already caches and the lookups are debounced, but heavy demo traffic could still get throttled. If geocoding silently stops resolving, that's the likely cause; the Location step falls back to the default order so the flow keeps working. To move to production-grade coverage, swap the upstream in `geocode.js` for Google/Mapbox and add the key as a Cloudflare secret.
+- **Premium parenthetical leak (hardened 2026-05-23):** the premium (eleven_v3) showcase voice used to emit multi-word parenthetical stage directions like "(heart beating)" that slipped past the single-verb scrubber. `scrubForSpeech`/`scrubForSpeechKeepTags` in `app.js` now share `isSpeechCueParenthetical`, which strips short subjectless directions (cue verb, present participle, manner adverb, or sensory noun) while keeping real asides and anything with a digit or sentence punctuation.
 
 ## Open / future ideas (not built)
 
 - Per-call PDF export of the coaching report.
 - Manager dashboard with aggregate scores.
 - Multi-step coaching: chained follow-up calls with a remembered "session arc" (needs persistence).
-- A real distance lookup for one-way (currently the trainee enters an estimated distance).
-- Tighten the premium-voice stage-direction scrub for multi-word parentheticals.
 - More premium/Latina voices for Elena specifically.
+- Road-distance (not straight-line) geocoding, and an embedded mini-map of the branches + customer marker.
 
 ## Where to start the next session
 

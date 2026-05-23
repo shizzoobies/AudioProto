@@ -2363,6 +2363,33 @@ textarea {
 }
 .pos-lookup-badge.ok { background: rgba(34, 197, 94, 0.14); color: var(--color-success); }
 
+/* Geocode status under the move addresses */
+.pos-geo-status {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+}
+.pos-geo-status[hidden] { display: none; }
+.pos-geo-status[data-state="pending"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+}
+.pos-geo-status[data-state="ok"] {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success);
+}
+.pos-geo-status[data-state="warn"] {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: var(--color-danger-muted);
+  color: var(--color-danger);
+}
+
 /* Equipment */
 .pos-equip-rec {
   position: relative;
