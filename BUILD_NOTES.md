@@ -34,7 +34,7 @@ Browser (Cloudflare Pages)        Pages Functions (Workers)        External APIs
     |     |                    ---->  |  /api/stt          --------->  ElevenLabs Scribe v1
     |     |                           |  /api/demo-unlock            |
     |     |                           |  /api/demo-status            |
-    |     +-- app.js (UI + POS)  -->  |  /api/geocode      --------->  Photon (OSM typeahead, keyless)
+    |     +-- app.js (UI + POS)  -->  |  /api/geocode      --------->  Google Places (key) -> Photon (keyless fallback)
     +-- assets/css/styles.css         |  shared/scenarios.js
                                       |  shared/coaching-rubric.js
                                       |  shared/auth.js (HMAC tokens for both cookies)
@@ -93,7 +93,10 @@ Validation errors scroll into view.
 ### Location geocoding + city typeahead (2026-05-23)
 The Details step's **Moving From** / **Moving To** fields are **city typeaheads**. The trainee starts typing a place ("san anton") and a dropdown of candidates ("San Antonio, TX") appears; clicking one fills the field with `City, ST` (a ZIP search confirms back as `City, ST 78207`) and stores the picked coordinates. **No branch/location text shows on the Details step** - the branch suggestion lives on the Location step.
 - **Branch suggestion.** Once an origin is resolved, the Location step ranks the 5 branches by real haversine distance (nearest tagged Recommended) instead of the old fixed `1.6 + i*2.4` placeholder order, and its hint reads "Based on San Antonio, TX, we suggest Meridian of Downtown (0.3 mi). Branches are sorted nearest first." For a **One Way** move, picking a destination auto-fills the **Estimated distance (miles)** field from the origin→destination distance (still editable).
-- **Provider: Komoot Photon** (`https://photon.komoot.io`), an OSM-based geocoder built for type-ahead, proxied by `functions/api/geocode.js`. Keyless, so **no new Cloudflare secret**. (Nominatim, used in the first cut, is a batch geocoder and returned junk for partial tokens like "san anton" - Photon does proper prefix matching.) The route biases results toward San Antonio (`lat`/`lon` params), filters to US `place`/admin types (drops POIs like airports/museums), abbreviates the state via a name→code map, dedupes by display, and returns `{ results: [{ lat, lng, city, state, postcode, display }] }`. Auth-gated by the middleware; sends a real `User-Agent`; caches in `caches.default`.
+- **Providers (primary + fallback), both in `functions/api/geocode.js`:**
+  - **Primary: Google Places Text Search (New)** (`places:searchText`) - used only when the `GOOGLE_PLACES_API_KEY` secret is set. Text Search returns full place objects (location + address components) so one call yields coordinates and we keep the same result contract - no separate Place Details round-trip on selection. Biased to San Antonio via `locationBias` (soft, so out-of-area destinations still resolve), `regionCode: US`.
+  - **Fallback: Komoot Photon** (`https://photon.komoot.io`), keyless OSM type-ahead. Used when no key is set, or when Google errors / returns nothing. So local dev with no key just uses Photon, and production degrades gracefully. (Nominatim, the first cut, was dropped - it's a batch geocoder and returned junk for partial tokens like "san anton".)
+  - Both normalize to `{ results: [{ lat, lng, city, state, postcode, display }] }`, filter to US place/admin types, abbreviate state to a 2-letter code, dedupe by display, cap at 5, and cache per-provider+query in `caches.default`. Responses carry an `X-Geocode-Source` header (`google` / `google-cache` / `photon` / `photon-cache`) for debugging. Auth-gated by the middleware.
 - **Frontend:** `attachCityAutocomplete(input, onResolve)` in `renderCall` builds the dropdown (debounced search, arrow/enter/escape keys, click-to-pick, blur-resolves-free-text). The menu is `position: fixed` and JS-pinned under the input so the scrollable `.pos-stage` can't clip it. Picking sets `originGeo`/`destGeo`; `renderLocations` re-ranks; `autoFillOneWayMiles` handles the one-way distance.
 - **Branch coordinates** are static `lat`/`lng` on each `BRANCHES` entry in `app.js` (the addresses are fixed and real); only the *customer's* input is geocoded.
 - Without a resolved origin the Location step behaves exactly as before (original order, static distance estimates, Downtown recommended), so the flow never depends on the network.
@@ -148,8 +151,9 @@ functions/api/
   coach.js                    POST = Opus tool-use coaching report
   tts.js                      POST = ElevenLabs TTS proxy (multilingual_v2 default, eleven_v3 premium showcase)
   stt.js                      POST = ElevenLabs Scribe STT proxy
-  geocode.js                  POST = Photon (OSM typeahead) proxy. { query } -> { results: [{lat,lng,city,state,postcode,display}] }.
-                              Keyless (no secret), cached, SA-biased, US place-types only. Backs the city autocomplete.
+  geocode.js                  POST = geocode proxy backing the city autocomplete. { query } -> { results: [{lat,lng,city,state,postcode,display}] }.
+                              Google Places Text Search when GOOGLE_PLACES_API_KEY is set, else (or on error) Komoot Photon (keyless).
+                              Cached per provider+query, SA-biased, US place-types only. X-Geocode-Source header reports which ran.
   demo-unlock.js              POST = validate DEMO_PASSWORD, issue cs_demo. DELETE = clear.
   demo-status.js              GET = whether cs_demo is valid
 
@@ -167,11 +171,16 @@ npm install        # one-time
 npx wrangler pages dev public --compatibility-date=2026-05-01 --port 8788   # -> http://127.0.0.1:8788
 ```
 
-`.dev.vars` is gitignored. Local needs: `APP_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `DEMO_PASSWORD`. If `.dev.vars` is missing from a worktree, copy it from the main checkout.
+`.dev.vars` is gitignored. Local needs: `APP_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `DEMO_PASSWORD`. If `.dev.vars` is missing from a worktree, copy it from the main checkout. `GOOGLE_PLACES_API_KEY` is **optional** - without it, geocoding uses the keyless Photon fallback, so you don't need it for local dev.
 
 ## How to deploy
 
-Cloudflare Pages handles it. Push to `main` and the integration redeploys. Secrets in **Pages → call-simulator → Settings → Variables and Secrets**: `APP_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `DEMO_PASSWORD`. Build output directory: `public`. Compatibility date: `2026-05-01` or later.
+Cloudflare Pages handles it. Push to `main` and the integration redeploys. Secrets in **Pages → call-simulator → Settings → Variables and Secrets**: `APP_PASSWORD`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `DEMO_PASSWORD`, and optionally `GOOGLE_PLACES_API_KEY`. Build output directory: `public`. Compatibility date: `2026-05-01` or later.
+
+**Enabling Google Places (optional).** In Google Cloud: create a project, enable **Places API (New)**, create an API key, and add it as the `GOOGLE_PLACES_API_KEY` Pages secret. Important guardrails because billing must be enabled even for the free tier:
+- **Restrict the key to the Places API** (API restrictions). The key lives server-side in the Worker, never shipped to the browser, so it isn't exposed - but restrict it anyway.
+- **Set a quota cap / budget alert** in Google Cloud so a runaway loop or leak can't run up a bill. At <1000 trainees the volume sits inside the monthly free allowance; the cap is purely a safety net.
+- Without the secret, the route silently uses Photon - no errors, no behavior change beyond provider coverage.
 
 The working-branch convention is to push every change to BOTH `main` (deploys) and the working branch. Verify a clean fast-forward first (`git merge-base --is-ancestor origin/main HEAD`).
 
@@ -196,7 +205,7 @@ Everything below shipped to `main` on 2026-05-23.
 - **`eleven_v3` is alpha** at ElevenLabs. Works in production but the API may shift. Same `voice_settings` shape as v2 has worked.
 - **ElevenLabs voice IDs** must be in Alex's workspace library. If voices break, run a TTS smoke test against each persona to find the missing ID.
 - **The demo cookie is `cs_demo`** (HttpOnly, signed with `SESSION_SECRET`). Use `/api/demo-status` to query it from the client.
-- **Geocoding uses Photon (no key).** `/api/geocode` proxies Komoot's Photon, a free OSM type-ahead service with a fair-use expectation. The Worker caches and the typeahead is debounced, but heavy demo traffic could still get throttled; if the dropdown silently stops returning matches, that's the likely cause, and the Location step falls back to the default order so the flow keeps working. Note Photon is a public community instance with no SLA. For production-grade coverage/uptime, swap the upstream in `geocode.js` for Google Places Autocomplete or Mapbox and add the key as a Cloudflare secret. (Nominatim was tried first but isn't a typeahead engine - it returned junk for partial tokens.)
+- **Geocoding: Google Places primary, Photon fallback.** `/api/geocode` uses Google Places Text Search when `GOOGLE_PLACES_API_KEY` is set, otherwise the keyless Komoot Photon. If Google errors or returns nothing, it also falls back to Photon, and if both fail the Location step just keeps the default branch order - the flow never hard-depends on geocoding. Check the `X-Geocode-Source` response header to see which provider actually answered. Photon is a public community instance with no SLA; Google needs billing enabled (with a quota cap - see deploy). Nominatim was the first cut but isn't a typeahead engine (junk for partial tokens), so it was dropped.
 - **Premium parenthetical leak (hardened 2026-05-23):** the premium (eleven_v3) showcase voice used to emit multi-word parenthetical stage directions like "(heart beating)" that slipped past the single-verb scrubber. `scrubForSpeech`/`scrubForSpeechKeepTags` in `app.js` now share `isSpeechCueParenthetical`, which strips short subjectless directions (cue verb, present participle, manner adverb, or sensory noun) while keeping real asides and anything with a digit or sentence punctuation.
 
 ## Open / future ideas (not built)
