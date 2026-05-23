@@ -337,6 +337,11 @@ textarea {
   padding: var(--space-4) 0 var(--space-6);
 }
 
+.welcome-back {
+  align-self: flex-start;
+  margin-bottom: calc(-1 * var(--space-6));
+}
+
 .welcome-hero {
   text-align: center;
 }

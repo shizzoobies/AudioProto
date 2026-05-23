@@ -169,9 +169,109 @@ async function init() {
   }
 
   document.body.dataset.appState = 'ready';
-  renderWelcome();
+  renderHome();
 
   dom.signOut.addEventListener('click', signOut);
+}
+
+// The training-center landing. Two scenario tracks (still being built) plus an
+// entry into the full existing library (renderWelcome -> picker -> call).
+function renderHome() {
+  state.view = 'home';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  dom.root.innerHTML = `
+    <section class="welcome">
+      <header class="welcome-hero">
+        <div class="welcome-eyebrow">Customer service training</div>
+        <h1 class="welcome-title">Training Center</h1>
+        <p class="welcome-lead">Pick a track to practice. Each is a set of realistic, voice-driven customer calls with a scored coaching report at the end.</p>
+      </header>
+
+      <div class="welcome-section">
+        <div class="welcome-section-eyebrow">Training tracks</div>
+        <p class="welcome-section-sub">Choose the kind of call you want to work on.</p>
+      </div>
+
+      <div class="welcome-modes">
+        <button class="mode-choice" data-home-section="sales" type="button">
+          <div class="mode-choice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3 11.5V5a2 2 0 0 1 2-2h6.5a2 2 0 0 1 1.4.6l7.5 7.5a2 2 0 0 1 0 2.8l-6.6 6.6a2 2 0 0 1-2.8 0L3.6 13a2 2 0 0 1-.6-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <circle cx="7.5" cy="7.5" r="1.4" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <h3 class="mode-choice-title">Sales Scenarios</h3>
+          <p class="mode-choice-text">Quoting, handling objections, and closing the booking. Practice turning an inquiry into a confident reservation.</p>
+          <span class="mode-choice-cta">Coming soon</span>
+        </button>
+        <button class="mode-choice" data-home-section="post_reservation" type="button">
+          <div class="mode-choice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M9 12.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="mode-choice-title">Post Reservation Situations</h3>
+          <p class="mode-choice-text">Changes, delays, and problems after a booking already exists. Practice keeping a committed customer happy.</p>
+          <span class="mode-choice-cta">Coming soon</span>
+        </button>
+      </div>
+
+      <div class="welcome-divider" aria-hidden="true">
+        <span class="welcome-divider-text">or</span>
+      </div>
+
+      <div class="welcome-showcase">
+        <button class="mode-choice mode-choice-showcase" data-action="explore-more" type="button">
+          <div class="mode-choice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="mode-choice-title">Explore More Scenario Training</h3>
+          <p class="mode-choice-text">The full library: the five core scenario types, the random "surprise me" call, and the Elena showcase. Chat or phone mode.</p>
+          <span class="mode-choice-cta">Open the library <span aria-hidden="true">›</span></span>
+        </button>
+      </div>
+    </section>
+  `;
+
+  dom.root.querySelectorAll('[data-home-section]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const title = btn.dataset.homeSection === 'sales' ? 'Sales Scenarios' : 'Post Reservation Situations';
+      renderComingSoon(title);
+    });
+  });
+  const exploreBtn = dom.root.querySelector('[data-action="explore-more"]');
+  if (exploreBtn) exploreBtn.addEventListener('click', renderWelcome);
+}
+
+// Placeholder for a track that isn't built out yet.
+function renderComingSoon(title) {
+  state.view = 'coming_soon';
+  setDocumentTitle(title);
+  dom.root.innerHTML = `
+    <section class="welcome">
+      <div class="welcome-back">
+        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+      </div>
+      <header class="welcome-hero">
+        <div class="welcome-eyebrow">Coming soon</div>
+        <h1 class="welcome-title">${escapeHtml(title)}</h1>
+        <p class="welcome-lead">This track is being built. Its scenarios will live here.</p>
+      </header>
+    </section>
+  `;
+  dom.root.querySelector('[data-action="home"]').addEventListener('click', renderHome);
 }
 
 function renderWelcome() {
@@ -186,6 +286,9 @@ function renderWelcome() {
 
   dom.root.innerHTML = `
     <section class="welcome">
+      <div class="welcome-back">
+        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+      </div>
       <header class="welcome-hero">
         <div class="welcome-eyebrow">Customer service training</div>
         <h1 class="welcome-title">Take a call.<br>Get coached.</h1>
@@ -254,6 +357,8 @@ function renderWelcome() {
       </div>
     </section>
   `;
+
+  dom.root.querySelector('[data-action="home"]')?.addEventListener('click', renderHome);
 
   dom.root.querySelectorAll('[data-call-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {
