@@ -634,8 +634,6 @@ function renderCall(scenario) {
                   </label>
                 </div>
 
-                <div class="pos-geo-status" id="pos-geo-status" hidden></div>
-
                 <div class="pos-field">
                   <span class="pos-field-label">Move Type</span>
                   <div class="pos-radio-row">
@@ -1312,7 +1310,6 @@ function renderCall(scenario) {
   const posLookupInput = document.getElementById('pos-lookup-input');
   const posLookupBtn = document.getElementById('pos-lookup-btn');
   const posLookupResult = document.getElementById('pos-lookup-result');
-  const posGeoStatus = document.getElementById('pos-geo-status');
 
   const WAIVER_INFO = {
     none: { label: 'Waiver declined', daily: 0 },
@@ -1329,12 +1326,9 @@ function renderCall(scenario) {
   let selectedRecord = null;
   let storageAsked = false;
   // Geocoded origin/destination for distance-ranked branches and one-way
-  // mileage. Null until the trainee enters a place we can resolve.
+  // mileage. Null until the trainee picks a place from the city typeahead.
   let originGeo = null;
   let destGeo = null;
-  let geoSeq = 0;
-  let geoTimer = null;
-  let lastGeoKey = null;
 
   function fmtMoney(n) { return '$' + Number(n || 0).toFixed(2); }
 
@@ -1547,22 +1541,16 @@ function renderCall(scenario) {
     }).join('');
   }
 
-  function setGeoStatus(text, kind) {
-    if (!posGeoStatus) return;
-    if (!text) {
-      posGeoStatus.hidden = true;
-      posGeoStatus.textContent = '';
-      posGeoStatus.removeAttribute('data-state');
-      return;
-    }
-    posGeoStatus.hidden = false;
-    posGeoStatus.dataset.state = kind || '';
-    posGeoStatus.textContent = text;
+  // "San Antonio, TX" for the Location-step suggestion copy.
+  function cityLabelOf(geo, fallback) {
+    if (!geo || !geo.city) return fallback;
+    return geo.state ? `${geo.city}, ${geo.state}` : geo.city;
   }
 
-  async function geocodeQuery(query) {
+  // Look up candidate places for the city typeahead.
+  async function geocodeSearch(query) {
     const q = (query || '').trim();
-    if (!q) return null;
+    if (!q) return [];
     try {
       const res = await fetch('/api/geocode', {
         method: 'POST',
@@ -1570,102 +1558,126 @@ function renderCall(scenario) {
         credentials: 'same-origin',
         body: JSON.stringify({ query: q }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       const data = await res.json();
-      return data && data.found
-        ? { lat: data.lat, lng: data.lng, label: data.label, city: data.city || '', state: data.state || '', postcode: data.postcode || '' }
-        : null;
+      return Array.isArray(data?.results) ? data.results : [];
     } catch {
-      return null;
+      return [];
     }
   }
 
-  // "San Antonio, TX" for status copy; falls back to the raw typed text.
-  function cityLabelOf(geo, fallback) {
-    if (!geo || !geo.city) return fallback;
-    return geo.state ? `${geo.city}, ${geo.state}` : geo.city;
+  // Recompute the one-way distance from the two resolved places. Only acts on a
+  // one-way move with both endpoints known; in-town leaves mileage manual.
+  function autoFillOneWayMiles() {
+    if (getRsv('move_type') !== 'one_way' || !originGeo || !destGeo) return;
+    const tripMi = Math.max(1, Math.round(haversineMiles(originGeo, destGeo)));
+    setRsv('miles', String(tripMi));
+    onPosChange();
   }
 
-  // Expand a bare 5-digit ZIP into "City, ST 78207" once we know the city, so
-  // the trainee sees the place name fill in. Anything else is left as typed.
-  function zipExpansion(geo, raw) {
-    const zip = (raw || '').trim();
-    if (!geo || !geo.city || !/^\d{5}$/.test(zip)) return null;
-    return geo.state ? `${geo.city}, ${geo.state} ${zip}` : `${geo.city} ${zip}`;
-  }
+  // Turn a Moving From/To input into a city typeahead: type a place, pick from
+  // the dropdown, and the field fills with "City, ST" while we keep the
+  // coordinates. Nothing about branches shows here - the suggestion lives on
+  // the Location step. onResolve gets the picked place, or null when the field
+  // is cleared or edited so it no longer matches the last pick.
+  function attachCityAutocomplete(input, onResolve) {
+    if (!input) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'pos-ac';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    const menu = document.createElement('ul');
+    menu.className = 'pos-ac-menu';
+    menu.hidden = true;
+    wrap.appendChild(menu);
 
-  // Resolve the typed origin (and, for one-way, destination), re-rank the
-  // branches, and auto-fill one-way mileage. geoSeq guards against an earlier
-  // slow lookup landing after a newer one and clobbering fresher results.
-  async function refreshGeo() {
-    const seq = ++geoSeq;
-    const from = getRsv('moving_from');
-    const to = getRsv('moving_to');
-    const oneWay = getRsv('move_type') === 'one_way';
+    let items = [];
+    let activeIdx = -1;
+    let seq = 0;
+    let resolvedDisplay = null;
+    let timer = null;
 
-    // Skip redundant lookups (repeat blurs, tabbing through) so we stay light
-    // on Nominatim. Any real edit changes the key and re-runs.
-    const key = `${from}|${to}|${oneWay}`;
-    if (key === lastGeoKey) return;
-
-    if (!from) {
-      originGeo = null;
-      destGeo = null;
-      lastGeoKey = key;
-      setGeoStatus('', '');
-      renderLocations();
-      return;
+    // The menu is position:fixed (so .pos-stage's scroll can't clip it), so we
+    // pin it under the input and keep it there while scrolling/resizing.
+    function position() {
+      const r = input.getBoundingClientRect();
+      menu.style.top = `${r.bottom + 4}px`;
+      menu.style.left = `${r.left}px`;
+      menu.style.width = `${r.width}px`;
+    }
+    function onReposition() { if (!menu.hidden) position(); }
+    function hide() {
+      menu.hidden = true;
+      activeIdx = -1;
+      window.removeEventListener('scroll', onReposition, true);
+      window.removeEventListener('resize', onReposition);
+    }
+    function render() {
+      if (!items.length) { hide(); return; }
+      menu.innerHTML = items.map((it, i) =>
+        `<li class="pos-ac-item${i === activeIdx ? ' active' : ''}" data-idx="${i}" role="option">${escapeHtml(it.display)}</li>`
+      ).join('');
+      menu.hidden = false;
+      position();
+      window.addEventListener('scroll', onReposition, true);
+      window.addEventListener('resize', onReposition);
+    }
+    function pick(i) {
+      const it = items[i];
+      if (!it) return;
+      input.value = it.display;
+      resolvedDisplay = it.display;
+      hide();
+      onResolve(it);
+    }
+    async function search(q) {
+      const mine = ++seq;
+      const results = await geocodeSearch(q);
+      if (mine !== seq) return;
+      items = results;
+      activeIdx = -1;
+      render();
     }
 
-    setGeoStatus(`Locating ${from}...`, 'pending');
-    const origin = await geocodeQuery(from);
-    if (seq !== geoSeq) return;
-    originGeo = origin;
-
-    if (!origin) {
-      lastGeoKey = key;
-      setGeoStatus(`Could not place "${from}". Branches shown in default order.`, 'warn');
-      renderLocations();
-      return;
-    }
-
-    // Fill the city in for a bare ZIP so the trainee sees the place resolve.
-    const fromExpanded = zipExpansion(origin, from);
-    if (fromExpanded) setRsv('moving_from', fromExpanded);
-
-    let dest = null;
-    if (oneWay && to) {
-      dest = await geocodeQuery(to);
-      if (seq !== geoSeq) return;
-      const toExpanded = zipExpansion(dest, to);
-      if (toExpanded) setRsv('moving_to', toExpanded);
-    }
-    destGeo = dest;
-
-    renderLocations();
-    renderLeftRail();
-
-    const nearest = nearestBranch();
-    const where = cityLabelOf(origin, from);
-    let msg = nearest ? `Nearest branch to ${where}: Meridian of ${nearest.loc.name}, ${nearest.mi.toFixed(1)} mi.` : `Located ${where}.`;
-    if (oneWay) {
-      if (dest) {
-        const tripMi = Math.max(1, Math.round(haversineMiles(origin, dest)));
-        setRsv('miles', String(tripMi));
-        onPosChange();
-        msg += ` One-way distance set to ${tripMi} mi.`;
-      } else if (to) {
-        msg += ' Could not place the destination; enter one-way miles manually.';
-      }
-    }
-    // Record the post-expansion field values so the follow-up blur is a no-op.
-    lastGeoKey = `${getRsv('moving_from')}|${getRsv('moving_to')}|${getRsv('move_type') === 'one_way'}`;
-    setGeoStatus(msg, 'ok');
-  }
-
-  function scheduleGeo() {
-    clearTimeout(geoTimer);
-    geoTimer = setTimeout(refreshGeo, 600);
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const v = input.value.trim();
+      if (v === resolvedDisplay) return;
+      // The text no longer matches a pick, so any stored coordinates are stale.
+      resolvedDisplay = null;
+      onResolve(null);
+      if (v.length < 3) { items = []; hide(); return; }
+      timer = setTimeout(() => search(v), 250);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (menu.hidden || !items.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(items.length - 1, activeIdx + 1); render(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(0, activeIdx - 1); render(); }
+      else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); pick(activeIdx); }
+      else if (e.key === 'Escape') { hide(); }
+    });
+    // mousedown (not click) so the pick lands before the input's blur hides it.
+    menu.addEventListener('mousedown', (e) => {
+      const li = e.target.closest('.pos-ac-item');
+      if (!li) return;
+      e.preventDefault();
+      pick(Number(li.dataset.idx));
+    });
+    input.addEventListener('blur', () => {
+      // Let a click settle, then resolve free-typed text to the best match so
+      // ranking still works if the trainee tabbed past the dropdown.
+      setTimeout(async () => {
+        hide();
+        const v = input.value.trim();
+        if (!v || v === resolvedDisplay) return;
+        const results = await geocodeSearch(v);
+        if (!results.length) { onResolve(null); return; }
+        input.value = results[0].display;
+        resolvedDisplay = results[0].display;
+        onResolve(results[0]);
+      }, 150);
+    });
   }
 
   function renderSched() {
@@ -1902,17 +1914,22 @@ function renderCall(scenario) {
     renderLeftRail();
   });
 
-  // Geocode the move addresses (debounced) so the Location step ranks branches
-  // by real distance and one-way mileage auto-fills. move_type changes re-run
-  // it because switching to One Way needs the destination resolved.
-  ['moving_from', 'moving_to'].forEach((name) => {
-    const el = pos.querySelector(`[data-rsv="${name}"]`);
-    if (!el) return;
-    el.addEventListener('input', scheduleGeo);
-    el.addEventListener('blur', () => { clearTimeout(geoTimer); refreshGeo(); });
+  // City typeahead on the move addresses. Picking a place stores its
+  // coordinates, which drive the branch ranking on the Location step and the
+  // one-way mileage. No branch info is shown on the Details step itself.
+  attachCityAutocomplete(pos.querySelector('[data-rsv="moving_from"]'), (place) => {
+    originGeo = place ? { lat: place.lat, lng: place.lng, city: place.city, state: place.state, postcode: place.postcode } : null;
+    renderLocations();
+    renderLeftRail();
+    autoFillOneWayMiles();
+  });
+  attachCityAutocomplete(pos.querySelector('[data-rsv="moving_to"]'), (place) => {
+    destGeo = place ? { lat: place.lat, lng: place.lng, city: place.city, state: place.state, postcode: place.postcode } : null;
+    autoFillOneWayMiles();
+    renderLeftRail();
   });
   pos.querySelectorAll('[data-rsv="move_type"]').forEach((el) => {
-    el.addEventListener('change', () => { clearTimeout(geoTimer); refreshGeo(); });
+    el.addEventListener('change', autoFillOneWayMiles);
   });
 
   posLookupBtn.addEventListener('click', doLookup);
@@ -2012,8 +2029,6 @@ function renderCall(scenario) {
       storageAsked = false;
       originGeo = null;
       destGeo = null;
-      lastGeoKey = null;
-      setGeoStatus('', '');
       posEntityCard.hidden = true;
       updateCardChip();
       setRsv('pickup_date', new Date().toISOString().slice(0, 10));

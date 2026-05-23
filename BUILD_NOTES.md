@@ -34,7 +34,7 @@ Browser (Cloudflare Pages)        Pages Functions (Workers)        External APIs
     |     |                    ---->  |  /api/stt          --------->  ElevenLabs Scribe v1
     |     |                           |  /api/demo-unlock            |
     |     |                           |  /api/demo-status            |
-    |     +-- app.js (UI + POS)  -->  |  /api/geocode      --------->  Nominatim (OSM, keyless)
+    |     +-- app.js (UI + POS)  -->  |  /api/geocode      --------->  Photon (OSM typeahead, keyless)
     +-- assets/css/styles.css         |  shared/scenarios.js
                                       |  shared/coaching-rubric.js
                                       |  shared/auth.js (HMAC tokens for both cookies)
@@ -90,12 +90,13 @@ Gates live only where they are the natural action of the step, so the trainee is
 - **Checkout** requires a card number, expiration, and 5-digit billing ZIP.
 Validation errors scroll into view.
 
-### Location geocoding (2026-05-23)
-The Details step's **Moving From** / **Moving To** fields are no longer decorative. When the trainee types a ZIP, city, or landmark, a debounced call to **`/api/geocode`** resolves it to coordinates, and the Location step then ranks the 5 branches by real haversine distance (nearest tagged Recommended) instead of the old fixed `1.6 + i*2.4` placeholder order. For a **One Way** move the destination is geocoded too and the one-way **Estimated distance (miles)** field auto-fills from the origin→destination distance (still editable). A small status line under the address fields reports the nearest branch / auto-filled mileage, or warns and falls back to the default order when a place can't be resolved.
-- **ZIP → city auto-fill.** When the field holds a bare 5-digit ZIP, it expands in place to `City, ST 78207` once resolved (e.g. `78207` → `San Antonio, TX 78207`), and the Location step's hint reads "Based on San Antonio, TX, we suggest Meridian of Downtown (1.6 mi)." `geocode.js` returns `city`/`state`/`postcode` (from Nominatim `addressdetails=1`; state is the `ISO3166-2-lvl4` 2-letter code) alongside lat/lng. A `lastGeoKey` guard skips redundant lookups (repeat blurs) but any real edit re-runs.
-- **Provider:** OpenStreetMap **Nominatim**, keyless, proxied by `functions/api/geocode.js` (so **no new Cloudflare secret**). The shared auth middleware gates it; the Worker sends a real `User-Agent`, biases bare city/landmark queries to San Antonio TX, uses the `postalcode` param for 5-digit ZIPs, and caches results in `caches.default` per Nominatim's usage policy.
-- **Branch coordinates** are static `lat`/`lng` on each `BRANCHES` entry in `app.js` (the addresses are fixed and real); only the *customer's* input is geocoded. The haversine + `renderLocations` + geocode wiring all live in `renderCall`.
-- Without a resolved origin the step behaves exactly as before (original order, static distance estimates, Downtown recommended), so the flow never depends on the network.
+### Location geocoding + city typeahead (2026-05-23)
+The Details step's **Moving From** / **Moving To** fields are **city typeaheads**. The trainee starts typing a place ("san anton") and a dropdown of candidates ("San Antonio, TX") appears; clicking one fills the field with `City, ST` (a ZIP search confirms back as `City, ST 78207`) and stores the picked coordinates. **No branch/location text shows on the Details step** - the branch suggestion lives on the Location step.
+- **Branch suggestion.** Once an origin is resolved, the Location step ranks the 5 branches by real haversine distance (nearest tagged Recommended) instead of the old fixed `1.6 + i*2.4` placeholder order, and its hint reads "Based on San Antonio, TX, we suggest Meridian of Downtown (0.3 mi). Branches are sorted nearest first." For a **One Way** move, picking a destination auto-fills the **Estimated distance (miles)** field from the origin→destination distance (still editable).
+- **Provider: Komoot Photon** (`https://photon.komoot.io`), an OSM-based geocoder built for type-ahead, proxied by `functions/api/geocode.js`. Keyless, so **no new Cloudflare secret**. (Nominatim, used in the first cut, is a batch geocoder and returned junk for partial tokens like "san anton" - Photon does proper prefix matching.) The route biases results toward San Antonio (`lat`/`lon` params), filters to US `place`/admin types (drops POIs like airports/museums), abbreviates the state via a name→code map, dedupes by display, and returns `{ results: [{ lat, lng, city, state, postcode, display }] }`. Auth-gated by the middleware; sends a real `User-Agent`; caches in `caches.default`.
+- **Frontend:** `attachCityAutocomplete(input, onResolve)` in `renderCall` builds the dropdown (debounced search, arrow/enter/escape keys, click-to-pick, blur-resolves-free-text). The menu is `position: fixed` and JS-pinned under the input so the scrollable `.pos-stage` can't clip it. Picking sets `originGeo`/`destGeo`; `renderLocations` re-ranks; `autoFillOneWayMiles` handles the one-way distance.
+- **Branch coordinates** are static `lat`/`lng` on each `BRANCHES` entry in `app.js` (the addresses are fixed and real); only the *customer's* input is geocoded.
+- Without a resolved origin the Location step behaves exactly as before (original order, static distance estimates, Downtown recommended), so the flow never depends on the network.
 
 ## Personas (25 + 1 showcase)
 
@@ -147,8 +148,8 @@ functions/api/
   coach.js                    POST = Opus tool-use coaching report
   tts.js                      POST = ElevenLabs TTS proxy (multilingual_v2 default, eleven_v3 premium showcase)
   stt.js                      POST = ElevenLabs Scribe STT proxy
-  geocode.js                  POST = Nominatim (OSM) proxy. { query } -> { found, lat, lng, city, state, postcode, label }.
-                              Keyless (no secret), cached, biases bare queries to San Antonio TX.
+  geocode.js                  POST = Photon (OSM typeahead) proxy. { query } -> { results: [{lat,lng,city,state,postcode,display}] }.
+                              Keyless (no secret), cached, SA-biased, US place-types only. Backs the city autocomplete.
   demo-unlock.js              POST = validate DEMO_PASSWORD, issue cs_demo. DELETE = clear.
   demo-status.js              GET = whether cs_demo is valid
 
@@ -195,7 +196,7 @@ Everything below shipped to `main` on 2026-05-23.
 - **`eleven_v3` is alpha** at ElevenLabs. Works in production but the API may shift. Same `voice_settings` shape as v2 has worked.
 - **ElevenLabs voice IDs** must be in Alex's workspace library. If voices break, run a TTS smoke test against each persona to find the missing ID.
 - **The demo cookie is `cs_demo`** (HttpOnly, signed with `SESSION_SECRET`). Use `/api/demo-status` to query it from the client.
-- **Geocoding uses Nominatim (no key).** `/api/geocode` proxies OpenStreetMap, which has a fair-use policy (~1 req/sec, real User-Agent required, cache results). The Worker already caches and the lookups are debounced, but heavy demo traffic could still get throttled. If geocoding silently stops resolving, that's the likely cause; the Location step falls back to the default order so the flow keeps working. To move to production-grade coverage, swap the upstream in `geocode.js` for Google/Mapbox and add the key as a Cloudflare secret.
+- **Geocoding uses Photon (no key).** `/api/geocode` proxies Komoot's Photon, a free OSM type-ahead service with a fair-use expectation. The Worker caches and the typeahead is debounced, but heavy demo traffic could still get throttled; if the dropdown silently stops returning matches, that's the likely cause, and the Location step falls back to the default order so the flow keeps working. Note Photon is a public community instance with no SLA. For production-grade coverage/uptime, swap the upstream in `geocode.js` for Google Places Autocomplete or Mapbox and add the key as a Cloudflare secret. (Nominatim was tried first but isn't a typeahead engine - it returned junk for partial tokens.)
 - **Premium parenthetical leak (hardened 2026-05-23):** the premium (eleven_v3) showcase voice used to emit multi-word parenthetical stage directions like "(heart beating)" that slipped past the single-verb scrubber. `scrubForSpeech`/`scrubForSpeechKeepTags` in `app.js` now share `isSpeechCueParenthetical`, which strips short subjectless directions (cue verb, present participle, manner adverb, or sensory noun) while keeping real asides and anything with a digit or sentence punctuation.
 
 ## Open / future ideas (not built)

@@ -1,17 +1,39 @@
-// Geocoding proxy. Turns a customer's typed ZIP / city / landmark into
-// coordinates so the Location step can rank branches by real distance and
-// auto-fill one-way mileage. Uses OpenStreetMap's Nominatim, which is keyless
-// (no secret to provision), so this route adds no new Cloudflare variables.
-// The shared auth middleware already gates it, which keeps the proxy from
-// being open to the world. Nominatim's usage policy asks callers to send a
-// real User-Agent and to cache results; we do both.
+// City typeahead backend for the reservation's Moving From / Moving To fields.
+// A query returns up to a handful of candidate places; the picked one's
+// coordinates let the Location step rank branches by real distance and
+// auto-fill one-way mileage. Uses Komoot's Photon (an OSM-based geocoder built
+// for type-ahead), which is keyless, so this route adds no Cloudflare secret.
+// The shared auth middleware gates it. Photon, like Nominatim, asks for a real
+// User-Agent and reasonable caching; we do both. Results are biased toward the
+// San Antonio metro but real out-of-area destinations still resolve.
 
-const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
+const PHOTON_SEARCH = 'https://photon.komoot.io/api/';
 const USER_AGENT = 'MeridianCallSimulator/1.0 (training demo; +https://ka-testing.com)';
-// Bare city/landmark queries are biased to the simulator's metro so "Stone Oak"
-// resolves locally instead of to a same-named place in another state.
-const METRO_BIAS = 'San Antonio, TX';
+const SA_LAT = '29.4246';
+const SA_LON = '-98.4951';
 const CACHE_TTL_SECONDS = 86400;
+
+// Only surface populated places / administrative areas in the dropdown, not
+// POIs like airports, museums, or parks that Photon also matches.
+const PLACE_VALUES = new Set([
+  'city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'locality',
+  'municipality', 'county', 'state', 'administrative', 'region', 'district', 'quarter',
+]);
+
+const STATE_ABBR = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
+  colorado: 'CO', connecticut: 'CT', delaware: 'DE', 'district of columbia': 'DC',
+  florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL',
+  indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN',
+  mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK',
+  oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT',
+  virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
+  wyoming: 'WY', 'puerto rico': 'PR',
+};
 
 export async function onRequestPost({ request }) {
   let body;
@@ -25,21 +47,15 @@ export async function onRequestPost({ request }) {
   if (!query) return jsonError('query_required', 400);
   if (query.length > 120) return jsonError('query_too_long', 400);
 
+  const wasZip = /^\d{5}$/.test(query);
   const params = new URLSearchParams({
-    format: 'json',
-    limit: '1',
-    addressdetails: '1',
-    countrycodes: 'us',
+    q: query,
+    limit: '8',
+    lang: 'en',
+    lat: SA_LAT,
+    lon: SA_LON,
   });
-  if (/^\d{5}$/.test(query)) {
-    // A bare 5-digit string is a ZIP; the dedicated param is far more reliable
-    // than free-text search, which sometimes reads digits as a house number.
-    params.set('postalcode', query);
-  } else {
-    const hasState = /,\s*[A-Za-z]{2}\b|\btexas\b|\btx\b/i.test(query);
-    params.set('q', hasState ? query : `${query}, ${METRO_BIAS}`);
-  }
-  const upstreamUrl = `${NOMINATIM_SEARCH}?${params.toString()}`;
+  const upstreamUrl = `${PHOTON_SEARCH}?${params.toString()}`;
 
   const cache = caches.default;
   const cacheKey = new Request(upstreamUrl);
@@ -63,7 +79,7 @@ export async function onRequestPost({ request }) {
     }
     if (!upstream.ok) return jsonError('upstream_error', 502);
     data = await upstream.json().catch(() => null);
-    if (Array.isArray(data)) {
+    if (data && Array.isArray(data.features)) {
       try {
         await cache.put(
           cacheKey,
@@ -80,35 +96,56 @@ export async function onRequestPost({ request }) {
     }
   }
 
-  const top = Array.isArray(data) && data[0] ? data[0] : null;
-  const lat = top ? Number(top.lat) : NaN;
-  const lng = top ? Number(top.lon) : NaN;
-  if (!top || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ found: false }, 200);
+  const features = data && Array.isArray(data.features) ? data.features : [];
+  const results = [];
+  const seen = new Set();
+  for (const feature of features) {
+    const r = toResult(feature, wasZip);
+    if (!r) continue;
+    const dedupe = r.display.toLowerCase();
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+    results.push(r);
+    if (results.length >= 5) break;
   }
 
-  const addr = top.address || {};
-  // Nominatim files the populated place under one of several keys depending on
-  // the place type; take the most specific that's present.
-  const city =
-    addr.city || addr.town || addr.village || addr.hamlet ||
-    addr.municipality || addr.suburb || addr.neighbourhood || '';
-  // "ISO3166-2-lvl4" is like "US-TX"; fall back to the full state name.
-  const iso = typeof addr['ISO3166-2-lvl4'] === 'string' ? addr['ISO3166-2-lvl4'].split('-')[1] : '';
-  const state = iso || addr.state || '';
+  return json({ results }, 200);
+}
 
-  return json(
-    {
-      found: true,
-      lat,
-      lng,
-      city,
-      state,
-      postcode: addr.postcode || '',
-      label: typeof top.display_name === 'string' ? top.display_name : query,
-    },
-    200
-  );
+// Shape one Photon feature into a candidate the autocomplete can display, or
+// null to skip it (non-US, missing coords, or a POI rather than a place).
+function toResult(feature, wasZip) {
+  const props = feature?.properties || {};
+  if (props.countrycode !== 'US') return null;
+  const coords = feature?.geometry?.coordinates;
+  const lng = Array.isArray(coords) ? Number(coords[0]) : NaN;
+  const lat = Array.isArray(coords) ? Number(coords[1]) : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const st = props.state ? (STATE_ABBR[String(props.state).toLowerCase()] || props.state) : '';
+
+  if (wasZip) {
+    // For a ZIP search Photon puts the digits in `name` and the place in `city`.
+    const zip = props.name || '';
+    const place = props.city || props.county || '';
+    if (!place && !zip) return null;
+    const head = place || zip;
+    let display = st ? `${head}, ${st}` : head;
+    if (place && zip) display = st ? `${place}, ${st} ${zip}` : `${place} ${zip}`;
+    return { lat, lng, city: place || head, state: st, postcode: zip, display };
+  }
+
+  if (!PLACE_VALUES.has(props.osm_value)) return null;
+  const place = props.name || props.city || '';
+  if (!place) return null;
+  return {
+    lat,
+    lng,
+    city: props.city || props.name || '',
+    state: st,
+    postcode: props.postcode || '',
+    display: st ? `${place}, ${st}` : place,
+  };
 }
 
 function json(obj, status) {
