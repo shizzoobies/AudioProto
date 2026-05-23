@@ -1,6 +1,6 @@
 import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
-import { AudioPlayer, attachVisualizer, synthesizeSentence, MicRecorder, ContinuousRecorder, transcribeAudio } from './audio.js';
+import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 
 const state = {
   scenarioTypes: [],
@@ -14,10 +14,8 @@ const state = {
   visualizerCleanup: null,
   audioMuted: false,
   ttsControllers: new Set(),
-  micRecorder: null,
   micDenied: false,
   inputMode: 'voice',
-  pttKeyHandlers: null,
   sttController: null,
   callMode: 'phone',
   silenceTimer: null,
@@ -98,18 +96,9 @@ function teardownAudio() {
     state.audioPlayer.destroy();
     state.audioPlayer = null;
   }
-  if (state.micRecorder) {
-    state.micRecorder.cancel();
-    state.micRecorder = null;
-  }
   if (state.continuousRecorder) {
     state.continuousRecorder.cancel();
     state.continuousRecorder = null;
-  }
-  if (state.pttKeyHandlers) {
-    document.removeEventListener('keydown', state.pttKeyHandlers.down);
-    document.removeEventListener('keyup', state.pttKeyHandlers.up);
-    state.pttKeyHandlers = null;
   }
   if (state.sttController) {
     try { state.sttController.abort(); } catch {}
