@@ -28,7 +28,7 @@ export async function onRequestPost({ request }) {
   const params = new URLSearchParams({
     format: 'json',
     limit: '1',
-    addressdetails: '0',
+    addressdetails: '1',
     countrycodes: 'us',
   });
   if (/^\d{5}$/.test(query)) {
@@ -87,11 +87,24 @@ export async function onRequestPost({ request }) {
     return json({ found: false }, 200);
   }
 
+  const addr = top.address || {};
+  // Nominatim files the populated place under one of several keys depending on
+  // the place type; take the most specific that's present.
+  const city =
+    addr.city || addr.town || addr.village || addr.hamlet ||
+    addr.municipality || addr.suburb || addr.neighbourhood || '';
+  // "ISO3166-2-lvl4" is like "US-TX"; fall back to the full state name.
+  const iso = typeof addr['ISO3166-2-lvl4'] === 'string' ? addr['ISO3166-2-lvl4'].split('-')[1] : '';
+  const state = iso || addr.state || '';
+
   return json(
     {
       found: true,
       lat,
       lng,
+      city,
+      state,
+      postcode: addr.postcode || '',
       label: typeof top.display_name === 'string' ? top.display_name : query,
     },
     200

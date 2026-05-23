@@ -92,6 +92,7 @@ Validation errors scroll into view.
 
 ### Location geocoding (2026-05-23)
 The Details step's **Moving From** / **Moving To** fields are no longer decorative. When the trainee types a ZIP, city, or landmark, a debounced call to **`/api/geocode`** resolves it to coordinates, and the Location step then ranks the 5 branches by real haversine distance (nearest tagged Recommended) instead of the old fixed `1.6 + i*2.4` placeholder order. For a **One Way** move the destination is geocoded too and the one-way **Estimated distance (miles)** field auto-fills from the origin→destination distance (still editable). A small status line under the address fields reports the nearest branch / auto-filled mileage, or warns and falls back to the default order when a place can't be resolved.
+- **ZIP → city auto-fill.** When the field holds a bare 5-digit ZIP, it expands in place to `City, ST 78207` once resolved (e.g. `78207` → `San Antonio, TX 78207`), and the Location step's hint reads "Based on San Antonio, TX, we suggest Meridian of Downtown (1.6 mi)." `geocode.js` returns `city`/`state`/`postcode` (from Nominatim `addressdetails=1`; state is the `ISO3166-2-lvl4` 2-letter code) alongside lat/lng. A `lastGeoKey` guard skips redundant lookups (repeat blurs) but any real edit re-runs.
 - **Provider:** OpenStreetMap **Nominatim**, keyless, proxied by `functions/api/geocode.js` (so **no new Cloudflare secret**). The shared auth middleware gates it; the Worker sends a real `User-Agent`, biases bare city/landmark queries to San Antonio TX, uses the `postalcode` param for 5-digit ZIPs, and caches results in `caches.default` per Nominatim's usage policy.
 - **Branch coordinates** are static `lat`/`lng` on each `BRANCHES` entry in `app.js` (the addresses are fixed and real); only the *customer's* input is geocoded. The haversine + `renderLocations` + geocode wiring all live in `renderCall`.
 - Without a resolved origin the step behaves exactly as before (original order, static distance estimates, Downtown recommended), so the flow never depends on the network.
@@ -146,7 +147,7 @@ functions/api/
   coach.js                    POST = Opus tool-use coaching report
   tts.js                      POST = ElevenLabs TTS proxy (multilingual_v2 default, eleven_v3 premium showcase)
   stt.js                      POST = ElevenLabs Scribe STT proxy
-  geocode.js                  POST = Nominatim (OSM) proxy. { query } -> { found, lat, lng, label }.
+  geocode.js                  POST = Nominatim (OSM) proxy. { query } -> { found, lat, lng, city, state, postcode, label }.
                               Keyless (no secret), cached, biases bare queries to San Antonio TX.
   demo-unlock.js              POST = validate DEMO_PASSWORD, issue cs_demo. DELETE = clear.
   demo-status.js              GET = whether cs_demo is valid

@@ -729,7 +729,7 @@ function renderCall(scenario) {
                 <header class="pos-step-head">
                   <h3 class="pos-step-title">Select Pick Up Location</h3>
                 </header>
-                <p class="pos-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
+                <p class="pos-hint" id="pos-loc-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
                 <div class="pos-loc-list" id="pos-loc-list"></div>
               </section>
 
@@ -1334,6 +1334,7 @@ function renderCall(scenario) {
   let destGeo = null;
   let geoSeq = 0;
   let geoTimer = null;
+  let lastGeoKey = null;
 
   function fmtMoney(n) { return '$' + Number(n || 0).toFixed(2); }
 
@@ -1516,6 +1517,15 @@ function renderCall(scenario) {
     }));
     const located = items.every((it) => it.mi != null);
     if (located) items.sort((a, b) => a.mi - b.mi);
+    const locHint = document.getElementById('pos-loc-hint');
+    if (locHint) {
+      if (located && items[0]) {
+        const where = cityLabelOf(originGeo, getRsv('moving_from'));
+        locHint.textContent = `Based on ${where}, we suggest Meridian of ${items[0].loc.name} (${items[0].mi.toFixed(1)} mi). Branches are sorted nearest first.`;
+      } else {
+        locHint.textContent = 'Pick the location nearest where the customer is loading. Sorted by distance.';
+      }
+    }
     posLocList.innerHTML = items.map((item, i) => {
       const loc = item.loc;
       const recommended = i === 0;
@@ -1562,10 +1572,26 @@ function renderCall(scenario) {
       });
       if (!res.ok) return null;
       const data = await res.json();
-      return data && data.found ? { lat: data.lat, lng: data.lng, label: data.label } : null;
+      return data && data.found
+        ? { lat: data.lat, lng: data.lng, label: data.label, city: data.city || '', state: data.state || '', postcode: data.postcode || '' }
+        : null;
     } catch {
       return null;
     }
+  }
+
+  // "San Antonio, TX" for status copy; falls back to the raw typed text.
+  function cityLabelOf(geo, fallback) {
+    if (!geo || !geo.city) return fallback;
+    return geo.state ? `${geo.city}, ${geo.state}` : geo.city;
+  }
+
+  // Expand a bare 5-digit ZIP into "City, ST 78207" once we know the city, so
+  // the trainee sees the place name fill in. Anything else is left as typed.
+  function zipExpansion(geo, raw) {
+    const zip = (raw || '').trim();
+    if (!geo || !geo.city || !/^\d{5}$/.test(zip)) return null;
+    return geo.state ? `${geo.city}, ${geo.state} ${zip}` : `${geo.city} ${zip}`;
   }
 
   // Resolve the typed origin (and, for one-way, destination), re-rank the
@@ -1577,9 +1603,15 @@ function renderCall(scenario) {
     const to = getRsv('moving_to');
     const oneWay = getRsv('move_type') === 'one_way';
 
+    // Skip redundant lookups (repeat blurs, tabbing through) so we stay light
+    // on Nominatim. Any real edit changes the key and re-runs.
+    const key = `${from}|${to}|${oneWay}`;
+    if (key === lastGeoKey) return;
+
     if (!from) {
       originGeo = null;
       destGeo = null;
+      lastGeoKey = key;
       setGeoStatus('', '');
       renderLocations();
       return;
@@ -1591,22 +1623,31 @@ function renderCall(scenario) {
     originGeo = origin;
 
     if (!origin) {
+      lastGeoKey = key;
       setGeoStatus(`Could not place "${from}". Branches shown in default order.`, 'warn');
       renderLocations();
       return;
     }
 
+    // Fill the city in for a bare ZIP so the trainee sees the place resolve.
+    const fromExpanded = zipExpansion(origin, from);
+    if (fromExpanded) setRsv('moving_from', fromExpanded);
+
     let dest = null;
     if (oneWay && to) {
       dest = await geocodeQuery(to);
       if (seq !== geoSeq) return;
+      const toExpanded = zipExpansion(dest, to);
+      if (toExpanded) setRsv('moving_to', toExpanded);
     }
     destGeo = dest;
 
     renderLocations();
+    renderLeftRail();
 
     const nearest = nearestBranch();
-    let msg = nearest ? `Nearest branch: Meridian of ${nearest.loc.name}, ${nearest.mi.toFixed(1)} mi.` : '';
+    const where = cityLabelOf(origin, from);
+    let msg = nearest ? `Nearest branch to ${where}: Meridian of ${nearest.loc.name}, ${nearest.mi.toFixed(1)} mi.` : `Located ${where}.`;
     if (oneWay) {
       if (dest) {
         const tripMi = Math.max(1, Math.round(haversineMiles(origin, dest)));
@@ -1617,6 +1658,8 @@ function renderCall(scenario) {
         msg += ' Could not place the destination; enter one-way miles manually.';
       }
     }
+    // Record the post-expansion field values so the follow-up blur is a no-op.
+    lastGeoKey = `${getRsv('moving_from')}|${getRsv('moving_to')}|${getRsv('move_type') === 'one_way'}`;
     setGeoStatus(msg, 'ok');
   }
 
@@ -1969,6 +2012,7 @@ function renderCall(scenario) {
       storageAsked = false;
       originGeo = null;
       destGeo = null;
+      lastGeoKey = null;
       setGeoStatus('', '');
       posEntityCard.hidden = true;
       updateCardChip();
