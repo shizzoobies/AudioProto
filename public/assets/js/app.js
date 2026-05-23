@@ -1461,7 +1461,7 @@ function renderCall(scenario) {
     if (milesLabel) milesLabel.textContent = oneWay ? 'Estimated distance (miles)' : 'Estimated miles';
 
     if (!truck) {
-      posEquipName.textContent = 'Add a load size on the Details step to see a fit.';
+      posEquipName.textContent = 'Pick a truck below, or set a load size on the Details step.';
       posEquipRate.textContent = '';
     } else {
       posEquipName.textContent = truck.label;
@@ -1633,20 +1633,19 @@ function renderCall(scenario) {
   function showErr(text) {
     posErrorEl.textContent = text;
     posErrorEl.hidden = false;
+    posErrorEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
+  // Gates live only where they are the natural action of the step, so the
+  // trainee is never dead-ended on an unrelated field. The Details and Time
+  // steps never block; you choose a truck on Equipment, a branch on Location,
+  // and enter the card on Checkout.
   function validateStep(n) {
-    if (n === 1) {
-      if (!getRsv('moving_from').trim()) return 'Enter where the customer is moving from.';
-      if (!getRsv('pickup_date')) return 'Set the move / pickup date.';
-      if (!getRsv('load_size')) return 'Select how many bedrooms (load size).';
-    } else if (n === 2) {
-      if (!recommendedSize()) return 'Pick a truck (set a load size, or choose one under "Show all moving equipment").';
+    if (n === 2) {
+      if (!recommendedSize()) return 'Pick a truck below under "Show all moving equipment", or set a load size on the Details step.';
       if (getRsv('move_type') === 'one_way' && Number(getRsv('miles') || 0) <= 0) return 'Enter the estimated distance for the one-way move.';
     } else if (n === 3) {
       if (!selectedLocation) return 'Select a pickup location.';
-    } else if (n === 4) {
-      if (!getRsv('pickup_time')) return 'Choose a pickup time.';
     } else if (n === 5) {
       if (getRsv('card_number').replace(/\D/g, '').length < 13) return 'Enter the card number in the Credit Card panel.';
       if (!getRsv('card_exp_month') || !getRsv('card_exp_year')) return 'Set the card expiration in the Credit Card panel.';
