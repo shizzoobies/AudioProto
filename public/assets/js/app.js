@@ -465,11 +465,14 @@ function renderCall(scenario) {
     ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
     : '';
 
+  // In-town: base is the 24-hour (per-day) rate, charged per day plus per_mile
+  // mileage. One-way: ow_base + distance * ow_mile is a single bundled rate that
+  // already includes the days and miles the route needs.
   const TRUCK_SIZES = [
-    { size: 10, label: "10' Moving Truck", base: 19.95, per_mile: 0.79, oneway: 129 },
-    { size: 15, label: "15' Moving Truck", base: 29.95, per_mile: 0.89, oneway: 179 },
-    { size: 20, label: "20' Moving Truck", base: 39.95, per_mile: 1.19, oneway: 239 },
-    { size: 26, label: "26' Moving Truck", base: 49.95, per_mile: 1.29, oneway: 299 },
+    { size: 10, label: "10' Moving Truck", base: 19.95, per_mile: 0.79, ow_base: 130, ow_mile: 0.70 },
+    { size: 15, label: "15' Moving Truck", base: 29.95, per_mile: 0.89, ow_base: 170, ow_mile: 0.80 },
+    { size: 20, label: "20' Moving Truck", base: 39.95, per_mile: 1.19, ow_base: 230, ow_mile: 0.95 },
+    { size: 26, label: "26' Moving Truck", base: 49.95, per_mile: 1.29, ow_base: 290, ow_mile: 1.05 },
   ];
   const TRUCK_BY_SIZE = Object.fromEntries(TRUCK_SIZES.map((t) => [t.size, t]));
 
@@ -485,12 +488,12 @@ function renderCall(scenario) {
   const LOAD_BY_VALUE = Object.fromEntries(LOAD_SIZES.map((l) => [l.value, l]));
 
   const RENTAL_LENGTHS = [
-    { value: '6h', label: '6 hours', days: 1 },
-    { value: '8h', label: '8 hours', days: 1 },
-    { value: '12h', label: '12 hours', days: 1 },
-    { value: '1d', label: '1 day', days: 1 },
-    { value: '2d', label: '2 days', days: 2 },
-    { value: '3d', label: '3 days', days: 3 },
+    { value: '1', label: '1 day (24 hours)', days: 1 },
+    { value: '2', label: '2 days', days: 2 },
+    { value: '3', label: '3 days', days: 3 },
+    { value: '4', label: '4 days', days: 4 },
+    { value: '5', label: '5 days', days: 5 },
+    { value: '7', label: '7 days', days: 7 },
   ];
   const RENTAL_BY_VALUE = Object.fromEntries(RENTAL_LENGTHS.map((r) => [r.value, r]));
 
@@ -507,7 +510,7 @@ function renderCall(scenario) {
     .concat(LOAD_SIZES.map((l) => `<option value="${l.value}">${escapeHtml(l.label)}</option>`)).join('');
 
   const rentalLengthOptionsHtml = RENTAL_LENGTHS
-    .map((r) => `<option value="${r.value}"${r.value === '8h' ? ' selected' : ''}>${escapeHtml(r.label)}</option>`).join('');
+    .map((r) => `<option value="${r.value}"${r.value === '1' ? ' selected' : ''}>${escapeHtml(r.label)}</option>`).join('');
 
   const timeSlotsHtml = (() => {
     const out = ['<option value="">Select a time...</option>'];
@@ -687,17 +690,23 @@ function renderCall(scenario) {
                 <header class="pos-step-head">
                   <h3 class="pos-step-title">Choose Equipment</h3>
                 </header>
-                <p class="pos-hint" id="pos-equip-hint">Try: "Most families need about 8 hours with a 20' Moving Truck. Will that work for you?"</p>
+                <p class="pos-hint" id="pos-equip-hint">Try: "Based on what you're moving, I'd put you in a truck this size. How many days do you need it?"</p>
 
                 <div class="pos-equip-rec" id="pos-equip-rec" data-size="?">
                   <div class="pos-equip-badge">Recommended</div>
                   <div class="pos-equip-body">
                     <div class="pos-equip-name" id="pos-equip-name">Add a load size on the previous step to see a fit.</div>
                     <div class="pos-equip-rate mono" id="pos-equip-rate"></div>
-                    <label class="pos-field pos-field-inline">
-                      <span class="pos-field-label">Rental Length</span>
-                      <select class="pos-input" data-rsv="rental_length">${rentalLengthOptionsHtml}</select>
-                    </label>
+                    <div class="pos-grid-2 pos-field-inline">
+                      <label class="pos-field" id="pos-field-rental">
+                        <span class="pos-field-label">Rental length (24-hr periods)</span>
+                        <select class="pos-input" data-rsv="rental_length">${rentalLengthOptionsHtml}</select>
+                      </label>
+                      <label class="pos-field" id="pos-field-miles">
+                        <span class="pos-field-label" id="pos-miles-label">Estimated miles</span>
+                        <input class="pos-input" data-rsv="miles" type="number" min="0" step="1" placeholder="e.g. 25" value="0">
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -722,7 +731,7 @@ function renderCall(scenario) {
                     ${TRUCK_SIZES.map((t) => `
                       <button type="button" class="pos-equip-opt" data-truck="${t.size}">
                         <span class="pos-equip-opt-name">${t.size}' Moving Truck</span>
-                        <span class="pos-equip-opt-rate mono">$${t.base.toFixed(2)} + $${t.per_mile.toFixed(2)}/mi</span>
+                        <span class="pos-equip-opt-rate mono">$${t.base.toFixed(2)}/day + $${t.per_mile.toFixed(2)}/mi</span>
                       </button>
                     `).join('')}
                   </div>
@@ -1362,24 +1371,41 @@ function renderCall(scenario) {
     return r ? r.days : 1;
   }
 
+  function oneWayQuote(truck, distance) {
+    const dist = Math.max(0, Math.round(distance || 0));
+    const amount = truck.ow_base + dist * truck.ow_mile;
+    const days = Math.max(2, Math.ceil(dist / 400) + 1);
+    return { amount, days, miles: dist };
+  }
+
   function computeQuote() {
     const truck = currentTruck();
     const oneWay = getRsv('move_type') === 'one_way';
-    const days = rentalDays();
+    const miles = Number(getRsv('miles') || 0);
     const waiver = WAIVER_INFO[getRsv('waiver') || 'none'] || WAIVER_INFO.none;
     const padsChecked = !!pos.querySelector('[data-rsv-equipment="pads"]:checked');
     const dollyChecked = !!pos.querySelector('[data-rsv-equipment="dolly"]:checked');
 
     const lines = [];
     let subtotal = 0;
+    let days = oneWay ? 1 : rentalDays();
+    let ow = null;
     if (truck) {
-      const truckCost = oneWay ? truck.oneway : truck.base * days;
-      subtotal += truckCost;
-      lines.push({
-        label: truck.label,
-        sub: oneWay ? 'one-way rate' : `$${truck.base.toFixed(2)}${days > 1 ? ' x ' + days + ' days' : ''} + $${truck.per_mile.toFixed(2)}/mile`,
-        amount: truckCost,
-      });
+      if (oneWay) {
+        ow = oneWayQuote(truck, miles);
+        days = ow.days;
+        subtotal += ow.amount;
+        lines.push({ label: truck.label, sub: `one-way rate, includes ${ow.days} days and ${ow.miles} mi`, amount: ow.amount });
+      } else {
+        const truckCost = truck.base * days;
+        subtotal += truckCost;
+        lines.push({ label: truck.label, sub: `$${truck.base.toFixed(2)}/day x ${days} day${days === 1 ? '' : 's'}`, amount: truckCost });
+        if (miles > 0) {
+          const milesCost = truck.per_mile * miles;
+          subtotal += milesCost;
+          lines.push({ label: 'Mileage', sub: `${miles} mi x $${truck.per_mile.toFixed(2)}/mi`, amount: milesCost });
+        }
+      }
       subtotal += ENV_FEE;
       lines.push({ label: 'Environmental Fee', amount: ENV_FEE });
       subtotal += VLRF;
@@ -1392,7 +1418,7 @@ function renderCall(scenario) {
 
     const tax = subtotal * TAX_RATE;
     const total = subtotal + tax;
-    return { truck, oneWay, days, waiver, padsChecked, dollyChecked, lines, subtotal, tax, total };
+    return { truck, oneWay, days, miles, ow, waiver, padsChecked, dollyChecked, lines, subtotal, tax, total };
   }
 
   function renderCart() {
@@ -1417,26 +1443,34 @@ function renderCall(scenario) {
       </details>
       <div class="pos-cart-rule"></div>
       <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(q.total)}</div></div>
-      <div class="pos-cart-note">Mileage and local taxes are calculated at return.</div>
+      <div class="pos-cart-note">Estimate. In-town mileage is reconciled at the actual miles driven on return.</div>
     `;
   }
 
   function renderEquip() {
     const size = recommendedSize();
     const truck = size ? TRUCK_BY_SIZE[size] : null;
+    const oneWay = getRsv('move_type') === 'one_way';
     posEquipRec.dataset.size = size ? String(size) : '?';
     const badge = posEquipRec.querySelector('.pos-equip-badge');
     if (badge) badge.textContent = truckOverride ? 'Override' : 'Recommended';
+
+    const rentalField = document.getElementById('pos-field-rental');
+    const milesLabel = document.getElementById('pos-miles-label');
+    if (rentalField) rentalField.hidden = oneWay;
+    if (milesLabel) milesLabel.textContent = oneWay ? 'Estimated distance (miles)' : 'Estimated miles';
+
     if (!truck) {
       posEquipName.textContent = 'Add a load size on the Details step to see a fit.';
       posEquipRate.textContent = '';
     } else {
       posEquipName.textContent = truck.label;
-      const oneWay = getRsv('move_type') === 'one_way';
       posEquipRate.textContent = oneWay
-        ? `$${truck.oneway.toFixed(2)} one-way rate`
-        : `$${truck.base.toFixed(2)} + $${truck.per_mile.toFixed(2)}/mile`;
-      if (posEquipHint) posEquipHint.textContent = `Try: "Most families need about 8 hours with a ${truck.label}. Will that work for you?"`;
+        ? `$${truck.ow_base.toFixed(2)} + $${truck.ow_mile.toFixed(2)}/mi, distance-based (days and miles included)`
+        : `$${truck.base.toFixed(2)}/day + $${truck.per_mile.toFixed(2)}/mile`;
+      if (posEquipHint) posEquipHint.textContent = oneWay
+        ? `Try: "For a one-way ${truck.label}, the rate is based on your distance and already includes the days and miles you'll need."`
+        : `Try: "The ${truck.label} is $${truck.base.toFixed(2)} a day plus $${truck.per_mile.toFixed(2)} a mile. How many days will you need it?"`;
     }
     pos.querySelectorAll('.pos-equip-opt').forEach((b) => b.classList.toggle('selected', Number(b.dataset.truck) === size));
   }
@@ -1458,12 +1492,18 @@ function renderCall(scenario) {
     const loc = LOC_BY_NAME[selectedLocation];
     const rl = RENTAL_BY_VALUE[getRsv('rental_length')];
     if (q.truck) {
+      const rateText = q.oneWay
+        ? '$' + (q.ow ? q.ow.amount.toFixed(2) : q.truck.ow_base.toFixed(2)) + ' one-way'
+        : '$' + q.truck.base.toFixed(2) + '/day + $' + q.truck.per_mile.toFixed(2) + '/mile';
+      const lenText = q.oneWay
+        ? `One-way · ${q.ow ? q.ow.days : 1} days and ${q.ow ? q.ow.miles : 0} mi included`
+        : `Rental length: ${escapeHtml(rl ? rl.label : '1 day')}`;
       posSchedTruck.innerHTML = `
         <div class="pos-sched-row">
           <span class="pos-sched-truck-name">${escapeHtml(q.truck.label)}</span>
-          <span class="mono">${q.oneWay ? '$' + q.truck.oneway.toFixed(2) + ' one-way' : '$' + q.truck.base.toFixed(2) + ' + $' + q.truck.per_mile.toFixed(2) + '/mile'}</span>
+          <span class="mono">${rateText}</span>
         </div>
-        <div class="pos-sched-sub">Rental length: ${escapeHtml(rl ? rl.label : '8 hours')}</div>
+        <div class="pos-sched-sub">${lenText}</div>
       `;
     } else {
       posSchedTruck.innerHTML = '';
@@ -1602,6 +1642,7 @@ function renderCall(scenario) {
       if (!getRsv('load_size')) return 'Select how many bedrooms (load size).';
     } else if (n === 2) {
       if (!recommendedSize()) return 'Pick a truck (set a load size, or choose one under "Show all moving equipment").';
+      if (getRsv('move_type') === 'one_way' && Number(getRsv('miles') || 0) <= 0) return 'Enter the estimated distance for the one-way move.';
     } else if (n === 3) {
       if (!selectedLocation) return 'Select a pickup location.';
     } else if (n === 4) {
@@ -1739,7 +1780,8 @@ function renderCall(scenario) {
           <div class="pos-receipt-section">
             <div class="pos-receipt-section-title">Equipment</div>
             <div class="pos-receipt-line"><span>Truck</span><span>${escapeHtml(q.truck ? q.truck.label : 'TBD')}</span></div>
-            <div class="pos-receipt-line"><span>Rental length</span><span>${escapeHtml(rl ? rl.label : '8 hours')}</span></div>
+            <div class="pos-receipt-line"><span>Rental length</span><span>${escapeHtml(q.oneWay ? `${q.ow ? q.ow.days : 1} days (one-way)` : (rl ? rl.label : '1 day'))}</span></div>
+            ${q.miles > 0 ? `<div class="pos-receipt-line"><span>${q.oneWay ? 'Distance' : 'Mileage'}</span><span>${escapeHtml(String(q.miles))} mi</span></div>` : ''}
             <div class="pos-receipt-line"><span>Waiver</span><span>${escapeHtml(q.waiver.label)}</span></div>
             ${(q.padsChecked || q.dollyChecked) ? `<div class="pos-receipt-line"><span>Add-ons</span><span>${[q.padsChecked && 'Pads', q.dollyChecked && 'Dolly'].filter(Boolean).join(', ')}</span></div>` : ''}
           </div>
