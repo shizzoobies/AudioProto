@@ -2,9 +2,10 @@
 
 Snapshot of the call-simulator's state. Read this when picking up the project after time away or in a fresh Claude session. The original spec is in `CALL_SIMULATOR_HANDOFF.md`; this doc captures what's actually been built and where the current decisions land.
 
-**Last update:** 2026-05-13
+**Last update:** 2026-05-22
 **Repo:** https://github.com/shizzoobies/AudioProto
-**Production target:** `call-sim.ka-testing.com` (Cloudflare Pages, git auto-deploy off `main`)
+**Production:** `ka-testing.com/app` (Cloudflare Pages, git auto-deploy off `main`)
+**Working branch (this session):** `claude/ecstatic-noether-2e7a0d`, kept in sync with `main` (every change is pushed to both). See the "2026-05-22 update" section below for everything layered on since 05-13.
 **Local password:** `csrocks26` (also set as a Cloudflare secret in production)
 **Local demo password:** `vp-demo-2026` (only in `.dev.vars`; the production value lives in Cloudflare and you should pick your own before any real VP demo)
 **Local run:** `npm run dev` → http://127.0.0.1:8788
@@ -217,10 +218,52 @@ Build configuration (also in the dashboard):
 - **Latent bug fixed:** `buildPersonaPrompt` was reading `persona.name` which doesn't exist on any persona. Every prompt used to start "You are undefined, ..." — Sonnet recovered from later context but it was sloppy. Now reads `customer_name`.
 - **The demo cookie is named `cs_demo`** (HttpOnly, signed with `SESSION_SECRET`). Client can't read it, so we have `/api/demo-status` to query it.
 
+## 2026-05-22 update — premium showcase deep-dive
+
+Everything here was layered on top of the 05-13 state, mostly to dial in the premium Elena showcase for a stakeholder pitch. All shipped to `main`.
+
+### The reactive orb (premium Elena only) — `public/assets/js/orb.js`
+- A Three.js **particle-cloud** orb (~4200 GPU points in a sphere), amber, audio-reactive off the call's `AudioPlayer` analyser. Bass expands it, mids rotate it, highs/amplitude grow + brighten + heat the color toward a pale-gold core; gentle breathing at idle. Camera pulled back so it clears the frame edges.
+- Three.js is **vendored** at `public/assets/vendor/three.module.js` (+ `three.core.min.js`) and dynamic-imported only when the showcase loads (CSP is `script-src 'self'`, no CDN allowed).
+- Style history this session: shader sphere → wave/contour rings → **particle cloud** (ported from the "Marlow" widget in the Reach AI SCORM zip), which Alex preferred visually.
+- Gated: `useOrb = isPhone && isShowcaseCall && state.demoUnlocked`. Standard tier keeps the old bar visualizer. Only the orb + the v3 tag-scrub choice are premium-gated; the audio queue/ordering is shared by all personas.
+- **Chrome-less meta mode:** while Elena just chats (`.call[data-orb-mode="meta"]`), the orb fills the call body and the transcript + CRM panel are hidden. When she enters the customer roleplay she emits a `[mode:scenario]` marker → orb shrinks to a band, CRM/reservation tools reappear. `[mode:meta]` returns. Markers are stripped from display + TTS, kept in history.
+
+### Premium voice expressiveness (eleven_v3)
+- `chat.js` `premiumVoiceDirectionBlock()` is appended to Elena's system prompt only when `usePremium`, letting her use curated v3 delivery tags (`[warmly] [sighs] [hesitant] [laughs softly]` ...).
+- Tier-aware tags: client keeps them for v3 (`scrubForSpeechKeepTags`), strips for v2 (`scrubForSpeech`); `tts.js` also strips bracket tags server-side whenever the model isn't v3. The transcript strips ALL tags (`stripVoiceTags`).
+
+### Live awareness (all personas) — `chat.js`
+- **Date:** `currentDateBlock()` injects today's real date (America/Chicago) every request, so relative dates ("nine weeks out") are correct.
+- **Weather:** `fetchWeatherBlock()` pulls current conditions from Open-Meteo (free, no key) for each persona's `location` (lat/lon on the persona def in `shared/scenarios.js`; default San Antonio), edge-cached 15 min via `cf.cacheTtl`, fetched in parallel with the demo-cookie check, graceful fallback. Surfaced as ambient knowledge.
+
+### Conversation quality
+- **No re-introduction (root-cause fix):** the opening line is delivered client-side and was never in the model's message history, so it re-greeted on the first turn. The client now sends `opening_line` to `/api/chat` and `openingContinuationBlock()` injects it ("you already opened with this, continue"). All personas.
+- **Character not script:** removed the canned example phrasings Elena was parroting (the "extra shift" small-talk line, etc.) and added a character-core directive: improvise in the moment, the notes are character not lines to recite, only the technical rules (number speaking, mode markers) are fixed.
+- Brevity + real turn-taking (one thought, ask a question then stop), short organic opening lines (no capability menu).
+- `COMMON_RULES` (all personas): no gendered address (no "sir/ma'am"); credit-card pacing (number first in 4-digit groups, then exp/cvv/zip one piece at a time as asked).
+
+### Audio pipeline
+- `conversation.js`: TTS text is chunked into larger pieces (first chunk small for a fast start) so clips are long enough to play gaplessly.
+- `app.js`: ordered TTS enqueue — `drainTts()` **awaits** each `enqueueBlob` so clips decode + queue in strict order. This fixed out-of-order / "smooshed" speech (the async `decodeAudioData` race was reordering clips).
+- Transcript synced to audio: in phone mode each sentence appears as it is actually spoken (`onPlay`), never ahead of the voice.
+- `audio.js` VAD: `SILENCE_DURATION_MS = 2000`, `SILENCE_RMS = 0.010` so natural pauses (reading a confirmation number) don't cut the trainee off.
+- **Ambient room-tone bed was built then REMOVED** — a second AudioContext caused a freeze. Do not reintroduce without care.
+
+### UI
+- **Branches tab** in the CSR panel (`app.js` `BRANCHES`): 5 San Antonio locations with address / hours / areas served, plus an info-button branch picker in the reservation step, so the trainee picks the right pickup branch.
+- Payment step: Billing ZIP moved to its own full-width line (was a cramped 3-column row).
+- **Coaching report disclaimer** (`coach.js`): a growth-framing note under the score (a sub-5 is not a failure; the report surfaces opportunities).
+
+### Ops / gotchas
+- **Deploy incident (resolved):** `styles.css` served HTTP 500 in production (a corrupted single-asset upload in one deploy) while every other asset was fine. Fix: touch the file to change its hash and force a clean re-upload, or roll back in the Cloudflare dashboard (Deployments → Rollback). If one asset 500s, it's a deploy issue, not the code.
+- **Local dev:** wrangler 4.90 only supports compatibility dates ≤ 2026-05-14 but defaults to today, so plain `npm run dev` errors. Run `npx wrangler pages dev public --compatibility-date=2026-05-01`. `.dev.vars` needs `DEMO_PASSWORD=vp-demo-2026` (added this session).
+- **Stakeholder doc:** `Meridian Call Simulator - Build Overview.docx` in the project root — a plain-language explainer of what the tool does and what it took to build.
+
 ## Where to start the next session
 
-1. Read this doc.
-2. Skim recent commits with `git log --oneline -20`.
-3. Run `npm run dev` (copy `.dev.vars` from the main checkout if you're in a worktree).
-4. Click through: Welcome → Meet Elena → Skip the password → small-talk with Elena → ask her to roleplay the customer scenario → exit back to meta.
+1. Read this doc (especially the 2026-05-22 update above).
+2. Skim recent commits with `git log --oneline -25`.
+3. Run `npx wrangler pages dev public --compatibility-date=2026-05-01` (copy `.dev.vars` from the main checkout if you're in a worktree; it needs `DEMO_PASSWORD`).
+4. Click through: Welcome → Meet Elena → enter the demo password (`vp-demo-2026`) for the premium experience → the amber particle orb fills the screen → small-talk with Elena → ask her to run the customer scenario → orb shrinks and the CRM/reservation/branches tools appear → end the call to see the coaching report.
 5. Then take whatever Alex asks for next.
