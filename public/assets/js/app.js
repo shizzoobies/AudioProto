@@ -465,16 +465,88 @@ function renderCall(scenario) {
     ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
     : '';
 
-  const branchesHtml = BRANCHES.map((b) => `
-    <div class="branch-card">
-      <div class="branch-card-head">
-        <span class="branch-name">${escapeHtml(b.name)}</span>
-        <span class="branch-area">${escapeHtml(b.area)}</span>
+  const TRUCK_SIZES = [
+    { size: 10, label: "10' Moving Truck", base: 19.95, per_mile: 0.79, oneway: 129 },
+    { size: 15, label: "15' Moving Truck", base: 29.95, per_mile: 0.89, oneway: 179 },
+    { size: 20, label: "20' Moving Truck", base: 39.95, per_mile: 1.19, oneway: 239 },
+    { size: 26, label: "26' Moving Truck", base: 49.95, per_mile: 1.29, oneway: 299 },
+  ];
+  const TRUCK_BY_SIZE = Object.fromEntries(TRUCK_SIZES.map((t) => [t.size, t]));
+
+  const LOAD_SIZES = [
+    { value: 'home_improvement', label: 'Home Improvement / Small Loads', truck: 10 },
+    { value: 'apt_studio', label: 'Apartment - 1 Bedroom / Studio / Deliveries', truck: 10 },
+    { value: 'studio_1br', label: 'Studio to 1 Bedroom Apt.', truck: 10 },
+    { value: '1br_2br', label: '1 Bedroom Home to 2 Bedroom Apt.', truck: 15 },
+    { value: '2br_3br', label: '2 Bedroom Home to 3 Bedroom Apt.', truck: 20 },
+    { value: '3br_4br', label: '3 Bedroom Home to 4 Bedroom Home', truck: 26 },
+    { value: 'other', label: 'Other', truck: null },
+  ];
+  const LOAD_BY_VALUE = Object.fromEntries(LOAD_SIZES.map((l) => [l.value, l]));
+
+  const RENTAL_LENGTHS = [
+    { value: '6h', label: '6 hours', days: 1 },
+    { value: '8h', label: '8 hours', days: 1 },
+    { value: '12h', label: '12 hours', days: 1 },
+    { value: '1d', label: '1 day', days: 1 },
+    { value: '2d', label: '2 days', days: 2 },
+    { value: '3d', label: '3 days', days: 3 },
+  ];
+  const RENTAL_BY_VALUE = Object.fromEntries(RENTAL_LENGTHS.map((r) => [r.value, r]));
+
+  const POS_LOCATIONS = BRANCHES.map((b, i) => ({
+    ...b,
+    entity: String(833071 - i * 412),
+    distance: (1.6 + i * 2.4).toFixed(1),
+    phone: ['(210) 555-0142', '(210) 555-0188', '(210) 555-0203', '(210) 555-0119', '(210) 555-0177'][i] || '(210) 555-0100',
+    available_sizes: i === 2 ? [10, 15, 20] : [10, 15, 20, 26],
+  }));
+  const LOC_BY_NAME = Object.fromEntries(POS_LOCATIONS.map((l) => [l.name, l]));
+
+  const loadSizeOptionsHtml = ['<option value="">Select...</option>']
+    .concat(LOAD_SIZES.map((l) => `<option value="${l.value}">${escapeHtml(l.label)}</option>`)).join('');
+
+  const rentalLengthOptionsHtml = RENTAL_LENGTHS
+    .map((r) => `<option value="${r.value}"${r.value === '8h' ? ' selected' : ''}>${escapeHtml(r.label)}</option>`).join('');
+
+  const timeSlotsHtml = (() => {
+    const out = ['<option value="">Select a time...</option>'];
+    for (let h = 8; h <= 18; h++) {
+      for (const m of [0, 30]) {
+        const ampm = h < 12 ? 'AM' : 'PM';
+        const hh = ((h + 11) % 12) + 1;
+        const label = `${hh}:${String(m).padStart(2, '0')} ${ampm}`;
+        out.push(`<option value="${label}">${label}</option>`);
+      }
+    }
+    return out.join('');
+  })();
+
+  const expMonthsHtml = ['<option value="">Month</option>']
+    .concat(Array.from({ length: 12 }, (_, i) => {
+      const mm = String(i + 1).padStart(2, '0');
+      return `<option value="${mm}">${mm}</option>`;
+    })).join('');
+
+  const nowYear = new Date().getFullYear();
+  const expYearsHtml = ['<option value="">Year</option>']
+    .concat(Array.from({ length: 9 }, (_, i) => {
+      const yy = nowYear + i;
+      return `<option value="${String(yy).slice(-2)}">${yy}</option>`;
+    })).join('');
+
+  const posLocationsHtml = POS_LOCATIONS.map((loc, i) => `
+    <button type="button" class="pos-loc${i === 0 ? ' recommended' : ''}" data-location="${escapeAttr(loc.name)}">
+      <div class="pos-loc-rank">${i + 1}</div>
+      <div class="pos-loc-main">
+        <div class="pos-loc-name">Meridian Moving &amp; Storage of ${escapeHtml(loc.name)}${i === 0 ? ' <span class="pos-loc-badge">Recommended</span>' : ''}</div>
+        <div class="pos-loc-addr mono">${escapeHtml(loc.address)}</div>
+        <div class="pos-loc-meta">${escapeHtml(loc.distance)} mi away &middot; ${escapeHtml(loc.hours)}</div>
+        <div class="pos-loc-equip">
+          ${TRUCK_SIZES.map((t) => `<span class="pos-loc-chip${loc.available_sizes.includes(t.size) ? '' : ' out'}">${t.size}' ${loc.available_sizes.includes(t.size) ? '$' + t.base.toFixed(2) : 'N/A'}</span>`).join('')}
+        </div>
       </div>
-      <div class="branch-addr mono">${escapeHtml(b.address)}</div>
-      <div class="branch-hours">${escapeHtml(b.hours)}</div>
-      <div class="branch-serves"><span class="branch-serves-label">Serves</span>${escapeHtml(b.serves)}</div>
-    </div>
+    </button>
   `).join('');
 
   dom.root.innerHTML = `
@@ -488,326 +560,341 @@ function renderCall(scenario) {
         <button class="danger-button" id="end-call" type="button">End call</button>
       </header>
       <div class="call-body">
-        <div class="call-main">
-          ${isPhone ? (useOrb ? `
-          <div class="orb-zone" id="orb-zone" data-orb-mode="meta" data-active="false">
-            <div class="orb-mount" id="orb-mount"></div>
-          </div>
-          ` : `
-          <div class="visualizer-wrap" id="visualizer-wrap" data-active="false">
-            <canvas class="visualizer" id="visualizer"></canvas>
-          </div>
-          `) : ''}
-          <ol class="transcript" id="transcript" aria-live="polite"></ol>
-          ${isPhone ? `
-          <div class="phone-status" id="phone-status" data-state="connecting">
-            <div class="phone-status-row">
-              <span class="phone-status-dot" aria-hidden="true"></span>
-              <span class="phone-status-text" id="phone-status-text">Connecting...</span>
-            </div>
-            <p class="phone-status-hint" id="phone-status-hint">When the customer finishes, just talk. Pause for a beat and your reply sends.</p>
-          </div>
-          ` : `
-          <div class="composer-wrap" id="composer-wrap" data-mode="text">
-            <form class="composer" id="composer" autocomplete="off">
-              <label class="visually-hidden" for="composer-input">Your message</label>
-              <textarea
-                id="composer-input"
-                class="composer-input"
-                placeholder="${escapeAttr(placeholder)}"
-                rows="2"
-              ></textarea>
-              <button type="submit" class="composer-send" id="composer-send">Send</button>
-            </form>
-            <p class="composer-status" id="composer-status" aria-live="polite"></p>
-          </div>
-          `}
+        ${useOrb ? `
+        <div class="orb-zone" id="orb-zone" data-orb-mode="meta" data-active="false">
+          <div class="orb-mount" id="orb-mount"></div>
         </div>
-        <aside class="crm-panel" id="crm-panel" aria-label="CSR system">
-          <header class="crm-header">
-            <div class="crm-eyebrow">Meridian CSR</div>
-            <div class="crm-tabs" role="tablist">
-              <button class="crm-tab active" data-tab="lookup" role="tab" type="button" aria-selected="true">Lookup</button>
-              <button class="crm-tab" data-tab="reservation" role="tab" type="button" aria-selected="false">New Reservation</button>
-              <button class="crm-tab" data-tab="branches" role="tab" type="button" aria-selected="false">Branches</button>
-            </div>
-          </header>
+        ` : ''}
 
-          <div class="crm-pane" data-tab="lookup">
-            <form class="crm-form" id="crm-form" autocomplete="off">
-              <label class="crm-field">
-                <span class="crm-field-label">Phone</span>
-                <input class="crm-input" id="crm-phone" type="tel" placeholder="555-123-4567">
-              </label>
-              <label class="crm-field">
-                <span class="crm-field-label">Email</span>
-                <input class="crm-input" id="crm-email" type="text" inputmode="email" placeholder="name@example.com">
-              </label>
-              <label class="crm-field">
-                <span class="crm-field-label">Last name</span>
-                <input class="crm-input" id="crm-name" type="text" placeholder="Chen">
-              </label>
-              <button type="submit" class="crm-submit">Search</button>
-            </form>
-            <div class="crm-result" id="crm-result" data-state="empty">
-              <p class="crm-empty">Enter phone, email, or last name to look up the caller. Any one field works; partial matches are fine.</p>
-            </div>
-          </div>
+        <div class="pos" id="pos">
+          <aside class="pos-rail pos-rail-left" aria-label="Customer and reservation context">
+            <section class="pos-card">
+              <div class="pos-card-head">
+                <span class="pos-card-title">Customer Contact Information</span>
+                <span class="pos-verified" id="pos-verified" hidden>Verified Customer</span>
+              </div>
+              <div class="pos-card-body" id="pos-customer-body">
+                <p class="pos-card-empty">Look up the caller to load their profile.</p>
+              </div>
+            </section>
 
-          <div class="crm-pane crm-pane-reservation" data-tab="reservation" hidden>
-            <div class="rsv-wizard" id="rsv-wizard" data-step="1">
-              <ol class="rsv-stepper" aria-label="Reservation steps">
-                <li class="rsv-stepper-item active" data-step="1">
-                  <span class="rsv-stepper-num">1</span>
-                  <span class="rsv-stepper-label">Customer</span>
-                </li>
-                <li class="rsv-stepper-item" data-step="2">
-                  <span class="rsv-stepper-num">2</span>
-                  <span class="rsv-stepper-label">Trip</span>
-                </li>
-                <li class="rsv-stepper-item" data-step="3">
-                  <span class="rsv-stepper-num">3</span>
-                  <span class="rsv-stepper-label">Equipment</span>
-                </li>
-                <li class="rsv-stepper-item" data-step="4">
-                  <span class="rsv-stepper-num">4</span>
-                  <span class="rsv-stepper-label">Payment</span>
-                </li>
-              </ol>
+            <section class="pos-card">
+              <div class="pos-card-head"><span class="pos-card-title">Checklist</span></div>
+              <div class="pos-card-body">
+                <div class="pos-check-item">Truck Rental</div>
+              </div>
+            </section>
 
-              <form class="crm-reservation" id="crm-reservation" autocomplete="off" novalidate>
-                <section class="rsv-step" data-step="1">
-                  <header class="rsv-step-head">
-                    <div class="rsv-step-eyebrow">Step 1 of 4</div>
-                    <h3 class="rsv-step-title">Who's on the line?</h3>
-                  </header>
-                  <p class="crm-hint">Try: "Can I get your full name, the best phone number for you, and an email for the confirmation?"</p>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Full name</span>
-                    <input class="crm-input" data-rsv="full_name" type="text" placeholder="Customer name">
-                  </label>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Phone</span>
-                    <input class="crm-input" data-rsv="phone" type="tel" placeholder="555-123-4567">
-                  </label>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Email</span>
-                    <input class="crm-input" data-rsv="email" type="text" inputmode="email" placeholder="name@example.com">
-                  </label>
-                </section>
+            <section class="pos-card">
+              <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span></div>
+              <div class="pos-card-body" id="pos-rsvdetails-body">
+                <p class="pos-card-empty">Details fill in as you build the reservation.</p>
+              </div>
+            </section>
 
-                <section class="rsv-step" data-step="2" hidden>
-                  <header class="rsv-step-head">
-                    <div class="rsv-step-eyebrow">Step 2 of 4</div>
-                    <h3 class="rsv-step-title">Trip details</h3>
-                  </header>
-                  <p class="crm-hint">Try: "When are you picking up, when are you bringing it back, and how far are you going?"</p>
-                  <div class="rsv-row">
-                    <label class="crm-field">
-                      <span class="crm-field-label">Pickup date</span>
-                      <input class="crm-input" data-rsv="pickup_date" type="date">
-                    </label>
-                    <label class="crm-field">
-                      <span class="crm-field-label">Pickup time</span>
-                      <input class="crm-input" data-rsv="pickup_time" type="time" value="09:00">
-                    </label>
-                  </div>
-                  <div class="crm-field">
-                    <div class="crm-field-head">
-                      <span class="crm-field-label">Pickup location</span>
-                      <button type="button" class="branch-info-btn" data-branch-picker="location" title="View branch details and select" aria-label="View branch details and select a pickup branch">i</button>
-                    </div>
-                    <select class="crm-input" data-rsv="location" aria-label="Pickup location">
-                      <option value="">Choose a branch...</option>
-                      <option>Downtown</option>
-                      <option>Northgate</option>
-                      <option>Riverside</option>
-                      <option>Westside</option>
-                      <option>Airport</option>
-                    </select>
-                  </div>
-                  <div class="rsv-row">
-                    <label class="crm-field">
-                      <span class="crm-field-label">Return date</span>
-                      <input class="crm-input" data-rsv="return_date" type="date">
-                    </label>
-                    <label class="crm-field">
-                      <span class="crm-field-label">Return time</span>
-                      <input class="crm-input" data-rsv="return_time" type="time" value="17:00">
-                    </label>
-                  </div>
-                  <label class="crm-check-row">
-                    <input type="checkbox" id="rsv-same-location" checked>
-                    <span>Returning to the same location</span>
-                  </label>
-                  <div class="crm-field" id="rsv-return-loc-field" hidden>
-                    <div class="crm-field-head">
-                      <span class="crm-field-label">Return location</span>
-                      <button type="button" class="branch-info-btn" data-branch-picker="return_location" title="View branch details and select" aria-label="View branch details and select a return branch">i</button>
-                    </div>
-                    <select class="crm-input" data-rsv="return_location" aria-label="Return location">
-                      <option value="">Choose a branch...</option>
-                      <option>Downtown</option>
-                      <option>Northgate</option>
-                      <option>Riverside</option>
-                      <option>Westside</option>
-                      <option>Airport</option>
-                    </select>
-                  </div>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Estimated miles</span>
-                    <input class="crm-input" data-rsv="miles" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 12" value="0">
-                  </label>
-                </section>
+            <section class="pos-card" id="pos-entity-card" hidden>
+              <div class="pos-card-head"><span class="pos-card-title" id="pos-entity-title">Entity</span></div>
+              <div class="pos-card-body" id="pos-entity-body"></div>
+            </section>
 
-                <section class="rsv-step" data-step="3" hidden>
-                  <header class="rsv-step-head">
-                    <div class="rsv-step-eyebrow">Step 3 of 4</div>
-                    <h3 class="rsv-step-title">Equipment and add-ons</h3>
-                  </header>
-                  <p class="crm-hint">Try: "Walk me through the biggest stuff. How many bedrooms? Any appliances?"</p>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Bedrooms</span>
-                    <select class="crm-input" data-rsv="bedrooms" data-numeric="1">
-                      <option value="0">Studio</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4+</option>
-                    </select>
-                  </label>
-                  <fieldset class="crm-checks">
-                    <legend class="crm-field-label">Major furniture</legend>
-                    <label><input type="checkbox" data-rsv-furniture="bed_queenking"> Queen or king bed</label>
-                    <label><input type="checkbox" data-rsv-furniture="bed_other"> Full or twin bed</label>
-                    <label><input type="checkbox" data-rsv-furniture="sofa"> Sofa / sectional</label>
-                    <label><input type="checkbox" data-rsv-furniture="dining"> Dining set</label>
-                    <label><input type="checkbox" data-rsv-furniture="dresser"> Dresser / armoire</label>
-                    <label><input type="checkbox" data-rsv-furniture="bookshelves"> Bookshelves</label>
-                  </fieldset>
-                  <fieldset class="crm-checks">
-                    <legend class="crm-field-label">Major appliances</legend>
-                    <label><input type="checkbox" data-rsv-appliance="washer"> Washer</label>
-                    <label><input type="checkbox" data-rsv-appliance="dryer"> Dryer</label>
-                    <label><input type="checkbox" data-rsv-appliance="fridge"> Fridge</label>
-                    <label><input type="checkbox" data-rsv-appliance="other"> Other large item</label>
-                  </fieldset>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Boxes (estimate)</span>
-                    <input class="crm-input" data-rsv="boxes" data-numeric="1" type="number" min="0" step="1" placeholder="e.g. 25" value="0">
-                  </label>
-
-                  <div class="rsv-truck" id="rsv-truck" data-size="?">
-                    <div class="rsv-truck-head">
-                      <span class="rsv-truck-tag" id="rsv-truck-tag">Recommendation</span>
-                      <span class="rsv-truck-label" id="rsv-truck-label">Add inventory to see a fit.</span>
-                    </div>
-                    <div class="rsv-truck-rate" id="rsv-truck-rate"></div>
-                    <label class="crm-field">
-                      <span class="crm-field-label">Override truck size</span>
-                      <select class="crm-input" data-rsv="truck_override">
-                        <option value="">Use system recommendation</option>
-                        <option value="10">10-foot ($19.95/day + $0.79/mi)</option>
-                        <option value="15">15-foot ($29.95/day + $0.89/mi)</option>
-                        <option value="20">20-foot ($39.95/day + $0.99/mi)</option>
-                        <option value="26">26-foot ($49.95/day + $1.19/mi)</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <fieldset class="crm-section-block">
-                    <legend class="crm-section-title">Damage waiver</legend>
-                    <p class="crm-hint">Try: "Want me to add the damage waiver? Basic is $15 a day for $5k, premium is $25 a day for $25k."</p>
-                    <label class="crm-field">
-                      <span class="crm-field-label">Coverage</span>
-                      <select class="crm-input" data-rsv="waiver">
-                        <option value="none">Decline coverage</option>
-                        <option value="basic">Basic ($15/day, up to $5k)</option>
-                        <option value="premium">Premium ($25/day, up to $25k)</option>
-                      </select>
-                    </label>
-                  </fieldset>
-
-                  <fieldset class="crm-checks">
-                    <legend class="crm-field-label">Equipment add-ons</legend>
-                    <label><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
-                    <label><input type="checkbox" data-rsv-equipment="dolly"> Utility dolly ($7/day)</label>
-                  </fieldset>
-                </section>
-
-                <section class="rsv-step" data-step="4" hidden>
-                  <header class="rsv-step-head">
-                    <div class="rsv-step-eyebrow">Step 4 of 4</div>
-                    <h3 class="rsv-step-title">Payment</h3>
-                  </header>
-                  <div class="rsv-test-banner">
-                    <span class="rsv-test-icon" aria-hidden="true">i</span>
-                    Training mode. Card details are not stored or charged.
-                  </div>
-
-                  <div class="rsv-summary" id="rsv-summary"></div>
-
-                  <p class="crm-hint">Try: "To secure the truck I'll just need a card. Can I get the number, the expiration, and the security code on the back?"</p>
-
-                  <div class="card-preview" id="card-preview" data-brand="unknown">
-                    <div class="card-preview-band">
-                      <span class="card-preview-issuer">Meridian · Card on File</span>
-                      <span class="card-preview-brand" id="card-preview-brand">CARD</span>
-                    </div>
-                    <div class="card-preview-number" id="card-preview-number">•••• •••• •••• ••••</div>
-                    <div class="card-preview-row">
-                      <div>
-                        <div class="card-preview-key">Cardholder</div>
-                        <div class="card-preview-val" id="card-preview-name">FULL NAME</div>
-                      </div>
-                      <div>
-                        <div class="card-preview-key">Expires</div>
-                        <div class="card-preview-val" id="card-preview-exp">MM/YY</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <label class="crm-field">
-                    <span class="crm-field-label">Cardholder name</span>
-                    <input class="crm-input" data-rsv="card_name" type="text" autocomplete="cc-name" placeholder="As it appears on the card">
-                  </label>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Card number</span>
-                    <input class="crm-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4111 1111 1111 1111" maxlength="23">
-                  </label>
-                  <div class="rsv-row">
-                    <label class="crm-field">
-                      <span class="crm-field-label">Expiry</span>
-                      <input class="crm-input" data-rsv="card_exp" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" maxlength="5">
-                    </label>
-                    <label class="crm-field">
-                      <span class="crm-field-label">CVV</span>
-                      <input class="crm-input" data-rsv="card_cvv" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4">
-                    </label>
-                  </div>
-                  <label class="crm-field">
-                    <span class="crm-field-label">Billing ZIP</span>
-                    <input class="crm-input" data-rsv="card_zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="98101" maxlength="5">
-                  </label>
-                </section>
-
-                <div class="rsv-error" id="rsv-error" hidden></div>
-
-                <div class="rsv-nav">
-                  <button type="button" class="ghost-button" id="rsv-back" hidden>Back</button>
-                  <div class="rsv-nav-total" id="rsv-nav-total" hidden></div>
-                  <button type="submit" class="primary-button rsv-next-btn" id="rsv-next">Continue</button>
+            <section class="pos-card">
+              <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span></div>
+              <div class="pos-card-body">
+                <div class="pos-note-group">
+                  <div class="pos-note-label">Customer Notes</div>
+                  <p class="pos-note-text" id="pos-customer-notes">No cautionary notes</p>
                 </div>
-              </form>
-            </div>
-            <div class="crm-rsv-result" id="crm-rsv-result"></div>
+                <div class="pos-note-group">
+                  <div class="pos-note-label">Callback Notes</div>
+                  <p class="pos-note-text">None on file</p>
+                </div>
+              </div>
+            </section>
+          </aside>
+
+          <div class="pos-stage">
+            <ol class="pos-stepper" id="pos-stepper" aria-label="Reservation steps">
+              <li class="pos-stepper-item active" data-step="1"><span class="pos-stepper-num">1</span><span class="pos-stepper-label">Details</span></li>
+              <li class="pos-stepper-item" data-step="2"><span class="pos-stepper-num">2</span><span class="pos-stepper-label">Equipment</span></li>
+              <li class="pos-stepper-item" data-step="3"><span class="pos-stepper-num">3</span><span class="pos-stepper-label">Location</span></li>
+              <li class="pos-stepper-item" data-step="4"><span class="pos-stepper-num">4</span><span class="pos-stepper-label">Time</span></li>
+              <li class="pos-stepper-item" data-step="5"><span class="pos-stepper-num">5</span><span class="pos-stepper-label">Checkout</span></li>
+            </ol>
+
+            <form class="pos-form" id="pos-form" autocomplete="off" novalidate>
+              <section class="pos-step" data-step="1">
+                <header class="pos-step-head">
+                  <h3 class="pos-step-title">Reservation Details</h3>
+                </header>
+                <p class="pos-hint">Try: "Thanks for calling Meridian Moving and Storage. May I start with your cell phone number?"</p>
+                <div class="pos-lookup">
+                  <input class="pos-input" id="pos-lookup-input" type="text" placeholder="Phone number or email address">
+                  <button type="button" class="pos-lookup-btn" id="pos-lookup-btn">Search</button>
+                </div>
+                <div class="pos-lookup-result" id="pos-lookup-result" hidden></div>
+
+                <div class="pos-divider"><span>Move details</span></div>
+
+                <div class="pos-grid-2">
+                  <label class="pos-field">
+                    <span class="pos-field-label">Moving From</span>
+                    <input class="pos-input" data-rsv="moving_from" type="text" placeholder="Zip, city, or landmark">
+                  </label>
+                  <label class="pos-field">
+                    <span class="pos-field-label">Moving To (optional)</span>
+                    <input class="pos-input" data-rsv="moving_to" type="text" placeholder="Zip, city, or landmark">
+                  </label>
+                </div>
+
+                <div class="pos-field">
+                  <span class="pos-field-label">Move Type</span>
+                  <div class="pos-radio-row">
+                    <label class="pos-radio"><input type="radio" name="move_type" data-rsv="move_type" value="in_town" checked> In Town</label>
+                    <label class="pos-radio"><input type="radio" name="move_type" data-rsv="move_type" value="one_way"> One Way</label>
+                  </div>
+                </div>
+
+                <div class="pos-grid-2">
+                  <label class="pos-field">
+                    <span class="pos-field-label">Move / Pickup Date</span>
+                    <input class="pos-input" data-rsv="pickup_date" type="date">
+                  </label>
+                  <label class="pos-field">
+                    <span class="pos-field-label">How many bedrooms?</span>
+                    <select class="pos-input" data-rsv="load_size">${loadSizeOptionsHtml}</select>
+                  </label>
+                </div>
+
+                <div class="pos-grid-2">
+                  <div class="pos-field">
+                    <span class="pos-field-label">Are you towing a vehicle?</span>
+                    <div class="pos-radio-row">
+                      <label class="pos-radio"><input type="radio" name="towing" data-rsv="towing" value="yes"> Yes</label>
+                      <label class="pos-radio"><input type="radio" name="towing" data-rsv="towing" value="no" checked> No</label>
+                    </div>
+                  </div>
+                  <div class="pos-field">
+                    <span class="pos-field-label">Do you need a trailer?</span>
+                    <div class="pos-radio-row">
+                      <label class="pos-radio"><input type="radio" name="trailer" data-rsv="trailer" value="yes"> Yes</label>
+                      <label class="pos-radio"><input type="radio" name="trailer" data-rsv="trailer" value="no" checked> No</label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="pos-step" data-step="2" hidden>
+                <header class="pos-step-head">
+                  <h3 class="pos-step-title">Choose Equipment</h3>
+                </header>
+                <p class="pos-hint" id="pos-equip-hint">Try: "Most families need about 8 hours with a 20' Moving Truck. Will that work for you?"</p>
+
+                <div class="pos-equip-rec" id="pos-equip-rec" data-size="?">
+                  <div class="pos-equip-badge">Recommended</div>
+                  <div class="pos-equip-body">
+                    <div class="pos-equip-name" id="pos-equip-name">Add a load size on the previous step to see a fit.</div>
+                    <div class="pos-equip-rate mono" id="pos-equip-rate"></div>
+                    <label class="pos-field pos-field-inline">
+                      <span class="pos-field-label">Rental Length</span>
+                      <select class="pos-input" data-rsv="rental_length">${rentalLengthOptionsHtml}</select>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="pos-upsell">
+                  <p class="pos-hint">Try: "Families who rent a truck find a Utility Dolly and a dozen Furniture Pads make the move easier. Can I add those for $17.00?"</p>
+                  <label class="pos-check"><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
+                  <label class="pos-check"><input type="checkbox" data-rsv-equipment="dolly"> Utility dolly ($7/day)</label>
+                </div>
+
+                <fieldset class="pos-fieldset">
+                  <legend>Damage waiver</legend>
+                  <select class="pos-input" data-rsv="waiver">
+                    <option value="none">Decline coverage</option>
+                    <option value="basic">Basic ($15/day, up to $5k)</option>
+                    <option value="premium">Premium ($25/day, up to $25k)</option>
+                  </select>
+                </fieldset>
+
+                <details class="pos-equip-all">
+                  <summary>Show all moving equipment</summary>
+                  <div class="pos-equip-grid">
+                    ${TRUCK_SIZES.map((t) => `
+                      <button type="button" class="pos-equip-opt" data-truck="${t.size}">
+                        <span class="pos-equip-opt-name">${t.size}' Moving Truck</span>
+                        <span class="pos-equip-opt-rate mono">$${t.base.toFixed(2)} + $${t.per_mile.toFixed(2)}/mi</span>
+                      </button>
+                    `).join('')}
+                  </div>
+                </details>
+              </section>
+
+              <section class="pos-step" data-step="3" hidden>
+                <header class="pos-step-head">
+                  <h3 class="pos-step-title">Select Pick Up Location</h3>
+                </header>
+                <p class="pos-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
+                <div class="pos-loc-list" id="pos-loc-list">${posLocationsHtml}</div>
+              </section>
+
+              <section class="pos-step" data-step="4" hidden>
+                <header class="pos-step-head">
+                  <h3 class="pos-step-title">Scheduling</h3>
+                </header>
+                <div class="pos-sched-truck" id="pos-sched-truck"></div>
+                <div class="pos-sched-loc" id="pos-sched-loc"></div>
+                <p class="pos-hint">Try: "What time would you like to pick up?"</p>
+                <label class="pos-field">
+                  <span class="pos-field-label">Available Times</span>
+                  <select class="pos-input" data-rsv="pickup_time">${timeSlotsHtml}</select>
+                </label>
+                <div class="pos-field">
+                  <span class="pos-field-label">Pickup Method</span>
+                  <div class="pos-radio-row">
+                    <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="in_store" checked> In Store</label>
+                    <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="truckshare"> TruckShare</label>
+                  </div>
+                </div>
+                <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic"> Send to Traffic</label>
+              </section>
+
+              <section class="pos-step" data-step="5" hidden>
+                <header class="pos-step-head">
+                  <h3 class="pos-step-title">Checkout</h3>
+                </header>
+                <div class="pos-test-banner">Training mode. Card details are not stored or charged.</div>
+                <div class="pos-card-status" id="pos-card-status">Enter the card in the Credit Card panel to confirm.</div>
+
+                <fieldset class="pos-fieldset">
+                  <legend>Additional products and services</legend>
+                  <label class="pos-field">
+                    <span class="pos-field-label">Will you need storage before or after the move?</span>
+                    <select class="pos-input" data-rsv="storage">
+                      <option value="no">No storage needed</option>
+                      <option value="before">Yes, before the move</option>
+                      <option value="after">Yes, after the move</option>
+                    </select>
+                  </label>
+                </fieldset>
+
+                <fieldset class="pos-fieldset">
+                  <legend>Verify contact information</legend>
+                  <p class="pos-hint">Try: "What is your preferred method of contact: email, phone, or text?"</p>
+                  <div class="pos-grid-2">
+                    <label class="pos-field">
+                      <span class="pos-field-label">Email for receipt</span>
+                      <input class="pos-input" data-rsv="receipt_email" type="text" inputmode="email" placeholder="name@example.com">
+                    </label>
+                    <label class="pos-field">
+                      <span class="pos-field-label">Phone number</span>
+                      <input class="pos-input" data-rsv="receipt_phone" type="tel" placeholder="555-123-4567">
+                    </label>
+                  </div>
+                  <div class="pos-field">
+                    <span class="pos-field-label">Preferred Contact Method</span>
+                    <div class="pos-check-row">
+                      <label class="pos-check"><input type="checkbox" data-rsv-contact="email"> Email</label>
+                      <label class="pos-check"><input type="checkbox" data-rsv-contact="phone"> Phone</label>
+                      <label class="pos-check"><input type="checkbox" data-rsv-contact="text" checked> Text</label>
+                    </div>
+                  </div>
+                  <label class="pos-field">
+                    <span class="pos-field-label">Current Address (optional)</span>
+                    <input class="pos-input" data-rsv="current_address" type="text" placeholder="Street, city, state">
+                  </label>
+                  <div class="pos-field">
+                    <span class="pos-field-label">Preferred Language</span>
+                    <div class="pos-radio-row">
+                      <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="english" checked> English</label>
+                      <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="french"> French</label>
+                      <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="spanish"> Spanish</label>
+                    </div>
+                  </div>
+                </fieldset>
+              </section>
+
+              <div class="pos-error" id="pos-error" hidden></div>
+              <div class="pos-nav">
+                <button type="button" class="ghost-button" id="pos-back" hidden>Back</button>
+                <button type="submit" class="primary-button" id="pos-next">Continue</button>
+              </div>
+            </form>
+
+            <div class="pos-result" id="pos-result"></div>
           </div>
 
-          <div class="crm-pane crm-pane-branches" data-tab="branches" hidden>
-            <p class="crm-hint">Meridian San Antonio locations. Pick the pickup branch nearest where the customer is loading.</p>
-            <div class="branch-list">${branchesHtml}</div>
+          <aside class="pos-rail pos-rail-right" aria-label="Cart and payment">
+            <section class="pos-card pos-cart-card">
+              <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span></div>
+              <div class="pos-card-body" id="pos-cart-body">
+                <p class="pos-card-empty">Add equipment to start the cart.</p>
+              </div>
+            </section>
+
+            <section class="pos-card">
+              <div class="pos-card-head"><span class="pos-card-title">Credit Card</span></div>
+              <div class="pos-card-body pos-cc">
+                <label class="pos-field">
+                  <span class="pos-field-label">Card Number</span>
+                  <input class="pos-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4111 1111 1111 1111" maxlength="23">
+                </label>
+                <div class="pos-grid-2">
+                  <label class="pos-field">
+                    <span class="pos-field-label">Exp Month</span>
+                    <select class="pos-input" data-rsv="card_exp_month">${expMonthsHtml}</select>
+                  </label>
+                  <label class="pos-field">
+                    <span class="pos-field-label">Exp Year</span>
+                    <select class="pos-input" data-rsv="card_exp_year">${expYearsHtml}</select>
+                  </label>
+                </div>
+                <label class="pos-field">
+                  <span class="pos-field-label">Billing Zip Code</span>
+                  <input class="pos-input" data-rsv="card_zip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="78207" maxlength="5">
+                </label>
+                <div class="pos-cc-chip" id="pos-cc-chip" data-brand="unknown" hidden>
+                  <span class="pos-cc-brand" id="pos-cc-brand">CARD</span>
+                  <span class="mono" id="pos-cc-last4">&bull;&bull;&bull;&bull;</span>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <div class="call-dock" id="call-dock" data-mode="${isPhone ? 'phone' : 'chat'}" data-collapsed="false">
+          <button type="button" class="call-dock-head" id="call-dock-head" aria-expanded="true">
+            <span class="call-dock-dot" id="call-dock-dot"></span>
+            <span class="call-dock-title">${escapeHtml(displayName)}</span>
+            <span class="call-dock-sub">${isPhone ? 'Live call' : 'Chat'}</span>
+            <span class="call-dock-chevron" aria-hidden="true">&#9662;</span>
+          </button>
+          <div class="call-dock-body" id="call-dock-body">
+            <div class="call-dock-convo">
+              <ol class="transcript" id="transcript" aria-live="polite"></ol>
+            </div>
+            <div class="call-dock-aside">
+              ${isPhone ? `
+              ${!useOrb ? `<div class="visualizer-wrap" id="visualizer-wrap" data-active="false"><canvas class="visualizer" id="visualizer"></canvas></div>` : ''}
+              <div class="phone-status" id="phone-status" data-state="connecting">
+                <div class="phone-status-row">
+                  <span class="phone-status-dot" aria-hidden="true"></span>
+                  <span class="phone-status-text" id="phone-status-text">Connecting...</span>
+                </div>
+                <p class="phone-status-hint" id="phone-status-hint">When the customer finishes, just talk. Pause for a beat and your reply sends.</p>
+              </div>
+              ` : `
+              <div class="composer-wrap" id="composer-wrap" data-mode="text">
+                <form class="composer" id="composer" autocomplete="off">
+                  <label class="visually-hidden" for="composer-input">Your message</label>
+                  <textarea id="composer-input" class="composer-input" placeholder="${escapeAttr(placeholder)}" rows="2"></textarea>
+                  <button type="submit" class="composer-send" id="composer-send">Send</button>
+                </form>
+                <p class="composer-status" id="composer-status" aria-live="polite"></p>
+              </div>
+              `}
+            </div>
           </div>
-        </aside>
+        </div>
       </div>
     </section>
   `;
@@ -1198,385 +1285,279 @@ function renderCall(scenario) {
     composerSend.textContent = enabled ? 'Send' : 'Sending';
   }
 
-  // ---- CRM lookup panel ----
-  const crmForm = document.getElementById('crm-form');
-  const crmPhone = document.getElementById('crm-phone');
-  const crmEmail = document.getElementById('crm-email');
-  const crmName = document.getElementById('crm-name');
-  const crmResult = document.getElementById('crm-result');
-
-  crmForm?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const query = {
-      phone: crmPhone.value,
-      email: crmEmail.value,
-      name: crmName.value,
-    };
-    if (!query.phone.trim() && !query.email.trim() && !query.name.trim()) {
-      renderCrmEmpty('Enter at least one field to search.');
-      return;
-    }
-    const record = scenario.customer_record;
-    const match = matchCustomerRecord(record, query);
-    if (match) {
-      renderCrmCard(record);
-    } else if (record && record.found === false) {
-      renderCrmNotFound(record.notes, true);
-    } else {
-      renderCrmNotFound('No customer matches those details. Ask the caller to confirm their info.', false);
-    }
-  });
-
-  function renderCrmEmpty(text) {
-    crmResult.dataset.state = 'empty';
-    crmResult.innerHTML = `<p class="crm-empty">${escapeHtml(text)}</p>`;
-  }
-
-  function renderCrmNotFound(notes, isProspect) {
-    crmResult.dataset.state = isProspect ? 'prospect' : 'notfound';
-    crmResult.innerHTML = `
-      <div class="crm-card crm-card-empty">
-        <div class="crm-card-status">${isProspect ? 'New prospect' : 'No match'}</div>
-        <p class="crm-card-blurb">${escapeHtml(notes || (isProspect ? 'No record in the system.' : 'No customer matched those details.'))}</p>
-        <button type="button" class="crm-card-cta" data-action="start-reservation">
-          Start a new reservation
-          <span aria-hidden="true">›</span>
-        </button>
-      </div>
-    `;
-    crmResult.querySelector('[data-action="start-reservation"]')?.addEventListener('click', () => switchCrmTab('reservation'));
-  }
-
-  function renderCrmCard(r) {
-    crmResult.dataset.state = 'found';
-    const past = (r.past_rentals || []);
-    const reservations = (r.active_reservations || []);
-    const claims = (r.claims_cases || []);
-    crmResult.innerHTML = `
-      <div class="crm-card">
-        <div class="crm-card-status crm-card-status-found">Record found</div>
-        <div class="crm-section">
-          <div class="crm-section-title">Identity</div>
-          <dl class="crm-kv">
-            <div><dt>Name</dt><dd>${escapeHtml(r.full_name)}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">${escapeHtml(r.phone)}</dd></div>
-            <div><dt>Email</dt><dd class="mono">${escapeHtml(r.email)}</dd></div>
-            <div><dt>Account</dt><dd class="mono">${escapeHtml(r.account_id)}</dd></div>
-            <div><dt>Member since</dt><dd>${escapeHtml(String(r.member_since))}</dd></div>
-          </dl>
-        </div>
-        ${reservations.length ? `
-        <div class="crm-section crm-section-accent">
-          <div class="crm-section-title">Active reservations</div>
-          <ul class="crm-list">
-            ${reservations.map((res) => `
-              <li>
-                <div class="crm-list-head"><span class="mono">${escapeHtml(res.confirmation)}</span></div>
-                <div class="crm-list-body">${escapeHtml(res.truck)} · ${escapeHtml(res.location)} · ${escapeHtml(res.date)}</div>
-                <div class="crm-list-meta">${escapeHtml(res.total)} · <em>${escapeHtml(res.status)}</em></div>
-              </li>
-            `).join('')}
-          </ul>
-        </div>
-        ` : ''}
-        ${claims.length ? `
-        <div class="crm-section crm-section-warn">
-          <div class="crm-section-title">Open Claims cases</div>
-          <ul class="crm-list">
-            ${claims.map((c) => `
-              <li>
-                <div class="crm-list-head"><span class="mono">${escapeHtml(c.case_id)}</span> · <strong>${escapeHtml(c.amount)}</strong></div>
-                <div class="crm-list-body">${escapeHtml(c.description)}</div>
-                <div class="crm-list-meta">Opened ${escapeHtml(c.opened)} · <em>${escapeHtml(c.status)}</em></div>
-              </li>
-            `).join('')}
-          </ul>
-        </div>
-        ` : ''}
-        ${past.length ? `
-        <div class="crm-section">
-          <div class="crm-section-title">Past rentals (${past.length})</div>
-          <ul class="crm-list crm-list-compact">
-            ${past.map((p) => `
-              <li>
-                <span class="mono">${escapeHtml(p.date)}</span> · ${escapeHtml(p.truck)} · ${escapeHtml(p.location)} · ${escapeHtml(p.total)} · <em>${escapeHtml(p.status)}</em>
-              </li>
-            `).join('')}
-          </ul>
-        </div>
-        ` : ''}
-        ${r.notes ? `
-        <div class="crm-section crm-section-notes">
-          <div class="crm-section-title">Agent notes</div>
-          <p>${escapeHtml(r.notes)}</p>
-        </div>
-        ` : ''}
-      </div>
-    `;
-  }
-
-  function matchCustomerRecord(record, query) {
-    if (!record || record.found === false) return false;
-    const phoneDigits = (s) => String(s || '').replace(/\D/g, '');
-    const norm = (s) => String(s || '').toLowerCase().trim();
-    const qPhone = phoneDigits(query.phone);
-    const qEmail = norm(query.email);
-    const qName = norm(query.name);
-    if (qPhone && phoneDigits(record.phone).includes(qPhone) && qPhone.length >= 4) return true;
-    if (qEmail && norm(record.email).includes(qEmail) && qEmail.length >= 3) return true;
-    if (qName && norm(record.full_name).includes(qName) && qName.length >= 2) return true;
-    return false;
-  }
-
-  // ---- CRM tabs + reservation builder ----
-  const crmTabs = dom.root.querySelectorAll('.crm-tab');
-  const crmPanes = dom.root.querySelectorAll('.crm-pane');
-  function switchCrmTab(name) {
-    const target = crmTabs && Array.from(crmTabs).find((b) => b.dataset.tab === name);
-    if (target) target.click();
-  }
-  crmTabs.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const target = btn.dataset.tab;
-      crmTabs.forEach((b) => {
-        const active = b.dataset.tab === target;
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-selected', String(active));
-      });
-      crmPanes.forEach((p) => {
-        p.hidden = p.dataset.tab !== target;
-      });
-    });
-  });
-
-  const rsvWizard = document.getElementById('rsv-wizard');
-  const rsvForm = document.getElementById('crm-reservation');
-  const rsvResult = document.getElementById('crm-rsv-result');
-  const rsvNextBtn = document.getElementById('rsv-next');
-  const rsvBackBtn = document.getElementById('rsv-back');
-  const rsvNavTotal = document.getElementById('rsv-nav-total');
-  const rsvErrorEl = document.getElementById('rsv-error');
-  const rsvSummary = document.getElementById('rsv-summary');
-  const rsvTruckBox = document.getElementById('rsv-truck');
-  const rsvTruckTag = document.getElementById('rsv-truck-tag');
-  const rsvTruckLabel = document.getElementById('rsv-truck-label');
-  const rsvTruckRate = document.getElementById('rsv-truck-rate');
-  const cardPreview = document.getElementById('card-preview');
-  const cardPrevBrand = document.getElementById('card-preview-brand');
-  const cardPrevNumber = document.getElementById('card-preview-number');
-  const cardPrevName = document.getElementById('card-preview-name');
-  const cardPrevExp = document.getElementById('card-preview-exp');
-  const sameLocCheck = document.getElementById('rsv-same-location');
-  const returnLocField = document.getElementById('rsv-return-loc-field');
-
-  const TRUCK_INFO = {
-    10: { label: '10-foot truck', daily: 19.95, per_mile: 0.79 },
-    15: { label: '15-foot truck', daily: 29.95, per_mile: 0.89 },
-    20: { label: '20-foot truck', daily: 39.95, per_mile: 0.99 },
-    26: { label: '26-foot truck', daily: 49.95, per_mile: 1.19 },
-  };
+  // ---- POS reservation system ----
+  const pos = document.getElementById('pos');
+  const posForm = document.getElementById('pos-form');
+  const posStepper = document.getElementById('pos-stepper');
+  const posNav = pos.querySelector('.pos-nav');
+  const posNextBtn = document.getElementById('pos-next');
+  const posBackBtn = document.getElementById('pos-back');
+  const posErrorEl = document.getElementById('pos-error');
+  const posResult = document.getElementById('pos-result');
+  const posCartBody = document.getElementById('pos-cart-body');
+  const posCcChip = document.getElementById('pos-cc-chip');
+  const posCcBrand = document.getElementById('pos-cc-brand');
+  const posCcLast4 = document.getElementById('pos-cc-last4');
+  const posCardStatus = document.getElementById('pos-card-status');
+  const posEquipRec = document.getElementById('pos-equip-rec');
+  const posEquipName = document.getElementById('pos-equip-name');
+  const posEquipRate = document.getElementById('pos-equip-rate');
+  const posEquipHint = document.getElementById('pos-equip-hint');
+  const posLocList = document.getElementById('pos-loc-list');
+  const posSchedTruck = document.getElementById('pos-sched-truck');
+  const posSchedLoc = document.getElementById('pos-sched-loc');
+  const posVerified = document.getElementById('pos-verified');
+  const posCustomerBody = document.getElementById('pos-customer-body');
+  const posRsvDetailsBody = document.getElementById('pos-rsvdetails-body');
+  const posEntityCard = document.getElementById('pos-entity-card');
+  const posEntityTitle = document.getElementById('pos-entity-title');
+  const posEntityBody = document.getElementById('pos-entity-body');
+  const posCustomerNotes = document.getElementById('pos-customer-notes');
+  const posLookupInput = document.getElementById('pos-lookup-input');
+  const posLookupBtn = document.getElementById('pos-lookup-btn');
+  const posLookupResult = document.getElementById('pos-lookup-result');
 
   const WAIVER_INFO = {
     none: { label: 'Waiver declined', daily: 0 },
     basic: { label: 'Basic waiver', daily: 15 },
     premium: { label: 'Premium waiver', daily: 25 },
   };
+  const ENV_FEE = 1.00;
+  const VLRF = 1.20;
+  const TAX_RATE = 0.0825;
+  const TOTAL_STEPS = 5;
+  let posStep = 1;
+  let truckOverride = null;
+  let selectedLocation = null;
+  let selectedRecord = null;
+  let storageAsked = false;
 
-  const TAX_RATE = 0.09;
-  const TOTAL_STEPS = 4;
-  let rsvStep = 1;
+  function fmtMoney(n) { return '$' + Number(n || 0).toFixed(2); }
 
   function getRsv(name) {
-    const el = rsvForm.querySelector(`[data-rsv="${name}"]`);
-    return el?.value || '';
+    const els = pos.querySelectorAll(`[data-rsv="${name}"]`);
+    if (!els.length) return '';
+    if (els[0].type === 'radio') {
+      const checked = Array.from(els).find((e) => e.checked);
+      return checked ? checked.value : '';
+    }
+    return els[0].value || '';
+  }
+  function setRsv(name, value) {
+    const el = pos.querySelector(`[data-rsv="${name}"]`);
+    if (el) el.value = value;
   }
 
-  function fmtMoney(n) {
-    return '$' + Number(n || 0).toFixed(2);
+  function recommendedSize() {
+    if (truckOverride) return truckOverride;
+    const ls = LOAD_BY_VALUE[getRsv('load_size')];
+    return ls && ls.truck ? ls.truck : null;
   }
-
-  function computeRecommendedTruck() {
-    const bedrooms = Number(getRsv('bedrooms') || 0);
-    const boxes = Number(getRsv('boxes') || 0);
-    const furnitureCount = rsvForm.querySelectorAll('[data-rsv-furniture]:checked').length;
-    const applianceCount = rsvForm.querySelectorAll('[data-rsv-appliance]:checked').length;
-    const score = bedrooms * 2 + furnitureCount + applianceCount * 2 + boxes / 10;
-    let size;
-    if (score < 4) size = 10;
-    else if (score < 9) size = 15;
-    else if (score < 16) size = 20;
-    else size = 26;
-    return { size, score };
+  function currentTruck() {
+    const size = recommendedSize();
+    return size ? TRUCK_BY_SIZE[size] : null;
   }
-
-  function currentTruckSize() {
-    const override = getRsv('truck_override');
-    if (override) return Number(override);
-    return computeRecommendedTruck().size;
-  }
-
-  function computeRentalDays() {
-    const pd = getRsv('pickup_date');
-    const rd = getRsv('return_date');
-    if (!pd || !rd) return 1;
-    const start = new Date(pd + 'T00:00:00');
-    const end = new Date(rd + 'T00:00:00');
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
-    const ms = end - start;
-    const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
-    return Math.max(1, days || 1);
+  function rentalDays() {
+    const r = RENTAL_BY_VALUE[getRsv('rental_length')];
+    return r ? r.days : 1;
   }
 
   function computeQuote() {
-    const days = computeRentalDays();
-    const miles = Number(getRsv('miles') || 0);
-    const truckSize = currentTruckSize();
-    const truck = TRUCK_INFO[truckSize];
-    const recommended = computeRecommendedTruck();
-    const waiverKey = getRsv('waiver') || 'none';
-    const waiver = WAIVER_INFO[waiverKey] || WAIVER_INFO.none;
-    const padsChecked = !!rsvForm.querySelector('[data-rsv-equipment="pads"]:checked');
-    const dollyChecked = !!rsvForm.querySelector('[data-rsv-equipment="dolly"]:checked');
-
-    const truckCost = truck.daily * days;
-    const milesCost = truck.per_mile * miles;
-    const waiverCost = waiver.daily * days;
-    const padsCost = padsChecked ? 10 : 0;
-    const dollyCost = dollyChecked ? 7 * days : 0;
-
-    const subtotal = truckCost + milesCost + waiverCost + padsCost + dollyCost;
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + tax;
+    const truck = currentTruck();
+    const oneWay = getRsv('move_type') === 'one_way';
+    const days = rentalDays();
+    const waiver = WAIVER_INFO[getRsv('waiver') || 'none'] || WAIVER_INFO.none;
+    const padsChecked = !!pos.querySelector('[data-rsv-equipment="pads"]:checked');
+    const dollyChecked = !!pos.querySelector('[data-rsv-equipment="dolly"]:checked');
 
     const lines = [];
-    lines.push({ label: `${truck.label} × ${days} day${days === 1 ? '' : 's'}`, amount: truckCost });
-    if (miles > 0) lines.push({ label: `Mileage (${miles} mi × $${truck.per_mile.toFixed(2)})`, amount: milesCost });
-    if (waiverCost > 0) lines.push({ label: `${waiver.label} × ${days} day${days === 1 ? '' : 's'}`, amount: waiverCost });
-    if (padsChecked) lines.push({ label: 'Furniture pads (1 pack)', amount: padsCost });
-    if (dollyChecked) lines.push({ label: `Utility dolly × ${days} day${days === 1 ? '' : 's'}`, amount: dollyCost });
+    let subtotal = 0;
+    if (truck) {
+      const truckCost = oneWay ? truck.oneway : truck.base * days;
+      subtotal += truckCost;
+      lines.push({
+        label: truck.label,
+        sub: oneWay ? 'one-way rate' : `$${truck.base.toFixed(2)}${days > 1 ? ' x ' + days + ' days' : ''} + $${truck.per_mile.toFixed(2)}/mile`,
+        amount: truckCost,
+      });
+      subtotal += ENV_FEE;
+      lines.push({ label: 'Environmental Fee', amount: ENV_FEE });
+      subtotal += VLRF;
+      lines.push({ label: 'Vehicle License Recovery Fee', amount: VLRF });
+    }
+    const waiverCost = waiver.daily * days;
+    if (waiverCost > 0) { subtotal += waiverCost; lines.push({ label: `${waiver.label}${days > 1 ? ' x ' + days + ' days' : ''}`, amount: waiverCost }); }
+    if (padsChecked) { subtotal += 10; lines.push({ label: 'Furniture pads', amount: 10 }); }
+    if (dollyChecked) { const c = 7 * days; subtotal += c; lines.push({ label: `Utility dolly${days > 1 ? ' x ' + days + ' days' : ''}`, amount: c }); }
 
-    return {
-      days, miles, truckSize, truck, recommended, waiver, waiverKey,
-      padsChecked, dollyChecked, lines, subtotal, tax, total,
-    };
+    const tax = subtotal * TAX_RATE;
+    const total = subtotal + tax;
+    return { truck, oneWay, days, waiver, padsChecked, dollyChecked, lines, subtotal, tax, total };
   }
 
-  function recomputeReservation() {
-    const quote = computeQuote();
-
-    if (rsvTruckBox) {
-      rsvTruckBox.dataset.size = String(quote.truckSize);
-      const override = getRsv('truck_override');
-      const hasInventory = quote.recommended.score > 0;
-      if (!hasInventory && !override) {
-        rsvTruckTag.textContent = 'Recommendation';
-        rsvTruckLabel.textContent = 'Add inventory to see a fit.';
-        rsvTruckRate.textContent = '';
-      } else {
-        rsvTruckTag.textContent = override ? 'Override' : 'Recommendation';
-        rsvTruckLabel.textContent = quote.truck.label;
-        rsvTruckRate.textContent = `$${quote.truck.daily.toFixed(2)}/day + $${quote.truck.per_mile.toFixed(2)}/mile`;
-      }
+  function renderCart() {
+    const q = computeQuote();
+    if (!q.truck) {
+      posCartBody.innerHTML = '<p class="pos-card-empty">Add equipment to start the cart.</p>';
+      return;
     }
-
-    if (rsvNavTotal) {
-      const hasInventory = quote.recommended.score > 0 || Boolean(getRsv('truck_override'));
-      if (hasInventory) {
-        rsvNavTotal.innerHTML = `
-          <span class="rsv-nav-total-label">Est. total</span>
-          <span class="rsv-nav-total-amount mono">${fmtMoney(quote.total)}</span>
-        `;
-        rsvNavTotal.hidden = false;
-      } else {
-        rsvNavTotal.hidden = true;
-      }
-    }
-
-    if (rsvSummary) {
-      const linesHtml = quote.lines.map((l) => `
-        <div class="rsv-summary-line"><span>${escapeHtml(l.label)}</span><span class="mono">${fmtMoney(l.amount)}</span></div>
-      `).join('');
-      rsvSummary.innerHTML = `
-        <div class="rsv-summary-head">
-          <span>Authorization hold</span>
-          <span class="rsv-summary-head-amount mono">${fmtMoney(quote.total)}</span>
-        </div>
-        <div class="rsv-summary-body">
-          ${linesHtml || '<p class="rsv-summary-empty">No charges yet.</p>'}
-          <div class="rsv-summary-rule"></div>
-          <div class="rsv-summary-line"><span>Subtotal</span><span class="mono">${fmtMoney(quote.subtotal)}</span></div>
-          <div class="rsv-summary-line rsv-summary-line-muted"><span>Estimated tax (${(TAX_RATE * 100).toFixed(0)}%)</span><span class="mono">${fmtMoney(quote.tax)}</span></div>
-          <div class="rsv-summary-rule"></div>
-          <div class="rsv-summary-line rsv-summary-total"><span>Total to authorize</span><span class="mono">${fmtMoney(quote.total)}</span></div>
-        </div>
-      `;
-    }
-
-    if (rsvStep === TOTAL_STEPS && rsvNextBtn) {
-      rsvNextBtn.textContent = `Authorize ${fmtMoney(quote.total)} & save`;
-    }
+    const lineHtml = q.lines.map((l) => `
+      <div class="pos-cart-line">
+        <div class="pos-cart-line-label">${escapeHtml(l.label)}${l.sub ? `<span class="pos-cart-line-sub">${escapeHtml(l.sub)}</span>` : ''}</div>
+        <div class="pos-cart-line-amt mono">${fmtMoney(l.amount)}</div>
+      </div>
+    `).join('');
+    posCartBody.innerHTML = `
+      <div class="pos-cart-tag">Truck Rental</div>
+      ${lineHtml}
+      <div class="pos-cart-rule"></div>
+      <div class="pos-cart-line pos-cart-subtotal"><div class="pos-cart-line-label">Subtotal</div><div class="pos-cart-line-amt mono">${fmtMoney(q.subtotal)}</div></div>
+      <details class="pos-cart-taxes"><summary>Show taxes</summary>
+        <div class="pos-cart-line pos-cart-line-muted"><div class="pos-cart-line-label">Estimated tax (8.25%)</div><div class="pos-cart-line-amt mono">${fmtMoney(q.tax)}</div></div>
+      </details>
+      <div class="pos-cart-rule"></div>
+      <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(q.total)}</div></div>
+      <div class="pos-cart-note">Mileage and local taxes are calculated at return.</div>
+    `;
   }
 
-  function showStep(n) {
-    rsvStep = Math.max(1, Math.min(TOTAL_STEPS, n));
-    rsvWizard.dataset.step = String(rsvStep);
-    rsvForm.querySelectorAll('.rsv-step').forEach((sec) => {
-      sec.hidden = Number(sec.dataset.step) !== rsvStep;
-    });
-    rsvWizard.querySelectorAll('.rsv-stepper-item').forEach((it) => {
-      const stepNum = Number(it.dataset.step);
-      it.classList.toggle('active', stepNum === rsvStep);
-      it.classList.toggle('done', stepNum < rsvStep);
-    });
-    rsvBackBtn.hidden = rsvStep === 1;
-    rsvErrorEl.hidden = true;
-    if (rsvStep === TOTAL_STEPS) {
-      const quote = computeQuote();
-      rsvNextBtn.textContent = `Authorize ${fmtMoney(quote.total)} & save`;
+  function renderEquip() {
+    const size = recommendedSize();
+    const truck = size ? TRUCK_BY_SIZE[size] : null;
+    posEquipRec.dataset.size = size ? String(size) : '?';
+    const badge = posEquipRec.querySelector('.pos-equip-badge');
+    if (badge) badge.textContent = truckOverride ? 'Override' : 'Recommended';
+    if (!truck) {
+      posEquipName.textContent = 'Add a load size on the Details step to see a fit.';
+      posEquipRate.textContent = '';
     } else {
-      rsvNextBtn.textContent = 'Continue';
+      posEquipName.textContent = truck.label;
+      const oneWay = getRsv('move_type') === 'one_way';
+      posEquipRate.textContent = oneWay
+        ? `$${truck.oneway.toFixed(2)} one-way rate`
+        : `$${truck.base.toFixed(2)} + $${truck.per_mile.toFixed(2)}/mile`;
+      if (posEquipHint) posEquipHint.textContent = `Try: "Most families need about 8 hours with a ${truck.label}. Will that work for you?"`;
     }
-    recomputeReservation();
-    const pane = rsvWizard.closest('.crm-pane');
-    if (pane) pane.scrollTop = 0;
+    pos.querySelectorAll('.pos-equip-opt').forEach((b) => b.classList.toggle('selected', Number(b.dataset.truck) === size));
   }
 
-  function validateStep(n) {
-    if (n === 1) {
-      if (!getRsv('full_name').trim()) return 'Confirm the customer\'s full name before continuing.';
-      if (!getRsv('phone').trim()) return 'Confirm a phone number before continuing.';
-    } else if (n === 2) {
-      if (!getRsv('pickup_date')) return 'Set the pickup date.';
-      if (!getRsv('location')) return 'Choose the pickup location.';
-      if (!getRsv('return_date')) return 'Set the return date.';
-      const pd = new Date(getRsv('pickup_date'));
-      const rd = new Date(getRsv('return_date'));
-      if (rd < pd) return 'Return date must be on or after the pickup date.';
-      if (!sameLocCheck.checked && !getRsv('return_location')) return 'Choose the return location, or check "Returning to the same location".';
-    } else if (n === 3) {
-      if (computeRecommendedTruck().score === 0 && !getRsv('truck_override')) {
-        return 'Add at least one inventory item, or override the truck size.';
-      }
-    } else if (n === 4) {
-      if (!getRsv('card_name').trim()) return 'Cardholder name is required.';
-      const num = getRsv('card_number').replace(/\D/g, '');
-      if (num.length < 13) return 'Card number looks too short.';
-      const exp = getRsv('card_exp');
-      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(exp)) return 'Expiry must be MM/YY.';
-      const cvv = getRsv('card_cvv');
-      if (!/^\d{3,4}$/.test(cvv)) return 'CVV should be 3 or 4 digits.';
-      const zip = getRsv('card_zip');
-      if (!/^\d{5}$/.test(zip)) return 'Billing ZIP should be 5 digits.';
+  function renderEntity() {
+    const loc = LOC_BY_NAME[selectedLocation];
+    if (!loc) { posEntityCard.hidden = true; return; }
+    posEntityCard.hidden = false;
+    posEntityTitle.textContent = `Entity ${loc.entity}`;
+    posEntityBody.innerHTML = `
+      <div class="pos-kv"><span>Location</span><span>Meridian of ${escapeHtml(loc.name)}</span></div>
+      <div class="pos-kv"><span>Address</span><span class="mono">${escapeHtml(loc.address)}</span></div>
+      <div class="pos-kv"><span>Phone</span><span class="mono">${escapeHtml(loc.phone)}</span></div>
+    `;
+  }
+
+  function renderSched() {
+    const q = computeQuote();
+    const loc = LOC_BY_NAME[selectedLocation];
+    const rl = RENTAL_BY_VALUE[getRsv('rental_length')];
+    if (q.truck) {
+      posSchedTruck.innerHTML = `
+        <div class="pos-sched-row">
+          <span class="pos-sched-truck-name">${escapeHtml(q.truck.label)}</span>
+          <span class="mono">${q.oneWay ? '$' + q.truck.oneway.toFixed(2) + ' one-way' : '$' + q.truck.base.toFixed(2) + ' + $' + q.truck.per_mile.toFixed(2) + '/mile'}</span>
+        </div>
+        <div class="pos-sched-sub">Rental length: ${escapeHtml(rl ? rl.label : '8 hours')}</div>
+      `;
+    } else {
+      posSchedTruck.innerHTML = '';
     }
-    return null;
+    if (loc) {
+      posSchedLoc.innerHTML = `
+        <div class="pos-sched-loc-title">Pick Up Location (${escapeHtml(loc.entity)})</div>
+        <div class="pos-sched-loc-name">Meridian Moving &amp; Storage of ${escapeHtml(loc.name)}</div>
+        <div class="pos-sched-loc-addr mono">${escapeHtml(loc.address)}</div>
+        <div class="pos-sched-loc-addr mono">${escapeHtml(loc.phone)}</div>
+      `;
+    } else {
+      posSchedLoc.innerHTML = '<p class="pos-card-empty">Select a pickup location on the previous step.</p>';
+    }
   }
 
-  function showRsvError(text) {
-    rsvErrorEl.textContent = text;
-    rsvErrorEl.hidden = false;
+  function renderLeftRail() {
+    const ls = LOAD_BY_VALUE[getRsv('load_size')];
+    const rows = [];
+    if (getRsv('moving_from')) rows.push(['Moving From', getRsv('moving_from')]);
+    if (getRsv('moving_to')) rows.push(['Moving To', getRsv('moving_to')]);
+    if (getRsv('pickup_date')) rows.push(['Rental Date', getRsv('pickup_date')]);
+    if (ls) rows.push(['Moving', ls.label]);
+    rows.push(['Move Type', getRsv('move_type') === 'one_way' ? 'One Way' : 'In Town']);
+    if (selectedLocation) rows.push(['Pickup', 'Meridian of ' + selectedLocation]);
+    posRsvDetailsBody.innerHTML = rows.length
+      ? rows.map(([k, v]) => `<div class="pos-kv"><span>${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`).join('')
+      : '<p class="pos-card-empty">Details fill in as you build the reservation.</p>';
   }
 
-  rsvBackBtn.addEventListener('click', () => showStep(rsvStep - 1));
+  function renderCustomerCard(r) {
+    posVerified.hidden = false;
+    const parts = String(r.full_name || '').trim().split(/\s+/);
+    const first = parts.shift() || '';
+    const last = parts.join(' ');
+    const hasHistory = (r.past_rentals || []).length || (r.active_reservations || []).length || (r.claims_cases || []).length;
+    posCustomerBody.innerHTML = `
+      <div class="pos-kv"><span>First Name</span><span>${escapeHtml(first)}</span></div>
+      <div class="pos-kv"><span>Last Name</span><span>${escapeHtml(last)}</span></div>
+      <div class="pos-kv"><span>Email</span><span class="mono">${escapeHtml(r.email || '')}</span></div>
+      <div class="pos-kv"><span>Phone</span><span class="mono">${escapeHtml(r.phone || '')}</span></div>
+      <div class="pos-kv"><span>Account</span><span class="mono">${escapeHtml(r.account_id || '')}</span></div>
+      ${r.member_since ? `<div class="pos-kv"><span>Member since</span><span>${escapeHtml(String(r.member_since))}</span></div>` : ''}
+      ${hasHistory ? '<button type="button" class="pos-link" id="pos-history-link">Past Rentals / Reservations</button>' : ''}
+    `;
+    if (r.notes) posCustomerNotes.textContent = r.notes;
+    document.getElementById('pos-history-link')?.addEventListener('click', () => openHistoryModal(r));
+  }
+
+  function renderLookupResult(kind, r) {
+    posLookupResult.hidden = false;
+    posLookupResult.dataset.state = kind;
+    if (kind === 'found') {
+      posLookupResult.innerHTML = `<span class="pos-lookup-badge ok">Record found</span> ${escapeHtml(r.full_name)} loaded into the customer panel.`;
+    } else if (kind === 'prospect') {
+      posLookupResult.innerHTML = `<span class="pos-lookup-badge">New prospect</span> ${escapeHtml(r.notes || 'No record on file. Continue as a new reservation.')}`;
+    } else {
+      posLookupResult.innerHTML = '<span class="pos-lookup-badge">No match</span> No customer matched. Confirm the number, or continue as a new reservation.';
+    }
+  }
+
+  function matchCustomerRecord(record, query) {
+    if (!record || record.found === false) return false;
+    const phoneDigits = (s) => String(s || '').replace(/\D/g, '');
+    const norm = (s) => String(s || '').toLowerCase().trim();
+    const qPhone = phoneDigits(query);
+    const qText = norm(query);
+    if (qPhone && phoneDigits(record.phone).includes(qPhone) && qPhone.length >= 4) return true;
+    if (qText && norm(record.email).includes(qText) && qText.length >= 3) return true;
+    if (qText && norm(record.full_name).includes(qText) && qText.length >= 2) return true;
+    return false;
+  }
+
+  function doLookup() {
+    const q = posLookupInput.value.trim();
+    if (!q) return;
+    const record = scenario.customer_record;
+    if (matchCustomerRecord(record, q)) {
+      selectedRecord = record;
+      renderCustomerCard(record);
+      renderLookupResult('found', record);
+      setRsv('receipt_email', record.email || '');
+      setRsv('receipt_phone', record.phone || '');
+      renderLeftRail();
+    } else if (record && record.found === false) {
+      selectedRecord = null;
+      posVerified.hidden = true;
+      renderLookupResult('prospect', record);
+    } else {
+      selectedRecord = null;
+      posVerified.hidden = true;
+      renderLookupResult('notfound', null);
+    }
+  }
 
   function detectBrand(num) {
     const n = String(num || '').replace(/\D/g, '');
@@ -1586,219 +1567,302 @@ function renderCall(scenario) {
     if (/^6(011|5)/.test(n)) return 'discover';
     return 'unknown';
   }
-
   function formatCardNumber(raw) {
     const digits = String(raw || '').replace(/\D/g, '').slice(0, 19);
-    const brand = detectBrand(digits);
-    let groups;
-    if (brand === 'amex') {
-      groups = [digits.slice(0, 4), digits.slice(4, 10), digits.slice(10, 15)];
-    } else {
-      groups = digits.match(/.{1,4}/g) || [];
-    }
+    const groups = detectBrand(digits) === 'amex'
+      ? [digits.slice(0, 4), digits.slice(4, 10), digits.slice(10, 15)]
+      : (digits.match(/.{1,4}/g) || []);
     return groups.filter(Boolean).join(' ');
   }
-
-  function formatExp(raw) {
-    const digits = String(raw || '').replace(/\D/g, '').slice(0, 4);
-    if (digits.length <= 2) return digits;
-    return digits.slice(0, 2) + '/' + digits.slice(2);
-  }
-
-  function updateCardPreview() {
+  function updateCardChip() {
     const num = getRsv('card_number').replace(/\D/g, '');
     const brand = detectBrand(num);
-    cardPreview.dataset.brand = brand;
-    cardPrevBrand.textContent = brand === 'unknown' ? 'CARD' : brand.toUpperCase();
-    const last4 = num.slice(-4);
-    let masked;
-    if (brand === 'amex') {
-      masked = '•••• •••••• ' + (last4.length === 4 ? last4 + '•' : (last4 || '•••••'));
-    } else {
-      masked = '•••• •••• •••• ' + (last4 || '••••');
-    }
-    cardPrevNumber.textContent = masked;
-    const name = getRsv('card_name').trim().toUpperCase() || 'FULL NAME';
-    cardPrevName.textContent = name;
-    cardPrevExp.textContent = getRsv('card_exp') || 'MM/YY';
+    posCcChip.hidden = num.length < 2;
+    posCcChip.dataset.brand = brand;
+    posCcBrand.textContent = brand === 'unknown' ? 'CARD' : brand.toUpperCase();
+    posCcLast4.textContent = num ? '•••• ' + num.slice(-4) : '••••';
+  }
+  function updateCardStatus() {
+    const num = getRsv('card_number').replace(/\D/g, '');
+    if (!posCardStatus) return;
+    posCardStatus.textContent = num.length >= 13
+      ? `Card on file: ${detectBrand(num).toUpperCase()} ending ${num.slice(-4)}.`
+      : 'Enter the card in the Credit Card panel to confirm.';
   }
 
-  const cardNumInput = rsvForm.querySelector('[data-rsv="card_number"]');
-  const cardExpInput = rsvForm.querySelector('[data-rsv="card_exp"]');
-  const cardCvvInput = rsvForm.querySelector('[data-rsv="card_cvv"]');
-  const cardZipInput = rsvForm.querySelector('[data-rsv="card_zip"]');
-  const cardNameInput = rsvForm.querySelector('[data-rsv="card_name"]');
+  function showErr(text) {
+    posErrorEl.textContent = text;
+    posErrorEl.hidden = false;
+  }
 
-  cardNumInput.addEventListener('input', (e) => {
+  function validateStep(n) {
+    if (n === 1) {
+      if (!getRsv('moving_from').trim()) return 'Enter where the customer is moving from.';
+      if (!getRsv('pickup_date')) return 'Set the move / pickup date.';
+      if (!getRsv('load_size')) return 'Select how many bedrooms (load size).';
+    } else if (n === 2) {
+      if (!recommendedSize()) return 'Pick a truck (set a load size, or choose one under "Show all moving equipment").';
+    } else if (n === 3) {
+      if (!selectedLocation) return 'Select a pickup location.';
+    } else if (n === 4) {
+      if (!getRsv('pickup_time')) return 'Choose a pickup time.';
+    } else if (n === 5) {
+      if (getRsv('card_number').replace(/\D/g, '').length < 13) return 'Enter the card number in the Credit Card panel.';
+      if (!getRsv('card_exp_month') || !getRsv('card_exp_year')) return 'Set the card expiration in the Credit Card panel.';
+      if (!/^\d{5}$/.test(getRsv('card_zip'))) return 'Enter a 5-digit billing ZIP in the Credit Card panel.';
+    }
+    return null;
+  }
+
+  function showStep(n) {
+    posStep = Math.max(1, Math.min(TOTAL_STEPS, n));
+    posForm.querySelectorAll('.pos-step').forEach((s) => { s.hidden = Number(s.dataset.step) !== posStep; });
+    posStepper.querySelectorAll('.pos-stepper-item').forEach((it) => {
+      const sn = Number(it.dataset.step);
+      it.classList.toggle('active', sn === posStep);
+      it.classList.toggle('done', sn < posStep);
+    });
+    posBackBtn.hidden = posStep === 1;
+    posErrorEl.hidden = true;
+    posNextBtn.textContent = posStep === TOTAL_STEPS ? 'Reserve Now' : 'Continue';
+    if (posStep === 2) renderEquip();
+    if (posStep === 4) renderSched();
+    if (posStep === 5) updateCardStatus();
+    const stage = posForm.closest('.pos-stage');
+    if (stage) stage.scrollTop = 0;
+  }
+
+  posBackBtn.addEventListener('click', () => showStep(posStep - 1));
+
+  posForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const err = validateStep(posStep);
+    if (err) { showErr(err); return; }
+    if (posStep === 1 && !storageAsked) {
+      storageAsked = true;
+      openStorageModal(() => showStep(2));
+      return;
+    }
+    if (posStep < TOTAL_STEPS) { showStep(posStep + 1); return; }
+    reserve();
+  });
+
+  function onPosChange() {
+    renderCart();
+    renderLeftRail();
+    if (posStep === 2) renderEquip();
+    if (posStep === 4) renderSched();
+  }
+  posForm.addEventListener('input', onPosChange);
+  posForm.addEventListener('change', onPosChange);
+
+  pos.querySelector('[data-rsv="load_size"]')?.addEventListener('change', () => {
+    truckOverride = null;
+    renderEquip();
+    renderCart();
+  });
+
+  pos.querySelectorAll('.pos-equip-opt').forEach((b) => {
+    b.addEventListener('click', () => {
+      truckOverride = Number(b.dataset.truck);
+      renderEquip();
+      renderCart();
+      renderSched();
+    });
+  });
+
+  posLocList.addEventListener('click', (e) => {
+    const card = e.target.closest('.pos-loc');
+    if (!card) return;
+    selectedLocation = card.dataset.location;
+    pos.querySelectorAll('.pos-loc').forEach((c) => c.classList.toggle('selected', c === card));
+    renderEntity();
+    renderSched();
+    renderLeftRail();
+  });
+
+  posLookupBtn.addEventListener('click', doLookup);
+  posLookupInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+  });
+
+  const posCardNum = pos.querySelector('[data-rsv="card_number"]');
+  const posCardZip = pos.querySelector('[data-rsv="card_zip"]');
+  posCardNum.addEventListener('input', (e) => {
     e.target.value = formatCardNumber(e.target.value);
-    updateCardPreview();
+    updateCardChip();
+    updateCardStatus();
   });
-  cardExpInput.addEventListener('input', (e) => {
-    e.target.value = formatExp(e.target.value);
-    updateCardPreview();
-  });
-  cardCvvInput.addEventListener('input', (e) => {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
-  });
-  cardZipInput.addEventListener('input', (e) => {
+  posCardZip.addEventListener('input', (e) => {
     e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
   });
-  cardNameInput.addEventListener('input', () => updateCardPreview());
 
-  sameLocCheck?.addEventListener('change', () => {
-    returnLocField.hidden = sameLocCheck.checked;
-  });
+  function reserve() {
+    const q = computeQuote();
+    const loc = LOC_BY_NAME[selectedLocation] || {};
+    const num = getRsv('card_number').replace(/\D/g, '');
+    const custName = selectedRecord?.full_name || (scenario.blind ? 'the caller' : scenario.customer_name);
+    const exp = `${getRsv('card_exp_month') || '--'}/${getRsv('card_exp_year') || '--'}`;
+    const brand = detectBrand(num);
+    const last4 = num.slice(-4) || '----';
+    const conf = 'MR-' + Math.floor(100000 + Math.random() * 900000);
+    const ls = LOAD_BY_VALUE[getRsv('load_size')];
+    const rl = RENTAL_BY_VALUE[getRsv('rental_length')];
 
-  rsvForm.addEventListener('input', recomputeReservation);
-  rsvForm.addEventListener('change', recomputeReservation);
-
-  // Prefill from persona record
-  const rec = scenario.customer_record || {};
-  if (rec.full_name) {
-    rsvForm.querySelector('[data-rsv="full_name"]').value = rec.full_name;
-    cardNameInput.value = rec.full_name;
-  }
-  if (rec.phone) rsvForm.querySelector('[data-rsv="phone"]').value = rec.phone;
-  if (rec.email) rsvForm.querySelector('[data-rsv="email"]').value = rec.email;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  rsvForm.querySelector('[data-rsv="pickup_date"]').value = todayStr;
-  rsvForm.querySelector('[data-rsv="return_date"]').value = tomorrowStr;
-
-  rsvForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const err = validateStep(rsvStep);
-    if (err) {
-      showRsvError(err);
-      return;
-    }
-    if (rsvStep < TOTAL_STEPS) {
-      showStep(rsvStep + 1);
-      return;
-    }
-    saveReservation();
-  });
-
-  function saveReservation() {
-    const quote = computeQuote();
-    const cardNumDigits = getRsv('card_number').replace(/\D/g, '');
-    const data = {
-      full_name: getRsv('full_name'),
-      phone: getRsv('phone'),
-      email: getRsv('email'),
-      pickup_date: getRsv('pickup_date'),
-      pickup_time: getRsv('pickup_time'),
-      location: getRsv('location'),
-      return_date: getRsv('return_date'),
-      return_time: getRsv('return_time'),
-      return_location: sameLocCheck.checked ? getRsv('location') : getRsv('return_location'),
-      miles: getRsv('miles') || '0',
-      card_brand: detectBrand(cardNumDigits),
-      card_last4: cardNumDigits.slice(-4),
-      card_exp: getRsv('card_exp'),
-      card_name: getRsv('card_name'),
-      confirmation: 'MR-' + Math.floor(100000 + Math.random() * 900000),
-    };
-
-    const linesHtml = quote.lines.map((l) => `
-      <div class="rsv-summary-line"><span>${escapeHtml(l.label)}</span><span class="mono">${fmtMoney(l.amount)}</span></div>
+    const lineHtml = q.lines.map((l) => `
+      <div class="pos-cart-line"><div class="pos-cart-line-label">${escapeHtml(l.label)}</div><div class="pos-cart-line-amt mono">${fmtMoney(l.amount)}</div></div>
     `).join('');
 
-    rsvWizard.hidden = true;
-    rsvResult.innerHTML = `
-      <div class="rsv-receipt">
-        <div class="rsv-receipt-head">
-          <div class="rsv-receipt-tag">
-            <span class="rsv-receipt-check" aria-hidden="true">✓</span>
-            Reservation confirmed
+    posForm.hidden = true;
+    posStepper.hidden = true;
+    if (posNav) posNav.hidden = true;
+    posResult.innerHTML = `
+      <div class="pos-receipt">
+        <div class="pos-receipt-head">
+          <div class="pos-receipt-tag"><span class="pos-receipt-check" aria-hidden="true">&#10003;</span> Reservation confirmed</div>
+          <div class="pos-receipt-conf"><span class="pos-receipt-conf-label">Confirmation number</span><span class="pos-receipt-conf-num mono">${escapeHtml(conf)}</span></div>
+        </div>
+        <div class="pos-receipt-grid">
+          <div class="pos-receipt-section">
+            <div class="pos-receipt-section-title">Customer</div>
+            <div class="pos-receipt-line"><span>Name</span><span>${escapeHtml(custName)}</span></div>
+            ${getRsv('receipt_phone') ? `<div class="pos-receipt-line"><span>Phone</span><span class="mono">${escapeHtml(getRsv('receipt_phone'))}</span></div>` : ''}
+            ${getRsv('receipt_email') ? `<div class="pos-receipt-line"><span>Email</span><span class="mono">${escapeHtml(getRsv('receipt_email'))}</span></div>` : ''}
           </div>
-          <div class="rsv-receipt-confirmation">
-            <span class="rsv-receipt-confirmation-label">Confirmation number</span>
-            <span class="rsv-receipt-confirmation-num mono">${escapeHtml(data.confirmation)}</span>
+          <div class="pos-receipt-section">
+            <div class="pos-receipt-section-title">Trip</div>
+            <div class="pos-receipt-line"><span>Move type</span><span>${q.oneWay ? 'One Way' : 'In Town'}</span></div>
+            ${ls ? `<div class="pos-receipt-line"><span>Load</span><span>${escapeHtml(ls.label)}</span></div>` : ''}
+            <div class="pos-receipt-line"><span>Pickup</span><span>${escapeHtml(getRsv('pickup_date'))} &middot; ${escapeHtml(getRsv('pickup_time') || 'time TBD')}</span></div>
+            <div class="pos-receipt-line"><span>Location</span><span>${escapeHtml(loc.name ? 'Meridian of ' + loc.name : 'TBD')}</span></div>
+          </div>
+          <div class="pos-receipt-section">
+            <div class="pos-receipt-section-title">Equipment</div>
+            <div class="pos-receipt-line"><span>Truck</span><span>${escapeHtml(q.truck ? q.truck.label : 'TBD')}</span></div>
+            <div class="pos-receipt-line"><span>Rental length</span><span>${escapeHtml(rl ? rl.label : '8 hours')}</span></div>
+            <div class="pos-receipt-line"><span>Waiver</span><span>${escapeHtml(q.waiver.label)}</span></div>
+            ${(q.padsChecked || q.dollyChecked) ? `<div class="pos-receipt-line"><span>Add-ons</span><span>${[q.padsChecked && 'Pads', q.dollyChecked && 'Dolly'].filter(Boolean).join(', ')}</span></div>` : ''}
           </div>
         </div>
-
-        <div class="rsv-receipt-grid">
-          <div class="rsv-receipt-section">
-            <div class="rsv-receipt-section-title">Customer</div>
-            <div class="rsv-receipt-section-body">
-              <div class="rsv-receipt-line"><span>Name</span><span>${escapeHtml(data.full_name)}</span></div>
-              <div class="rsv-receipt-line"><span>Phone</span><span class="mono">${escapeHtml(data.phone)}</span></div>
-              ${data.email ? `<div class="rsv-receipt-line"><span>Email</span><span class="mono">${escapeHtml(data.email)}</span></div>` : ''}
-            </div>
-          </div>
-          <div class="rsv-receipt-section">
-            <div class="rsv-receipt-section-title">Trip</div>
-            <div class="rsv-receipt-section-body">
-              <div class="rsv-receipt-line"><span>Pickup</span><span>${escapeHtml(data.pickup_date)} · ${escapeHtml(data.pickup_time)}</span></div>
-              <div class="rsv-receipt-line"><span>From</span><span>${escapeHtml(data.location)}</span></div>
-              <div class="rsv-receipt-line"><span>Return</span><span>${escapeHtml(data.return_date)} · ${escapeHtml(data.return_time)}</span></div>
-              <div class="rsv-receipt-line"><span>Drop-off</span><span>${escapeHtml(data.return_location)}</span></div>
-              <div class="rsv-receipt-line"><span>Mileage est.</span><span class="mono">${escapeHtml(String(data.miles))} mi</span></div>
-            </div>
-          </div>
-          <div class="rsv-receipt-section">
-            <div class="rsv-receipt-section-title">Equipment</div>
-            <div class="rsv-receipt-section-body">
-              <div class="rsv-receipt-line"><span>Truck</span><span>${escapeHtml(quote.truck.label)}</span></div>
-              <div class="rsv-receipt-line"><span>Waiver</span><span>${escapeHtml(quote.waiver.label)}</span></div>
-              ${(quote.padsChecked || quote.dollyChecked) ? `<div class="rsv-receipt-line"><span>Add-ons</span><span>${[quote.padsChecked && 'Pads', quote.dollyChecked && 'Dolly'].filter(Boolean).join(', ')}</span></div>` : ''}
-            </div>
+        <div class="pos-receipt-cart">
+          ${lineHtml}
+          <div class="pos-cart-rule"></div>
+          <div class="pos-cart-line pos-cart-subtotal"><div class="pos-cart-line-label">Subtotal</div><div class="pos-cart-line-amt mono">${fmtMoney(q.subtotal)}</div></div>
+          <div class="pos-cart-line pos-cart-line-muted"><div class="pos-cart-line-label">Estimated tax</div><div class="pos-cart-line-amt mono">${fmtMoney(q.tax)}</div></div>
+          <div class="pos-cart-rule"></div>
+          <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(q.total)}</div></div>
+          <div class="pos-cc-chip" data-brand="${escapeAttr(brand)}">
+            <span class="pos-cc-brand">${escapeHtml(brand === 'unknown' ? 'CARD' : brand.toUpperCase())}</span>
+            <span class="mono">•••• ${escapeHtml(last4)}</span>
+            <span class="mono">exp ${escapeHtml(exp)}</span>
           </div>
         </div>
-
-        <div class="rsv-summary rsv-summary-final">
-          <div class="rsv-summary-head">
-            <span>Card on file · authorized</span>
-            <span class="rsv-summary-head-amount mono">${fmtMoney(quote.total)}</span>
-          </div>
-          <div class="rsv-summary-body">
-            ${linesHtml}
-            <div class="rsv-summary-rule"></div>
-            <div class="rsv-summary-line"><span>Subtotal</span><span class="mono">${fmtMoney(quote.subtotal)}</span></div>
-            <div class="rsv-summary-line rsv-summary-line-muted"><span>Estimated tax</span><span class="mono">${fmtMoney(quote.tax)}</span></div>
-            <div class="rsv-summary-rule"></div>
-            <div class="rsv-summary-line rsv-summary-total"><span>Authorized</span><span class="mono">${fmtMoney(quote.total)}</span></div>
-          </div>
-          <div class="rsv-card-chip" data-brand="${escapeAttr(data.card_brand)}">
-            <span class="rsv-card-chip-brand">${escapeHtml(data.card_brand === 'unknown' ? 'CARD' : data.card_brand.toUpperCase())}</span>
-            <span class="mono">•••• ${escapeHtml(data.card_last4 || '••••')}</span>
-            <span class="rsv-card-chip-exp mono">exp ${escapeHtml(data.card_exp || 'MM/YY')}</span>
-          </div>
+        <div class="pos-receipt-readback">
+          <div class="pos-receipt-readback-title">Read back to the caller</div>
+          <p>"Your confirmation number is <strong class="mono">${escapeHtml(conf)}</strong>. We're holding a ${escapeHtml(q.truck ? q.truck.label : 'truck')} for you at the ${escapeHtml(loc.name || 'pickup')} location on ${escapeHtml(getRsv('pickup_date'))} at ${escapeHtml(getRsv('pickup_time') || 'your selected time')}. Your total comes to ${escapeHtml(fmtMoney(q.total))} on the card ending in ${escapeHtml(last4)}. Is there anything else I can help you with?"</p>
         </div>
-
-        <div class="rsv-receipt-readback">
-          <div class="rsv-receipt-readback-title">Read back to the caller</div>
-          <p>"Your confirmation number is <strong class="mono">${escapeHtml(data.confirmation)}</strong>. We're holding a ${escapeHtml(quote.truck.label)} for you at the ${escapeHtml(data.location)} location on ${escapeHtml(data.pickup_date)} at ${escapeHtml(data.pickup_time)}, due back ${escapeHtml(data.return_date)} at ${escapeHtml(data.return_time)}. Total comes to ${escapeHtml(fmtMoney(quote.total))} on the card ending in ${escapeHtml(data.card_last4 || '....')}. Anything else I can help you with?"</p>
-        </div>
-
-        <div class="rsv-receipt-actions">
-          <button class="ghost-button" type="button" id="rsv-new">Start another reservation</button>
+        <div class="pos-receipt-actions">
+          <button class="ghost-button" type="button" id="pos-new">Start another reservation</button>
         </div>
       </div>
     `;
-
-    document.getElementById('rsv-new').addEventListener('click', () => {
-      rsvResult.innerHTML = '';
-      rsvWizard.hidden = false;
+    document.getElementById('pos-new')?.addEventListener('click', () => {
+      posResult.innerHTML = '';
+      posForm.reset();
+      posForm.hidden = false;
+      posStepper.hidden = false;
+      if (posNav) posNav.hidden = false;
+      truckOverride = null;
+      selectedLocation = null;
+      storageAsked = false;
+      pos.querySelectorAll('.pos-loc').forEach((c) => c.classList.remove('selected'));
+      posEntityCard.hidden = true;
+      updateCardChip();
+      setRsv('pickup_date', new Date().toISOString().slice(0, 10));
+      renderCart();
+      renderLeftRail();
+      renderSched();
       showStep(1);
     });
   }
 
-  // Branch info buttons open the picker modal for their target select.
-  dom.root.querySelectorAll('.branch-info-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const target = btn.dataset.branchPicker;
-      const sel = rsvForm.querySelector(`[data-rsv="${target}"]`);
-      openBranchPicker(sel);
+  function openStorageModal(onContinue) {
+    const overlay = document.createElement('div');
+    overlay.className = 'pos-modal';
+    overlay.innerHTML = `
+      <div class="pos-modal-inner" role="dialog" aria-modal="true" aria-labelledby="pos-storage-title">
+        <div class="pos-modal-eyebrow">Storage</div>
+        <h3 class="pos-modal-title" id="pos-storage-title">Will the customer need storage?</h3>
+        <p class="pos-modal-sub">Ask if they need storage before or after the move. Meridian self-storage carries a one-year price-lock guarantee.</p>
+        <div class="pos-modal-actions">
+          <button type="button" class="ghost-button" data-storage="no">No thanks</button>
+          <button type="button" class="primary-button" data-storage="after">Yes, add storage</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    let settled = false;
+    function close(val) {
+      if (settled) return;
+      settled = true;
+      if (val) setRsv('storage', val);
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      onContinue();
+    }
+    function onKey(e) { if (e.key === 'Escape') close('no'); }
+    overlay.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-storage]');
+      if (btn) { close(btn.dataset.storage); return; }
+      if (e.target === overlay) close('no');
     });
+    document.addEventListener('keydown', onKey);
+  }
+
+  function openHistoryModal(r) {
+    const reservations = r.active_reservations || [];
+    const claims = r.claims_cases || [];
+    const past = r.past_rentals || [];
+    const overlay = document.createElement('div');
+    overlay.className = 'pos-modal';
+    overlay.innerHTML = `
+      <div class="pos-modal-inner pos-modal-wide" role="dialog" aria-modal="true" aria-labelledby="pos-hist-title">
+        <div class="pos-modal-head">
+          <h3 class="pos-modal-title" id="pos-hist-title">${escapeHtml(r.full_name)} &middot; history</h3>
+          <button type="button" class="pos-modal-close" aria-label="Close">&times;</button>
+        </div>
+        ${reservations.length ? `<div class="pos-hist-group pos-hist-accent"><div class="pos-hist-title">Active reservations</div>${reservations.map((res) => `<div class="pos-hist-row"><span class="mono">${escapeHtml(res.confirmation)}</span> ${escapeHtml(res.truck)} &middot; ${escapeHtml(res.location)} &middot; ${escapeHtml(res.date)} &middot; ${escapeHtml(res.total)} &middot; <em>${escapeHtml(res.status)}</em></div>`).join('')}</div>` : ''}
+        ${claims.length ? `<div class="pos-hist-group pos-hist-warn"><div class="pos-hist-title">Open claims</div>${claims.map((c) => `<div class="pos-hist-row"><span class="mono">${escapeHtml(c.case_id)}</span> ${escapeHtml(c.amount)} &middot; ${escapeHtml(c.description)} &middot; <em>${escapeHtml(c.status)}</em></div>`).join('')}</div>` : ''}
+        ${past.length ? `<div class="pos-hist-group"><div class="pos-hist-title">Past rentals (${past.length})</div>${past.map((p) => `<div class="pos-hist-row"><span class="mono">${escapeHtml(p.date)}</span> ${escapeHtml(p.truck)} &middot; ${escapeHtml(p.location)} &middot; ${escapeHtml(p.total)} &middot; <em>${escapeHtml(p.status)}</em></div>`).join('')}</div>` : ''}
+        ${r.notes ? `<div class="pos-hist-group"><div class="pos-hist-title">Agent notes</div><p class="pos-hist-notes">${escapeHtml(r.notes)}</p></div>` : ''}
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay || e.target.closest('.pos-modal-close')) close();
+    });
+    document.addEventListener('keydown', onKey);
+  }
+
+  // Floating call dock collapse toggle
+  const callDock = document.getElementById('call-dock');
+  const callDockHead = document.getElementById('call-dock-head');
+  callDockHead?.addEventListener('click', () => {
+    const collapsed = callDock.dataset.collapsed === 'true';
+    callDock.dataset.collapsed = String(!collapsed);
+    callDockHead.setAttribute('aria-expanded', String(collapsed));
   });
 
+  // Init
+  setRsv('pickup_date', new Date().toISOString().slice(0, 10));
+  renderLeftRail();
+  renderCart();
+  renderEquip();
+  renderSched();
+  updateCardChip();
   showStep(1);
-  updateCardPreview();
-  recomputeReservation();
 }
 
 async function runCoaching(scenario, messages) {
@@ -1894,60 +1958,6 @@ function appendSilenceMarker(transcript) {
 // and lock one in without leaving the reservation form. Writes the chosen
 // branch into the given select and fires a change event so the cost
 // estimate recomputes.
-function openBranchPicker(selectEl) {
-  if (!selectEl) return;
-  const current = selectEl.value;
-  const cards = BRANCHES.map((b) => `
-    <button type="button" class="branch-pick${b.name === current ? ' selected' : ''}" data-branch="${escapeAttr(b.name)}">
-      <div class="branch-card-head">
-        <span class="branch-name">${escapeHtml(b.name)}</span>
-        <span class="branch-area">${escapeHtml(b.area)}</span>
-      </div>
-      <div class="branch-addr mono">${escapeHtml(b.address)}</div>
-      <div class="branch-hours">${escapeHtml(b.hours)}</div>
-      <div class="branch-serves"><span class="branch-serves-label">Serves</span>${escapeHtml(b.serves)}</div>
-    </button>
-  `).join('');
-
-  const overlay = document.createElement('div');
-  overlay.className = 'branch-modal';
-  overlay.innerHTML = `
-    <div class="branch-modal-inner" role="dialog" aria-modal="true" aria-labelledby="branch-modal-title">
-      <div class="branch-modal-head">
-        <h3 class="branch-modal-title" id="branch-modal-title">Choose a branch</h3>
-        <button type="button" class="branch-modal-close" aria-label="Close">&times;</button>
-      </div>
-      <p class="branch-modal-sub">Pick the branch nearest where the customer is loading.</p>
-      <div class="branch-modal-list">${cards}</div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  let settled = false;
-  function cleanup() {
-    if (settled) return;
-    settled = true;
-    overlay.removeEventListener('click', onClick);
-    document.removeEventListener('keydown', onKey);
-    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-  }
-  function onClick(e) {
-    if (e.target === overlay || e.target.closest('.branch-modal-close')) {
-      cleanup();
-      return;
-    }
-    const pick = e.target.closest('.branch-pick');
-    if (pick) {
-      selectEl.value = pick.dataset.branch;
-      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-      cleanup();
-    }
-  }
-  function onKey(e) { if (e.key === 'Escape') cleanup(); }
-  overlay.addEventListener('click', onClick);
-  document.addEventListener('keydown', onKey);
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
