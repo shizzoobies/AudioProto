@@ -143,7 +143,7 @@ After login the app is a set of `render*` views swapped into `#app-root` (no rou
 
 - **Daniela** — competitor quoted ~$300 less (price/value).
 - **Walter** — wants to think it over / ask his daughter (not ready to commit).
-- **Sloane** — no urgency, "I'll book later, I always find a truck."
+- **Sloane** — no urgency, "I'll just sort it out later, I always find a truck."
 - **Hank** — hidden-fee distrust, "what's the catch?"
 - **Vivian** — doubts they'll handle her antiques with care (quality, not price).
 

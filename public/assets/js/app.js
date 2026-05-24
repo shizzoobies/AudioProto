@@ -209,7 +209,7 @@ function renderHome() {
             </svg>
           </div>
           <h3 class="mode-choice-title">Sales Scenarios</h3>
-          <p class="mode-choice-text">Quoting, handling objections, and closing the booking. Practice turning an inquiry into a confident reservation.</p>
+          <p class="mode-choice-text">Quoting, handling objections, and closing the deal. Practice turning an inquiry into a confident reservation.</p>
           <span class="mode-choice-cta">Coming soon</span>
         </button>
         <button class="mode-choice" data-home-section="post_reservation" type="button">
@@ -221,7 +221,7 @@ function renderHome() {
             </svg>
           </div>
           <h3 class="mode-choice-title">Post Reservation Situations</h3>
-          <p class="mode-choice-text">Changes, delays, and problems after a booking already exists. Practice keeping a committed customer happy.</p>
+          <p class="mode-choice-text">Changes, delays, and problems after a reservation already exists. Practice keeping a committed customer happy.</p>
           <span class="mode-choice-cta">Coming soon</span>
         </button>
       </div>
