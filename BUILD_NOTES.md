@@ -14,11 +14,15 @@ Snapshot of the call-simulator's state. Read this when picking up the project af
 
 ## What this app is
 
-An AI-powered customer service training simulator for a fictional moving company (Meridian Moving & Storage). A trainee logs in, picks a scenario type or the showcase persona, takes the call with a roleplaying AI customer, and gets a scored coaching report at the end. Designed for stakeholder demos and short training rotations.
+An AI-powered customer service training simulator for a fictional moving company (Meridian Moving & Storage). A trainee logs in, picks a track or persona, takes the call with a roleplaying AI customer, and gets a scored coaching report at the end. Designed for stakeholder demos and short training rotations.
 
-There are two distinct call types:
-- **Training calls** — pick from 25 personas across 5 scenario types. Coaching report at the end.
-- **Showcase call** — a single deeply-built meta-aware persona (Elena Vasquez) who introduces herself to the team, talks freely about her life or the simulator, and drops into a customer roleplay on request. Gated behind a separate demo password for premium models.
+After login the trainee lands on the **Training Center** home (`renderHome`), which has two premium tracks plus an entry into the rest of the library. See "Navigation / view map" for the full flow. The distinct call types:
+- **Sales: Overcoming Objections** (live) — 5 premium objection-handling drills. Reached from the home "Sales Scenarios" card.
+- **Post Reservation Situations** (coming soon) — the home card shows a stub; the 5 people exist as an inert cast (`PREMIUM_PEOPLE`) awaiting their scenarios.
+- **Training calls** (the original library, behind "Explore More Scenario Training") — pick from 25 personas across 5 scenario types. Coaching report at the end.
+- **Showcase call** — a single deeply-built meta-aware persona (Elena Vasquez) who introduces herself to the team, talks freely, and drops into a customer roleplay on request. Gated behind a separate demo password for premium models.
+
+**Premium personas:** the Sales track (and any future `premium: true` persona) always runs on Claude Opus 4.7 + ElevenLabs v3 with no demo gate, while staying non-meta so they jump straight into the call like the standard personas. Only Elena (showcase) is gated behind the demo password.
 
 ## Architecture
 
@@ -47,16 +51,17 @@ Browser (Cloudflare Pages)        Pages Functions (Workers)        External APIs
 - **No persistence:** Sessions and coaching reports are ephemeral.
 - **No frameworks:** Vanilla HTML/CSS/JS. ESM modules in the browser.
 
-## Model + voice routing (the two-tier gating)
+## Model + voice routing (the gating)
 
 | Scenario | Demo cookie | Chat model | TTS model |
 |---|---|---|---|
-| Any non-showcase | n/a | `claude-sonnet-4-6` | `eleven_multilingual_v2` |
+| Standard persona (no `premium`) | n/a | `claude-sonnet-4-6` | `eleven_multilingual_v2` |
+| `premium: true` persona (e.g. the Sales track) | n/a | `claude-opus-4-7` | `eleven_v3` |
 | `showcase_*` | absent / invalid | `claude-sonnet-4-6` | `eleven_multilingual_v2` |
 | `showcase_*` | valid | `claude-opus-4-7` | `eleven_v3` |
 | Coaching report (any) | n/a | `claude-opus-4-7` | n/a |
 
-Both `tts.js` and `chat.js` parse `cs_demo`, verify it with `SESSION_SECRET`, and only swap to premium when the scenario id starts with `showcase_`. Responses include `X-TTS-Model` / `X-Chat-Model` headers for debugging.
+Premium selection is `usePremium = scenario.premium || (isShowcase && demoUnlocked)` in `chat.js`, mirrored in `tts.js` (`isPremiumScenario || (isShowcaseScenario && demoUnlocked)`). So a `premium` persona is always premium with **no demo cookie required**; the showcase persona still needs `cs_demo`. `chat.js` sends an expressive eleven_v3 voice-direction block: Elena's personal one for the showcase, a `genericPremiumVoiceBlock()` for other premium personas. Client-side, `app.js` sets `premiumVoice` (keep-tags scrub + the "Premium voice" badge) from `scenario.premium || (isShowcaseCall && demoUnlocked)`; the Three.js orb stays Elena-only. Responses include `X-TTS-Model` / `X-Chat-Model` headers for debugging.
 
 ## The reservation POS (the trainee's main workspace)
 
@@ -101,11 +106,15 @@ The Details step's **Moving From** / **Moving To** fields are **city typeaheads*
 - **Branch coordinates** are static `lat`/`lng` on each `BRANCHES` entry in `app.js` (the addresses are fixed and real); only the *customer's* input is geocoded.
 - Without a resolved origin the Location step behaves exactly as before (original order, static distance estimates, Downtown recommended), so the flow never depends on the network.
 
-## Personas (25 + 1 showcase)
+## Personas (25 standard + 5 premium sales + 1 showcase + 5 inert)
 
-- 5 scenario types × 5 personas = 25 training personas, each with identity, emotional state, life context, mannerisms, persona-specific triggers, cold-open variants, and a tuned voice_id + voice_settings.
-- **Showcase persona: Elena Vasquez.** 42yo bilingual ER charge nurse, San Antonio. ~60 life bullets. Has extra fields the others don't: `meta_context`, `small_talk`, `training_value_talking_points`, `bilingual_behavior`.
-- **Two rule sets** in `shared/scenarios.js`: `COMMON_RULES` (the standard customer frame: "you are this customer, you are NEVER an AI, never break the fourth wall", mood escalation, etc.) applies to the 25 personas. `SHOWCASE_RULES` applies to any persona with a `meta_context` (i.e. Elena) and replaces the customer frame, because the two contradict. `buildPersonaPrompt` picks the rule set based on `meta_context`.
+All persona defs live in `PERSONA_DEFS` in `shared/scenarios.js`; `SCENARIOS` builds the runnable record (def + id + `customer_record` + `system_prompt`) and `getScenario(id)` is what the Workers read.
+
+- **25 standard training personas** — 5 scenario types × 5 personas, each with identity, emotional state, life, mannerisms, persona triggers, cold-open variants, and a tuned voice_id + voice_settings. Sonnet + multilingual_v2.
+- **5 premium Sales personas (`sales_*`)** — Daniela, Walter, Sloane, Hank, Vivian. Same schema as the standard 25 plus `premium: true` and a `tagline` (the objection, shown on the picker card). Non-meta, so they jump straight into the call. See "Sales: Overcoming Objections track". Opus 4.7 + eleven_v3.
+- **Showcase persona: Elena Vasquez.** 42yo bilingual ER charge nurse, San Antonio. ~60 life bullets. Extra fields: `meta_context`, `small_talk`, `training_value_talking_points`, `bilingual_behavior`. Premium only when `cs_demo` is unlocked.
+- **5 inert premium "people" (`PREMIUM_PEOPLE`)** — DeShawn, Rosa, Teddy, Lorraine, Amir, for the future Post-Reservation track. Backstory/voice only, **no scenario fields**, not in `SCENARIOS` or any type, so they don't run yet. They get promoted into `PERSONA_DEFS` (with situation/triggers/opening_lines/record) when their scenarios are written, exactly as the sales five were.
+- **Two rule sets** in `shared/scenarios.js`: `COMMON_RULES` (the customer frame: "you are this customer, you are NEVER an AI", mood escalation, etc.) applies to every non-meta persona, including the premium sales five. `SHOWCASE_RULES` applies to any persona with a `meta_context` (i.e. Elena) and replaces the customer frame, because the two contradict. `buildPersonaPrompt` picks the rule set based on `meta_context` (NOT on `premium`).
 - **Why SHOWCASE_RULES exists (2026-05-23 fix):** Elena was getting `COMMON_RULES`, whose "you are this customer / never an AI" framing fought her meta-awareness. She leaked AI-talk on ordinary questions ("you're looking at my AI") and flipped into the Meridian-company role when asked an intake question like a phone number. `SHOWCASE_RULES` keeps her as Elena (the showcase persona OR her own customer caller, **never Meridian itself**), reserves AI-talk for when the team actually steers there, and treats customer-intake questions as the cue to step into the scenario (emit `[mode:scenario]`).
 - Universal voice rules (number speaking digit-by-digit, spell identifiers, no stage directions, no em dashes, no gendered address) live in both rule sets.
 
@@ -115,6 +124,30 @@ The Details step's **Moving From** / **Moving To** fields are **city typeaheads*
 - **Mode markers:** Elena prefixes a turn with `[mode:scenario]` when she enters the customer roleplay and `[mode:meta]` when she returns to meta-chat. The client strips these from display + TTS. They drive the orb layout:
   - **Meta mode** (`.call[data-orb-mode="meta"]`): the orb fills the call body; the POS and the conversation lane are hidden.
   - **Scenario mode**: the orb shrinks to a band at the top, and the POS + lane appear so the trainee can work the CRM tools.
+
+## Navigation / view map (2026-05-23)
+
+After login the app is a set of `render*` views swapped into `#app-root` (no router; `state.view` is just a label). The banner (title + Sign out) is persistent in `app.html`.
+
+- **`renderHome`** — the **Training Center**, the default after auth. Two track cards (`data-home-section="sales" | "post_reservation"`) + an **Explore More Scenario Training** card. The two tracks reuse the `.welcome` / `.mode-choice` styling.
+  - Sales card → `renderSectionScenarios('sales')` (built). Post-Reservation card → `renderComingSoon(...)` (stub) until that type exists. The handler checks whether a `SCENARIO_TYPE` with that `section` exists and routes accordingly.
+  - Explore More → `renderWelcome`.
+- **`renderWelcome`** — the original hero + Chat/Phone format picker + Meet Elena, now reached via Explore More. Has a "Back to training center" link (`renderHome`).
+- **`renderSectionScenarios(section)`** — finds the `SCENARIO_TYPE` whose `section` matches and lists its personas as **individually selectable** cards (not a random pick), with a Phone/Chat toggle (`setCallMode`, phone default) and a back-to-home link. Picking a card → `startCall(personaId)`.
+- **`renderPicker`** — the original library grid (5 standard types + "Surprise me"). It and the random pool (`state.allPersonaIds`, built in `init`) both **exclude** any type with a `section` and the `showcase` type, so the new tracks never leak into Explore More.
+- Call (`renderCall`) → End → `runCoaching` → `renderReport`.
+
+## Sales: Overcoming Objections track (2026-05-23)
+
+`SCENARIO_TYPE` `sales_objections` (`section: 'sales'`, `difficulty: 'premium'`) groups the five `sales_*` personas. Five different objections, one per persona, each written to reward the **three-point method** - build genuine urgency, acknowledge the objection, ask for the business again - and to stall / push back when the agent fakes urgency, gives empty empathy, or never closes:
+
+- **Daniela** — competitor quoted ~$300 less (price/value).
+- **Walter** — wants to think it over / ask his daughter (not ready to commit).
+- **Sloane** — no urgency, "I'll book later, I always find a truck."
+- **Hank** — hidden-fee distrust, "what's the catch?"
+- **Vivian** — doubts they'll handle her antiques with care (quality, not price).
+
+All carry `premium: true`, so they always run Opus 4.7 + eleven_v3 with no demo gate. Phone is the default format (the spoken close is the skill); a Chat toggle is offered. The objection is in each persona's `tagline`, surfaced on the picker card. To tune difficulty, edit a persona's `triggers` (how hard it pushes) or `opening_lines` in `PERSONA_DEFS`.
 
 ## Coaching report
 
@@ -130,11 +163,15 @@ public/
   _headers                    CSP + security headers
   assets/css/styles.css       All styling (POS lives under the "POS reservation system" section near the end)
   assets/js/login.js          Login form
-  assets/js/app.js            State, welcome, picker, call view, AND the whole POS controller:
-                              renderCall builds the 3-panel POS + docked call lane; the controller
-                              handles customer lookup, the 5 stages, the quote engine (in-town +
-                              one-way), the cart, the credit-card panel, the receipt, the storage +
-                              history modals, the dock collapse, and the transcript normalizer.
+  assets/js/app.js            State + all views + the whole POS controller. Views: renderHome
+                              (Training Center), renderSectionScenarios (a built track's persona
+                              cards + format toggle), renderComingSoon (stub track), renderWelcome
+                              (format picker + Meet Elena), renderPicker (library grid), renderCall,
+                              runCoaching/renderReport. renderCall builds the 3-panel POS + docked
+                              call lane and handles customer lookup, the 5 stages, the quote engine
+                              (in-town + one-way), the cart, credit card, receipt, the city
+                              autocomplete, modals, and the transcript normalizer. premiumVoice /
+                              premiumBadge key off scenario.premium (orb stays Elena-only).
   assets/js/conversation.js   Conversation class (Anthropic SSE parsing, sentence chunking, mode markers)
   assets/js/coach.js          Coaching report fetch + render
   assets/js/audio.js          AudioPlayer, ContinuousRecorder (VAD), TTS/STT helpers, attachVisualizer
@@ -145,11 +182,12 @@ functions/api/
   auth.js                     POST = login, DELETE = logout
   session.js                  GET = 200 if cookie valid
   scenarios.js                GET = scenario types with persona arrays
-  chat.js                     POST = SSE stream. Sonnet default; Opus when scenario_id starts with
-                              showcase_ AND cs_demo valid. Appends date + weather + opening-continuation
-                              + (premium) voice-direction blocks to the persona system prompt.
+  chat.js                     POST = SSE stream. Opus when scenario.premium OR (showcase_ AND cs_demo);
+                              else Sonnet. Appends date + weather + opening-continuation + a premium
+                              voice block (Elena's for showcase, genericPremiumVoiceBlock() otherwise).
   coach.js                    POST = Opus tool-use coaching report
-  tts.js                      POST = ElevenLabs TTS proxy (multilingual_v2 default, eleven_v3 premium showcase)
+  tts.js                      POST = ElevenLabs TTS proxy. eleven_v3 when scenario.premium OR
+                              (showcase_ AND cs_demo); else multilingual_v2.
   stt.js                      POST = ElevenLabs Scribe STT proxy
   geocode.js                  POST = geocode proxy backing the city autocomplete. { query } -> { results: [{lat,lng,city,state,postcode,display}] }.
                               Google Places Text Search when GOOGLE_PLACES_API_KEY is set, else (or on error) Komoot Photon (keyless).
@@ -159,8 +197,11 @@ functions/api/
 
 shared/
   auth.js                     HMAC-SHA256 sign/verify (session AND cs_demo)
-  scenarios.js                25 + 1 personas, customer records, COMMON_RULES + SHOWCASE_RULES,
-                              buildPersonaPrompt (chooses the rule set by meta_context)
+  scenarios.js                PERSONA_DEFS (25 standard + 5 sales_* premium + Elena), CUSTOMER_RECORDS,
+                              PREMIUM_PEOPLE (5 inert post-reservation people), SCENARIO_TYPES
+                              (incl. sales_objections w/ section:'sales'), COMMON_RULES +
+                              SHOWCASE_RULES, buildPersonaPrompt (rule set by meta_context).
+                              listScenarioTypesForDisplay returns section + per-persona premium/tagline.
   coaching-rubric.js          Tool schema + system prompt for Opus
 ```
 
@@ -194,7 +235,11 @@ Everything below shipped to `main` on 2026-05-23.
 - **Elena character-break fix (commit `c21efca`).** Added `SHOWCASE_RULES` so the meta-aware persona no longer gets the contradictory standard customer rules. She stays in character, never becomes Meridian, and steps into the scenario on intake questions.
 - **Relaxed validation (commit `2b20fef`).** Removed the Details/Time hard gates so entering a city/zip no longer dead-ends the flow. The reservation is fully traversable end-to-end.
 - **Hygiene pass (commit `d8dfd30`).** Removed ~1.4k lines of dead CSS from the old reservation system (`.crm-*`, `.rsv-*`, `.branch-*`, `.card-preview-*`, `.call-main`, `.mute-*`, `.call-actions`, the `data-source="mic"` visualizer rule), the unused `MicRecorder` class from `audio.js`, and the legacy push-to-talk CSS. Brought this doc current.
-- **Premium parenthetical scrub hardened + location geocoding (this session).** Hardened the eleven_v3 stage-direction scrubber (see watch-outs) and made the Location step rank branches by real distance from a geocoded origin via the new `/api/geocode` route, with one-way mileage auto-fill (see "Location geocoding").
+- **Premium parenthetical scrub hardened + location geocoding (commit `ea95207`).** Hardened the eleven_v3 stage-direction scrubber (see watch-outs) and made the Location step rank branches by real distance from a geocoded origin via the new `/api/geocode` route, with one-way mileage auto-fill (see "Location geocoding").
+- **City typeahead + Google Places (commits `9bad163`, `8a75b69`, `20ff9e3`).** Turned Moving From / Moving To into a city autocomplete; `/api/geocode` returns a candidate list, Google Places primary with keyless Photon fallback. See "Location geocoding + city typeahead".
+- **Training Center home (commit `343d42a`).** New default landing (`renderHome`) with two track cards + Explore More; the old welcome moved behind Explore More. See "Navigation / view map".
+- **Sales: Overcoming Objections track (commit `464e317`).** Five premium objection-handling scenarios + the `premium` flag (always Opus 4.7 + eleven_v3, no demo gate). See "Sales: Overcoming Objections track" and "Model + voice routing".
+- **BUILD_NOTES refresh (this commit).** Documented the home restructure, premium gating, the premium cast, and the sales track.
 
 ## Watch-outs / gotchas
 
@@ -221,6 +266,9 @@ Everything below shipped to `main` on 2026-05-23.
 1. Read this doc.
 2. Skim recent commits: `git log --oneline -15`.
 3. Run `npx wrangler pages dev public --compatibility-date=2026-05-01 --port 8788` (copy `.dev.vars` from the main checkout if you're in a worktree).
-4. Click through a training call: pick a scenario → on the **Details** step look the caller up by phone, fill the move details → **Continue** (storage modal) → **Equipment** pick a truck → **Location** pick a branch → **Time** → **Checkout** enter the card → **Reserve Now** to see the receipt. The conversation lane is docked at the bottom.
-5. For the showcase: Welcome → Meet Elena → demo password (`vp-demo-2026`) → the orb fills the screen → small-talk with Elena → ask her to run the customer scenario (or just ask an intake question) → the orb shrinks to a band and the POS appears → end the call for the coaching report.
-6. Then take whatever Alex asks for next.
+4. You land on the **Training Center** home. Three ways in:
+   - **Sales Scenarios** → the Overcoming Objections track → pick a persona (phone or chat). Confirm the "Premium voice" badge and, in DevTools, `X-Chat-Model: claude-opus-4-7`.
+   - **Explore More Scenario Training** → format picker → a standard scenario → work the POS (lookup by phone, fill the move, Continue through the 5 stages, Reserve Now). The conversation lane is docked at the bottom.
+   - **Post Reservation Situations** → still a "coming soon" stub.
+5. For the showcase: Explore More → Meet Elena → demo password (`vp-demo-2026`) → the orb fills the screen → small-talk → ask her to run the customer scenario (or just ask an intake question) → the orb shrinks and the POS appears → end the call for the coaching report.
+6. Two tracks teed up but not built: **Post-Reservation** (5 inert people in `PREMIUM_PEOPLE` awaiting situations) and tuning of the **Sales** five. Then take whatever Alex asks for next.
