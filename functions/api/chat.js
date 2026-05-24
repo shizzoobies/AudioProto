@@ -37,7 +37,9 @@ export async function onRequestPost({ request, env }) {
     isDemoUnlocked(request, env.SESSION_SECRET),
     fetchWeatherBlock(scenario.location),
   ]);
-  const usePremium = isShowcase && demoUnlocked;
+  // Premium personas (scenario.premium) always run on the premium model, no
+  // demo cookie required. The showcase persona still needs the demo unlock.
+  const usePremium = !!scenario.premium || (isShowcase && demoUnlocked);
   const modelId = usePremium ? PREMIUM_MODEL : STANDARD_MODEL;
   const maxTokens = usePremium ? PREMIUM_MAX_TOKENS : MAX_TOKENS;
 
@@ -58,7 +60,7 @@ export async function onRequestPost({ request, env }) {
           currentDateBlock(),
           weatherBlock,
           openingContinuationBlock(body?.opening_line),
-          usePremium ? premiumVoiceDirectionBlock() : '',
+          usePremium ? (isShowcase ? premiumVoiceDirectionBlock() : genericPremiumVoiceBlock()) : '',
         ].filter(Boolean).join('\n\n'),
         messages,
         stream: true,
@@ -128,6 +130,22 @@ function premiumVoiceDirectionBlock() {
     '- Match the tag to the moment: warmth in greetings and small talk, a soft [sighs] or [wistful] before a heavy topic (your dad Hector, your estranged brother Felipe), gentle energy about Mateo, brisk focus when you are deep in move logistics, [amused] or [laughs softly] when something is genuinely funny.',
     '- Never use asterisks or parenthetical actions like *laughs* or (sighs). Only square-bracket tags from the lists above.',
     '- Vary your wording, rhythm, and energy from call to call so you never sound scripted. Do not reuse the same stock opening every time; greet the way the moment calls for.',
+  ].join('\n');
+}
+
+// Premium voice delivery for non-showcase premium personas (the sales /
+// post-reservation cast). Same expressive eleven_v3 tag guidance as Elena's
+// block, minus her personal references, so any premium persona gets real
+// moment-to-moment range without sounding scripted.
+function genericPremiumVoiceBlock() {
+  return [
+    'Premium voice delivery (you are currently running on an expressive voice model):',
+    '- You may place square-bracket delivery tags inline. They are performed, not spoken aloud. Use them sparingly and only where they earn it - most sentences need none, never more than one per short reply, never two in a row.',
+    '- Emotional tone tags you may use: [warmly], [gently], [softly], [hesitant], [reassuring], [thoughtful], [tired], [excited], [amused], [wistful], [skeptical], [firmly].',
+    '- Non-verbal tags you may use: [sighs], [laughs softly], [chuckles], [exhales].',
+    '- Match the tag to the moment and your mood; never decorate every line. Keep the delivery natural and human.',
+    '- Never use asterisks or parenthetical actions like *laughs* or (sighs). Only square-bracket tags from the lists above.',
+    '- Vary your wording, rhythm, and energy from call to call so you never sound scripted.',
   ].join('\n');
 }
 

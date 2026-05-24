@@ -33,6 +33,7 @@ export async function onRequestPost({ request, env }) {
   let voiceId = null;
   let voiceSettings = DEFAULT_VOICE_SETTINGS;
   let isShowcaseScenario = false;
+  let isPremiumScenario = false;
 
   if (body?.scenario_id) {
     const scenario = getScenario(body.scenario_id);
@@ -42,6 +43,7 @@ export async function onRequestPost({ request, env }) {
       voiceSettings = { ...DEFAULT_VOICE_SETTINGS, ...scenario.voice_settings };
     }
     isShowcaseScenario = String(body.scenario_id).startsWith(SHOWCASE_PERSONA_PREFIX);
+    isPremiumScenario = !!scenario.premium;
   } else if (typeof body?.voice_id === 'string') {
     if (!/^[A-Za-z0-9]{12,}$/.test(body.voice_id)) {
       return jsonError('invalid_voice_id', 400);
@@ -51,8 +53,10 @@ export async function onRequestPost({ request, env }) {
     return jsonError('scenario_id_or_voice_id_required', 400);
   }
 
+  // Premium personas always get the expressive v3 voice; the showcase persona
+  // gets it when the demo is unlocked.
   const demoUnlocked = await isDemoUnlocked(request, env.SESSION_SECRET);
-  const modelId = (isShowcaseScenario && demoUnlocked) ? PREMIUM_TTS_MODEL : STANDARD_TTS_MODEL;
+  const modelId = (isPremiumScenario || (isShowcaseScenario && demoUnlocked)) ? PREMIUM_TTS_MODEL : STANDARD_TTS_MODEL;
 
   // eleven_v3 performs square-bracket delivery tags ([sighs], [warmly]).
   // The standard model would speak them aloud, so strip them defensively

@@ -342,6 +342,12 @@ textarea {
   margin-bottom: calc(-1 * var(--space-6));
 }
 
+/* In the section picker the layout isn't the centered welcome column, so the
+   negative pull would collide the back link with the format toggle. */
+.picker .welcome-back {
+  margin-bottom: var(--space-4);
+}
+
 .welcome-hero {
   text-align: center;
 }
@@ -779,9 +785,43 @@ textarea {
   gap: 5px;
 }
 
+.scenario-difficulty.difficulty-premium {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
 .random-icon {
   width: 11px;
   height: 11px;
+}
+
+/* Section track call-format toggle (phone / chat) */
+.section-format-toggle {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.section-format-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 14px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+}
+.section-format-btn:hover {
+  color: var(--color-text-primary);
+}
+.section-format-btn.active {
+  background: var(--color-accent);
+  color: #0a0a0b;
+  font-weight: 600;
 }
 
 .scenario-card-random {

@@ -157,9 +157,10 @@ async function init() {
       for (const p of t.personas || []) {
         const enriched = { ...p, type_id: t.id, type_title: t.title, difficulty: t.difficulty };
         state.personaById.set(p.id, enriched);
-        // Showcase persona is launched from the welcome screen only; exclude
-        // it from the random pool and from the picker grid below.
-        if (t.id !== 'showcase') state.allPersonaIds.push(p.id);
+        // Showcase and the section tracks (sales / post-reservation) are
+        // launched from their own entries; keep them out of the Explore More
+        // random pool and picker grid.
+        if (t.id !== 'showcase' && !t.section) state.allPersonaIds.push(p.id);
       }
     }
   } catch (err) {
@@ -247,8 +248,13 @@ function renderHome() {
 
   dom.root.querySelectorAll('[data-home-section]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const title = btn.dataset.homeSection === 'sales' ? 'Sales Scenarios' : 'Post Reservation Situations';
-      renderComingSoon(title);
+      const section = btn.dataset.homeSection;
+      const built = (state.scenarioTypes || []).some((t) => t.section === section);
+      if (built) {
+        renderSectionScenarios(section);
+      } else {
+        renderComingSoon(section === 'sales' ? 'Sales Scenarios' : 'Post Reservation Situations');
+      }
     });
   });
   const exploreBtn = dom.root.querySelector('[data-action="explore-more"]');
@@ -272,6 +278,75 @@ function renderComingSoon(title) {
     </section>
   `;
   dom.root.querySelector('[data-action="home"]').addEventListener('click', renderHome);
+}
+
+// A built-out home track (e.g. Sales: Overcoming Objections). Lists the
+// track's personas as individually selectable scenario cards, with a phone/chat
+// toggle (phone default, since these premium drills are about the spoken close).
+function renderSectionScenarios(section) {
+  const type = (state.scenarioTypes || []).find((t) => t.section === section);
+  if (!type) {
+    renderComingSoon(section === 'sales' ? 'Sales Scenarios' : 'Post Reservation Situations');
+    return;
+  }
+  state.view = 'section';
+  state.activeScenario = null;
+  setDocumentTitle(type.title);
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+  setCallMode('phone');
+
+  const cards = (type.personas || []).map((p) => `
+    <li class="scenario-card" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" aria-label="Start the call with ${escapeAttr(p.customer_name)}">
+      ${p.premium ? '<div class="scenario-difficulty difficulty-premium">Premium</div>' : ''}
+      <h2 class="scenario-title">${escapeHtml(p.customer_name)}</h2>
+      <p class="scenario-customer">${escapeHtml(p.customer_short || '')}</p>
+      <p class="scenario-description">${escapeHtml(p.tagline || '')}</p>
+      <div class="scenario-cta">Take the call <span aria-hidden="true">›</span></div>
+    </li>
+  `).join('');
+
+  dom.root.innerHTML = `
+    <section class="picker">
+      <div class="welcome-back">
+        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+      </div>
+      <header class="picker-header">
+        <div class="picker-format-row">
+          <div class="section-format-toggle" role="group" aria-label="Call format">
+            <button type="button" class="section-format-btn" data-section-format="phone">Phone</button>
+            <button type="button" class="section-format-btn" data-section-format="chat">Chat</button>
+          </div>
+        </div>
+        <h1 class="picker-title">${escapeHtml(type.title)}</h1>
+        <p class="picker-subtitle">${escapeHtml(type.description || '')}</p>
+      </header>
+      <ul class="scenario-grid">${cards}</ul>
+    </section>
+  `;
+
+  dom.root.querySelector('[data-action="home"]').addEventListener('click', renderHome);
+
+  const updateToggle = () => {
+    dom.root.querySelectorAll('[data-section-format]').forEach((b) => {
+      b.classList.toggle('active', b.dataset.sectionFormat === state.callMode);
+    });
+  };
+  dom.root.querySelectorAll('[data-section-format]').forEach((b) => {
+    b.addEventListener('click', () => { setCallMode(b.dataset.sectionFormat); updateToggle(); });
+  });
+  updateToggle();
+
+  dom.root.querySelectorAll('.scenario-card').forEach((card) => {
+    const go = () => startCall(card.dataset.personaId);
+    card.addEventListener('click', go);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
 }
 
 function renderWelcome() {
@@ -441,7 +516,7 @@ function renderPicker() {
   teardownAudio();
 
   const cards = state.scenarioTypes
-    .filter((t) => t.id !== 'showcase')
+    .filter((t) => t.id !== 'showcase' && !t.section)
     .map((t) => {
       const callerLabel = t.persona_count === 1 ? '1 caller' : `${t.persona_count} different callers`;
       return `
@@ -564,8 +639,9 @@ function renderCall(scenario) {
   // Premium voice (eleven_v3) performs square-bracket delivery tags. When
   // active we keep those tags in the text we send to TTS but strip them
   // from the transcript. Standard tier strips them everywhere.
-  const premiumVoice = isShowcaseCall && state.demoUnlocked;
-  const premiumBadge = (isShowcaseCall && state.demoUnlocked)
+  const isPremium = !!scenario.premium || (isShowcaseCall && state.demoUnlocked);
+  const premiumVoice = isPremium;
+  const premiumBadge = isPremium
     ? '<span class="call-mode-pill call-mode-pill-premium" title="Premium voice (Eleven v3)">Premium voice</span>'
     : '';
 
