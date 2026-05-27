@@ -2775,3 +2775,80 @@ body[data-kiosk] #ended-back,
 body[data-kiosk] #error-back {
   display: none !important;
 }
+
+/* Kiosk intro splash - the page magic-link recipients land on first. */
+.kiosk-splash {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--space-8) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  animation: view-fade-in 0.25s ease;
+}
+.kiosk-splash-header {
+  text-align: center;
+}
+.kiosk-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-accent);
+}
+.kiosk-title {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 8px 0 12px;
+}
+.kiosk-subtitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  font-size: 14px;
+}
+.kiosk-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  background: var(--color-surface-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.kiosk-card-name {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+.kiosk-card-short {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+.kiosk-card-tagline {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+.kiosk-disclaimer {
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-accent-muted);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  line-height: 1.55;
+}
+.kiosk-disclaimer strong {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.kiosk-cta {
+  align-self: center;
+  font-size: 16px;
+  padding: 14px 28px;
+}

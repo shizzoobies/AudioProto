@@ -188,11 +188,12 @@ async function init() {
 
   document.body.dataset.appState = 'ready';
   if (state.kiosk && state.kioskScenario) {
-    // Magic-link visitor: skip home/welcome/picker entirely and drop straight
-    // into the locked scenario. setCallMode sticks them on phone, the premium
-    // default; they can switch to chat once in the call view.
+    // Magic-link visitor: show the intro splash (persona card + mic
+    // disclaimer + Take-the-call button) instead of dumping them straight into
+    // a live call. Phone mode is the kiosk default; the splash button kicks
+    // off startCall, which initializes the mic on first user gesture.
     setCallMode('phone');
-    startCall(state.kioskScenario);
+    renderKioskSplash(state.kioskScenario);
   } else {
     renderHome();
   }
@@ -303,6 +304,51 @@ function renderComingSoon(title) {
     </section>
   `;
   dom.root.querySelector('[data-action="home"]').addEventListener('click', renderHome);
+}
+
+// Magic-link recipients land here first instead of dropping straight into the
+// call: a single intro card (same shape as the Sales picker cards) plus a
+// microphone disclaimer, with a Take-the-call button to actually start.
+function renderKioskSplash(scenarioId) {
+  state.view = 'kiosk_splash';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  const persona = state.personaById.get(scenarioId);
+  if (!persona) {
+    // Shouldn't happen (scenarios are loaded before this runs), but fail open
+    // to a direct call rather than a blank screen.
+    startCall(scenarioId);
+    return;
+  }
+
+  const typeTitle = persona.type_title || 'Overcoming Objections';
+  dom.root.innerHTML = `
+    <section class="kiosk-splash">
+      <header class="kiosk-splash-header">
+        <div class="kiosk-eyebrow">Sales training</div>
+        <h1 class="kiosk-title">${escapeHtml(typeTitle)}</h1>
+        <p class="kiosk-subtitle">Practice the three-point method: build genuine urgency, acknowledge the objection, and ask for the business again.</p>
+      </header>
+      <article class="kiosk-card">
+        ${persona.premium ? '<div class="scenario-difficulty difficulty-premium">Premium</div>' : ''}
+        <h2 class="kiosk-card-name">${escapeHtml(persona.customer_name || '')}</h2>
+        <p class="kiosk-card-short">${escapeHtml(persona.customer_short || '')}</p>
+        <p class="kiosk-card-tagline">${escapeHtml(persona.tagline || '')}</p>
+      </article>
+      <div class="kiosk-disclaimer" role="note">
+        <strong>This is a voice call.</strong> When prompted, please allow microphone access for this page so the customer can hear you.
+      </div>
+      <button class="primary-button kiosk-cta" id="kiosk-take-call" type="button">Take the call <span aria-hidden="true">›</span></button>
+    </section>
+  `;
+
+  document.getElementById('kiosk-take-call').addEventListener('click', () => startCall(scenarioId));
 }
 
 // A built-out home track (e.g. Sales: Overcoming Objections). Lists the
