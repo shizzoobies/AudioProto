@@ -124,15 +124,32 @@ const dom = {
 async function init() {
   renderPickerSkeleton();
 
+  // First try the normal session. If that fails, fall back to checking for a
+  // valid magic-link cookie - magic visitors don't have a session at all and
+  // shouldn't be bounced to the login page.
+  let sessionOk = false;
   try {
     const sessionRes = await fetch('/api/session', { credentials: 'same-origin' });
-    if (!sessionRes.ok) {
+    sessionOk = sessionRes.ok;
+  } catch {
+    sessionOk = false;
+  }
+  if (!sessionOk) {
+    let magic = null;
+    try {
+      const r = await fetch('/api/magic-status', { credentials: 'same-origin' });
+      if (r.ok) magic = await r.json();
+    } catch {
+      magic = null;
+    }
+    if (magic && magic.active && typeof magic.scenario === 'string') {
+      state.kiosk = true;
+      state.kioskScenario = magic.scenario;
+      document.body.dataset.kiosk = 'true';
+    } else {
       window.location.replace('/');
       return;
     }
-  } catch {
-    window.location.replace('/');
-    return;
   }
 
   try {
@@ -170,7 +187,15 @@ async function init() {
   }
 
   document.body.dataset.appState = 'ready';
-  renderHome();
+  if (state.kiosk && state.kioskScenario) {
+    // Magic-link visitor: skip home/welcome/picker entirely and drop straight
+    // into the locked scenario. setCallMode sticks them on phone, the premium
+    // default; they can switch to chat once in the call view.
+    setCallMode('phone');
+    startCall(state.kioskScenario);
+  } else {
+    renderHome();
+  }
 
   dom.signOut.addEventListener('click', signOut);
 }
@@ -2329,8 +2354,11 @@ function renderAnalyzing(scenario) {
 function renderReport(scenario, report) {
   state.view = 'report';
   setDocumentTitle(`Report: ${scenario.customer_name}`);
+  // Kiosk visitors have nowhere to go but back into the same scenario - even
+  // if the "Back to scenarios" button shows for any reason, it just retries.
+  const onNewCall = state.kiosk ? () => startCall(scenario.id) : renderPicker;
   const node = renderReportHtml(scenario, report, {
-    onNewCall: renderPicker,
+    onNewCall,
     onRetry: () => startCall(scenario.id),
   });
   dom.root.replaceChildren(node);
@@ -2348,7 +2376,7 @@ function renderShortCall(scenario) {
       </div>
     </section>
   `;
-  document.getElementById('ended-back').addEventListener('click', renderPicker);
+  document.getElementById('ended-back').addEventListener('click', state.kiosk ? () => startCall(scenario.id) : renderPicker);
   document.getElementById('ended-retry').addEventListener('click', () => startCall(scenario.id));
 }
 
@@ -2364,7 +2392,7 @@ function renderCoachingError(scenario, messages, err) {
       </div>
     </section>
   `;
-  document.getElementById('error-back').addEventListener('click', renderPicker);
+  document.getElementById('error-back').addEventListener('click', state.kiosk ? () => startCall(scenario.id) : renderPicker);
   document.getElementById('error-retry').addEventListener('click', () => runCoaching(scenario, messages));
 }
 

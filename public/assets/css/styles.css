@@ -2764,3 +2764,14 @@ textarea {
   .pos-rail, .pos-stage { max-height: none; overflow: visible; }
   .pos-rail-right { flex-direction: column; }
 }
+
+/* Kiosk mode (magic-link visitor). No escape from the locked scenario:
+   hide Sign out and every "Back to scenarios" / "New call" button so the
+   only paths from the report are Replay and Retry-analysis. */
+body[data-kiosk] #sign-out,
+body[data-kiosk] #call-back,
+body[data-kiosk] #report-new-call,
+body[data-kiosk] #ended-back,
+body[data-kiosk] #error-back {
+  display: none !important;
+}

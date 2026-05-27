@@ -1,5 +1,5 @@
 import { getScenario } from '../../shared/scenarios.js';
-import { verifyToken } from '../../shared/auth.js';
+import { verifyToken, getMagicScope } from '../../shared/auth.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const STANDARD_MODEL = 'claude-sonnet-4-6';
@@ -23,6 +23,14 @@ export async function onRequestPost({ request, env }) {
   const scenario = getScenario(body?.scenario_id);
   if (!scenario) {
     return jsonError('unknown_scenario', 400);
+  }
+
+  // Magic-link visitors can only call the scenario their cookie is scoped to.
+  // Owners on the normal session pass through unchanged (getMagicScope returns
+  // null whenever the session cookie is valid).
+  const lockedScenario = await getMagicScope(request, env);
+  if (lockedScenario && lockedScenario !== body.scenario_id) {
+    return jsonError('forbidden_scenario', 403);
   }
 
   const messages = sanitizeMessages(body?.messages);

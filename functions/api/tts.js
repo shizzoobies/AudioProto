@@ -1,5 +1,5 @@
 import { getScenario } from '../../shared/scenarios.js';
-import { verifyToken } from '../../shared/auth.js';
+import { verifyToken, getMagicScope } from '../../shared/auth.js';
 
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
 const STANDARD_TTS_MODEL = 'eleven_multilingual_v2';
@@ -29,6 +29,13 @@ export async function onRequestPost({ request, env }) {
   const text = typeof body?.text === 'string' ? body.text.trim() : '';
   if (!text) return jsonError('text_required', 400);
   if (text.length > 1500) return jsonError('text_too_long', 400);
+
+  // Magic-link visitors are locked to one scenario. Reject any other scenario
+  // and also raw voice_id calls (which would bypass the scenario check).
+  const lockedScenario = await getMagicScope(request, env);
+  if (lockedScenario && body?.scenario_id !== lockedScenario) {
+    return jsonError('forbidden_scenario', 403);
+  }
 
   let voiceId = null;
   let voiceSettings = DEFAULT_VOICE_SETTINGS;

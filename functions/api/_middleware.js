@@ -1,6 +1,10 @@
-import { verifyToken } from '../../shared/auth.js';
+import { verifyToken, tokenFingerprint } from '../../shared/auth.js';
 
-const PUBLIC_PATHS = new Set(['/api/auth']);
+// /api/auth is public so login can happen unauthenticated. /api/magic-status
+// is public because the kiosk frontend uses it to discover whether the
+// visitor has a valid cs_magic cookie (and what scenario it locks them to)
+// before any other call - it does not grant access on its own.
+const PUBLIC_PATHS = new Set(['/api/auth', '/api/magic-status']);
 
 export async function onRequest(context) {
   const { request, env, next } = context;
@@ -11,19 +15,35 @@ export async function onRequest(context) {
   }
 
   const cookies = parseCookies(request.headers.get('Cookie') || '');
-  const token = cookies.session;
 
-  if (!token) {
-    return jsonError('unauthorized', 401);
+  // Normal session: the gate for everyone who logs in with the app password.
+  if (cookies.session) {
+    try {
+      await verifyToken(cookies.session, env.SESSION_SECRET);
+      return next();
+    } catch {
+      // Bad/expired session - fall through and try the magic path.
+    }
   }
 
-  try {
-    await verifyToken(token, env.SESSION_SECRET);
-  } catch {
-    return jsonError('invalid_or_expired_session', 401);
+  // Magic-link visitors. We require BOTH (a) the cookie's HMAC verifies and
+  // (b) its tokenHash matches the current MAGIC_LINK_TOKEN fingerprint, so
+  // rotating that secret in the Cloudflare dashboard invalidates every cookie
+  // already in the wild on the next request. The per-scenario lock that keeps
+  // them from calling other scenario_ids is enforced inside chat/tts/coach.
+  if (cookies.cs_magic && env.SESSION_SECRET && env.MAGIC_LINK_TOKEN) {
+    try {
+      const payload = await verifyToken(cookies.cs_magic, env.SESSION_SECRET);
+      if (payload?.magic) {
+        const fp = await tokenFingerprint(env.MAGIC_LINK_TOKEN);
+        if (payload.h === fp) return next();
+      }
+    } catch {
+      // fall through to 401
+    }
   }
 
-  return next();
+  return jsonError('unauthorized', 401);
 }
 
 function parseCookies(header) {

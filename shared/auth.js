@@ -81,3 +81,57 @@ export async function verifyToken(token, secret) {
 
   return payload;
 }
+
+// Short hex fingerprint of a secret (first 16 bytes of SHA-256). We stash this
+// in cs_magic cookies so rotating MAGIC_LINK_TOKEN in the dashboard invalidates
+// every already-issued cookie immediately, not just future ones.
+export async function tokenFingerprint(s) {
+  const data = ENCODER.encode(String(s || ''));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const arr = Array.from(new Uint8Array(digest)).slice(0, 16);
+  return arr.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// If the request is authenticated only by a valid cs_magic cookie (and the
+// MAGIC_LINK_TOKEN fingerprint still matches what's currently configured),
+// return the scenario_id the visitor is locked to. Returns null if the
+// visitor has a normal session (no lock applies) or has no valid magic scope
+// at all. Used by chat/tts/coach to refuse any scenario outside the lane.
+export async function getMagicScope(request, env) {
+  if (!env?.SESSION_SECRET || !env?.MAGIC_LINK_TOKEN) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  if (cookies.session) {
+    try {
+      await verifyToken(cookies.session, env.SESSION_SECRET);
+      return null;
+    } catch {
+      // fall through: session is bad, try magic
+    }
+  }
+  const t = cookies.cs_magic;
+  if (!t) return null;
+  try {
+    const payload = await verifyToken(t, env.SESSION_SECRET);
+    if (!payload?.magic) return null;
+    const fp = await tokenFingerprint(env.MAGIC_LINK_TOKEN);
+    if (payload.h !== fp) return null;
+    return typeof payload.scenario === 'string' ? payload.scenario : null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseCookieHeader(header) {
+  const out = {};
+  if (!header) return out;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    const k = part.slice(0, eq).trim();
+    const v = part.slice(eq + 1).trim();
+    if (k) {
+      try { out[k] = decodeURIComponent(v); } catch { out[k] = v; }
+    }
+  }
+  return out;
+}
