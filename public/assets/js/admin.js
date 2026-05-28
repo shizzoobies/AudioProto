@@ -1,20 +1,25 @@
 // Admin dashboard SPA. On boot probes /api/admin/session to decide between
-// the login form and the dashboard. The dashboard lets the admin pick
-// scenarios, enter recipients, and click "Generate" - which POSTs to
-// /api/admin/invites and returns one URL per recipient (newly minted, since
-// reused invites get a refreshed token so the URL can always be re-shared).
-// Invites are listed below with revoke buttons; the URL of an existing
-// invite is NOT shown because we never store plaintext tokens.
+// login and dashboard. The dashboard uses an inline add-invite row
+// (Name | Email | Scenarios | Expiry | Send) with the scenario picker hidden
+// behind a popover so the form stays a single line on desktop.
+//
+// Invites live below as card rows with revoke buttons. The URL of a newly
+// generated invite is shown above the list with a Copy button — we don't
+// store plaintext tokens, so it's only available at generation time.
 
 const root = document.getElementById('admin-root');
 const logoutBtn = document.getElementById('admin-logout');
 const body = document.body;
 
 const state = {
-  scenarioTypes: [],      // grouped: [{id, title, difficulty, description, persona_count, personas:[...]}]
-  invites: [],            // [{id, recipient_email, recipient_name, scenarios:[], created_at, expires_at, revoked, ...}]
-  lastGenerated: [],      // [{id, email, name, url, scenario_ids, expires_at, reused}] from the last POST
+  scenarioTypes: [],   // [{id, title, difficulty, description, persona_count, personas:[...]}]
+  invites: [],         // [{id, recipient_email, recipient_name, scenarios:[], created_at, expires_at, revoked, ...}]
+  lastGenerated: [],   // [{id, email, name, url, scenario_ids, expires_at, reused}]
 };
+
+let pickerOpen = false;
+let pickerOutsideHandler = null;
+let pickerKeyHandler = null;
 
 init();
 
@@ -77,7 +82,8 @@ async function logout() {
   try {
     await fetch('/api/admin/login', { method: 'DELETE', credentials: 'same-origin' });
   } catch {}
-  state.scenarios = [];
+  closePicker();
+  state.scenarioTypes = [];
   state.invites = [];
   state.lastGenerated = [];
   renderLogin();
@@ -94,8 +100,6 @@ async function renderDashboard() {
 }
 
 async function loadData() {
-  // Scenario types stay grouped so the dashboard can render each as a
-  // collapsible. Filter showcase since it's not useful as an invite target.
   try {
     const sc = await fetch('/api/scenarios', { credentials: 'same-origin' });
     if (sc.ok) {
@@ -138,67 +142,79 @@ function paintDashboard() {
     : '<div class="admin-empty">No scenarios available.</div>';
 
   root.innerHTML = `
-    <section class="admin-section admin-create">
+    <section class="admin-section">
       <header class="admin-section-head">
-        <h1 class="admin-section-title">New invites</h1>
-        <p class="admin-section-sub">Pick scenarios, add recipients, generate URLs.</p>
+        <p class="admin-eyebrow">Invite recipients</p>
+        <h1 class="admin-section-title">Send a training invite</h1>
+        <p class="admin-section-sub">One link per recipient. Reuses the existing invite if they're already on file, so the URL stays shareable.</p>
       </header>
 
-      <form id="admin-create-form" autocomplete="off">
-        <fieldset class="admin-fieldset admin-fieldset-scenarios">
-          <div class="admin-fieldset-head">
-            <legend class="admin-legend">Scenarios</legend>
-            <span class="admin-selected-badge" id="selected-count" hidden>0</span>
-          </div>
-          <div class="admin-types-list">${typesHtml}</div>
-        </fieldset>
-
-        <div class="admin-form-row">
-          <fieldset class="admin-fieldset admin-fieldset-recipients">
-            <legend class="admin-legend">Recipients</legend>
-            <textarea id="admin-recipients" class="admin-textarea" rows="3" placeholder="jane@example.com, Jane Doe&#10;mike@example.com"></textarea>
-            <p class="admin-hint">One per line. Format: <code>email</code> or <code>email, name</code>.</p>
-          </fieldset>
-
-          <fieldset class="admin-fieldset admin-fieldset-expiry">
-            <legend class="admin-legend">Expiry</legend>
-            <select id="admin-expiry" class="admin-select">
-              <option value="7" selected>7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="never">Never</option>
-            </select>
-            <p class="admin-hint">Revoke anytime, regardless of expiry.</p>
-          </fieldset>
+      <form id="admin-create-form" class="admin-invite-form" autocomplete="off">
+        <div class="admin-field">
+          <label class="admin-field-label" for="admin-name">Name</label>
+          <input type="text" id="admin-name" class="admin-input" placeholder="Full name" autocomplete="off">
         </div>
-
-        <div class="admin-form-actions">
-          <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Generate</button>
+        <div class="admin-field">
+          <label class="admin-field-label" for="admin-email">Email</label>
+          <input type="email" id="admin-email" class="admin-input" placeholder="name@firm.com" autocomplete="off" required>
+        </div>
+        <div class="admin-field admin-picker-wrap">
+          <span class="admin-field-label">Scenarios</span>
+          <button type="button" id="admin-picker-btn" class="admin-picker-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="admin-picker-pop">
+            <span class="admin-picker-btn-label" id="admin-picker-label">Choose scenarios</span>
+            <span class="admin-picker-btn-meta">
+              <span class="admin-picker-count" id="admin-picker-count" hidden>0</span>
+              <svg class="admin-picker-caret" viewBox="0 0 10 10" aria-hidden="true">
+                <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </span>
+          </button>
+          <div id="admin-picker-pop" class="admin-picker-pop" role="dialog" aria-label="Choose scenarios" hidden>
+            ${typesHtml}
+          </div>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="admin-expiry">Expiry</label>
+          <select id="admin-expiry" class="admin-select">
+            <option value="7" selected>7 days</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="never">Never</option>
+          </select>
+        </div>
+        <div class="admin-send-cell">
+          <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Send invite</button>
         </div>
       </form>
 
-      <div id="admin-generated"></div>
+      <div id="admin-generated" class="admin-generated"></div>
     </section>
 
-    <section class="admin-section admin-invites">
+    <section class="admin-section">
       <header class="admin-section-head">
-        <h2 class="admin-section-title">Invites</h2>
-        <p class="admin-section-sub">All active and past invites. Click revoke to disable a link immediately.</p>
+        <p class="admin-eyebrow">Members</p>
+        <h2 class="admin-section-title">Active invites</h2>
+        <p class="admin-section-sub">Every recipient with a live or past link. Revoke to disable a link immediately.</p>
       </header>
-      ${renderInviteTable(state.invites)}
+      <div id="admin-invite-list-wrap">${renderInviteList(state.invites)}</div>
     </section>
   `;
 
   const form = document.getElementById('admin-create-form');
   form.addEventListener('submit', onGenerate);
   form.addEventListener('change', updateSelectionCount);
+
+  document.getElementById('admin-picker-btn').addEventListener('click', togglePicker);
+  // Stop clicks inside the popover from bubbling to the outside-click handler.
+  document.getElementById('admin-picker-pop').addEventListener('click', (e) => e.stopPropagation());
+
   updateSelectionCount();
-  attachInviteTableHandlers();
+  attachInviteListHandlers();
 }
 
-// One scenario type rendered as a <details> collapsible. Description is shown
-// on expand, persona checkboxes underneath. Default collapsed - admins can
-// open the tracks they're working with and ignore the rest.
+// One scenario type rendered as a <details>. Description is shown on expand,
+// persona checkboxes underneath. Default collapsed — admins open the tracks
+// they're working with and ignore the rest.
 function renderType(t) {
   const diff = (t.difficulty || '').toLowerCase();
   const diffLabel = diff ? diff[0].toUpperCase() + diff.slice(1) : '';
@@ -236,71 +252,117 @@ function updateSelectionCount() {
   const form = document.getElementById('admin-create-form');
   if (!form) return;
   const total = form.querySelectorAll('input[name="scenario_id"]:checked').length;
-  const badge = document.getElementById('selected-count');
-  if (badge) {
-    badge.hidden = total === 0;
-    badge.textContent = `${total} selected`;
+
+  const count = document.getElementById('admin-picker-count');
+  const label = document.getElementById('admin-picker-label');
+  if (count) {
+    count.hidden = total === 0;
+    count.textContent = total;
   }
+  if (label) {
+    label.textContent = total === 0
+      ? 'Choose scenarios'
+      : (total === 1 ? '1 scenario selected' : `${total} scenarios selected`);
+  }
+
   const btn = document.getElementById('admin-generate-btn');
   if (btn) btn.disabled = total === 0;
 
   document.querySelectorAll('[data-type-count]').forEach((el) => {
     const tid = el.dataset.typeCount;
-    const count = form.querySelectorAll(`input[data-type="${CSS.escape(tid)}"]:checked`).length;
-    el.hidden = count === 0;
-    el.textContent = count;
+    const c = form.querySelectorAll(`input[data-type="${CSS.escape(tid)}"]:checked`).length;
+    el.hidden = c === 0;
+    el.textContent = c;
   });
 }
 
-function renderInviteTable(invites) {
+// ---- Scenarios picker open/close -----------------------------------------
+
+function openPicker() {
+  if (pickerOpen) return;
+  const pop = document.getElementById('admin-picker-pop');
+  const btn = document.getElementById('admin-picker-btn');
+  if (!pop || !btn) return;
+  pop.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  pickerOpen = true;
+
+  pickerOutsideHandler = (e) => {
+    if (!btn.contains(e.target) && !pop.contains(e.target)) closePicker();
+  };
+  pickerKeyHandler = (e) => {
+    if (e.key === 'Escape') {
+      closePicker();
+      btn.focus();
+    }
+  };
+  // Defer so the click that opened the picker doesn't immediately close it.
+  setTimeout(() => document.addEventListener('mousedown', pickerOutsideHandler), 0);
+  document.addEventListener('keydown', pickerKeyHandler);
+}
+
+function closePicker() {
+  if (!pickerOpen) return;
+  const pop = document.getElementById('admin-picker-pop');
+  const btn = document.getElementById('admin-picker-btn');
+  if (pop) pop.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  pickerOpen = false;
+  if (pickerOutsideHandler) {
+    document.removeEventListener('mousedown', pickerOutsideHandler);
+    pickerOutsideHandler = null;
+  }
+  if (pickerKeyHandler) {
+    document.removeEventListener('keydown', pickerKeyHandler);
+    pickerKeyHandler = null;
+  }
+}
+
+function togglePicker() {
+  if (pickerOpen) closePicker(); else openPicker();
+}
+
+// ---- Invite list ----------------------------------------------------------
+
+function renderInviteList(invites) {
   if (!invites.length) {
-    return '<div class="admin-empty">No invites yet. Generate one above.</div>';
+    return '<div class="admin-empty">No invites yet. Send your first one above.</div>';
   }
   const now = Math.floor(Date.now() / 1000);
   const rows = invites.map((inv) => {
     const status = inviteStatus(inv, now);
-    const scenarios = (inv.scenarios || [])
-      .map((s) => `<span class="admin-chip" title="${escapeAttr(s.tagline || '')}">${escapeHtml(s.customer_name || s.id)}</span>`)
-      .join('');
+    const scenarios = (inv.scenarios || []);
+    const chips = scenarios.length
+      ? scenarios.slice(0, 4).map((s) => `<span class="admin-chip" title="${escapeAttr(s.tagline || '')}">${escapeHtml(s.customer_name || s.id)}</span>`).join('')
+        + (scenarios.length > 4 ? `<span class="admin-chip">+${scenarios.length - 4}</span>` : '')
+      : '<span class="admin-muted">no scenarios</span>';
+
+    const expiresText = inv.expires_at
+      ? `expires ${fmtDate(inv.expires_at)}`
+      : 'never expires';
+    const usageText = inv.last_click_at
+      ? `clicked ${fmtRelative(inv.last_click_at, now)}`
+      : 'no clicks yet';
+
     return `
-      <tr data-id="${escapeAttr(inv.id)}" class="admin-invite-row ${status.cls}">
-        <td class="admin-cell-recipient">
-          <div class="admin-cell-email">${escapeHtml(inv.recipient_email)}</div>
-          ${inv.recipient_name ? `<div class="admin-cell-name">${escapeHtml(inv.recipient_name)}</div>` : ''}
-        </td>
-        <td class="admin-cell-scenarios">${scenarios || '<span class="admin-muted">none</span>'}</td>
-        <td class="admin-cell-meta">
-          <div>${fmtDate(inv.created_at)}</div>
-          <div class="admin-muted">expires ${inv.expires_at ? fmtDate(inv.expires_at) : 'never'}</div>
-        </td>
-        <td class="admin-cell-usage">
-          <div>${inv.total_calls || 0} calls</div>
-          <div class="admin-muted">${inv.last_click_at ? `clicked ${fmtRelative(inv.last_click_at, now)}` : 'no clicks yet'}</div>
-        </td>
-        <td class="admin-cell-status">
-          <span class="admin-pill admin-pill-${status.tag}">${status.label}</span>
-        </td>
-        <td class="admin-cell-actions">
+      <div class="admin-invite-card ${status.cls}" data-id="${escapeAttr(inv.id)}">
+        <div class="admin-invite-recipient">
+          <div class="admin-invite-name">${escapeHtml(inv.recipient_name || inv.recipient_email)}</div>
+          ${inv.recipient_name ? `<div class="admin-invite-email">${escapeHtml(inv.recipient_email)}</div>` : ''}
+        </div>
+        <div class="admin-invite-scenarios">${chips}</div>
+        <div class="admin-invite-meta">
+          <div class="admin-invite-meta-line"><strong>${inv.total_calls || 0}</strong> ${inv.total_calls === 1 ? 'call' : 'calls'} · ${escapeHtml(usageText)}</div>
+          <div class="admin-invite-meta-line">${escapeHtml(expiresText)}</div>
+        </div>
+        <span class="admin-pill admin-pill-${status.tag}">${status.label}</span>
+        <div class="admin-invite-actions">
           ${status.tag === 'active' ? `<button type="button" class="ghost-button admin-revoke-btn" data-revoke="${escapeAttr(inv.id)}">Revoke</button>` : ''}
-        </td>
-      </tr>
+        </div>
+      </div>
     `;
   }).join('');
-  return `
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Recipient</th>
-          <th>Scenarios</th>
-          <th>Created</th>
-          <th>Usage</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
+  return `<div class="admin-invite-list">${rows}</div>`;
 }
 
 function inviteStatus(inv, now) {
@@ -309,11 +371,11 @@ function inviteStatus(inv, now) {
   return { tag: 'active', label: 'Active', cls: 'is-active' };
 }
 
-function attachInviteTableHandlers() {
+function attachInviteListHandlers() {
   root.querySelectorAll('[data-revoke]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.revoke;
-      if (!confirm('Revoke this invite? The recipient\'s link will stop working immediately.')) return;
+      if (!confirm("Revoke this invite? The recipient's link will stop working immediately.")) return;
       btn.disabled = true;
       btn.textContent = 'Revoking...';
       try {
@@ -323,13 +385,17 @@ function attachInviteTableHandlers() {
         });
         if (res.ok) {
           await loadData();
-          paintDashboard();
+          const wrap = document.getElementById('admin-invite-list-wrap');
+          if (wrap) {
+            wrap.innerHTML = renderInviteList(state.invites);
+            attachInviteListHandlers();
+          }
         } else {
           alert('Revoke failed.');
           btn.disabled = false;
           btn.textContent = 'Revoke';
         }
-      } catch (e) {
+      } catch {
         alert('Network error.');
         btn.disabled = false;
         btn.textContent = 'Revoke';
@@ -337,6 +403,8 @@ function attachInviteTableHandlers() {
     });
   });
 }
+
+// ---- Generate -------------------------------------------------------------
 
 async function onGenerate(e) {
   e.preventDefault();
@@ -351,18 +419,10 @@ async function onGenerate(e) {
     return;
   }
 
-  const raw = document.getElementById('admin-recipients').value || '';
-  const recipients = [];
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const idx = trimmed.indexOf(',');
-    const email = (idx === -1 ? trimmed : trimmed.slice(0, idx)).trim();
-    const name = idx === -1 ? null : trimmed.slice(idx + 1).trim() || null;
-    if (email) recipients.push({ email, name });
-  }
-  if (!recipients.length) {
-    out.innerHTML = '<div class="admin-alert admin-alert-error">Add at least one recipient.</div>';
+  const email = (document.getElementById('admin-email').value || '').trim();
+  const name = (document.getElementById('admin-name').value || '').trim() || null;
+  if (!email) {
+    out.innerHTML = '<div class="admin-alert admin-alert-error">Add a recipient email.</div>';
     return;
   }
 
@@ -370,13 +430,13 @@ async function onGenerate(e) {
   const expires_days = expiryVal === 'never' ? 'never' : parseInt(expiryVal, 10);
 
   btn.disabled = true;
-  btn.textContent = 'Generating...';
+  btn.textContent = 'Sending...';
   try {
     const res = await fetch('/api/admin/invites', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ scenario_ids: scenarioIds, recipients, expires_days }),
+      body: JSON.stringify({ scenario_ids: scenarioIds, recipients: [{ email, name }], expires_days }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
@@ -385,23 +445,25 @@ async function onGenerate(e) {
     }
     state.lastGenerated = data.invites || [];
     paintGenerated();
-    // Refresh the table below.
     await loadData();
-    // Rerender just the invites section, keeping the create form state alive.
-    const invitesSection = document.querySelector('.admin-invites');
-    if (invitesSection) {
-      invitesSection.innerHTML = `<h2 class="admin-section-title">Invites</h2>${renderInviteTable(state.invites)}`;
-      attachInviteTableHandlers();
+    const wrap = document.getElementById('admin-invite-list-wrap');
+    if (wrap) {
+      wrap.innerHTML = renderInviteList(state.invites);
+      attachInviteListHandlers();
     }
-    // Clear the recipients textarea so a follow-up Generate doesn't repeat.
-    document.getElementById('admin-recipients').value = '';
-    // Uncheck scenarios so the next batch starts fresh.
+    // Reset the form for the next recipient — but keep the picker closed.
+    document.getElementById('admin-email').value = '';
+    document.getElementById('admin-name').value = '';
     form.querySelectorAll('input[name="scenario_id"]:checked').forEach((el) => { el.checked = false; });
+    closePicker();
+    updateSelectionCount();
   } catch (err) {
     out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Generate';
+    btn.textContent = 'Send invite';
+    // Re-disable if nothing's checked (clearing scenarios above flipped state).
+    updateSelectionCount();
   }
 }
 
@@ -413,9 +475,7 @@ function paintGenerated() {
   }
   const rows = state.lastGenerated.map((g) => `
     <div class="admin-generated-row">
-      <div class="admin-generated-meta">
-        <div class="admin-generated-email">${escapeHtml(g.email)}${g.name ? ' · ' + escapeHtml(g.name) : ''}${g.reused ? ' <span class="admin-muted">(refreshed)</span>' : ' <span class="admin-muted">(new)</span>'}</div>
-      </div>
+      <div class="admin-generated-email">${escapeHtml(g.email)}${g.name ? ' · ' + escapeHtml(g.name) : ''}${g.reused ? ' <span class="admin-muted">(refreshed)</span>' : ' <span class="admin-muted">(new)</span>'}</div>
       <div class="admin-generated-url-row">
         <input class="admin-input admin-generated-url" readonly value="${escapeAttr(g.url)}">
         <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(g.url)}">Copy</button>
@@ -424,11 +484,11 @@ function paintGenerated() {
   `).join('');
   out.innerHTML = `
     <div class="admin-alert admin-alert-success">
-      <strong>Done.</strong> Send each link to its recipient. (Email delivery comes in Phase 3 - for now, copy the URLs and send them manually.)
+      <strong>Invite ready.</strong> Email delivery comes in Phase 3 — copy the link below and send it manually.
     </div>
     <div class="admin-generated-list">${rows}</div>
   `;
-  out.querySelectorAll('[data-copy], .admin-copy-btn').forEach((btn) => {
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const url = btn.dataset.url;
       try {
@@ -448,9 +508,7 @@ function paintGenerated() {
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
-function escapeAttr(s) {
-  return escapeHtml(s);
-}
+function escapeAttr(s) { return escapeHtml(s); }
 function fmtDate(ts) {
   if (!ts) return '—';
   try {
