@@ -43,6 +43,47 @@ const MOCK = {
     { kind: 'agent',    label: 'You',          text: 'I understand — price matters. Our 15-foot rate does include roadside assistance and a damage waiver option that U-Haul charges extra for. Would you like me to walk you through the total so you can compare apples to apples?' },
   ],
 
+  // In-progress reservation used across the POS step previews (steps 2-5).
+  reservation: {
+    customerName: 'Derek Huang',
+    phone: '(210) 555-0142',
+    email: 'derek.huang@gmail.com',
+    movingFrom: 'Westside, San Antonio TX 78237',
+    movingTo: 'Stone Oak, San Antonio TX 78258',
+    rentalDate: 'Sat, May 30, 2026',
+    moving: '2 Bedroom Home',
+    moveType: 'In Town',
+    truckLabel: "15' Moving Truck",
+    truckRate: '$29.95/day + $0.89/mile',
+    rentalLength: '1 day (24-hr period)',
+    location: 'San Antonio Central',
+    pickupTime: 'Sat, May 30 · 9:00 AM',
+  },
+
+  truckSizes: [
+    { size: 10, base: 19.95, per_mile: 0.79 },
+    { size: 15, base: 29.95, per_mile: 0.89 },
+    { size: 20, base: 39.95, per_mile: 0.99 },
+    { size: 26, base: 49.95, per_mile: 1.09 },
+  ],
+
+  locations: [
+    { name: 'San Antonio Central', entity: 'Entity 4471', address: '1200 Fredericksburg Rd, San Antonio TX 78201', phone: '(210) 555-0188', hours: 'Open until 7:00 PM', dist: '1.2', avail: [10, 15, 20, 26] },
+    { name: 'Stone Oak',           entity: 'Entity 5532', address: '20475 US-281 N, San Antonio TX 78258',       phone: '(210) 555-0211', hours: 'Open until 6:00 PM', dist: '3.8', avail: [15, 20] },
+    { name: 'Leon Valley',         entity: 'Entity 3390', address: '6900 Bandera Rd, San Antonio TX 78238',      phone: '(210) 555-0144', hours: 'Open until 8:00 PM', dist: '5.1', avail: [10, 15, 26] },
+  ],
+
+  cartLines: [
+    { label: "15' Moving Truck", sub: '1 day @ $29.95', amount: 29.95 },
+    { label: 'Mileage',          sub: '22 mi @ $0.89',  amount: 19.58 },
+    { label: 'Furniture pads',   sub: '1 pack',         amount: 10.00 },
+    { label: 'Utility dolly',    sub: '1 day',          amount: 7.00 },
+    { label: 'Damage waiver',    sub: 'Basic · 1 day',  amount: 15.00 },
+  ],
+  cartSubtotal: 81.53,
+  cartTax: 6.73,
+  cartTotal: 88.26,
+
   // Coaching report mock
   report: {
     overall_score: 3.5,
@@ -158,6 +199,10 @@ function fmtRelative(ts) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function fmtMoney(n) {
+  return '$' + Number(n || 0).toFixed(2);
 }
 
 function inviteStatus(inv) {
@@ -410,114 +455,307 @@ function renderKioskSplash() {
   `;
 }
 
-function buildCallShell({ transcriptHtml = '', phoneStatusState = 'connecting', phoneStatusText = 'Connecting...', phoneStatusHint = 'Putting the call through.' } = {}) {
+// ---------------------------------------------------------------------------
+// Call shell — replicates the in-call POS interface. Parameterized by which
+// reservation step is active (1 Details, 2 Equipment, 3 Location, 4 Time,
+// 5 Checkout) and whether the rails/cart show an in-progress reservation.
+// ---------------------------------------------------------------------------
+
+const R = MOCK.reservation;
+
+function transcriptHtmlFrom(turns) {
+  return turns.map((m) => `
+    <li class="message message-${esc(m.kind)}">
+      <div class="message-label">${esc(m.label)}</div>
+      <div class="message-bubble">${esc(m.text)}</div>
+    </li>
+  `).join('');
+}
+
+function posStepper(active) {
+  const steps = [[1, 'Details'], [2, 'Equipment'], [3, 'Location'], [4, 'Time'], [5, 'Checkout']];
+  return `<ol class="pos-stepper" aria-label="Reservation steps">${steps.map(([n, label]) => {
+    const cls = n === active ? ' active' : (n < active ? ' done' : '');
+    return `<li class="pos-stepper-item${cls}" data-step="${n}"><span class="pos-stepper-num">${n}</span><span class="pos-stepper-label">${label}</span></li>`;
+  }).join('')}</ol>`;
+}
+
+function leftRailHtml(filled) {
+  const contact = filled
+    ? `<div class="pos-kv"><span>Name</span><span>${esc(R.customerName)}</span></div>
+       <div class="pos-kv"><span>Phone</span><span>${esc(R.phone)}</span></div>
+       <div class="pos-kv"><span>Email</span><span>${esc(R.email)}</span></div>`
+    : '<p class="pos-card-empty">Look up the caller to load their profile.</p>';
+  const details = filled
+    ? `<div class="pos-kv"><span>Moving From</span><span>${esc(R.movingFrom)}</span></div>
+       <div class="pos-kv"><span>Moving To</span><span>${esc(R.movingTo)}</span></div>
+       <div class="pos-kv"><span>Rental Date</span><span>${esc(R.rentalDate)}</span></div>
+       <div class="pos-kv"><span>Moving</span><span>${esc(R.moving)}</span></div>
+       <div class="pos-kv"><span>Move Type</span><span>${esc(R.moveType)}</span></div>`
+    : '<p class="pos-card-empty">Details fill in as you build the reservation.</p>';
+  return `
+    <aside class="pos-rail pos-rail-left" aria-label="Customer and reservation context">
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Customer Contact Information</span></div>
+        <div class="pos-card-body">${contact}</div>
+      </section>
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Checklist</span></div>
+        <div class="pos-card-body"><div class="pos-check-item">Truck Rental</div></div>
+      </section>
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span></div>
+        <div class="pos-card-body">${details}</div>
+      </section>
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span></div>
+        <div class="pos-card-body">
+          <div class="pos-note-group"><div class="pos-note-label">Customer Notes</div><p class="pos-note-text">No cautionary notes</p></div>
+          <div class="pos-note-group"><div class="pos-note-label">Callback Notes</div><p class="pos-note-text">None on file</p></div>
+        </div>
+      </section>
+    </aside>
+  `;
+}
+
+function cartBodyHtml(filled) {
+  if (!filled) return '<p class="pos-card-empty">Add equipment to start the cart.</p>';
+  const lines = MOCK.cartLines.map((l) => `
+    <div class="pos-cart-line">
+      <div class="pos-cart-line-label">${esc(l.label)}<span class="pos-cart-line-sub">${esc(l.sub)}</span></div>
+      <div class="pos-cart-line-amt mono">${fmtMoney(l.amount)}</div>
+    </div>
+  `).join('');
+  return `
+    <div class="pos-cart-tag">Truck Rental</div>
+    ${lines}
+    <div class="pos-cart-rule"></div>
+    <div class="pos-cart-line pos-cart-subtotal"><div class="pos-cart-line-label">Subtotal</div><div class="pos-cart-line-amt mono">${fmtMoney(MOCK.cartSubtotal)}</div></div>
+    <details class="pos-cart-taxes"><summary>Show taxes</summary>
+      <div class="pos-cart-line pos-cart-line-muted"><div class="pos-cart-line-label">Estimated tax (8.25%)</div><div class="pos-cart-line-amt mono">${fmtMoney(MOCK.cartTax)}</div></div>
+    </details>
+    <div class="pos-cart-rule"></div>
+    <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(MOCK.cartTotal)}</div></div>
+    <div class="pos-cart-note">Estimate. In-town mileage is reconciled at the actual miles driven on return.</div>
+  `;
+}
+
+function ccPanelHtml(filled) {
+  return `
+    <label class="pos-field"><span class="pos-field-label">Card Number</span><input class="pos-input" type="text" placeholder="4111 1111 1111 1111" maxlength="23"${filled ? ' value="4111 1111 1111 1111"' : ''}></label>
+    <div class="pos-grid-2">
+      <label class="pos-field"><span class="pos-field-label">Exp Month</span><select class="pos-input"><option>09</option></select></label>
+      <label class="pos-field"><span class="pos-field-label">Exp Year</span><select class="pos-input"><option>2028</option></select></label>
+    </div>
+    <label class="pos-field"><span class="pos-field-label">Billing Zip Code</span><input class="pos-input" type="text" placeholder="78207" maxlength="5"${filled ? ' value="78201"' : ''}></label>
+    ${filled ? '<div class="pos-cc-chip" data-brand="visa"><span class="pos-cc-brand">VISA</span><span class="mono">&bull;&bull;&bull;&bull; 1111</span></div>' : ''}
+  `;
+}
+
+function posStep1() {
+  return `
+    <section class="pos-step" data-step="1">
+      <header class="pos-step-head"><h3 class="pos-step-title">Reservation Details</h3></header>
+      <p class="pos-hint">Try: "Thanks for calling Meridian Moving and Storage. May I start with your cell phone number?"</p>
+      <div class="pos-lookup">
+        <input class="pos-input" type="text" placeholder="Phone number or email address">
+        <button type="button" class="pos-lookup-btn">Search</button>
+      </div>
+      <div class="pos-divider"><span>Move details</span></div>
+      <div class="pos-grid-2">
+        <label class="pos-field"><span class="pos-field-label">Moving From</span><input class="pos-input" type="text" placeholder="Zip, city, or landmark"></label>
+        <label class="pos-field"><span class="pos-field-label">Moving To (optional)</span><input class="pos-input" type="text" placeholder="Zip, city, or landmark"></label>
+      </div>
+      <div class="pos-field">
+        <span class="pos-field-label">Move Type</span>
+        <div class="pos-radio-row">
+          <label class="pos-radio"><input type="radio" name="mt1" value="in_town" checked> In Town</label>
+          <label class="pos-radio"><input type="radio" name="mt1" value="one_way"> One Way</label>
+        </div>
+      </div>
+      <div class="pos-grid-2">
+        <label class="pos-field"><span class="pos-field-label">Move / Pickup Date</span><input class="pos-input" type="date"></label>
+        <label class="pos-field"><span class="pos-field-label">How many bedrooms?</span><select class="pos-input"><option>Studio</option><option>1 Bedroom Home</option><option selected>2 Bedroom Home</option><option>3 Bedroom Home</option></select></label>
+      </div>
+      <div class="pos-grid-2">
+        <div class="pos-field"><span class="pos-field-label">Are you towing a vehicle?</span><div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="tow1" value="yes"> Yes</label><label class="pos-radio"><input type="radio" name="tow1" value="no" checked> No</label></div></div>
+        <div class="pos-field"><span class="pos-field-label">Do you need a trailer?</span><div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="trl1" value="yes"> Yes</label><label class="pos-radio"><input type="radio" name="trl1" value="no" checked> No</label></div></div>
+      </div>
+    </section>
+  `;
+}
+
+function posStep2() {
+  const allEquip = MOCK.truckSizes.map((t) => `
+    <button type="button" class="pos-equip-opt" data-truck="${t.size}">
+      <span class="pos-equip-opt-name">${t.size}' Moving Truck</span>
+      <span class="pos-equip-opt-rate mono">$${t.base.toFixed(2)}/day + $${t.per_mile.toFixed(2)}/mi</span>
+    </button>
+  `).join('');
+  return `
+    <section class="pos-step" data-step="2">
+      <header class="pos-step-head"><h3 class="pos-step-title">Choose Equipment</h3></header>
+      <p class="pos-hint">Try: "Based on what you're moving, I'd put you in a 15-foot truck. That's $29.95 a day plus $0.89 a mile. How many days do you need it?"</p>
+      <div class="pos-equip-rec" data-size="15">
+        <div class="pos-equip-badge">Recommended</div>
+        <div class="pos-equip-body">
+          <div class="pos-equip-name">15' Moving Truck — fits a 2-bedroom home</div>
+          <div class="pos-equip-rate mono">$29.95/day + $0.89/mile</div>
+          <div class="pos-grid-2 pos-field-inline">
+            <label class="pos-field"><span class="pos-field-label">Rental length (24-hr periods)</span><select class="pos-input"><option selected>1 day</option><option>2 days</option><option>3 days</option></select></label>
+            <label class="pos-field"><span class="pos-field-label">Estimated miles</span><input class="pos-input" type="number" value="22"></label>
+          </div>
+        </div>
+      </div>
+      <div class="pos-upsell">
+        <p class="pos-hint">Try: "Families who rent a truck find a Utility Dolly and a dozen Furniture Pads make the move easier. Can I add those for $17.00?"</p>
+        <label class="pos-check"><input type="checkbox" checked> Furniture pads ($10/pack)</label>
+        <label class="pos-check"><input type="checkbox" checked> Utility dolly ($7/day)</label>
+      </div>
+      <fieldset class="pos-fieldset">
+        <legend>Damage waiver</legend>
+        <select class="pos-input"><option>Decline coverage</option><option selected>Basic ($15/day, up to $5k)</option><option>Premium ($25/day, up to $25k)</option></select>
+      </fieldset>
+      <details class="pos-equip-all">
+        <summary>Show all moving equipment</summary>
+        <div class="pos-equip-grid">${allEquip}</div>
+      </details>
+    </section>
+  `;
+}
+
+function posStep3() {
+  const locs = MOCK.locations.map((loc, i) => {
+    const recommended = i === 0;
+    const chips = MOCK.truckSizes.map((t) =>
+      `<span class="pos-loc-chip${loc.avail.includes(t.size) ? '' : ' out'}">${t.size}' ${loc.avail.includes(t.size) ? '$' + t.base.toFixed(2) : 'N/A'}</span>`
+    ).join('');
+    return `
+      <button type="button" class="pos-loc${recommended ? ' recommended selected' : ''}" data-location="${esc(loc.name)}">
+        <div class="pos-loc-rank">${i + 1}</div>
+        <div class="pos-loc-main">
+          <div class="pos-loc-name">Meridian Moving &amp; Storage of ${esc(loc.name)}${recommended ? ' <span class="pos-loc-badge">Recommended</span>' : ''}</div>
+          <div class="pos-loc-addr mono">${esc(loc.address)}</div>
+          <div class="pos-loc-meta">${esc(loc.dist)} mi away &middot; ${esc(loc.hours)}</div>
+          <div class="pos-loc-equip">${chips}</div>
+        </div>
+      </button>
+    `;
+  }).join('');
+  return `
+    <section class="pos-step" data-step="3">
+      <header class="pos-step-head"><h3 class="pos-step-title">Select Pick Up Location</h3></header>
+      <p class="pos-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
+      <div class="pos-loc-list">${locs}</div>
+    </section>
+  `;
+}
+
+function posStep4() {
+  const loc = MOCK.locations[0];
+  return `
+    <section class="pos-step" data-step="4">
+      <header class="pos-step-head"><h3 class="pos-step-title">Scheduling</h3></header>
+      <div class="pos-sched-truck">
+        <div class="pos-sched-row"><span class="pos-sched-truck-name">${esc(R.truckLabel)}</span><span class="mono">${esc(R.truckRate)}</span></div>
+        <div class="pos-sched-sub">Rental length: ${esc(R.rentalLength)}</div>
+      </div>
+      <div class="pos-sched-loc">
+        <div class="pos-sched-loc-title">Pick Up Location (${esc(loc.entity)})</div>
+        <div class="pos-sched-loc-name">Meridian Moving &amp; Storage of ${esc(loc.name)}</div>
+        <div class="pos-sched-loc-addr mono">${esc(loc.address)}</div>
+        <div class="pos-sched-loc-addr mono">${esc(loc.phone)}</div>
+      </div>
+      <p class="pos-hint">Try: "What time would you like to pick up?"</p>
+      <label class="pos-field"><span class="pos-field-label">Available Times</span><select class="pos-input"><option selected>9:00 AM</option><option>10:00 AM</option><option>11:30 AM</option><option>1:00 PM</option><option>3:30 PM</option></select></label>
+      <div class="pos-field">
+        <span class="pos-field-label">Pickup Method</span>
+        <div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="pm4" value="in_store" checked> In Store</label><label class="pos-radio"><input type="radio" name="pm4" value="truckshare"> TruckShare</label></div>
+      </div>
+      <label class="pos-check"><input type="checkbox"> Send to Traffic</label>
+    </section>
+  `;
+}
+
+function posStep5() {
+  return `
+    <section class="pos-step" data-step="5">
+      <header class="pos-step-head"><h3 class="pos-step-title">Checkout</h3></header>
+      <div class="pos-test-banner">Training mode. Card details are not stored or charged.</div>
+      <div class="pos-card-status">Card on file — ready to confirm the reservation.</div>
+      <fieldset class="pos-fieldset">
+        <legend>Additional products and services</legend>
+        <label class="pos-field"><span class="pos-field-label">Will you need storage before or after the move?</span><select class="pos-input"><option selected>No storage needed</option><option>Yes, before the move</option><option>Yes, after the move</option></select></label>
+      </fieldset>
+      <fieldset class="pos-fieldset">
+        <legend>Verify contact information</legend>
+        <p class="pos-hint">Try: "What is your preferred method of contact: email, phone, or text?"</p>
+        <div class="pos-grid-2">
+          <label class="pos-field"><span class="pos-field-label">Email for receipt</span><input class="pos-input" type="text" value="derek.huang@gmail.com"></label>
+          <label class="pos-field"><span class="pos-field-label">Phone number</span><input class="pos-input" type="tel" value="210-555-0142"></label>
+        </div>
+        <div class="pos-field">
+          <span class="pos-field-label">Preferred Contact Method</span>
+          <div class="pos-check-row"><label class="pos-check"><input type="checkbox"> Email</label><label class="pos-check"><input type="checkbox"> Phone</label><label class="pos-check"><input type="checkbox" checked> Text</label></div>
+        </div>
+        <label class="pos-field"><span class="pos-field-label">Current Address (optional)</span><input class="pos-input" type="text" placeholder="Street, city, state"></label>
+        <div class="pos-field">
+          <span class="pos-field-label">Preferred Language</span>
+          <div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="lang5" value="english" checked> English</label><label class="pos-radio"><input type="radio" name="lang5" value="french"> French</label><label class="pos-radio"><input type="radio" name="lang5" value="spanish"> Spanish</label></div>
+        </div>
+      </fieldset>
+    </section>
+  `;
+}
+
+function posStepSection(step) {
+  return [posStep1, posStep2, posStep3, posStep4, posStep5][step - 1]();
+}
+
+function posNavHtml(step) {
+  const back = step > 1 ? '<button type="button" class="ghost-button">Back</button>' : '<span></span>';
+  const next = step === 5 ? 'Complete reservation' : 'Continue';
+  return `<div class="pos-nav">${back}<button type="button" class="primary-button">${esc(next)}</button></div>`;
+}
+
+function buildCallShell({
+  step = 1,
+  filled = false,
+  transcriptHtml = '',
+  phoneStatusState = 'connecting',
+  phoneStatusText = 'Connecting...',
+  phoneStatusHint = 'Putting the call through.',
+} = {}) {
   return `
     <section class="call" data-call-mode="phone">
       <header class="call-header">
         <button class="ghost-button call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
-          <div class="call-customer-name">Derek Huang</div>
+          <div class="call-customer-name">${esc(R.customerName)}</div>
           <div class="call-scenario-title">The Price Shopper <span class="call-mode-pill">Phone call</span></div>
         </div>
         <button class="danger-button" type="button">End call</button>
       </header>
       <div class="call-body">
-        <div class="pos" id="pos-preview">
-          <aside class="pos-rail pos-rail-left" aria-label="Customer and reservation context">
-            <section class="pos-card">
-              <div class="pos-card-head">
-                <span class="pos-card-title">Customer Contact Information</span>
-              </div>
-              <div class="pos-card-body">
-                <p class="pos-card-empty">Look up the caller to load their profile.</p>
-              </div>
-            </section>
-            <section class="pos-card">
-              <div class="pos-card-head"><span class="pos-card-title">Checklist</span></div>
-              <div class="pos-card-body">
-                <div class="pos-check-item">Truck Rental</div>
-              </div>
-            </section>
-            <section class="pos-card">
-              <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span></div>
-              <div class="pos-card-body">
-                <p class="pos-card-empty">Details fill in as you build the reservation.</p>
-              </div>
-            </section>
-            <section class="pos-card">
-              <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span></div>
-              <div class="pos-card-body">
-                <div class="pos-note-group">
-                  <div class="pos-note-label">Customer Notes</div>
-                  <p class="pos-note-text">No cautionary notes</p>
-                </div>
-                <div class="pos-note-group">
-                  <div class="pos-note-label">Callback Notes</div>
-                  <p class="pos-note-text">None on file</p>
-                </div>
-              </div>
-            </section>
-          </aside>
+        <div class="pos">
+          ${leftRailHtml(filled)}
 
           <div class="pos-stage">
-            <ol class="pos-stepper" aria-label="Reservation steps">
-              <li class="pos-stepper-item active" data-step="1"><span class="pos-stepper-num">1</span><span class="pos-stepper-label">Details</span></li>
-              <li class="pos-stepper-item" data-step="2"><span class="pos-stepper-num">2</span><span class="pos-stepper-label">Equipment</span></li>
-              <li class="pos-stepper-item" data-step="3"><span class="pos-stepper-num">3</span><span class="pos-stepper-label">Location</span></li>
-              <li class="pos-stepper-item" data-step="4"><span class="pos-stepper-num">4</span><span class="pos-stepper-label">Time</span></li>
-              <li class="pos-stepper-item" data-step="5"><span class="pos-stepper-num">5</span><span class="pos-stepper-label">Checkout</span></li>
-            </ol>
-
+            ${posStepper(step)}
             <form class="pos-form" autocomplete="off" novalidate>
-              <section class="pos-step" data-step="1">
-                <header class="pos-step-head">
-                  <h3 class="pos-step-title">Reservation Details</h3>
-                </header>
-                <p class="pos-hint">Try: "Thanks for calling Meridian Moving and Storage. May I start with your cell phone number?"</p>
-                <div class="pos-lookup">
-                  <input class="pos-input" type="text" placeholder="Phone number or email address">
-                  <button type="button" class="pos-lookup-btn">Search</button>
-                </div>
-                <div class="pos-divider"><span>Move details</span></div>
-                <div class="pos-grid-2">
-                  <label class="pos-field">
-                    <span class="pos-field-label">Moving From</span>
-                    <input class="pos-input" type="text" placeholder="Zip, city, or landmark">
-                  </label>
-                  <label class="pos-field">
-                    <span class="pos-field-label">Moving To (optional)</span>
-                    <input class="pos-input" type="text" placeholder="Zip, city, or landmark">
-                  </label>
-                </div>
-                <div class="pos-field">
-                  <span class="pos-field-label">Move Type</span>
-                  <div class="pos-radio-row">
-                    <label class="pos-radio"><input type="radio" name="move_type_prev" value="in_town" checked> In Town</label>
-                    <label class="pos-radio"><input type="radio" name="move_type_prev" value="one_way"> One Way</label>
-                  </div>
-                </div>
-              </section>
-              <div class="pos-nav">
-                <button type="button" class="primary-button">Continue</button>
-              </div>
+              ${posStepSection(step)}
+              ${posNavHtml(step)}
             </form>
           </div>
 
           <aside class="pos-rail pos-rail-right" aria-label="Cart and payment">
             <section class="pos-card pos-cart-card">
               <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span></div>
-              <div class="pos-card-body">
-                <p class="pos-card-empty">Add equipment to start the cart.</p>
-              </div>
+              <div class="pos-card-body">${cartBodyHtml(filled)}</div>
             </section>
             <section class="pos-card">
               <div class="pos-card-head"><span class="pos-card-title">Credit Card</span></div>
-              <div class="pos-card-body pos-cc">
-                <label class="pos-field">
-                  <span class="pos-field-label">Card Number</span>
-                  <input class="pos-input" type="text" placeholder="4111 1111 1111 1111" maxlength="23">
-                </label>
-              </div>
+              <div class="pos-card-body pos-cc">${ccPanelHtml(filled && step === 5)}</div>
             </section>
           </aside>
         </div>
@@ -525,15 +763,13 @@ function buildCallShell({ transcriptHtml = '', phoneStatusState = 'connecting', 
         <div class="call-dock" data-mode="phone" data-collapsed="false">
           <button type="button" class="call-dock-head" aria-expanded="true">
             <span class="call-dock-dot"></span>
-            <span class="call-dock-title">Derek Huang</span>
+            <span class="call-dock-title">${esc(R.customerName)}</span>
             <span class="call-dock-sub">Live call</span>
             <span class="call-dock-chevron" aria-hidden="true">&#9662;</span>
           </button>
           <div class="call-dock-body">
             <div class="call-dock-convo">
-              <ol class="transcript" aria-live="polite">
-                ${transcriptHtml}
-              </ol>
+              <ol class="transcript" aria-live="polite">${transcriptHtml}</ol>
             </div>
             <div class="call-dock-aside">
               <div class="visualizer-wrap" data-active="false">
@@ -556,6 +792,8 @@ function buildCallShell({ transcriptHtml = '', phoneStatusState = 'connecting', 
 
 function renderCallIdle() {
   return buildCallShell({
+    step: 1,
+    filled: false,
     transcriptHtml: '',
     phoneStatusState: 'connecting',
     phoneStatusText: 'Connecting you to Derek Huang...',
@@ -564,14 +802,10 @@ function renderCallIdle() {
 }
 
 function renderCallCustomerSpeaking() {
-  const bubble = `
-    <li class="message message-customer">
-      <div class="message-label">Derek Huang</div>
-      <div class="message-bubble">Hi, yeah, I'm calling about a truck rental. I need something for this Saturday — moving from the Westside to Stone Oak.</div>
-    </li>
-  `;
   return buildCallShell({
-    transcriptHtml: bubble,
+    step: 1,
+    filled: false,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
     phoneStatusState: 'customer_talking',
     phoneStatusText: 'Derek Huang is talking...',
     phoneStatusHint: 'Listen until they finish.',
@@ -579,14 +813,10 @@ function renderCallCustomerSpeaking() {
 }
 
 function renderCallYourTurn() {
-  const bubble = `
-    <li class="message message-customer">
-      <div class="message-label">Derek Huang</div>
-      <div class="message-bubble">Hi, yeah, I'm calling about a truck rental. I need something for this Saturday — moving from the Westside to Stone Oak.</div>
-    </li>
-  `;
   return buildCallShell({
-    transcriptHtml: bubble,
+    step: 1,
+    filled: false,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
     phoneStatusState: 'your_turn',
     phoneStatusText: 'Your turn — just talk.',
     phoneStatusHint: 'Pause for a beat when you finish and your reply sends.',
@@ -594,23 +824,62 @@ function renderCallYourTurn() {
 }
 
 function renderCallMultiTurn() {
-  const bubbles = MOCK.transcript.map((m) => `
-    <li class="message message-${esc(m.kind)}">
-      <div class="message-label">${esc(m.label)}</div>
-      <div class="message-bubble">${esc(m.text)}</div>
-    </li>
-  `).join('');
   return buildCallShell({
-    transcriptHtml: bubbles,
+    step: 1,
+    filled: false,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript),
     phoneStatusState: 'your_turn',
     phoneStatusText: 'Your turn — just talk.',
     phoneStatusHint: 'Pause for a beat when you finish and your reply sends.',
   });
 }
 
+function renderCallStepEquipment() {
+  return buildCallShell({
+    step: 2,
+    filled: true,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 4)),
+    phoneStatusState: 'your_turn',
+    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusHint: 'Walk them through the truck that fits.',
+  });
+}
+
+function renderCallStepLocation() {
+  return buildCallShell({
+    step: 3,
+    filled: true,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 4)),
+    phoneStatusState: 'your_turn',
+    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusHint: 'Confirm where they are loading.',
+  });
+}
+
+function renderCallStepTime() {
+  return buildCallShell({
+    step: 4,
+    filled: true,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 4)),
+    phoneStatusState: 'your_turn',
+    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusHint: 'Lock in a pickup time.',
+  });
+}
+
+function renderCallStepCheckout() {
+  return buildCallShell({
+    step: 5,
+    filled: true,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript),
+    phoneStatusState: 'your_turn',
+    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusHint: 'Ask for the business and confirm contact info.',
+  });
+}
+
 function renderCallPosHint() {
-  // Shows the pos-hint card in context on step 1 of the reservation form,
-  // isolated so you can stare at the green colours.
+  // Shows the pos-hint cards in isolation so you can stare at the green colours.
   return `
     <section class="call" data-call-mode="phone" style="min-height: unset;">
       <div class="call-body" style="overflow: visible; padding: 24px;">
@@ -908,6 +1177,11 @@ const STATES = [
   { id: 'call-customer-speaking', label: 'Call — Customer speaking',           render: renderCallCustomerSpeaking },
   { id: 'call-your-turn',        label: 'Call — Your turn',                    render: renderCallYourTurn },
   { id: 'call-multi-turn',       label: 'Call — Multi-turn transcript',        render: renderCallMultiTurn },
+  { id: 'call-step-details',     label: 'Call — Step 1: Details',              render: renderCallYourTurn },
+  { id: 'call-step-equipment',   label: 'Call — Step 2: Equipment',            render: renderCallStepEquipment },
+  { id: 'call-step-location',    label: 'Call — Step 3: Location',             render: renderCallStepLocation },
+  { id: 'call-step-time',        label: 'Call — Step 4: Time / Scheduling',    render: renderCallStepTime },
+  { id: 'call-step-checkout',    label: 'Call — Step 5: Checkout',             render: renderCallStepCheckout },
   { id: 'call-pos-script-hint',  label: 'Call — POS script hint cards',        render: renderCallPosHint },
   { id: 'report-generating',     label: 'Report — Generating spinner',         render: renderReportGenerating },
   { id: 'report-shown',          label: 'Report — Full coaching report',       render: renderReportShown },
