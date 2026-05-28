@@ -871,6 +871,29 @@ function renderCall(scenario) {
       return `<option value="${String(yy).slice(-2)}">${yy}</option>`;
     })).join('');
 
+  // ---- CSF chrome (matches preview.js) ----
+  // Per-step display title for the topbar + charcoal panel head. Step 1 shows
+  // "U-Move" in the panel head (it's the equipment category) but "Reservation
+  // Details" in the topbar title.
+  const STEP_TITLES = {
+    1: 'Reservation Details',
+    2: 'Choose Equipment',
+    3: 'Select Pick Up Location',
+    4: 'Scheduling',
+    5: 'Checkout',
+  };
+  const CSF_TABS = ['U-Move', 'U-Box', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
+  const SCRIPT_ICON = `<svg class="csf-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+  const EDIT_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+  const BACK_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M9 5 L6 8 L9 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const NEXT_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 5 L10 8 L7 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const CLOSE_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  const INFO_ICON = `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  const TRASH_ICON = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const csfTabsHtml = CSF_TABS.map((t, i) =>
+    `<button type="button" class="csf-tab${i === 0 ? ' active' : ''}">${escapeHtml(t)}</button>`
+  ).join('');
+
   dom.root.innerHTML = `
     <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}>
       <header class="call-header">
@@ -888,27 +911,61 @@ function renderCall(scenario) {
         </div>
         ` : ''}
 
+        <div class="csf-topbar" id="pos-topbar">
+          <div class="csf-topbar-titles">
+            <div class="csf-eyebrow">Customer Service Form</div>
+            <div class="csf-title" id="pos-topbar-title">${escapeHtml(STEP_TITLES[1])}</div>
+          </div>
+          <div class="csf-topbar-nav">
+            <div class="csf-nav-row">
+              <a class="csf-nav-link">FAQs</a>
+              <a class="csf-nav-link">POS Dashboard</a>
+            </div>
+            <div class="csf-topbar-action" id="pos-topbar-action">
+              <button type="button" class="csf-new-btn" id="pos-top-new">New Reservation</button>
+              <div class="csf-topbar-actions" id="pos-top-steps" hidden>
+                <button type="button" class="csf-topbtn" id="pos-top-back">${BACK_ICON} Back</button>
+                <button type="button" class="csf-topbtn" id="pos-top-next">${NEXT_ICON} Next</button>
+                <button type="button" class="csf-topbtn" id="pos-top-save">${CLOSE_ICON} Save/Close Quote</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="pos" id="pos">
           <aside class="pos-rail pos-rail-left" aria-label="Customer and reservation context">
-            <section class="pos-card">
+            <section class="pos-card" id="pos-customer-card">
               <div class="pos-card-head">
-                <span class="pos-card-title">Customer Contact Information</span>
+                <span class="pos-card-title" id="pos-customer-title">Customer Contact Information</span>
                 <span class="pos-verified" id="pos-verified" hidden>Verified Customer</span>
               </div>
               <div class="pos-card-body" id="pos-customer-body">
-                <p class="pos-card-empty">Look up the caller to load their profile.</p>
+                <div class="pos-script">
+                  <svg class="pos-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                  <div class="pos-script-lines">
+                    <p class="pos-script-line">Thank you for calling Meridian Moving and Storage, this is your name. How may I help you?</p>
+                    <p class="pos-script-suggest">No problem! May I start with your cell phone number?</p>
+                  </div>
+                </div>
+                <div class="pos-lookup">
+                  <input class="pos-input" id="pos-lookup-input" type="text" placeholder="Phone number or email address">
+                  <button type="button" class="pos-lookup-btn" id="pos-lookup-btn" aria-label="Search">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
+                <div class="pos-lookup-result" id="pos-lookup-result" hidden></div>
               </div>
             </section>
 
             <section class="pos-card">
               <div class="pos-card-head"><span class="pos-card-title">Checklist</span></div>
               <div class="pos-card-body">
-                <div class="pos-check-item">Truck Rental</div>
+                <div class="pos-check-item">U-Move</div>
               </div>
             </section>
 
             <section class="pos-card">
-              <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span></div>
+              <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span>${EDIT_ICON}</div>
               <div class="pos-card-body" id="pos-rsvdetails-body">
                 <p class="pos-card-empty">Details fill in as you build the reservation.</p>
               </div>
@@ -920,22 +977,18 @@ function renderCall(scenario) {
             </section>
 
             <section class="pos-card">
-              <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span></div>
+              <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span>${EDIT_ICON}</div>
               <div class="pos-card-body">
-                <div class="pos-note-group">
-                  <div class="pos-note-label">Customer Notes</div>
-                  <p class="pos-note-text" id="pos-customer-notes">No cautionary notes</p>
-                </div>
-                <div class="pos-note-group">
-                  <div class="pos-note-label">Callback Notes</div>
-                  <p class="pos-note-text">None on file</p>
-                </div>
+                <div class="csf-notes-label">Customer Notes</div>
+                <p class="csf-notes-text pos-note-text" id="pos-customer-notes">No cautionary notes</p>
+                <div class="csf-notes-label">Callback Notes</div>
+                <p class="csf-notes-text pos-note-text">None on file</p>
               </div>
             </section>
           </aside>
 
           <div class="pos-stage">
-            <ol class="pos-stepper" id="pos-stepper" aria-label="Reservation steps">
+            <ol class="pos-stepper" id="pos-stepper" aria-label="Reservation steps" hidden>
               <li class="pos-stepper-item active" data-step="1"><span class="pos-stepper-num">1</span><span class="pos-stepper-label">Details</span></li>
               <li class="pos-stepper-item" data-step="2"><span class="pos-stepper-num">2</span><span class="pos-stepper-label">Equipment</span></li>
               <li class="pos-stepper-item" data-step="3"><span class="pos-stepper-num">3</span><span class="pos-stepper-label">Location</span></li>
@@ -943,42 +996,34 @@ function renderCall(scenario) {
               <li class="pos-stepper-item" data-step="5"><span class="pos-stepper-num">5</span><span class="pos-stepper-label">Checkout</span></li>
             </ol>
 
+            <div class="csf-tabs" id="pos-tabs">${csfTabsHtml}</div>
+
+            <div class="csf-panel" id="pos-panel">
+              <div class="csf-panel-head" id="pos-panel-head"><span id="pos-panel-head-text">U-Move</span>${INFO_ICON}</div>
+              <div class="csf-panel-body">
             <form class="pos-form" id="pos-form" autocomplete="off" novalidate>
               <section class="pos-step" data-step="1">
-                <header class="pos-step-head">
-                  <h3 class="pos-step-title">Reservation Details</h3>
-                </header>
-                <p class="pos-hint">Try: "Thanks for calling Meridian Moving and Storage. May I start with your cell phone number?"</p>
-                <div class="pos-lookup">
-                  <input class="pos-input" id="pos-lookup-input" type="text" placeholder="Phone number or email address">
-                  <button type="button" class="pos-lookup-btn" id="pos-lookup-btn">Search</button>
-                </div>
-                <div class="pos-lookup-result" id="pos-lookup-result" hidden></div>
-
-                <div class="pos-divider"><span>Move details</span></div>
-
-                <div class="pos-grid-2">
+                <div class="pos-grid-3">
                   <label class="pos-field">
                     <span class="pos-field-label">Moving From</span>
                     <input class="pos-input" data-rsv="moving_from" type="text" placeholder="Zip, city, or landmark">
                   </label>
                   <label class="pos-field">
-                    <span class="pos-field-label">Moving To (optional)</span>
+                    <span class="pos-field-label">Moving To (Optional)</span>
                     <input class="pos-input" data-rsv="moving_to" type="text" placeholder="Zip, city, or landmark">
                   </label>
-                </div>
-
-                <div class="pos-field">
-                  <span class="pos-field-label">Move Type</span>
-                  <div class="pos-radio-row">
-                    <label class="pos-radio"><input type="radio" name="move_type" data-rsv="move_type" value="in_town" checked> In Town</label>
-                    <label class="pos-radio"><input type="radio" name="move_type" data-rsv="move_type" value="one_way"> One Way</label>
+                  <div class="pos-field">
+                    <span class="pos-field-label">Move Type</span>
+                    <div class="pos-radio-row">
+                      <label class="pos-radio"><input type="radio" name="move_type" data-rsv="move_type" value="in_town" checked> In Town</label>
+                      <label class="pos-radio"><input type="radio" name="move_type" data-rsv="move_type" value="one_way"> One Way</label>
+                    </div>
                   </div>
                 </div>
 
                 <div class="pos-grid-2">
                   <label class="pos-field">
-                    <span class="pos-field-label">Move / Pickup Date</span>
+                    <span class="pos-field-label">Move/Pickup Date</span>
                     <input class="pos-input" data-rsv="pickup_date" type="date">
                   </label>
                   <label class="pos-field">
@@ -1006,10 +1051,11 @@ function renderCall(scenario) {
               </section>
 
               <section class="pos-step" data-step="2" hidden>
-                <header class="pos-step-head">
-                  <h3 class="pos-step-title">Choose Equipment</h3>
-                </header>
-                <p class="pos-hint" id="pos-equip-hint">Try: "Based on what you're moving, I'd put you in a truck this size. How many days do you need it?"</p>
+                <div class="csf-script">
+                  <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text" id="pos-equip-hint">Most families need a truck this size. How many days do you need it?</p></div>
+                  <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Families who rent a truck find adding a Utility Dolly and a dozen Furniture Pads make their move easier. Can I add this to your rental for $17.00?</p></div>
+                </div>
+                <div class="csf-objection">Is the customer not ready to book? <a class="csf-link">Click for help to overcome their objections</a> to book now!</div>
 
                 <div class="pos-equip-rec" id="pos-equip-rec" data-size="?">
                   <div class="pos-equip-badge">Recommended</div>
@@ -1018,7 +1064,7 @@ function renderCall(scenario) {
                     <div class="pos-equip-rate mono" id="pos-equip-rate"></div>
                     <div class="pos-grid-2 pos-field-inline">
                       <label class="pos-field" id="pos-field-rental">
-                        <span class="pos-field-label">Rental length (24-hr periods)</span>
+                        <span class="pos-field-label">Rental Length (24-hr periods)</span>
                         <select class="pos-input" data-rsv="rental_length">${rentalLengthOptionsHtml}</select>
                       </label>
                       <label class="pos-field" id="pos-field-miles">
@@ -1030,7 +1076,6 @@ function renderCall(scenario) {
                 </div>
 
                 <div class="pos-upsell">
-                  <p class="pos-hint">Try: "Families who rent a truck find a Utility Dolly and a dozen Furniture Pads make the move easier. Can I add those for $17.00?"</p>
                   <label class="pos-check"><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
                   <label class="pos-check"><input type="checkbox" data-rsv-equipment="dolly"> Utility dolly ($7/day)</label>
                 </div>
@@ -1045,7 +1090,7 @@ function renderCall(scenario) {
                 </fieldset>
 
                 <details class="pos-equip-all">
-                  <summary>Show all moving equipment</summary>
+                  <summary>+ Show all moving equipment</summary>
                   <div class="pos-equip-grid">
                     ${TRUCK_SIZES.map((t) => `
                       <button type="button" class="pos-equip-opt" data-truck="${t.size}">
@@ -1058,103 +1103,133 @@ function renderCall(scenario) {
               </section>
 
               <section class="pos-step" data-step="3" hidden>
-                <header class="pos-step-head">
-                  <h3 class="pos-step-title">Select Pick Up Location</h3>
-                </header>
+                <div class="csf-script">
+                  <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">The closest pickup spot to you is the location below. Does that work?</p></div>
+                </div>
+                <p class="csf-loc-note">Based on the selections, rates may have been updated for this quote. If rates were updated, make sure to inform the customer of any changes before proceeding.</p>
                 <p class="pos-hint" id="pos-loc-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
+                <div class="csf-loc-controls">
+                  <span class="csf-loc-sort">Sort by: <a class="csf-link">Distance to Customer &#9662;</a></span>
+                  <div class="csf-loc-legend">
+                    <span><i class="csf-legend-sq" style="background:#16a34a;"></i> Available</span>
+                    <span><i class="csf-legend-sq" style="background:#ea7a1d;"></i> Alternate Models</span>
+                    <span><i class="csf-legend-sq" style="background:#dc2626;"></i> No Availability</span>
+                  </div>
+                </div>
                 <div class="pos-loc-map" id="pos-loc-map" hidden></div>
                 <div class="pos-loc-list" id="pos-loc-list"></div>
               </section>
 
               <section class="pos-step" data-step="4" hidden>
-                <header class="pos-step-head">
-                  <h3 class="pos-step-title">Scheduling</h3>
-                </header>
-                <div class="pos-sched-truck" id="pos-sched-truck"></div>
-                <div class="pos-sched-loc" id="pos-sched-loc"></div>
-                <p class="pos-hint">Try: "What time would you like to pick up?"</p>
-                <label class="pos-field">
-                  <span class="pos-field-label">Available Times</span>
-                  <select class="pos-input" data-rsv="pickup_time">${timeSlotsHtml}</select>
-                </label>
-                <div class="pos-field">
-                  <span class="pos-field-label">Pickup Method</span>
-                  <div class="pos-radio-row">
-                    <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="in_store" checked> In Store</label>
-                    <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="truckshare"> TruckShare</label>
+                <div class="csf-sched-grid">
+                  <div class="csf-sched-left">
+                    <div class="pos-sched-truck" id="pos-sched-truck"></div>
+                    <div class="csf-sched-addlinks">
+                      <a class="csf-link">+ Add Coverage</a>
+                      <a class="csf-link">+ Add Dollies/Furniture Pads</a>
+                      <a class="csf-link">+ Add Trailer / Towing</a>
+                    </div>
+                    <div class="pos-sched-loc" id="pos-sched-loc"></div>
+                  </div>
+                  <div class="csf-sched-right">
+                    <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">What time would you like to pick up?</p></div>
+                    <label class="pos-field">
+                      <span class="pos-field-label">Available Times</span>
+                      <select class="pos-input" data-rsv="pickup_time">${timeSlotsHtml}</select>
+                    </label>
+                    <div class="pos-field">
+                      <span class="pos-field-label">Pickup Method</span>
+                      <div class="pos-radio-row">
+                        <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="in_store" checked> In Store</label>
+                        <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="truckshare"> TruckShare</label>
+                      </div>
+                    </div>
+                    <a class="csf-link" style="display:inline-block;margin-bottom:12px;">Check Other Locations</a>
+                    <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic"> Send to Traffic</label>
                   </div>
                 </div>
-                <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic"> Send to Traffic</label>
               </section>
 
-              <section class="pos-step" data-step="5" hidden>
-                <header class="pos-step-head">
-                  <h3 class="pos-step-title">Checkout</h3>
-                </header>
+              <section class="pos-step csf-checkout" data-step="5" hidden>
                 <div class="pos-test-banner">Training mode. Card details are not stored or charged.</div>
                 <div class="pos-card-status" id="pos-card-status">Enter the card in the Credit Card panel to confirm.</div>
 
-                <fieldset class="pos-fieldset">
-                  <legend>Additional products and services</legend>
-                  <label class="pos-field">
-                    <span class="pos-field-label">Will you need storage before or after the move?</span>
-                    <select class="pos-input" data-rsv="storage">
-                      <option value="no">No storage needed</option>
-                      <option value="before">Yes, before the move</option>
-                      <option value="after">Yes, after the move</option>
-                    </select>
-                  </label>
-                </fieldset>
+                <section class="pos-card">
+                  <div class="pos-card-head" style="display:flex;align-items:center;justify-content:space-between;"><span class="pos-card-title">Additional Products and Services</span>${INFO_ICON}</div>
+                  <div class="pos-card-body">
+                    <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Will you need storage before or after your move?</p></div>
+                    <label class="pos-field">
+                      <span class="pos-field-label">Will you need storage before or after the move?</span>
+                      <select class="pos-input" data-rsv="storage">
+                        <option value="no">No storage needed</option>
+                        <option value="before">Yes, before the move</option>
+                        <option value="after">Yes, after the move</option>
+                      </select>
+                    </label>
+                  </div>
+                </section>
 
-                <fieldset class="pos-fieldset">
-                  <legend>Verify contact information</legend>
-                  <p class="pos-hint">Try: "What is your preferred method of contact: email, phone, or text?"</p>
-                  <div class="pos-grid-2">
-                    <label class="pos-field">
-                      <span class="pos-field-label">Email for receipt</span>
-                      <input class="pos-input" data-rsv="receipt_email" type="text" inputmode="email" placeholder="name@example.com">
-                    </label>
-                    <label class="pos-field">
-                      <span class="pos-field-label">Phone number</span>
-                      <input class="pos-input" data-rsv="receipt_phone" type="tel" placeholder="555-123-4567">
-                    </label>
-                  </div>
-                  <div class="pos-field">
-                    <span class="pos-field-label">Preferred Contact Method</span>
-                    <div class="pos-check-row">
-                      <label class="pos-check"><input type="checkbox" data-rsv-contact="email"> Email</label>
-                      <label class="pos-check"><input type="checkbox" data-rsv-contact="phone"> Phone</label>
-                      <label class="pos-check"><input type="checkbox" data-rsv-contact="text" checked> Text</label>
+                <section class="pos-card">
+                  <div class="pos-card-head"><span class="pos-card-title">Verify Contact Information for Scheduling</span></div>
+                  <div class="pos-card-body">
+                    <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">What is your preferred method of contact; email, phone or text?</p></div>
+                    <p class="csf-verify-note">Please verify with your customer the email/phone number shown below.</p>
+                    <ul class="csf-verify-list">
+                      <li>Customer's Email Address is required if they prefer being contacted via Email.</li>
+                      <li>Customer's Phone Number is required if they prefer being contacted via Phone or Text.</li>
+                    </ul>
+                    <div class="pos-grid-3">
+                      <label class="pos-field">
+                        <span class="pos-field-label">Email for Reservation Receipt</span>
+                        <input class="pos-input" data-rsv="receipt_email" type="text" inputmode="email" placeholder="name@example.com">
+                      </label>
+                      <label class="pos-field">
+                        <span class="pos-field-label">Phone Number</span>
+                        <input class="pos-input" data-rsv="receipt_phone" type="tel" placeholder="555-123-4567">
+                      </label>
+                      <div class="pos-field">
+                        <span class="pos-field-label">Preferred Contact Method</span>
+                        <div class="pos-check-row">
+                          <label class="pos-check"><input type="checkbox" data-rsv-contact="email"> Email</label>
+                          <label class="pos-check"><input type="checkbox" data-rsv-contact="phone"> Phone</label>
+                          <label class="pos-check"><input type="checkbox" data-rsv-contact="text" checked> Text</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">May I please have your current address?</p></div>
+                    <div class="pos-grid-2">
+                      <label class="pos-field">
+                        <span class="pos-field-label">Current Address</span>
+                        <input class="pos-input" data-rsv="current_address" type="text" placeholder="Optional">
+                      </label>
+                      <div class="pos-field">
+                        <span class="pos-field-label">Preferred Language</span>
+                        <div class="pos-radio-row">
+                          <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="english" checked> English</label>
+                          <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="french"> French</label>
+                          <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="spanish"> Spanish</label>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <label class="pos-field">
-                    <span class="pos-field-label">Current Address (optional)</span>
-                    <input class="pos-input" data-rsv="current_address" type="text" placeholder="Street, city, state">
-                  </label>
-                  <div class="pos-field">
-                    <span class="pos-field-label">Preferred Language</span>
-                    <div class="pos-radio-row">
-                      <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="english" checked> English</label>
-                      <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="french"> French</label>
-                      <label class="pos-radio"><input type="radio" name="language" data-rsv="language" value="spanish"> Spanish</label>
-                    </div>
-                  </div>
-                </fieldset>
+                </section>
               </section>
 
               <div class="pos-error" id="pos-error" hidden></div>
-              <div class="pos-nav">
-                <button type="button" class="ghost-button" id="pos-back" hidden>Back</button>
-                <button type="submit" class="primary-button" id="pos-next">Continue</button>
-              </div>
             </form>
+                <div class="pos-nav csf-panel-foot">
+                  <button type="button" class="ghost-button" id="pos-back" hidden>Back</button>
+                  <button type="submit" class="primary-button" id="pos-next" form="pos-form">Continue</button>
+                </div>
+              </div>
+            </div>
 
             <div class="pos-result" id="pos-result"></div>
           </div>
 
           <aside class="pos-rail pos-rail-right" aria-label="Cart and payment">
             <section class="pos-card pos-cart-card">
-              <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span></div>
+              <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span><span style="cursor:pointer;">${TRASH_ICON}</span></div>
               <div class="pos-card-body" id="pos-cart-body">
                 <p class="pos-card-empty">Add equipment to start the cart.</p>
               </div>
@@ -1646,6 +1721,16 @@ function renderCall(scenario) {
   const posLookupInput = document.getElementById('pos-lookup-input');
   const posLookupBtn = document.getElementById('pos-lookup-btn');
   const posLookupResult = document.getElementById('pos-lookup-result');
+  // CSF chrome refs
+  const posTopbarTitle = document.getElementById('pos-topbar-title');
+  const posTopNewBtn = document.getElementById('pos-top-new');
+  const posTopStepsWrap = document.getElementById('pos-top-steps');
+  const posTopBackBtn = document.getElementById('pos-top-back');
+  const posTopNextBtn = document.getElementById('pos-top-next');
+  const posTabs = document.getElementById('pos-tabs');
+  const posPanel = document.getElementById('pos-panel');
+  const posPanelHeadText = document.getElementById('pos-panel-head-text');
+  const posCustomerTitle = document.getElementById('pos-customer-title');
 
   const WAIVER_INFO = {
     none: { label: 'Waiver declined', daily: 0 },
@@ -1752,24 +1837,39 @@ function renderCall(scenario) {
       posCartBody.innerHTML = '<p class="pos-card-empty">Add equipment to start the cart.</p>';
       return;
     }
+    // CSF itemized cart: a U-Move sub-row, the quote line items, a U-Move
+    // subtotal, the total, and the action links. The Show Taxes toggle keeps
+    // the tax line behind a click like the preview's link affordance.
     const lineHtml = q.lines.map((l) => `
-      <div class="pos-cart-line">
-        <div class="pos-cart-line-label">${escapeHtml(l.label)}${l.sub ? `<span class="pos-cart-line-sub">${escapeHtml(l.sub)}</span>` : ''}</div>
-        <div class="pos-cart-line-amt mono">${fmtMoney(l.amount)}</div>
+      <div class="csf-cart-line">
+        <div class="csf-cart-line-label">${escapeHtml(l.label)}</div>
+        <div class="csf-cart-line-amt">${fmtMoney(l.amount)}${l.sub ? `<span class="csf-cart-line-sub">${escapeHtml(l.sub)}</span>` : ''}</div>
       </div>
     `).join('');
     posCartBody.innerHTML = `
-      <div class="pos-cart-tag">Truck Rental</div>
+      <div class="csf-cart-sub"><span>U-Move</span><span style="cursor:pointer;">${TRASH_ICON}</span></div>
       ${lineHtml}
-      <div class="pos-cart-rule"></div>
-      <div class="pos-cart-line pos-cart-subtotal"><div class="pos-cart-line-label">Subtotal</div><div class="pos-cart-line-amt mono">${fmtMoney(q.subtotal)}</div></div>
-      <details class="pos-cart-taxes"><summary>Show taxes</summary>
-        <div class="pos-cart-line pos-cart-line-muted"><div class="pos-cart-line-label">Estimated tax (8.25%)</div><div class="pos-cart-line-amt mono">${fmtMoney(q.tax)}</div></div>
+      <div class="csf-cart-subtotal"><span>U-Move Total:</span><span>${fmtMoney(q.subtotal)}</span></div>
+      <details class="pos-cart-taxes"><summary>Show Taxes</summary>
+        <div class="csf-cart-line csf-cart-line-muted"><div class="csf-cart-line-label">Estimated tax (8.25%)</div><div class="csf-cart-line-amt">${fmtMoney(q.tax)}</div></div>
       </details>
-      <div class="pos-cart-rule"></div>
-      <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(q.total)}</div></div>
-      <div class="pos-cart-note">Estimate. In-town mileage is reconciled at the actual miles driven on return.</div>
+      <div class="csf-cart-total"><span>Total</span><span>${fmtMoney(q.total)}</span></div>
+      <div class="csf-cart-links">
+        <a class="csf-link">Estimate Price w/ Mileage</a>
+        <a class="csf-link csf-cart-taxes-link">Show Taxes</a>
+        <a class="csf-link">View Coverage Rates</a>
+      </div>
     `;
+    // Wire the Show Taxes link to the (visually hidden) details toggle so the
+    // tax line still surfaces on click without a second markup path.
+    const taxesDetails = posCartBody.querySelector('.pos-cart-taxes');
+    const taxesLink = posCartBody.querySelector('.csf-cart-taxes-link');
+    if (taxesDetails && taxesLink) {
+      taxesLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        taxesDetails.open = !taxesDetails.open;
+      });
+    }
   }
 
   function renderEquip() {
@@ -2091,18 +2191,21 @@ function renderCall(scenario) {
 
   function renderCustomerCard(r) {
     posVerified.hidden = false;
-    const parts = String(r.full_name || '').trim().split(/\s+/);
-    const first = parts.shift() || '';
-    const last = parts.join(' ');
+    // CSF post-lookup profile: the card head flips to "Customer" and the body
+    // shows the name/phone/email + Verified + Past Rentals, driven by the live
+    // lookup record. This replaces the pre-lookup script + lookup field.
+    if (posCustomerTitle) posCustomerTitle.textContent = 'Customer';
     const hasHistory = (r.past_rentals || []).length || (r.active_reservations || []).length || (r.claims_cases || []).length;
+    const checkSvg = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.3 8 L7 9.7 L10.7 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const clockSvg = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5 V8 L10.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     posCustomerBody.innerHTML = `
-      <div class="pos-kv"><span>First Name</span><span>${escapeHtml(first)}</span></div>
-      <div class="pos-kv"><span>Last Name</span><span>${escapeHtml(last)}</span></div>
-      <div class="pos-kv"><span>Email</span><span class="mono">${escapeHtml(r.email || '')}</span></div>
-      <div class="pos-kv"><span>Phone</span><span class="mono">${escapeHtml(r.phone || '')}</span></div>
-      <div class="pos-kv"><span>Account</span><span class="mono">${escapeHtml(r.account_id || '')}</span></div>
-      ${r.member_since ? `<div class="pos-kv"><span>Member since</span><span>${escapeHtml(String(r.member_since))}</span></div>` : ''}
-      ${hasHistory ? '<button type="button" class="pos-link" id="pos-history-link">Past Rentals / Reservations</button>' : ''}
+      <div class="csf-cust-name">${escapeHtml(r.full_name || '')}</div>
+      ${r.phone ? `<div class="csf-cust-line">${escapeHtml(r.phone)}</div>` : ''}
+      ${r.email ? `<div class="csf-cust-line">${escapeHtml(r.email)}</div>` : ''}
+      ${r.account_id ? `<div class="csf-cust-line">Account ${escapeHtml(r.account_id)}</div>` : ''}
+      ${r.member_since ? `<div class="csf-cust-line">Member since ${escapeHtml(String(r.member_since))}</div>` : ''}
+      <div class="csf-verified">${checkSvg} Verified Customer</div>
+      ${hasHistory ? `<button type="button" class="csf-pastrentals" id="pos-history-link">${clockSvg} Past Rentals/Reservations</button>` : ''}
     `;
     if (r.notes) posCustomerNotes.textContent = r.notes;
     document.getElementById('pos-history-link')?.addEventListener('click', () => openHistoryModal(r));
@@ -2220,6 +2323,16 @@ function renderCall(scenario) {
     posBackBtn.hidden = posStep === 1;
     posErrorEl.hidden = true;
     posNextBtn.textContent = posStep === TOTAL_STEPS ? 'Reserve Now' : 'Continue';
+    // CSF chrome per step: topbar title, panel head ("U-Move" on step 1, else
+    // the step title), category tabs (step 1 only), panel standalone border
+    // (steps 2-5), and the topbar action group (New Reservation vs Back/Next).
+    if (posTopbarTitle) posTopbarTitle.textContent = STEP_TITLES[posStep] || '';
+    if (posPanelHeadText) posPanelHeadText.textContent = posStep === 1 ? 'U-Move' : (STEP_TITLES[posStep] || '');
+    if (posTabs) posTabs.hidden = posStep !== 1;
+    if (posPanel) posPanel.dataset.standalone = posStep === 1 ? 'false' : 'true';
+    if (posTopNewBtn) posTopNewBtn.hidden = posStep !== 1;
+    if (posTopStepsWrap) posTopStepsWrap.hidden = posStep === 1;
+    if (posTopBackBtn) posTopBackBtn.disabled = posStep === 1;
     if (posStep === 2) renderEquip();
     if (posStep === 4) renderSched();
     if (posStep === 5) updateCardStatus();
@@ -2228,6 +2341,12 @@ function renderCall(scenario) {
   }
 
   posBackBtn.addEventListener('click', () => showStep(posStep - 1));
+
+  // CSF topbar Back/Next mirror the in-panel nav so the trainee can drive the
+  // reservation from the header too. Next routes through requestSubmit so it
+  // hits the same validation/storage-modal flow as the panel Continue button.
+  posTopBackBtn?.addEventListener('click', () => { if (posStep > 1) showStep(posStep - 1); });
+  posTopNextBtn?.addEventListener('click', () => posForm.requestSubmit());
 
   posForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2329,6 +2448,8 @@ function renderCall(scenario) {
     posForm.hidden = true;
     posStepper.hidden = true;
     if (posNav) posNav.hidden = true;
+    if (posPanel) posPanel.hidden = true;
+    if (posTabs) posTabs.hidden = true;
     posResult.innerHTML = `
       <div class="pos-receipt">
         <div class="pos-receipt-head">
@@ -2384,8 +2505,11 @@ function renderCall(scenario) {
       posResult.innerHTML = '';
       posForm.reset();
       posForm.hidden = false;
-      posStepper.hidden = false;
+      // Stepper stays hidden in the CSF chrome; the panel/tabs come back.
+      posStepper.hidden = true;
       if (posNav) posNav.hidden = false;
+      if (posPanel) posPanel.hidden = false;
+      if (posTabs) posTabs.hidden = false;
       truckOverride = null;
       selectedLocation = null;
       storageAsked = false;
