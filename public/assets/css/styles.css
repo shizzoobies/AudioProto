@@ -2307,7 +2307,7 @@ textarea {
 .pos-script-line {
   font-size: 13px;
   line-height: 1.5;
-  color: var(--color-text-primary);
+  color: var(--color-success);
   margin: 0;
 }
 .pos-script-suggest {
