@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preview · Call Simulator</title>
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<style>
+  /* Preview-only chrome — does not touch styles.css */
+  .preview-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    height: 48px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .preview-bar-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent, #8b0000);
+    white-space: nowrap;
+    flex: none;
+  }
+  .preview-bar select {
+    flex: 1;
+    max-width: 420px;
+    font-size: 13px;
+    padding: 5px 8px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .preview-bar button {
+    flex: none;
+    font-size: 12px;
+    padding: 5px 12px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .preview-bar button.active {
+    background: var(--color-accent, #8b0000);
+    color: #fff;
+    border-color: var(--color-accent, #8b0000);
+  }
+  /* Push body content below the fixed bar */
+  body { padding-top: 48px; }
+
+  /* Print-all dividers */
+  .preview-divider {
+    display: none;
+    padding: 12px 24px;
+    background: #f8f8f8;
+    border-top: 2px solid var(--color-border, #e2e8f0);
+    border-bottom: 2px solid var(--color-border, #e2e8f0);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary, #94a3b8);
+  }
+  body.print-all .preview-divider { display: block; }
+  body.print-all .preview-state { display: block !important; }
+
+  /* Single-state view: only show the active state */
+  .preview-state { display: none; }
+  .preview-state.active { display: block; }
+</style>
+</head>
+<body class="app-page" data-app-state="ready">
+
+  <div class="preview-bar" id="preview-bar">
+    <span class="preview-bar-label">Preview Mode — no API calls</span>
+    <select id="preview-select" aria-label="Choose a UI state to preview"></select>
+    <button type="button" id="preview-print-toggle">Print all</button>
+  </div>
+
+  <div id="preview-root"></div>
+
+  <script type="module" src="/assets/js/preview.js"></script>
+</body>
+</html>
