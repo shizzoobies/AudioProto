@@ -12,7 +12,9 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
   const apiKey = env?.RESEND_API_KEY;
   if (!apiKey) return { ok: false, error: 'no_api_key' };
 
-  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Training <training@send.ka-testing.com>';
+  // Default matches the verified root domain in Resend. Override via env
+  // INVITE_FROM_ADDRESS if you've also verified a sending subdomain.
+  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Training <training@ka-testing.com>';
   const subject = 'Your Meridian training session is ready';
   const displayName = name || to;
 
