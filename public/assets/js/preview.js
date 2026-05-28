@@ -889,30 +889,95 @@ function posStep4() {
 }
 
 function posStep5() {
-  return `
-    <div class="pos-test-banner">Training mode. Card details are not stored or charged.</div>
-    <div class="pos-card-status">Card on file — ready to confirm the reservation.</div>
-    <fieldset class="pos-fieldset">
-      <legend>Additional products and services</legend>
-      <label class="pos-field"><span class="pos-field-label">Will you need storage before or after the move?</span><select class="pos-input"><option selected>No storage needed</option><option>Yes, before the move</option><option>Yes, after the move</option></select></label>
-    </fieldset>
-    <fieldset class="pos-fieldset">
-      <legend>Verify contact information</legend>
-      <div class="pos-grid-2">
-        <label class="pos-field"><span class="pos-field-label">Email for receipt</span><input class="pos-input" type="text" value="derek.huang@gmail.com"></label>
-        <label class="pos-field"><span class="pos-field-label">Phone number</span><input class="pos-input" type="tel" value="210-555-0142"></label>
+  const infoIcon = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  const months = ['1 - January', '2 - February', '3 - March', '4 - April', '5 - May', '6 - June', '7 - July', '8 - August', '9 - September', '10 - October', '11 - November', '12 - December'];
+  const years = ['2026', '2027', '2028', '2029', '2030'];
+
+  // 1. Credit card to confirm reservation
+  const creditCard = `
+    <section class="pos-card">
+      <div class="pos-card-head" style="display:flex;align-items:center;justify-content:space-between;"><span class="pos-card-title">Credit Card to Confirm Reservation</span>${infoIcon}</div>
+      <div class="pos-card-body">
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Which credit card would you like to use to confirm your reservation?</p></div>
+        <div class="pos-grid-3">
+          <label class="pos-field"><span class="pos-field-label">* Card Number</span><input class="pos-input" type="text"></label>
+          <label class="pos-field"><span class="pos-field-label">* Expiration Month</span><select class="pos-input">${months.map((m) => `<option>${m}</option>`).join('')}</select></label>
+          <label class="pos-field"><span class="pos-field-label">* Expiration Year</span><select class="pos-input">${years.map((y) => `<option>${y}</option>`).join('')}</select></label>
+        </div>
+        <div class="pos-grid-2" style="align-items:end;">
+          <label class="pos-field"><span class="pos-field-label">* Billing Zip Code</span><input class="pos-input" type="text" value="32609"></label>
+          <div class="csf-row-end"><button type="button" class="primary-button">Save</button></div>
+        </div>
+        <div class="csf-cc-links">
+          <a class="csf-link">&#43; Add Gift Card/Certificate</a>
+          <a class="csf-link">What is a gift card/certificate?</a>
+          <a class="csf-link">More Payment Options</a>
+        </div>
       </div>
-      <div class="pos-field">
-        <span class="pos-field-label">Preferred Contact Method</span>
-        <div class="pos-check-row"><label class="pos-check"><input type="checkbox"> Email</label><label class="pos-check"><input type="checkbox"> Phone</label><label class="pos-check"><input type="checkbox" checked> Text</label></div>
-      </div>
-      <label class="pos-field"><span class="pos-field-label">Current Address (optional)</span><input class="pos-input" type="text" placeholder="Street, city, state"></label>
-      <div class="pos-field">
-        <span class="pos-field-label">Preferred Language</span>
-        <div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="lang5" checked> English</label><label class="pos-radio"><input type="radio" name="lang5"> French</label><label class="pos-radio"><input type="radio" name="lang5"> Spanish</label></div>
-      </div>
-    </fieldset>
+    </section>
   `;
+
+  // 2. Additional products and services (sub-tabs)
+  const additional = `
+    <section class="pos-card">
+      <div class="pos-card-head" style="display:flex;align-items:center;justify-content:space-between;"><span class="pos-card-title">Additional Products and Services</span><span style="cursor:pointer;font-size:18px;line-height:1;">&minus;</span></div>
+      <div class="pos-card-body">
+        <div class="csf-tabs">
+          <button type="button" class="csf-tab active">Storage</button>
+          <button type="button" class="csf-tab">Dollies/Furniture Pads</button>
+          <button type="button" class="csf-tab">Moving Help</button>
+        </div>
+        <div class="csf-subtab-body">
+          <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Will you need storage before or after your move?</p></div>
+          <div class="pos-grid-2">
+            <label class="pos-field"><span class="pos-field-label">Storage Location</span><select class="pos-input"><option selected>Select</option><option>Gainesville Main</option></select></label>
+            <label class="pos-field"><span class="pos-field-label">Move In Date</span><input class="pos-input" type="date"></label>
+          </div>
+          <div class="pos-field">
+            <span class="pos-field-label">Do you want to add storage at another location?</span>
+            <div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="stor"> Yes</label><label class="pos-radio"><input type="radio" name="stor" checked> No</label></div>
+          </div>
+          <div class="csf-row-end"><button type="button" class="primary-button">Find Storage Rooms</button></div>
+        </div>
+      </div>
+    </section>
+  `;
+
+  // 3. U-Move reservation details (collapsed)
+  const rsvDetails = `
+    <section class="pos-card">
+      <div class="pos-card-head" style="display:flex;align-items:center;justify-content:space-between;"><span class="pos-card-title">U-Move Reservation Details</span><span style="cursor:pointer;font-size:18px;line-height:1;font-weight:400;">+</span></div>
+    </section>
+  `;
+
+  // 4. Verify contact information for scheduling
+  const verify = `
+    <section class="pos-card">
+      <div class="pos-card-head"><span class="pos-card-title">Verify Contact Information for Scheduling</span></div>
+      <div class="pos-card-body">
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">What is your preferred method of contact; email, phone or text?</p></div>
+        <p class="csf-verify-note">Please verify with your customer the email/phone number shown below.</p>
+        <ul class="csf-verify-list">
+          <li>Customer's Email Address is required if they prefer being contacted via Email.</li>
+          <li>Customer's Phone Number is required if they prefer being contacted via Phone or Text.</li>
+        </ul>
+        <div class="pos-grid-3">
+          <label class="pos-field"><span class="pos-field-label">Email for Reservation Receipt</span><input class="pos-input" type="text" value="${esc(R.email)}"></label>
+          <label class="pos-field"><span class="pos-field-label">Phone Number</span><input class="pos-input" type="tel" value="${esc(R.phone)}"></label>
+          <div class="pos-field"><span class="pos-field-label">Preferred Contact Method</span><div class="pos-check-row"><label class="pos-check"><input type="checkbox"> Email</label><label class="pos-check"><input type="checkbox"> Phone</label><label class="pos-check"><input type="checkbox" checked> Text</label></div></div>
+        </div>
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">May I please have your current address?</p></div>
+        <div class="pos-grid-2">
+          <label class="pos-field"><span class="pos-field-label">Current Address</span><input class="pos-input" type="text" placeholder="Optional"></label>
+          <div class="pos-field"><span class="pos-field-label">Preferred Language</span><div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="lang5" checked> English</label><label class="pos-radio"><input type="radio" name="lang5"> French</label><label class="pos-radio"><input type="radio" name="lang5"> Spanish</label></div></div>
+        </div>
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Would you like to add an Authorized Contact to your reservation, who can call in on your behalf to ask questions and/or make changes?</p></div>
+        <a class="csf-link">Authorized Contacts</a>
+      </div>
+    </section>
+  `;
+
+  return creditCard + additional + rsvDetails + verify;
 }
 
 function posStepSection(step) {
@@ -944,10 +1009,11 @@ function buildCallShell({
               <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span><span style="cursor:pointer;">${trashIcon}</span></div>
               <div class="pos-card-body">${cartBodyHtml(filled)}</div>
             </section>
+            ${step !== 5 ? `
             <section class="pos-card">
               <div class="pos-card-head"><span class="pos-card-title">Credit Card</span></div>
-              <div class="pos-card-body pos-cc">${ccPanelHtml(filled && step === 5)}</div>
-            </section>
+              <div class="pos-card-body pos-cc">${ccPanelHtml(false)}</div>
+            </section>` : ''}
           </aside>` : '';
 
   // The category tabs only appear on the Details step (where you confirm the
@@ -974,6 +1040,14 @@ function buildCallShell({
 
           <div class="pos-stage">
             ${tabs}
+            ${step === 5 ? `
+              <div class="csf-checkout">${posStep5()}</div>
+              <div class="csf-checkout-foot">
+                <button type="button" class="csf-btn-secondary">Print Quote</button>
+                <button type="button" class="csf-btn-secondary">Send Quote</button>
+                <button type="button" class="primary-button">Reserve Now</button>
+              </div>
+            ` : `
             <div class="csf-panel"${standalone}>
               <div class="csf-panel-head" style="display:flex;align-items:center;justify-content:space-between;">${esc(panelHead)}${infoIcon}</div>
               <div class="csf-panel-body">
@@ -989,6 +1063,7 @@ function buildCallShell({
                 </div>
               </div>
             </div>
+            `}
           </div>
 
           ${rightRail}
