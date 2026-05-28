@@ -44,8 +44,16 @@ export async function onRequest(context) {
       await verifyToken(cookies.session, env.SESSION_SECRET);
       return next();
     } catch {
-      // Bad/expired session - fall through and try the magic/invite paths.
+      // Bad/expired session - fall through.
     }
+  }
+
+  // Admins can read any /api/* endpoint (not just /api/admin/*) - they need
+  // /api/scenarios to populate the dashboard, for instance. The strict gate
+  // above already prevents non-admins from hitting /api/admin/* routes.
+  if (cookies.cs_admin) {
+    const admin = await getAdminScope(request, env);
+    if (admin) return next();
   }
 
   // Legacy magic-link visitors (single global env-var token, single scenario).
