@@ -1,5 +1,5 @@
 import { getScenario } from '../../shared/scenarios.js';
-import { verifyToken, getMagicScope } from '../../shared/auth.js';
+import { verifyToken, getMagicScope, getInviteScope } from '../../shared/auth.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const STANDARD_MODEL = 'claude-sonnet-4-6';
@@ -30,6 +30,15 @@ export async function onRequestPost({ request, env }) {
   // null whenever the session cookie is valid).
   const lockedScenario = await getMagicScope(request, env);
   if (lockedScenario && lockedScenario !== body.scenario_id) {
+    return jsonError('forbidden_scenario', 403);
+  }
+
+  // Invite recipients can only call scenarios in their assigned set. Returns
+  // null when the visitor has no valid cs_me, so trainee sessions and magic
+  // visitors are unaffected. The invite row is re-checked on every request,
+  // so revocation kicks in mid-conversation on the next turn.
+  const inviteScope = await getInviteScope(request, env);
+  if (inviteScope && !inviteScope.scenarios.has(body.scenario_id)) {
     return jsonError('forbidden_scenario', 403);
   }
 

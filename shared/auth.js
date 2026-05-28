@@ -135,3 +135,108 @@ export function parseCookieHeader(header) {
   }
   return out;
 }
+
+// Constant-time string compare. Same pattern as functions/api/auth.js, lifted
+// to shared so admin login (and future password checks) can reuse it without
+// duplicating timing-safe logic.
+const COMPARE_BUDGET = 256;
+export function constantTimeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < COMPARE_BUDGET; i++) {
+    const ac = i < a.length ? a.charCodeAt(i) : 0;
+    const bc = i < b.length ? b.charCodeAt(i) : 0;
+    diff |= ac ^ bc;
+  }
+  return diff === 0;
+}
+
+// Full 64-char hex SHA-256, for storing token hashes in D1 where collisions
+// across millions of rows must be impossible. tokenFingerprint() above uses
+// the first 16 bytes; this returns all 32.
+export async function sha256Hex(s) {
+  const data = ENCODER.encode(String(s || ''));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const arr = Array.from(new Uint8Array(digest));
+  return arr.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Short opaque ID for DB rows (24 hex chars / 96 bits of entropy is plenty).
+export function randomId(bytes = 12) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// URL-safe random token (the secret half of a magic URL). 24 bytes -> 32 chars
+// base64url. Matches the entropy of the MAGIC_LINK_TOKEN we generate by hand.
+export function randomToken(bytes = 24) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  let bin = '';
+  for (let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Look up the recipient invite that owns this request's cs_me cookie. Returns
+//   { invite_id, recipient_email, recipient_name, expires_at, scenarios: Set }
+// or null if the cookie is missing, invalid, expired, revoked, or out of sync
+// with the DB (e.g. the admin clicked "regenerate" and the token_hash rotated).
+// Re-checks D1 on every call so revocation and rotation are instant. The
+// scenario lock in chat/tts/coach reads `.scenarios` for the allow-set.
+export async function getInviteScope(request, env) {
+  if (!env?.SESSION_SECRET || !env?.DB) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  const t = cookies.cs_me;
+  if (!t) return null;
+  let payload;
+  try {
+    payload = await verifyToken(t, env.SESSION_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.scope !== 'me' || !payload?.invite_id || !payload?.h) return null;
+
+  const row = await env.DB
+    .prepare(
+      `SELECT id, recipient_email, recipient_name, expires_at, token_hash
+       FROM invites WHERE id = ? AND revoked = 0 LIMIT 1`
+    )
+    .bind(payload.invite_id)
+    .first();
+  if (!row) return null;
+  if (row.token_hash !== payload.h) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (row.expires_at && row.expires_at < now) return null;
+
+  const sceneRes = await env.DB
+    .prepare(`SELECT scenario_id FROM invite_scenarios WHERE invite_id = ?`)
+    .bind(payload.invite_id)
+    .all();
+  const scenarios = new Set((sceneRes?.results || []).map((r) => r.scenario_id));
+
+  return {
+    invite_id: row.id,
+    recipient_email: row.recipient_email,
+    recipient_name: row.recipient_name,
+    expires_at: row.expires_at,
+    scenarios,
+  };
+}
+
+// Returns { role: 'admin' } if the request carries a valid cs_admin cookie
+// (HMAC verifies + role claim is 'admin' + not expired). Returns null
+// otherwise. Used by admin routes to gate access; the middleware also calls
+// this for /api/admin/* paths.
+export async function getAdminScope(request, env) {
+  if (!env?.SESSION_SECRET) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  if (!cookies.cs_admin) return null;
+  try {
+    const payload = await verifyToken(cookies.cs_admin, env.SESSION_SECRET);
+    if (payload?.role === 'admin') return { role: 'admin' };
+  } catch {
+    // invalid / expired
+  }
+  return null;
+}

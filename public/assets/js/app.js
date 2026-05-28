@@ -135,6 +135,8 @@ async function init() {
     sessionOk = false;
   }
   if (!sessionOk) {
+    // Legacy single-scenario magic link first (kept while we run both systems
+    // in parallel during rollout).
     let magic = null;
     try {
       const r = await fetch('/api/magic-status', { credentials: 'same-origin' });
@@ -147,8 +149,22 @@ async function init() {
       state.kioskScenario = magic.scenario;
       document.body.dataset.kiosk = 'true';
     } else {
-      window.location.replace('/');
-      return;
+      // Invite recipient (D1-backed, multi-scenario per person). Falls through
+      // to login redirect if neither path applies.
+      let me = null;
+      try {
+        const r = await fetch('/api/me/status', { credentials: 'same-origin' });
+        if (r.ok) me = await r.json();
+      } catch {
+        me = null;
+      }
+      if (me && me.active && Array.isArray(me.scenarios)) {
+        state.recipient = me;
+        document.body.dataset.recipient = 'true';
+      } else {
+        window.location.replace('/');
+        return;
+      }
     }
   }
 
@@ -194,6 +210,11 @@ async function init() {
     // off startCall, which initializes the mic on first user gesture.
     setCallMode('phone');
     renderKioskSplash(state.kioskScenario);
+  } else if (state.recipient) {
+    // Invite recipient: their personal training page lists the scenarios the
+    // admin assigned them. Same phone default.
+    setCallMode('phone');
+    renderRecipientHome();
   } else {
     renderHome();
   }
@@ -349,6 +370,67 @@ function renderKioskSplash(scenarioId) {
   `;
 
   document.getElementById('kiosk-take-call').addEventListener('click', () => startCall(scenarioId));
+}
+
+// Invite recipient's personal training page. They land here from /me/<token>
+// (D1-backed invite link). Lists the scenarios the admin assigned them, with
+// the same card UI as the Sales picker, plus a greeting and mic disclaimer.
+// Clicking a card launches the scenario directly (no per-card splash - the
+// click itself is the user gesture the mic permission needs, and the
+// disclaimer is right here on the page).
+function renderRecipientHome() {
+  state.view = 'recipient_home';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  const r = state.recipient || {};
+  const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
+  const name = typeof r.recipient_name === 'string' && r.recipient_name.trim()
+    ? r.recipient_name.trim()
+    : '';
+  const greeting = name ? `Hi ${escapeHtml(name)}` : 'Welcome to your training';
+  const countLine = scenarios.length === 0
+    ? 'No scenarios have been assigned yet.'
+    : scenarios.length === 1
+      ? 'You have one training call to take.'
+      : `You have ${scenarios.length} training calls to take.`;
+
+  const cardsHtml = scenarios.map((p) => `
+    <li class="scenario-card" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" aria-label="Start the call with ${escapeAttr(p.customer_name || p.id)}">
+      ${p.premium ? '<div class="scenario-difficulty difficulty-premium">Premium</div>' : ''}
+      <h2 class="scenario-title">${escapeHtml(p.customer_name || '')}</h2>
+      <p class="scenario-customer">${escapeHtml(p.customer_short || '')}</p>
+      <p class="scenario-description">${escapeHtml(p.tagline || '')}</p>
+      <div class="scenario-cta">Take the call <span aria-hidden="true">›</span></div>
+    </li>
+  `).join('');
+
+  dom.root.innerHTML = `
+    <section class="recipient-home">
+      <header class="recipient-header">
+        <div class="recipient-eyebrow">Sales training</div>
+        <h1 class="recipient-title">${greeting}</h1>
+        <p class="recipient-subtitle">${escapeHtml(countLine)}</p>
+      </header>
+      <div class="recipient-disclaimer" role="note">
+        <strong>These are voice calls.</strong> When prompted, please allow microphone access for this page so the customer can hear you.
+      </div>
+      <ul class="scenario-grid">${cardsHtml}</ul>
+    </section>
+  `;
+
+  dom.root.querySelectorAll('.scenario-card').forEach((card) => {
+    const go = () => startCall(card.dataset.personaId);
+    card.addEventListener('click', go);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
 }
 
 // A built-out home track (e.g. Sales: Overcoming Objections). Lists the
@@ -1521,7 +1603,8 @@ function renderCall(scenario) {
   backBtn.addEventListener('click', () => {
     conversation.cancel();
     teardownAudio();
-    renderPicker();
+    if (state.recipient) renderRecipientHome();
+    else renderPicker();
   });
 
   function setComposerEnabled(enabled) {
@@ -2402,7 +2485,12 @@ function renderReport(scenario, report) {
   setDocumentTitle(`Report: ${scenario.customer_name}`);
   // Kiosk visitors have nowhere to go but back into the same scenario - even
   // if the "Back to scenarios" button shows for any reason, it just retries.
-  const onNewCall = state.kiosk ? () => startCall(scenario.id) : renderPicker;
+  // Recipients go to their personal training page; trainees go to the picker.
+  const onNewCall = state.kiosk
+    ? () => startCall(scenario.id)
+    : state.recipient
+      ? renderRecipientHome
+      : renderPicker;
   const node = renderReportHtml(scenario, report, {
     onNewCall,
     onRetry: () => startCall(scenario.id),
@@ -2422,7 +2510,10 @@ function renderShortCall(scenario) {
       </div>
     </section>
   `;
-  document.getElementById('ended-back').addEventListener('click', state.kiosk ? () => startCall(scenario.id) : renderPicker);
+  document.getElementById('ended-back').addEventListener('click',
+    state.kiosk ? () => startCall(scenario.id)
+    : state.recipient ? renderRecipientHome
+    : renderPicker);
   document.getElementById('ended-retry').addEventListener('click', () => startCall(scenario.id));
 }
 
@@ -2438,7 +2529,10 @@ function renderCoachingError(scenario, messages, err) {
       </div>
     </section>
   `;
-  document.getElementById('error-back').addEventListener('click', state.kiosk ? () => startCall(scenario.id) : renderPicker);
+  document.getElementById('error-back').addEventListener('click',
+    state.kiosk ? () => startCall(scenario.id)
+    : state.recipient ? renderRecipientHome
+    : renderPicker);
   document.getElementById('error-retry').addEventListener('click', () => runCoaching(scenario, messages));
 }
 

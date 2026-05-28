@@ -1,6 +1,6 @@
 import { getScenario } from '../../shared/scenarios.js';
 import { COACHING_SYSTEM_PROMPT, COACHING_TOOL } from '../../shared/coaching-rubric.js';
-import { getMagicScope } from '../../shared/auth.js';
+import { getMagicScope, getInviteScope } from '../../shared/auth.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-opus-4-7';
@@ -26,6 +26,11 @@ export async function onRequestPost({ request, env }) {
   // Magic-link visitors can only coach the scenario their cookie is scoped to.
   const lockedScenario = await getMagicScope(request, env);
   if (lockedScenario && lockedScenario !== body.scenario_id) {
+    return jsonError('forbidden_scenario', 403);
+  }
+  // Invite recipients can only coach scenarios in their assigned set.
+  const inviteScope = await getInviteScope(request, env);
+  if (inviteScope && !inviteScope.scenarios.has(body.scenario_id)) {
     return jsonError('forbidden_scenario', 403);
   }
 

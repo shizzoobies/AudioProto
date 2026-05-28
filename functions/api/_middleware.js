@@ -1,10 +1,25 @@
-import { verifyToken, tokenFingerprint } from '../../shared/auth.js';
+import {
+  verifyToken,
+  tokenFingerprint,
+  getAdminScope,
+  getInviteScope,
+} from '../../shared/auth.js';
 
-// /api/auth is public so login can happen unauthenticated. /api/magic-status
-// is public because the kiosk frontend uses it to discover whether the
-// visitor has a valid cs_magic cookie (and what scenario it locks them to)
-// before any other call - it does not grant access on its own.
-const PUBLIC_PATHS = new Set(['/api/auth', '/api/magic-status']);
+// Public paths skip auth entirely.
+//   /api/auth          - trainee login (you can't be authed before you log in)
+//   /api/magic-status  - kiosk frontend probes for a valid cs_magic on boot
+//   /api/me/status     - recipient frontend probes for a valid cs_me on boot
+//   /api/admin/login   - admin login (same logic as trainee auth)
+const PUBLIC_PATHS = new Set([
+  '/api/auth',
+  '/api/magic-status',
+  '/api/me/status',
+  '/api/admin/login',
+]);
+
+// /api/admin/* (except login) require cs_admin SPECIFICALLY. A trainee session,
+// magic cookie, or invite cookie does not grant access to admin endpoints.
+const ADMIN_API_PREFIX = '/api/admin/';
 
 export async function onRequest(context) {
   const { request, env, next } = context;
@@ -14,23 +29,28 @@ export async function onRequest(context) {
     return next();
   }
 
+  // Admin routes: strict cs_admin gate, no other cookie type permitted.
+  if (url.pathname.startsWith(ADMIN_API_PREFIX)) {
+    const admin = await getAdminScope(request, env);
+    if (admin) return next();
+    return jsonError('unauthorized', 401);
+  }
+
   const cookies = parseCookies(request.headers.get('Cookie') || '');
 
-  // Normal session: the gate for everyone who logs in with the app password.
+  // Normal session: the gate for trainees who logged in with APP_PASSWORD.
   if (cookies.session) {
     try {
       await verifyToken(cookies.session, env.SESSION_SECRET);
       return next();
     } catch {
-      // Bad/expired session - fall through and try the magic path.
+      // Bad/expired session - fall through and try the magic/invite paths.
     }
   }
 
-  // Magic-link visitors. We require BOTH (a) the cookie's HMAC verifies and
-  // (b) its tokenHash matches the current MAGIC_LINK_TOKEN fingerprint, so
-  // rotating that secret in the Cloudflare dashboard invalidates every cookie
-  // already in the wild on the next request. The per-scenario lock that keeps
-  // them from calling other scenario_ids is enforced inside chat/tts/coach.
+  // Legacy magic-link visitors (single global env-var token, single scenario).
+  // Cookie fingerprint must still match the env, so rotating the secret in the
+  // dashboard invalidates every existing cookie on the next request.
   if (cookies.cs_magic && env.SESSION_SECRET && env.MAGIC_LINK_TOKEN) {
     try {
       const payload = await verifyToken(cookies.cs_magic, env.SESSION_SECRET);
@@ -39,8 +59,16 @@ export async function onRequest(context) {
         if (payload.h === fp) return next();
       }
     } catch {
-      // fall through to 401
+      // fall through
     }
+  }
+
+  // Invite recipients (D1-backed, per-recipient links). getInviteScope re-reads
+  // the row on every request so revocation, expiry, and admin-side token
+  // rotation all take effect immediately.
+  if (cookies.cs_me) {
+    const scope = await getInviteScope(request, env);
+    if (scope) return next();
   }
 
   return jsonError('unauthorized', 401);

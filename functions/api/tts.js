@@ -1,5 +1,5 @@
 import { getScenario } from '../../shared/scenarios.js';
-import { verifyToken, getMagicScope } from '../../shared/auth.js';
+import { verifyToken, getMagicScope, getInviteScope } from '../../shared/auth.js';
 
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
 const STANDARD_TTS_MODEL = 'eleven_multilingual_v2';
@@ -34,6 +34,10 @@ export async function onRequestPost({ request, env }) {
   // and also raw voice_id calls (which would bypass the scenario check).
   const lockedScenario = await getMagicScope(request, env);
   if (lockedScenario && body?.scenario_id !== lockedScenario) {
+    return jsonError('forbidden_scenario', 403);
+  }
+  const inviteScope = await getInviteScope(request, env);
+  if (inviteScope && (!body?.scenario_id || !inviteScope.scenarios.has(body.scenario_id))) {
     return jsonError('forbidden_scenario', 403);
   }
 
