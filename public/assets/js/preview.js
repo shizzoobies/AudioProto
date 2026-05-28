@@ -35,54 +35,53 @@ const MOCK = {
 
   // Multi-turn transcript mock
   transcript: [
-    { kind: 'customer', label: 'Derek Huang',  text: 'Hi, yeah, I\'m calling about a truck rental. I need something for this Saturday — moving from the Westside to Stone Oak.' },
-    { kind: 'agent',    label: 'You',          text: 'Sure, I can help with that! What size load are you moving — studio, one-bedroom, or larger?' },
-    { kind: 'customer', label: 'Derek Huang',  text: 'It\'s a two-bedroom apartment. Not a lot of furniture but we do have a sectional and a king bed.' },
-    { kind: 'agent',    label: 'You',          text: 'For a two-bedroom with a sectional and a king, I\'d put you in our 15-foot truck. That\'s $29.95 a day plus $0.89 a mile. How many days do you need it?' },
-    { kind: 'customer', label: 'Derek Huang',  text: 'Just one day should be fine. But honestly, the quote I got from U-Haul was $24 a day. Can you match that?' },
-    { kind: 'agent',    label: 'You',          text: 'I understand — price matters. Our 15-foot rate does include roadside assistance and a damage waiver option that U-Haul charges extra for. Would you like me to walk you through the total so you can compare apples to apples?' },
+    { kind: 'customer', label: 'Alex Anderson', text: 'Hi, I need to rent a truck for the Fourth of July weekend. We\'re moving from a two-bedroom here in Gainesville to a three-bedroom apartment.' },
+    { kind: 'agent',    label: 'You',           text: 'Happy to help! For a two-bedroom into a three-bedroom, most families do great with our 20-foot truck. Does that sound about right for what you\'re moving?' },
+    { kind: 'customer', label: 'Alex Anderson', text: 'Yeah, that sounds about right. We\'ve got a decent amount of furniture.' },
+    { kind: 'agent',    label: 'You',           text: 'Perfect. The 20-foot is $39.95 plus $1.19 a mile. Most families need about 8 hours with it — will that work for you?' },
+    { kind: 'customer', label: 'Alex Anderson', text: 'Eight hours should be plenty, we\'re only going a few miles across town.' },
+    { kind: 'agent',    label: 'You',           text: 'Great. Families who rent the 20-foot also find a utility dolly and a dozen furniture pads make the move a lot easier — can I add those for $17.00?' },
   ],
 
   // In-progress reservation used across the POS step previews (steps 2-5).
+  // Matched to the CSF equipment-page reference for a 1:1 visual compare.
   reservation: {
-    customerName: 'Derek Huang',
-    phone: '(210) 555-0142',
-    email: 'derek.huang@gmail.com',
-    movingFrom: 'Westside, San Antonio TX 78237',
-    movingTo: 'Stone Oak, San Antonio TX 78258',
-    rentalDate: 'Sat, May 30, 2026',
-    moving: '2 Bedroom Home',
+    customerName: 'Alex Anderson',
+    phone: '(904) 210-1071',
+    email: 'alexander_anderson@uhaul.com',
+    movingFrom: 'GAINESVILLE, FL 32609',
+    movingTo: '',
+    rentalDate: '7/4/2026',
+    moving: '2 Bedroom Home to 3 Bedroom Apt.',
     moveType: 'In Town',
-    truckLabel: "15' Moving Truck",
-    truckRate: '$29.95/day + $0.89/mile',
-    rentalLength: '1 day (24-hr period)',
-    location: 'San Antonio Central',
-    pickupTime: 'Sat, May 30 · 9:00 AM',
+    truckLabel: "20' Moving Truck",
+    truckRate: '$39.95 + $1.19/mile',
+    rentalLength: '8 hour(s)',
+    location: 'Gainesville Main',
+    pickupTime: 'Sat, Jul 4 · 9:00 AM',
   },
 
   truckSizes: [
     { size: 10, base: 19.95, per_mile: 0.79 },
-    { size: 15, base: 29.95, per_mile: 0.89 },
-    { size: 20, base: 39.95, per_mile: 0.99 },
-    { size: 26, base: 49.95, per_mile: 1.09 },
+    { size: 15, base: 29.95, per_mile: 0.99 },
+    { size: 20, base: 39.95, per_mile: 1.19 },
+    { size: 26, base: 49.95, per_mile: 1.39 },
   ],
 
   locations: [
-    { name: 'San Antonio Central', entity: 'Entity 4471', address: '1200 Fredericksburg Rd, San Antonio TX 78201', phone: '(210) 555-0188', hours: 'Open until 7:00 PM', dist: '1.2', avail: [10, 15, 20, 26] },
-    { name: 'Stone Oak',           entity: 'Entity 5532', address: '20475 US-281 N, San Antonio TX 78258',       phone: '(210) 555-0211', hours: 'Open until 6:00 PM', dist: '3.8', avail: [15, 20] },
-    { name: 'Leon Valley',         entity: 'Entity 3390', address: '6900 Bandera Rd, San Antonio TX 78238',      phone: '(210) 555-0144', hours: 'Open until 8:00 PM', dist: '5.1', avail: [10, 15, 26] },
+    { name: 'Gainesville Main',  entity: 'Entity 4471', address: '3501 SW Archer Rd, Gainesville FL 32608', phone: '(352) 555-0188', hours: 'Open until 7:00 PM', dist: '1.2', avail: [10, 15, 20, 26] },
+    { name: 'NW 13th Street',    entity: 'Entity 5532', address: '2960 NW 13th St, Gainesville FL 32609',   phone: '(352) 555-0211', hours: 'Open until 6:00 PM', dist: '2.6', avail: [15, 20] },
+    { name: 'Newberry Road',     entity: 'Entity 3390', address: '7000 W Newberry Rd, Gainesville FL 32605', phone: '(352) 555-0144', hours: 'Open until 8:00 PM', dist: '4.4', avail: [10, 15, 26] },
   ],
 
+  // Cart matches the reference: truck + environmental fee + VLRF.
   cartLines: [
-    { label: "15' Moving Truck", sub: '1 day @ $29.95', amount: 29.95 },
-    { label: 'Mileage',          sub: '22 mi @ $0.89',  amount: 19.58 },
-    { label: 'Furniture pads',   sub: '1 pack',         amount: 10.00 },
-    { label: 'Utility dolly',    sub: '1 day',          amount: 7.00 },
-    { label: 'Damage waiver',    sub: 'Basic · 1 day',  amount: 15.00 },
+    { label: "20' Moving Truck", sub: '+ $1.19/mile', amount: 39.95 },
+    { label: 'Environmental Fee', sub: '', amount: 1.00 },
+    { label: 'Vehicle License Recovery Fee - FL H/W Truck', sub: '', amount: 1.20 },
   ],
-  cartSubtotal: 81.53,
-  cartTax: 6.73,
-  cartTotal: 88.26,
+  cartUMoveTotal: 42.15,
+  cartTotal: 42.15,
 
   // Coaching report mock
   report: {
@@ -501,34 +500,49 @@ function csfTabs() {
   ).join('')}</div>`;
 }
 
-// Per-step call script for the left rail. Plain lines are narration; suggest
-// lines are the words to say next (green, our established convention).
-function scriptForStep(step) {
+const SCRIPT_ICON = `<svg class="csf-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+const EDIT_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+
+// Step 1 left-rail opening script (greeting + first ask, both green).
+function leftScript() {
+  return `
+    <div class="pos-script">
+      <svg class="pos-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <div class="pos-script-lines">
+        <p class="pos-script-line">Thank you for calling Meridian Moving and Storage, this is Alexander. How may I help you?</p>
+        <p class="pos-script-suggest">No problem! May I start with your cell phone number?</p>
+      </div>
+    </div>
+  `;
+}
+
+// Main-panel call script for steps 2-5 (green). Step 2 is the rich equipment
+// pitch with the Yes/No fit check and the objection-help line.
+function panelScript(step) {
+  if (step === 2) {
+    return `
+      <div class="csf-script">
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Most families need about 8 hours with a 20' Moving Truck. Will that work for you?</p></div>
+        <div class="pos-radio-row" style="margin-left:25px;">
+          <label class="pos-radio"><input type="radio" name="eq-fit" checked> Yes</label>
+          <label class="pos-radio"><input type="radio" name="eq-fit"> No</label>
+        </div>
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">The rate for the 20' Moving Truck I recommend is $39.95 plus $1.19/mile plus a $1.00 environmental fee and a $1.20 Vehicle License Recovery Fee, plus local taxes. Which credit card would you like to use to confirm this reservation?</p></div>
+        <p class="csf-script-text csf-script-indent">Alex, families who rent a 20' Moving Truck find adding a Utility Dolly and a dozen Furniture Pads make their move easier. Can I add this to your rental for $17.00?</p>
+        <a class="csf-link csf-script-indent">Add UD/PO</a>
+      </div>
+      <div class="csf-objection">Is the customer not ready to book? <a class="csf-link">Click for help to overcome their objections</a> to book now!</div>
+    `;
+  }
   const lines = {
-    1: [
-      { text: 'Thank you for calling Meridian Moving and Storage, this is Alexander. How may I help you?' },
-      { suggest: true, text: 'No problem! May I start with your cell phone number?' },
-    ],
-    2: [
-      { suggest: true, text: "Based on what you're moving, I'd put you in a 15-foot truck — $29.95 a day plus $0.89 a mile. How many days do you need it?" },
-      { suggest: true, text: 'Families who rent a truck find a utility dolly and a dozen furniture pads make the move easier. Can I add those for $17.00?' },
-    ],
-    3: [
-      { suggest: true, text: 'The closest pickup spot to you is our San Antonio Central store on Fredericksburg Road. Does that work?' },
-    ],
-    4: [
-      { suggest: true, text: 'What time would you like to pick up on Saturday?' },
-    ],
-    5: [
-      { suggest: true, text: 'What is your preferred method of contact: email, phone, or text?' },
-      { suggest: true, text: 'Can I go ahead and lock in that Saturday reservation for you?' },
-    ],
+    3: ['The closest pickup spot to you is our Gainesville Main store on SW Archer Road. Does that work?'],
+    4: ['What time would you like to pick up on the Fourth?'],
+    5: ['What is your preferred method of contact: email, phone, or text?', 'Can I go ahead and lock in that reservation for you?'],
   }[step] || [];
-  const icon = `<svg class="pos-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-  const linesHtml = lines.map((l) =>
-    `<p class="${l.suggest ? 'pos-script-suggest' : 'pos-script-line'}">${esc(l.text)}</p>`
-  ).join('');
-  return `<div class="pos-script">${icon}<div class="pos-script-lines">${linesHtml}</div></div>`;
+  if (!lines.length) return '';
+  return `<div class="csf-script" style="margin-bottom:16px;">${lines.map((t) =>
+    `<div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">${esc(t)}</p></div>`
+  ).join('')}</div>`;
 }
 
 function lookupHtml() {
@@ -543,41 +557,55 @@ function lookupHtml() {
 }
 
 function leftRailHtml(step, filled) {
-  // Contact card carries the call script. Before lookup it shows the search
-  // field; once filled it shows the caller's details on file.
-  const contactBody = filled
-    ? `${scriptForStep(step)}
-       <div class="pos-divider"><span>On file</span></div>
-       <div class="pos-kv"><span>Name</span><span>${esc(R.customerName)}</span></div>
-       <div class="pos-kv"><span>Phone</span><span>${esc(R.phone)}</span></div>
-       <div class="pos-kv"><span>Email</span><span>${esc(R.email)}</span></div>`
-    : `${scriptForStep(step)}${lookupHtml()}`;
-
-  const detailsCard = filled ? `
-      <section class="pos-card">
-        <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span></div>
-        <div class="pos-card-body">
-          <div class="pos-kv"><span>Moving From</span><span>${esc(R.movingFrom)}</span></div>
-          <div class="pos-kv"><span>Moving To</span><span>${esc(R.movingTo)}</span></div>
-          <div class="pos-kv"><span>Rental Date</span><span>${esc(R.rentalDate)}</span></div>
-          <div class="pos-kv"><span>Moving</span><span>${esc(R.moving)}</span></div>
-          <div class="pos-kv"><span>Move Type</span><span>${esc(R.moveType)}</span></div>
-        </div>
-      </section>` : '';
-
+  if (!filled) {
+    // Pre-lookup: Customer Contact Information with the opening script.
+    return `
+      <aside class="pos-rail pos-rail-left" aria-label="Customer and reservation context">
+        <section class="pos-card">
+          <div class="pos-card-head"><span class="pos-card-title">Customer Contact Information</span>${EDIT_ICON}</div>
+          <div class="pos-card-body">${leftScript()}${lookupHtml()}</div>
+        </section>
+        <section class="pos-card">
+          <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span>${EDIT_ICON}</div>
+          <div class="pos-card-body" style="min-height:36px;"></div>
+        </section>
+      </aside>
+    `;
+  }
+  // Post-lookup: full customer profile + reservation details.
   return `
     <aside class="pos-rail pos-rail-left" aria-label="Customer and reservation context">
       <section class="pos-card">
-        <div class="pos-card-head"><span class="pos-card-title">Customer Contact Information</span></div>
-        <div class="pos-card-body">${contactBody}</div>
-      </section>
-      ${detailsCard}
-      <section class="pos-card">
-        <div class="pos-card-head">
-          <span class="pos-card-title">Reservation Notes</span>
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <div class="pos-card-head"><span class="pos-card-title">Customer</span>${EDIT_ICON}</div>
+        <div class="pos-card-body">
+          <div class="csf-cust-name">${esc(R.customerName)}</div>
+          <div class="csf-cust-line">${esc(R.phone)}</div>
+          <div class="csf-cust-line">${esc(R.email)}</div>
+          <div class="csf-verified"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.3 8 L7 9.7 L10.7 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Verified Customer</div>
+          <div class="csf-pastrentals"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5 V8 L10.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Past Rentals/Reservations</div>
         </div>
-        <div class="pos-card-body" style="min-height:36px;"></div>
+      </section>
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Checklist</span></div>
+        <div class="pos-card-body"><div class="pos-check-item">U-Move</div></div>
+      </section>
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Reservation Details</span>${EDIT_ICON}</div>
+        <div class="pos-card-body">
+          <div class="csf-rd-group"><span class="csf-rd-label">Moving From</span><span class="csf-rd-value">${esc(R.movingFrom)}</span></div>
+          <div class="csf-rd-group"><span class="csf-rd-label">Rental Date</span><span class="csf-rd-value">${esc(R.rentalDate)}</span></div>
+          <div class="csf-rd-group"><span class="csf-rd-label">Moving</span><span class="csf-rd-value">${esc(R.moving)}</span></div>
+          <div class="csf-rd-label">${esc(R.moveType)}</div>
+          <button type="button" class="csf-convert-btn">Convert to One-Way</button>
+        </div>
+      </section>
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span>${EDIT_ICON}</div>
+        <div class="pos-card-body">
+          <div class="csf-notes-label">Customer Notes</div>
+          <div class="csf-notes-text">No cautionary notes &nbsp;·&nbsp; <a class="csf-link">Add Cautionary Note</a></div>
+          <div class="csf-notes-label">Callback Notes</div>
+        </div>
       </section>
     </aside>
   `;
@@ -613,23 +641,23 @@ function callDockHtml(transcriptHtml, phoneStatusState, phoneStatusText, phoneSt
 
 function cartBodyHtml(filled) {
   if (!filled) return '<p class="pos-card-empty">Add equipment to start the cart.</p>';
+  const trash = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const lines = MOCK.cartLines.map((l) => `
-    <div class="pos-cart-line">
-      <div class="pos-cart-line-label">${esc(l.label)}<span class="pos-cart-line-sub">${esc(l.sub)}</span></div>
-      <div class="pos-cart-line-amt mono">${fmtMoney(l.amount)}</div>
+    <div class="csf-cart-line">
+      <div class="csf-cart-line-label">${esc(l.label)}</div>
+      <div class="csf-cart-line-amt">${fmtMoney(l.amount)}${l.sub ? `<span class="csf-cart-line-sub">${esc(l.sub)}</span>` : ''}</div>
     </div>
   `).join('');
   return `
-    <div class="pos-cart-tag">Truck Rental</div>
+    <div class="csf-cart-sub"><span>U-Move</span><span style="cursor:pointer;">${trash}</span></div>
     ${lines}
-    <div class="pos-cart-rule"></div>
-    <div class="pos-cart-line pos-cart-subtotal"><div class="pos-cart-line-label">Subtotal</div><div class="pos-cart-line-amt mono">${fmtMoney(MOCK.cartSubtotal)}</div></div>
-    <details class="pos-cart-taxes"><summary>Show taxes</summary>
-      <div class="pos-cart-line pos-cart-line-muted"><div class="pos-cart-line-label">Estimated tax (8.25%)</div><div class="pos-cart-line-amt mono">${fmtMoney(MOCK.cartTax)}</div></div>
-    </details>
-    <div class="pos-cart-rule"></div>
-    <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(MOCK.cartTotal)}</div></div>
-    <div class="pos-cart-note">Estimate. In-town mileage is reconciled at the actual miles driven on return.</div>
+    <div class="csf-cart-subtotal"><span>U-Move Total:</span><span>${fmtMoney(MOCK.cartUMoveTotal)}</span></div>
+    <div class="csf-cart-total"><span>Total</span><span>${fmtMoney(MOCK.cartTotal)}</span></div>
+    <div class="csf-cart-links">
+      <a class="csf-link">Estimate Price w/ Mileage</a>
+      <a class="csf-link">Show Taxes</a>
+      <a class="csf-link">View Coverage Rates</a>
+    </div>
   `;
 }
 
@@ -668,36 +696,40 @@ function posStep1() {
 }
 
 function posStep2() {
-  const allEquip = MOCK.truckSizes.map((t) => `
-    <button type="button" class="pos-equip-opt" data-truck="${t.size}">
-      <span class="pos-equip-opt-name">${t.size}' Moving Truck</span>
-      <span class="pos-equip-opt-rate mono">$${t.base.toFixed(2)}/day + $${t.per_mile.toFixed(2)}/mi</span>
-    </button>
-  `).join('');
+  const truckSvg = `<svg viewBox="0 0 80 48" fill="none" aria-hidden="true"><rect x="2" y="12" width="46" height="26" rx="2" stroke="currentColor" stroke-width="2"/><path d="M48 20h15l13 10v8H48z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="20" cy="40" r="5" stroke="currentColor" stroke-width="2"/><circle cx="62" cy="40" r="5" stroke="currentColor" stroke-width="2"/></svg>`;
+  const boxSvg = `<svg viewBox="0 0 64 48" fill="none" aria-hidden="true"><rect x="14" y="8" width="36" height="34" rx="2" stroke="currentColor" stroke-width="2"/><path d="M14 18h36M28 8v34" stroke="currentColor" stroke-width="2"/></svg>`;
+  const arrows = `<span class="csf-equip-arrows"><svg viewBox="0 0 12 8" fill="none"><path d="M2 6 L6 2 L10 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg viewBox="0 0 12 8" fill="none"><path d="M2 2 L6 6 L10 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  const dims = `<a class="csf-equip-dims">&#9776; Dimensions</a>`;
   return `
-    <div class="pos-equip-rec" data-size="15">
-      <div class="pos-equip-badge">Recommended</div>
-      <div class="pos-equip-body">
-        <div class="pos-equip-name">15' Moving Truck — fits a 2-bedroom home</div>
-        <div class="pos-equip-rate mono">$29.95/day + $0.89/mile</div>
-        <div class="pos-grid-2 pos-field-inline">
-          <label class="pos-field"><span class="pos-field-label">Rental length (24-hr periods)</span><select class="pos-input"><option selected>1 day</option><option>2 days</option><option>3 days</option></select></label>
-          <label class="pos-field"><span class="pos-field-label">Estimated miles</span><input class="pos-input" type="number" value="22"></label>
+    <div class="csf-equip-grid">
+      <div class="csf-equip-card">
+        <div class="csf-equip-banner">&#128077; Recommended</div>
+        <div class="csf-equip-head">${arrows}<span class="csf-equip-head-name">20' Moving Truck</span></div>
+        <div class="csf-equip-body">
+          <div class="csf-equip-img">${truckSvg}</div>
+          <div class="csf-equip-rate">$39.95 <span class="csf-equip-rate-sub">+ $1.19/mile</span></div>
+          <div class="csf-equip-length">
+            <span class="csf-equip-length-label">Rental Length:</span>
+            <select class="pos-input"><option selected>8 hour(s)</option><option>1 day</option><option>2 days</option></select>
+          </div>
+          <button type="button" class="csf-equip-btn csf-equip-btn-selected">&#10003; Selected</button>
+          <p class="csf-equip-note">Equipment must be dropped off at the pick up location.</p>
+          ${dims}
+        </div>
+      </div>
+      <div class="csf-equip-card">
+        <div class="csf-equip-head"><input class="csf-equip-qty" value="4"><span class="csf-equip-head-name">U-Box Container(s)</span></div>
+        <div class="csf-equip-body">
+          <div class="csf-equip-img">${boxSvg}<span class="csf-equip-badge-count">4</span></div>
+          <div class="csf-equip-rate">$279.80 <span class="csf-equip-rate-sub">+ Delivery</span></div>
+          <button type="button" class="csf-equip-btn csf-equip-btn-select">Select</button>
+          <p class="csf-equip-note">Rate includes one month of U-Box access and a dozen furniture pads.</p>
+          <p class="csf-equip-note">($69.95 per box)</p>
+          ${dims}
         </div>
       </div>
     </div>
-    <div class="pos-upsell">
-      <label class="pos-check"><input type="checkbox" checked> Furniture pads ($10/pack)</label>
-      <label class="pos-check"><input type="checkbox" checked> Utility dolly ($7/day)</label>
-    </div>
-    <fieldset class="pos-fieldset">
-      <legend>Damage waiver</legend>
-      <select class="pos-input"><option>Decline coverage</option><option selected>Basic ($15/day, up to $5k)</option><option>Premium ($25/day, up to $25k)</option></select>
-    </fieldset>
-    <details class="pos-equip-all">
-      <summary>Show all moving equipment</summary>
-      <div class="pos-equip-grid">${allEquip}</div>
-    </details>
+    <a class="csf-showall">&#43; Show all moving equipment</a>
   `;
 }
 
@@ -791,10 +823,13 @@ function buildCallShell({
   phoneStatusText = 'Connecting...',
   phoneStatusHint = 'Putting the call through.',
 } = {}) {
+  const trashIcon = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const infoIcon = `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+
   const rightRail = showRightRail ? `
           <aside class="pos-rail pos-rail-right" aria-label="Cart and payment">
             <section class="pos-card pos-cart-card">
-              <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span></div>
+              <div class="pos-card-head pos-card-head-accent"><span class="pos-card-title">Shopping Cart</span><span style="cursor:pointer;">${trashIcon}</span></div>
               <div class="pos-card-body">${cartBodyHtml(filled)}</div>
             </section>
             <section class="pos-card">
@@ -802,6 +837,13 @@ function buildCallShell({
               <div class="pos-card-body pos-cc">${ccPanelHtml(filled && step === 5)}</div>
             </section>
           </aside>` : '';
+
+  // The category tabs only appear on the Details step (where you confirm the
+  // U-Move category). Later steps drop them and the panel stands alone.
+  const tabs = step === 1 ? csfTabs() : '';
+  const standalone = step === 1 ? '' : ' data-standalone="true"';
+  const panelHead = step === 1 ? 'U-Move' : stepTitle;
+  const primaryLabel = step === 5 ? 'Book it' : (step === 1 ? 'Continue' : 'Next');
 
   return `
     <section class="call" data-call-mode="phone">
@@ -819,16 +861,20 @@ function buildCallShell({
           ${leftRailHtml(step, filled)}
 
           <div class="pos-stage">
-            ${csfTabs()}
-            <div class="csf-panel">
-              <div class="csf-panel-head">U-Move</div>
+            ${tabs}
+            <div class="csf-panel"${standalone}>
+              <div class="csf-panel-head" style="display:flex;align-items:center;justify-content:space-between;">${esc(panelHead)}${infoIcon}</div>
               <div class="csf-panel-body">
+                ${panelScript(step)}
                 <form class="pos-form" autocomplete="off" novalidate>
                   <div class="pos-step" data-step="${step}">
                     ${posStepSection(step)}
                   </div>
-                  ${posNavHtml(step)}
                 </form>
+                <div class="csf-panel-foot">
+                  <a class="csf-link">CSF Admin / Rules</a>
+                  <button type="button" class="primary-button">${esc(primaryLabel)}</button>
+                </div>
               </div>
             </div>
           </div>
