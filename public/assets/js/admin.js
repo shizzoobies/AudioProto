@@ -420,7 +420,7 @@ async function onGenerate(e) {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      out.innerHTML = `<div class="admin-alert admin-alert-error">Error: ${escapeHtml(data?.error || res.statusText)}</div>`;
+      out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(data?.error || data?.detail || res.statusText || 'no message')}</div>`;
       return;
     }
     state.lastGenerated = data.invites || [];

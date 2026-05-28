@@ -19,7 +19,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
+  try {
+    return await listInvites(env);
+  } catch (e) {
+    return jsonError('list_failed', 500, String(e?.message || e));
+  }
+}
 
+async function listInvites(env) {
   const invitesRes = await env.DB.prepare(
     `SELECT id, recipient_email, recipient_name, created_at, expires_at,
             revoked, revoked_at, last_click_at, last_call_at, total_calls
@@ -75,7 +82,14 @@ export async function onRequestGet({ env }) {
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
+  try {
+    return await createInvites(request, env);
+  } catch (e) {
+    return jsonError('create_failed', 500, String(e?.message || e));
+  }
+}
 
+async function createInvites(request, env) {
   let body;
   try { body = await request.json(); } catch { return jsonError('invalid_request', 400); }
 
@@ -198,8 +212,9 @@ function json(obj, status = 200) {
     headers: { 'Content-Type': 'application/json' },
   });
 }
-function jsonError(code, status) {
-  return new Response(JSON.stringify({ error: code }), {
+function jsonError(code, status, detail) {
+  const payload = detail ? { error: code, detail } : { error: code };
+  return new Response(JSON.stringify(payload), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });

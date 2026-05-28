@@ -8,9 +8,16 @@
 import { sha256Hex, randomToken } from '../../../../../shared/auth.js';
 import { sendInviteEmail } from '../../../../../shared/email.js';
 
-export async function onRequestPost({ request, env, params }) {
-  if (!env.DB) return jsonError('db_not_configured', 500);
+export async function onRequestPost(ctx) {
+  if (!ctx.env.DB) return jsonError('db_not_configured', 500);
+  try {
+    return await resendInvite(ctx);
+  } catch (e) {
+    return jsonError('resend_failed', 500, String(e?.message || e));
+  }
+}
 
+async function resendInvite({ request, env, params }) {
   const id = params.id;
   if (!id) return jsonError('not_found', 404);
 
@@ -64,8 +71,9 @@ function json(obj, status = 200) {
   });
 }
 
-function jsonError(code, status) {
-  return new Response(JSON.stringify({ error: code }), {
+function jsonError(code, status, detail) {
+  const payload = detail ? { error: code, detail } : { error: code };
+  return new Response(JSON.stringify(payload), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
