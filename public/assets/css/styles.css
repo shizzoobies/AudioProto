@@ -958,6 +958,12 @@ textarea {
   flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
+  /* Reserve room at the bottom so the pinned captions dock never covers the
+     last of the form. Collapsed dock needs much less. */
+  padding-bottom: clamp(200px, 30vh, 300px);
+}
+.call-body:has(.call-dock[data-collapsed="true"]) {
+  padding-bottom: 64px;
 }
 
 .call-header {
@@ -3176,16 +3182,34 @@ textarea {
 
 /* Call dock: docked lower-third conversation lane */
 .call-dock {
-  width: 100%;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  z-index: 200;
+  width: min(1440px, 100% - 32px);
   flex: none;
   height: clamp(180px, 30vh, 300px);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.12);
 }
+/* In the preview's "Print all" view, let each call state keep its dock
+   inline so they don't all stack at the viewport bottom. */
+body.print-all .call-dock {
+  position: static;
+  transform: none;
+  width: 100%;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+body.print-all .call-body { padding-bottom: var(--space-3); }
 .call-dock[data-collapsed="true"] { height: auto; }
 .call-dock-head {
   display: flex;
