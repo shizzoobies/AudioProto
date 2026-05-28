@@ -1,7 +1,8 @@
 // Admin dashboard SPA. On boot probes /api/admin/session to decide between
-// login and dashboard. The dashboard uses an inline add-invite row
-// (Name | Email | Scenarios | Expiry | Send) with the scenario picker hidden
-// behind a popover so the form stays a single line on desktop.
+// login and dashboard. The dashboard shows a Scenarios panel up top (pick the
+// curriculum once) and an inline single-row recipient form below
+// (Name | Email | Expiry | Send invite). The picked scenarios stay sticky so
+// the admin can fan one set out to multiple recipients without re-picking.
 //
 // Invites live below as card rows with revoke buttons. The URL of a newly
 // generated invite is shown above the list with a Copy button — we don't
@@ -16,10 +17,6 @@ const state = {
   invites: [],         // [{id, recipient_email, recipient_name, scenarios:[], created_at, expires_at, revoked, ...}]
   lastGenerated: [],   // [{id, email, name, url, scenario_ids, expires_at, reused}]
 };
-
-let pickerOpen = false;
-let pickerOutsideHandler = null;
-let pickerKeyHandler = null;
 
 init();
 
@@ -82,7 +79,6 @@ async function logout() {
   try {
     await fetch('/api/admin/login', { method: 'DELETE', credentials: 'same-origin' });
   } catch {}
-  closePicker();
   state.scenarioTypes = [];
   state.invites = [];
   state.lastGenerated = [];
@@ -146,44 +142,39 @@ function paintDashboard() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Invite recipients</p>
         <h1 class="admin-section-title">Send a training invite</h1>
-        <p class="admin-section-sub">One link per recipient. Reuses the existing invite if they're already on file, so the URL stays shareable.</p>
+        <p class="admin-section-sub">Pick the scenarios you want this batch of recipients to train on, then send invites one at a time. The selection stays put between sends.</p>
       </header>
 
-      <form id="admin-create-form" class="admin-invite-form" autocomplete="off">
-        <div class="admin-field">
-          <label class="admin-field-label" for="admin-name">Name</label>
-          <input type="text" id="admin-name" class="admin-input" placeholder="Full name" autocomplete="off">
-        </div>
-        <div class="admin-field">
-          <label class="admin-field-label" for="admin-email">Email</label>
-          <input type="email" id="admin-email" class="admin-input" placeholder="name@firm.com" autocomplete="off" required>
-        </div>
-        <div class="admin-field admin-picker-wrap">
-          <span class="admin-field-label">Scenarios</span>
-          <button type="button" id="admin-picker-btn" class="admin-picker-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="admin-picker-pop">
-            <span class="admin-picker-btn-label" id="admin-picker-label">Choose scenarios</span>
-            <span class="admin-picker-btn-meta">
-              <span class="admin-picker-count" id="admin-picker-count" hidden>0</span>
-              <svg class="admin-picker-caret" viewBox="0 0 10 10" aria-hidden="true">
-                <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
-            </span>
-          </button>
-          <div id="admin-picker-pop" class="admin-picker-pop" role="dialog" aria-label="Choose scenarios" hidden>
-            ${typesHtml}
+      <form id="admin-create-form" autocomplete="off">
+        <div class="admin-scenarios-panel">
+          <div class="admin-scenarios-head">
+            <span class="admin-scenarios-label">Scenarios</span>
+            <span class="admin-selected-badge" id="selected-count" hidden>0 selected</span>
           </div>
+          <div class="admin-types-list">${typesHtml}</div>
         </div>
-        <div class="admin-field">
-          <label class="admin-field-label" for="admin-expiry">Expiry</label>
-          <select id="admin-expiry" class="admin-select">
-            <option value="7" selected>7 days</option>
-            <option value="30">30 days</option>
-            <option value="90">90 days</option>
-            <option value="never">Never</option>
-          </select>
-        </div>
-        <div class="admin-send-cell">
-          <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Send invite</button>
+
+        <div class="admin-invite-form">
+          <div class="admin-field">
+            <label class="admin-field-label" for="admin-name">Name</label>
+            <input type="text" id="admin-name" class="admin-input" placeholder="Full name" autocomplete="off">
+          </div>
+          <div class="admin-field">
+            <label class="admin-field-label" for="admin-email">Email</label>
+            <input type="email" id="admin-email" class="admin-input" placeholder="name@firm.com" autocomplete="off" required>
+          </div>
+          <div class="admin-field">
+            <label class="admin-field-label" for="admin-expiry">Expiry</label>
+            <select id="admin-expiry" class="admin-select">
+              <option value="7" selected>7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="never">Never</option>
+            </select>
+          </div>
+          <div class="admin-send-cell">
+            <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Send invite</button>
+          </div>
         </div>
       </form>
 
@@ -203,11 +194,6 @@ function paintDashboard() {
   const form = document.getElementById('admin-create-form');
   form.addEventListener('submit', onGenerate);
   form.addEventListener('change', updateSelectionCount);
-
-  document.getElementById('admin-picker-btn').addEventListener('click', togglePicker);
-  // Stop clicks inside the popover from bubbling to the outside-click handler.
-  document.getElementById('admin-picker-pop').addEventListener('click', (e) => e.stopPropagation());
-
   updateSelectionCount();
   attachInviteListHandlers();
 }
@@ -253,16 +239,10 @@ function updateSelectionCount() {
   if (!form) return;
   const total = form.querySelectorAll('input[name="scenario_id"]:checked').length;
 
-  const count = document.getElementById('admin-picker-count');
-  const label = document.getElementById('admin-picker-label');
-  if (count) {
-    count.hidden = total === 0;
-    count.textContent = total;
-  }
-  if (label) {
-    label.textContent = total === 0
-      ? 'Choose scenarios'
-      : (total === 1 ? '1 scenario selected' : `${total} scenarios selected`);
+  const badge = document.getElementById('selected-count');
+  if (badge) {
+    badge.hidden = total === 0;
+    badge.textContent = total === 1 ? '1 selected' : `${total} selected`;
   }
 
   const btn = document.getElementById('admin-generate-btn');
@@ -274,52 +254,6 @@ function updateSelectionCount() {
     el.hidden = c === 0;
     el.textContent = c;
   });
-}
-
-// ---- Scenarios picker open/close -----------------------------------------
-
-function openPicker() {
-  if (pickerOpen) return;
-  const pop = document.getElementById('admin-picker-pop');
-  const btn = document.getElementById('admin-picker-btn');
-  if (!pop || !btn) return;
-  pop.hidden = false;
-  btn.setAttribute('aria-expanded', 'true');
-  pickerOpen = true;
-
-  pickerOutsideHandler = (e) => {
-    if (!btn.contains(e.target) && !pop.contains(e.target)) closePicker();
-  };
-  pickerKeyHandler = (e) => {
-    if (e.key === 'Escape') {
-      closePicker();
-      btn.focus();
-    }
-  };
-  // Defer so the click that opened the picker doesn't immediately close it.
-  setTimeout(() => document.addEventListener('mousedown', pickerOutsideHandler), 0);
-  document.addEventListener('keydown', pickerKeyHandler);
-}
-
-function closePicker() {
-  if (!pickerOpen) return;
-  const pop = document.getElementById('admin-picker-pop');
-  const btn = document.getElementById('admin-picker-btn');
-  if (pop) pop.hidden = true;
-  if (btn) btn.setAttribute('aria-expanded', 'false');
-  pickerOpen = false;
-  if (pickerOutsideHandler) {
-    document.removeEventListener('mousedown', pickerOutsideHandler);
-    pickerOutsideHandler = null;
-  }
-  if (pickerKeyHandler) {
-    document.removeEventListener('keydown', pickerKeyHandler);
-    pickerKeyHandler = null;
-  }
-}
-
-function togglePicker() {
-  if (pickerOpen) closePicker(); else openPicker();
 }
 
 // ---- Invite list ----------------------------------------------------------
@@ -451,18 +385,15 @@ async function onGenerate(e) {
       wrap.innerHTML = renderInviteList(state.invites);
       attachInviteListHandlers();
     }
-    // Reset the form for the next recipient — but keep the picker closed.
+    // Reset recipient fields only — scenarios stay sticky so the next person
+    // gets the same training set without re-picking.
     document.getElementById('admin-email').value = '';
     document.getElementById('admin-name').value = '';
-    form.querySelectorAll('input[name="scenario_id"]:checked').forEach((el) => { el.checked = false; });
-    closePicker();
-    updateSelectionCount();
   } catch (err) {
     out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Send invite';
-    // Re-disable if nothing's checked (clearing scenarios above flipped state).
     updateSelectionCount();
   }
 }
