@@ -1,12 +1,14 @@
 import { getScenario } from '../../shared/scenarios.js';
 import { COACHING_SYSTEM_PROMPT, COACHING_TOOL } from '../../shared/coaching-rubric.js';
 import { getMagicScope, getInviteScope } from '../../shared/auth.js';
+import { recordUsage } from '../../shared/usage.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-opus-4-7';
 const MAX_TOKENS = 2000;
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
+  const { request, env } = context;
   if (!env.ANTHROPIC_API_KEY) {
     return jsonError('anthropic_key_missing', 500);
   }
@@ -98,6 +100,16 @@ export async function onRequestPost({ request, env }) {
   if (!toolBlock?.input) {
     return jsonError('no_tool_use', 502);
   }
+
+  recordUsage(context, env, {
+    endpoint: 'coach',
+    scenario_id: body?.scenario_id || null,
+    model: MODEL,
+    input_tokens: payload.usage?.input_tokens || 0,
+    cache_creation_input_tokens: payload.usage?.cache_creation_input_tokens || 0,
+    cache_read_input_tokens: payload.usage?.cache_read_input_tokens || 0,
+    output_tokens: payload.usage?.output_tokens || 0,
+  });
 
   return new Response(JSON.stringify(toolBlock.input), {
     status: 200,

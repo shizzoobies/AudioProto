@@ -189,6 +189,18 @@ function paintDashboard() {
       </header>
       <div id="admin-invite-list-wrap">${renderInviteList(state.invites)}</div>
     </section>
+
+    <section class="admin-section">
+      <header class="admin-section-head" style="flex-direction:row;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <p class="admin-eyebrow">Observability</p>
+          <h2 class="admin-section-title">API usage</h2>
+          <p class="admin-section-sub">Anthropic chat + coaching token usage. Cache hit rate shows how well prompt caching is working.</p>
+        </div>
+        <button type="button" class="ghost-button" id="admin-usage-refresh" style="flex-shrink:0;margin-top:4px;">Refresh</button>
+      </header>
+      <div id="admin-usage-wrap">Loading…</div>
+    </section>
   `;
 
   const form = document.getElementById('admin-create-form');
@@ -196,6 +208,11 @@ function paintDashboard() {
   form.addEventListener('change', updateSelectionCount);
   updateSelectionCount();
   attachInviteListHandlers();
+
+  // Load usage section and wire refresh button.
+  loadUsage();
+  const refreshBtn = document.getElementById('admin-usage-refresh');
+  if (refreshBtn) refreshBtn.addEventListener('click', loadUsage);
 }
 
 // One scenario type rendered as a <details>. Description is shown on expand,
@@ -501,6 +518,192 @@ function paintGenerated() {
       }
     });
   });
+}
+
+// ---- API Usage / Cache Stats ----------------------------------------------
+
+const ANTHROPIC_PRICES = {
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-opus-4-7':   { input: 15.00, output: 75.00 },
+};
+// Default price for unknown models (use sonnet rates as a conservative floor).
+const DEFAULT_INPUT_PRICE = 3.00;
+
+async function loadUsage() {
+  const wrap = document.getElementById('admin-usage-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="admin-muted" style="padding:12px 0;">Loading…</div>';
+  try {
+    const res = await fetch('/api/admin/usage', { credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (data?.error === 'no_usage_table') {
+        wrap.innerHTML = renderUsageEmptyState('migration');
+      } else {
+        wrap.innerHTML = `<div class="admin-alert admin-alert-error">Failed to load usage: ${escapeHtml(data?.error || res.statusText)}</div>`;
+      }
+      return;
+    }
+    wrap.innerHTML = renderUsagePanel(data);
+  } catch (err) {
+    wrap.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+function renderUsageEmptyState(reason) {
+  if (reason === 'migration') {
+    return `
+      <div class="admin-invite-card" style="padding:18px 20px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="admin-invite-name">Usage tracking not yet active</div>
+          <div class="admin-invite-email">Paste the SQL below in your D1 console, then refresh.</div>
+          <pre style="margin:10px 0 0;padding:12px 14px;background:var(--color-surface-elevated);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);overflow-x:auto;white-space:pre-wrap;word-break:break-all;">Run migration 0002_usage_stats.sql in the D1 console.</pre>
+        </div>
+      </div>`;
+  }
+  return `<div class="admin-empty">No API calls logged yet — take a training call to populate this.</div>`;
+}
+
+function renderUsagePanel(data) {
+  const { last_24h, all_time, recent } = data;
+
+  const hasAny = (all_time?.calls || 0) > 0;
+  if (!hasAny) {
+    return renderUsageEmptyState('empty');
+  }
+
+  // Compute per-model savings from recent rows (we have model info there).
+  // For aggregate stats we don't have per-model breakdown, so we use blended
+  // sonnet price as a conservative estimate (most calls are chat/sonnet).
+  const stats24h = computeStats(last_24h?.chat, last_24h?.coach);
+  const statsAll = computeStats(all_time, null);
+
+  return `
+    <div class="admin-usage-cards">
+      ${renderStatCard('Last 24 hours', stats24h)}
+      ${renderStatCard('All time', statsAll)}
+    </div>
+    ${renderRecentTable(recent || [])}
+  `;
+}
+
+function computeStats(chatRow, coachRow) {
+  // Accept either a single row (all_time) or chat+coach pair.
+  // When coachRow is provided, merge them.
+  const rows = [chatRow, coachRow].filter(Boolean);
+  let calls = 0, input = 0, cacheCreate = 0, cacheRead = 0, output = 0;
+  for (const r of rows) {
+    calls += r.calls || 0;
+    input += r.input_tokens || 0;
+    cacheCreate += r.cache_creation_input_tokens || 0;
+    cacheRead += r.cache_read_input_tokens || 0;
+    output += r.output_tokens || 0;
+  }
+
+  const totalInput = input + cacheCreate + cacheRead;
+  const hitRate = totalInput > 0 ? cacheRead / totalInput : null;
+
+  // Savings math (using default input price since no per-model breakdown here).
+  const pricePerM = DEFAULT_INPUT_PRICE;
+  const withoutCost = totalInput * pricePerM / 1_000_000;
+  const withCost = (
+    input * pricePerM +
+    cacheCreate * pricePerM * 1.25 +
+    cacheRead * pricePerM * 0.10
+  ) / 1_000_000;
+  const savings = withoutCost - withCost;
+
+  return { calls, input, cacheCreate, cacheRead, output, hitRate, savings };
+}
+
+function renderStatCard(title, s) {
+  const hitRateStr = s.hitRate !== null ? (s.hitRate * 100).toFixed(1) + '%' : '—';
+  const savingsStr = formatDollars(s.savings);
+  return `
+    <div class="admin-invite-card" style="flex:1;min-width:0;">
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-accent);text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(title)}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div>
+            <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);line-height:1.1;">${s.calls.toLocaleString()}</div>
+            <div class="admin-muted" style="margin-top:2px;">calls</div>
+          </div>
+          <div>
+            <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);line-height:1.1;">${hitRateStr}</div>
+            <div class="admin-muted" style="margin-top:2px;">cache hit rate</div>
+          </div>
+          <div>
+            <div style="font-size:22px;font-weight:700;color:var(--color-accent);line-height:1.1;">${savingsStr}</div>
+            <div class="admin-muted" style="margin-top:2px;">est. saved</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <span class="admin-muted">input ${fmtTokens(s.input)}</span>
+          <span class="admin-muted">cache write ${fmtTokens(s.cacheCreate)}</span>
+          <span class="admin-muted">cache read ${fmtTokens(s.cacheRead)}</span>
+          <span class="admin-muted">output ${fmtTokens(s.output)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRecentTable(rows) {
+  if (!rows.length) return '';
+  const tableRows = rows.slice(0, 10).map((r) => {
+    const hitRate = (() => {
+      const total = (r.input_tokens || 0) + (r.cache_creation_input_tokens || 0) + (r.cache_read_input_tokens || 0);
+      if (!total) return '—';
+      return ((r.cache_read_input_tokens || 0) / total * 100).toFixed(0) + '%';
+    })();
+    return `
+      <tr>
+        <td class="admin-muted" style="white-space:nowrap;">${fmtRelative(r.created_at, Math.floor(Date.now() / 1000))}</td>
+        <td><span class="admin-chip">${escapeHtml(r.endpoint || '')}</span></td>
+        <td class="admin-muted" style="font-size:11px;">${escapeHtml((r.model || '').replace('claude-', ''))}</td>
+        <td class="admin-muted" style="text-align:right;">${fmtTokens(r.input_tokens)}</td>
+        <td class="admin-muted" style="text-align:right;">${fmtTokens(r.cache_read_input_tokens)}</td>
+        <td class="admin-muted" style="text-align:right;">${fmtTokens(r.cache_creation_input_tokens)}</td>
+        <td class="admin-muted" style="text-align:right;">${fmtTokens(r.output_tokens)}</td>
+        <td style="text-align:right;font-weight:600;color:var(--color-accent);font-size:12px;">${hitRate}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div style="margin-top:16px;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--color-border);">
+            <th class="admin-muted" style="text-align:left;padding:4px 8px 8px 0;font-weight:600;">Time</th>
+            <th class="admin-muted" style="text-align:left;padding:4px 8px 8px;font-weight:600;">Endpoint</th>
+            <th class="admin-muted" style="text-align:left;padding:4px 8px 8px;font-weight:600;">Model</th>
+            <th class="admin-muted" style="text-align:right;padding:4px 0 8px 8px;font-weight:600;">Input</th>
+            <th class="admin-muted" style="text-align:right;padding:4px 0 8px 8px;font-weight:600;">Cache read</th>
+            <th class="admin-muted" style="text-align:right;padding:4px 0 8px 8px;font-weight:600;">Cache write</th>
+            <th class="admin-muted" style="text-align:right;padding:4px 0 8px 8px;font-weight:600;">Output</th>
+            <th class="admin-muted" style="text-align:right;padding:4px 0 8px 8px;font-weight:600;">Hit %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function formatDollars(amount) {
+  if (!Number.isFinite(amount) || amount <= 0) return '$0.00';
+  if (amount < 0.01) return '<$0.01';
+  return '$' + amount.toFixed(2);
+}
+
+function fmtTokens(n) {
+  if (!n) return '0';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+  return String(n);
 }
 
 // ---- Utilities ------------------------------------------------------------

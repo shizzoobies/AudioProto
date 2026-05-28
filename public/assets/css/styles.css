@@ -3288,6 +3288,8 @@ body[data-recipient] #sign-out {
 }
 .admin-muted { color: var(--color-text-tertiary); font-size: 11.5px; }
 .admin-hint { font-size: 11.5px; color: var(--color-text-tertiary); margin: 0; line-height: 1.45; }
+.admin-usage-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+.admin-usage-cards > * { flex: 1; min-width: 240px; }
 
 /* Login card */
 .admin-login {

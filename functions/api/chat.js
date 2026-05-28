@@ -1,5 +1,6 @@
 import { getScenario } from '../../shared/scenarios.js';
 import { verifyToken, getMagicScope, getInviteScope } from '../../shared/auth.js';
+import { recordUsage } from '../../shared/usage.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const STANDARD_MODEL = 'claude-sonnet-4-6';
@@ -8,7 +9,8 @@ const SHOWCASE_PERSONA_PREFIX = 'showcase_';
 const MAX_TOKENS = 512;
 const PREMIUM_MAX_TOKENS = 768;
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
+  const { request, env } = context;
   if (!env.ANTHROPIC_API_KEY) {
     return jsonError('anthropic_key_missing', 500);
   }
@@ -103,7 +105,14 @@ export async function onRequestPost({ request, env }) {
     );
   }
 
-  const stream = transformAnthropicSse(upstream.body);
+  const stream = transformAnthropicSse(upstream.body, (usage) => {
+    recordUsage(context, env, {
+      endpoint: 'chat',
+      scenario_id: body?.scenario_id || null,
+      model: modelId,
+      ...usage,
+    });
+  });
 
   return new Response(stream, {
     status: 200,
@@ -305,10 +314,32 @@ function sanitizeMessages(messages) {
   return out.slice(-40);
 }
 
-function transformAnthropicSse(upstreamBody) {
+function transformAnthropicSse(upstreamBody, onUsage) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   let buffer = '';
+
+  // Accumulated usage fields from the stream.
+  let inputTokens = 0;
+  let cacheCreationTokens = 0;
+  let cacheReadTokens = 0;
+  let outputTokens = 0;
+  let usageFired = false;
+
+  function fireUsage() {
+    if (usageFired || !onUsage) return;
+    usageFired = true;
+    try {
+      onUsage({
+        input_tokens: inputTokens,
+        cache_creation_input_tokens: cacheCreationTokens,
+        cache_read_input_tokens: cacheReadTokens,
+        output_tokens: outputTokens,
+      });
+    } catch {
+      // never let usage callback break the stream
+    }
+  }
 
   return new ReadableStream({
     async start(controller) {
@@ -325,6 +356,26 @@ function transformAnthropicSse(upstreamBody) {
             buffer = buffer.slice(idx + 2);
             const dataLine = extractDataLine(rawEvent);
             if (!dataLine) continue;
+
+            // Capture usage from message_start (input + cache tokens).
+            // message_delta carries cumulative output_tokens.
+            let parsed;
+            try { parsed = JSON.parse(dataLine); } catch { parsed = null; }
+            if (parsed) {
+              if (parsed.type === 'message_start' && parsed.message?.usage) {
+                const u = parsed.message.usage;
+                inputTokens = u.input_tokens || 0;
+                cacheCreationTokens = u.cache_creation_input_tokens || 0;
+                cacheReadTokens = u.cache_read_input_tokens || 0;
+                outputTokens = u.output_tokens || 0;
+              } else if (parsed.type === 'message_delta' && parsed.usage) {
+                // output_tokens here is cumulative; take the latest value.
+                if (typeof parsed.usage.output_tokens === 'number') {
+                  outputTokens = parsed.usage.output_tokens;
+                }
+              }
+            }
+
             const text = extractTextDelta(dataLine);
             if (text) {
               controller.enqueue(
@@ -333,8 +384,10 @@ function transformAnthropicSse(upstreamBody) {
             }
           }
         }
+        fireUsage();
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
       } catch (err) {
+        fireUsage();
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({ type: 'error', message: String(err?.message || err) })}\n\n`
