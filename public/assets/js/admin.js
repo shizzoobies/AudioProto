@@ -11,7 +11,7 @@ const logoutBtn = document.getElementById('admin-logout');
 const body = document.body;
 
 const state = {
-  scenarios: [],          // [{id, customer_name, customer_short, tagline, premium, type_title}]
+  scenarioTypes: [],      // grouped: [{id, title, difficulty, description, persona_count, personas:[...]}]
   invites: [],            // [{id, recipient_email, recipient_name, scenarios:[], created_at, expires_at, revoked, ...}]
   lastGenerated: [],      // [{id, email, name, url, scenario_ids, expires_at, reused}] from the last POST
 };
@@ -94,29 +94,28 @@ async function renderDashboard() {
 }
 
 async function loadData() {
-  // Scenarios come from the trainee scenarios endpoint (cookie has cs_admin,
-  // which middleware accepts for /api/*). Filter out the showcase track since
-  // those aren't useful as invite targets.
+  // Scenario types stay grouped so the dashboard can render each as a
+  // collapsible. Filter showcase since it's not useful as an invite target.
   try {
     const sc = await fetch('/api/scenarios', { credentials: 'same-origin' });
     if (sc.ok) {
       const data = await sc.json();
-      const flat = [];
-      for (const t of data.scenario_types || []) {
-        if (t.id === 'showcase') continue;
-        for (const p of t.personas || []) {
-          flat.push({
+      state.scenarioTypes = (data.scenario_types || [])
+        .filter((t) => t.id !== 'showcase')
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          difficulty: t.difficulty || 'standard',
+          description: t.description || '',
+          persona_count: (t.personas || []).length,
+          personas: (t.personas || []).map((p) => ({
             id: p.id,
             customer_name: p.customer_name,
             customer_short: p.customer_short || '',
             tagline: p.tagline || '',
             premium: !!p.premium,
-            type_title: t.title,
-            type_id: t.id,
-          });
-        }
-      }
-      state.scenarios = flat;
+          })),
+        }));
     }
   } catch (e) {
     console.warn('scenarios load failed', e);
@@ -134,60 +133,47 @@ async function loadData() {
 }
 
 function paintDashboard() {
-  // Group scenarios by type for nicer presentation.
-  const groups = new Map();
-  for (const s of state.scenarios) {
-    if (!groups.has(s.type_title)) groups.set(s.type_title, []);
-    groups.get(s.type_title).push(s);
-  }
-  const scenarioGroupsHtml = [...groups.entries()].map(([title, list]) => `
-    <div class="admin-scenario-group">
-      <div class="admin-scenario-group-title">${escapeHtml(title)}</div>
-      <div class="admin-scenario-list">
-        ${list.map((s) => `
-          <label class="admin-scenario-row">
-            <input type="checkbox" class="admin-scenario-check" name="scenario_id" value="${escapeAttr(s.id)}">
-            <span class="admin-scenario-info">
-              <span class="admin-scenario-name">${escapeHtml(s.customer_name)}${s.premium ? ' <span class="admin-pill admin-pill-premium">Premium</span>' : ''}</span>
-              ${s.tagline ? `<span class="admin-scenario-tagline">${escapeHtml(s.tagline)}</span>` : ''}
-            </span>
-          </label>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
+  const typesHtml = state.scenarioTypes.length
+    ? state.scenarioTypes.map((t) => renderType(t)).join('')
+    : '<div class="admin-empty">No scenarios available.</div>';
 
   root.innerHTML = `
     <section class="admin-section admin-create">
-      <h1 class="admin-section-title">Generate invites</h1>
-      <p class="admin-section-sub">Pick the scenarios you want to assign, add recipients, and generate URLs. Each recipient gets one personal link that opens their assigned scenarios. If a recipient already has an active invite, it's refreshed in place (with a new URL).</p>
+      <header class="admin-section-head">
+        <h1 class="admin-section-title">New invites</h1>
+        <p class="admin-section-sub">Pick scenarios, add recipients, generate URLs.</p>
+      </header>
 
       <form id="admin-create-form" autocomplete="off">
-        <fieldset class="admin-fieldset">
-          <legend class="admin-legend">Scenarios</legend>
-          ${scenarioGroupsHtml || '<div class="admin-empty">No scenarios available.</div>'}
+        <fieldset class="admin-fieldset admin-fieldset-scenarios">
+          <div class="admin-fieldset-head">
+            <legend class="admin-legend">Scenarios</legend>
+            <span class="admin-selected-badge" id="selected-count" hidden>0</span>
+          </div>
+          <div class="admin-types-list">${typesHtml}</div>
         </fieldset>
 
-        <fieldset class="admin-fieldset">
-          <legend class="admin-legend">Recipients</legend>
-          <p class="admin-hint">One per line. Format: <code>email</code> or <code>email, name</code>.</p>
-          <textarea id="admin-recipients" class="admin-textarea" rows="4" placeholder="jane@example.com, Jane Doe
-mike@example.com"></textarea>
-        </fieldset>
+        <div class="admin-form-row">
+          <fieldset class="admin-fieldset admin-fieldset-recipients">
+            <legend class="admin-legend">Recipients</legend>
+            <textarea id="admin-recipients" class="admin-textarea" rows="3" placeholder="jane@example.com, Jane Doe&#10;mike@example.com"></textarea>
+            <p class="admin-hint">One per line. Format: <code>email</code> or <code>email, name</code>.</p>
+          </fieldset>
 
-        <fieldset class="admin-fieldset admin-fieldset-inline">
-          <legend class="admin-legend">Expiry</legend>
-          <select id="admin-expiry" class="admin-input admin-select">
-            <option value="7" selected>7 days (default)</option>
-            <option value="30">30 days</option>
-            <option value="90">90 days</option>
-            <option value="never">Never expires</option>
-          </select>
-          <span class="admin-hint">You can revoke any invite at any time from the table below, regardless of expiry.</span>
-        </fieldset>
+          <fieldset class="admin-fieldset admin-fieldset-expiry">
+            <legend class="admin-legend">Expiry</legend>
+            <select id="admin-expiry" class="admin-select">
+              <option value="7" selected>7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="never">Never</option>
+            </select>
+            <p class="admin-hint">Revoke anytime, regardless of expiry.</p>
+          </fieldset>
+        </div>
 
         <div class="admin-form-actions">
-          <button type="submit" class="primary-button" id="admin-generate-btn">Generate</button>
+          <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Generate</button>
         </div>
       </form>
 
@@ -195,13 +181,75 @@ mike@example.com"></textarea>
     </section>
 
     <section class="admin-section admin-invites">
-      <h2 class="admin-section-title">Invites</h2>
+      <header class="admin-section-head">
+        <h2 class="admin-section-title">Invites</h2>
+        <p class="admin-section-sub">All active and past invites. Click revoke to disable a link immediately.</p>
+      </header>
       ${renderInviteTable(state.invites)}
     </section>
   `;
 
-  document.getElementById('admin-create-form').addEventListener('submit', onGenerate);
+  const form = document.getElementById('admin-create-form');
+  form.addEventListener('submit', onGenerate);
+  form.addEventListener('change', updateSelectionCount);
+  updateSelectionCount();
   attachInviteTableHandlers();
+}
+
+// One scenario type rendered as a <details> collapsible. Description is shown
+// on expand, persona checkboxes underneath. Default collapsed - admins can
+// open the tracks they're working with and ignore the rest.
+function renderType(t) {
+  const diff = (t.difficulty || '').toLowerCase();
+  const diffLabel = diff ? diff[0].toUpperCase() + diff.slice(1) : '';
+  return `
+    <details class="admin-type" data-type="${escapeAttr(t.id)}">
+      <summary class="admin-type-summary">
+        <span class="admin-type-info">
+          <span class="admin-type-title">${escapeHtml(t.title)}</span>
+          <span class="admin-type-meta">${t.persona_count} scenarios${diffLabel ? ' · ' + escapeHtml(diffLabel) : ''}</span>
+        </span>
+        <span class="admin-type-selected" data-type-count="${escapeAttr(t.id)}" hidden>0</span>
+        <svg class="admin-chev" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M4 2 L8 6 L4 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </summary>
+      <div class="admin-type-body">
+        ${t.description ? `<p class="admin-type-desc">${escapeHtml(t.description)}</p>` : ''}
+        <div class="admin-scenario-list">
+          ${t.personas.map((p) => `
+            <label class="admin-scenario-row">
+              <input type="checkbox" name="scenario_id" value="${escapeAttr(p.id)}" data-type="${escapeAttr(t.id)}">
+              <span class="admin-scenario-info">
+                <span class="admin-scenario-name">${escapeHtml(p.customer_name)}${p.premium ? ' <span class="admin-pill admin-pill-premium">Premium</span>' : ''}</span>
+                ${p.tagline ? `<span class="admin-scenario-tagline">${escapeHtml(p.tagline)}</span>` : (p.customer_short ? `<span class="admin-scenario-tagline">${escapeHtml(p.customer_short)}</span>` : '')}
+              </span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function updateSelectionCount() {
+  const form = document.getElementById('admin-create-form');
+  if (!form) return;
+  const total = form.querySelectorAll('input[name="scenario_id"]:checked').length;
+  const badge = document.getElementById('selected-count');
+  if (badge) {
+    badge.hidden = total === 0;
+    badge.textContent = `${total} selected`;
+  }
+  const btn = document.getElementById('admin-generate-btn');
+  if (btn) btn.disabled = total === 0;
+
+  document.querySelectorAll('[data-type-count]').forEach((el) => {
+    const tid = el.dataset.typeCount;
+    const count = form.querySelectorAll(`input[data-type="${CSS.escape(tid)}"]:checked`).length;
+    el.hidden = count === 0;
+    el.textContent = count;
+  });
 }
 
 function renderInviteTable(invites) {
