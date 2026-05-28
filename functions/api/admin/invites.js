@@ -199,7 +199,10 @@ async function createInvites(request, env) {
       reused,
       email_sent: emailResult.ok,
     };
-    if (!emailResult.ok) resultEntry.email_error = emailResult.error;
+    if (!emailResult.ok) {
+      resultEntry.email_error = emailResult.error;
+      if (emailResult.detail) resultEntry.email_error_detail = emailResult.detail;
+    }
     results.push(resultEntry);
   }
 

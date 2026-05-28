@@ -463,10 +463,14 @@ function paintGenerated() {
     alertHtml = `<div class="admin-alert admin-alert-success"><strong>Sent to ${names}.</strong> The link is also copied below as a backup.</div>`;
   } else if (noneSent) {
     const firstError = state.lastGenerated[0]?.email_error;
+    const firstDetail = state.lastGenerated[0]?.email_error_detail;
     const errorNote = firstError
       ? ` <small class="admin-muted">(${escapeHtml(firstError)})</small>`
       : '';
-    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invite ready.</strong> Email delivery is not configured yet — copy the link below and send it manually.${errorNote}</div>`;
+    const detailNote = firstDetail
+      ? `<div class="admin-muted" style="margin-top:8px;font-size:11.5px;word-break:break-word;">${escapeHtml(firstDetail)}</div>`
+      : '';
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invite ready.</strong> Email delivery failed — copy the link below and send it manually.${errorNote}${detailNote}</div>`;
   } else {
     // Partial — some sent, some didn't.
     alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invites ready.</strong> Some emails sent — check each link below and send manually where needed.</div>`;

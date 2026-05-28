@@ -59,7 +59,10 @@ async function resendInvite({ request, env, params }) {
     url,
     email_sent: emailResult.ok,
   };
-  if (!emailResult.ok) response.email_error = emailResult.error;
+  if (!emailResult.ok) {
+    response.email_error = emailResult.error;
+    if (emailResult.detail) response.email_error_detail = emailResult.detail;
+  }
 
   return json(response);
 }
