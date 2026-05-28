@@ -14,8 +14,11 @@ const body = document.body;
 
 const state = {
   scenarioTypes: [],   // [{id, title, difficulty, description, persona_count, personas:[...]}]
-  invites: [],         // [{id, recipient_email, recipient_name, scenarios:[], created_at, expires_at, revoked, ...}]
+  invites: [],         // [{id, recipient_email, recipient_name, scenarios:[], created_at, expires_at, revoked, created_by, ...}]
   lastGenerated: [],   // [{id, email, name, url, scenario_ids, expires_at, reused}]
+  admin: null,         // { email, name, is_owner } — who is signed in
+  admins: [],          // [{id, email, name, created_at, last_login_at, revoked, created_by}] (owner only)
+  lastAdminInvite: null, // { id, email, name, url, email_sent, email_error?, reused }
 };
 
 init();
@@ -24,6 +27,8 @@ async function init() {
   body.dataset.appState = 'ready';
   const sessionRes = await fetch('/api/admin/session', { credentials: 'same-origin' });
   if (sessionRes.ok) {
+    const data = await sessionRes.json().catch(() => null);
+    state.admin = data?.admin || null;
     await renderDashboard();
   } else {
     renderLogin();
@@ -82,6 +87,9 @@ async function logout() {
   state.scenarioTypes = [];
   state.invites = [];
   state.lastGenerated = [];
+  state.admin = null;
+  state.admins = [];
+  state.lastAdminInvite = null;
   renderLogin();
 }
 
@@ -96,6 +104,18 @@ async function renderDashboard() {
 }
 
 async function loadData() {
+  // Identity (also fetched on boot, but re-fetch here so it's fresh after a
+  // login and so renderDashboard called from the login form has it populated).
+  try {
+    const s = await fetch('/api/admin/session', { credentials: 'same-origin' });
+    if (s.ok) {
+      const data = await s.json();
+      state.admin = data.admin || null;
+    }
+  } catch (e) {
+    console.warn('session load failed', e);
+  }
+
   try {
     const sc = await fetch('/api/scenarios', { credentials: 'same-origin' });
     if (sc.ok) {
@@ -130,6 +150,21 @@ async function loadData() {
   } catch (e) {
     console.warn('invites load failed', e);
   }
+
+  // Team roster is owner-only; non-owners get a 403 we simply skip.
+  if (state.admin?.is_owner) {
+    try {
+      const r = await fetch('/api/admin/admins', { credentials: 'same-origin' });
+      if (r.ok) {
+        const data = await r.json();
+        state.admins = data.admins || [];
+      }
+    } catch (e) {
+      console.warn('admins load failed', e);
+    }
+  } else {
+    state.admins = [];
+  }
 }
 
 function paintDashboard() {
@@ -138,6 +173,8 @@ function paintDashboard() {
     : '<div class="admin-empty">No scenarios available.</div>';
 
   root.innerHTML = `
+    ${renderSignedInBar()}
+
     <section class="admin-section">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Invite recipients</p>
@@ -190,6 +227,8 @@ function paintDashboard() {
       <div id="admin-invite-list-wrap">${renderInviteList(state.invites)}</div>
     </section>
 
+    ${renderTeamSection()}
+
     <section class="admin-section">
       <header class="admin-section-head" style="flex-direction:row;align-items:flex-start;justify-content:space-between;gap:12px;">
         <div style="display:flex;flex-direction:column;gap:4px;">
@@ -208,6 +247,7 @@ function paintDashboard() {
   form.addEventListener('change', updateSelectionCount);
   updateSelectionCount();
   attachInviteListHandlers();
+  attachTeamHandlers();
 
   // Load usage section and wire refresh button.
   loadUsage();
@@ -305,6 +345,7 @@ function renderInviteList(invites) {
         <div class="admin-invite-meta">
           <div class="admin-invite-meta-line"><strong>${inv.total_calls || 0}</strong> ${inv.total_calls === 1 ? 'call' : 'calls'} · ${escapeHtml(usageText)}</div>
           <div class="admin-invite-meta-line">${escapeHtml(expiresText)}</div>
+          <div class="admin-invite-meta-line">Created by ${escapeHtml(inv.created_by || '—')}</div>
         </div>
         <span class="admin-pill admin-pill-${status.tag}">${status.label}</span>
         <div class="admin-invite-actions">
@@ -704,6 +745,217 @@ function fmtTokens(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
   return String(n);
+}
+
+// ---- Identity bar + Team section ------------------------------------------
+
+// Small "Signed in as ..." line shown above the first section. The (Owner) tag
+// distinguishes the password-login owner from named admins.
+function renderSignedInBar() {
+  if (!state.admin) return '';
+  const who = state.admin.name || state.admin.email || 'admin';
+  const ownerTag = state.admin.is_owner ? ' (Owner)' : '';
+  return `
+    <div class="admin-signed-in" style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:13px;color:var(--color-text-secondary);">
+      <span class="admin-muted">Signed in as</span>
+      <strong style="color:var(--color-text-primary);font-weight:600;">${escapeHtml(who)}${escapeHtml(ownerTag)}</strong>
+    </div>
+  `;
+}
+
+// Owner-only Team section: add an admin (Name | Email | Add admin), surface the
+// generated magic link + email status, and list existing admins with revoke.
+// Renders nothing for non-owners (they never see team management).
+function renderTeamSection() {
+  if (!state.admin?.is_owner) return '';
+  return `
+    <section class="admin-section">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Team</p>
+        <h2 class="admin-section-title">Admins</h2>
+        <p class="admin-section-sub">Give a teammate admin access by email. They get a magic link that signs them in — no shared password. Revoke access any time; it takes effect immediately.</p>
+      </header>
+
+      <form id="admin-add-form" autocomplete="off">
+        <div class="admin-invite-form">
+          <div class="admin-field">
+            <label class="admin-field-label" for="admin-new-name">Name</label>
+            <input type="text" id="admin-new-name" class="admin-input" placeholder="Full name" autocomplete="off">
+          </div>
+          <div class="admin-field">
+            <label class="admin-field-label" for="admin-new-email">Email</label>
+            <input type="email" id="admin-new-email" class="admin-input" placeholder="name@firm.com" autocomplete="off" required>
+          </div>
+          <div class="admin-send-cell">
+            <button type="submit" class="primary-button" id="admin-add-btn">Add admin</button>
+          </div>
+        </div>
+      </form>
+
+      <div id="admin-added" class="admin-generated"></div>
+
+      <div id="admin-team-list-wrap">${renderAdminList(state.admins)}</div>
+    </section>
+  `;
+}
+
+function renderAdminList(admins) {
+  if (!admins.length) {
+    return '<div class="admin-empty">No other admins yet. Add one above.</div>';
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const rows = admins.map((ad) => {
+    const status = ad.revoked
+      ? { tag: 'revoked', label: 'Revoked', cls: 'is-revoked' }
+      : { tag: 'active', label: 'Active', cls: 'is-active' };
+    const lastLogin = ad.last_login_at
+      ? `last login ${fmtRelative(ad.last_login_at, now)}`
+      : 'never signed in';
+    return `
+      <div class="admin-invite-card ${status.cls}" data-admin-id="${escapeAttr(ad.id)}">
+        <div class="admin-invite-recipient">
+          <div class="admin-invite-name">${escapeHtml(ad.name || ad.email)}</div>
+          ${ad.name ? `<div class="admin-invite-email">${escapeHtml(ad.email)}</div>` : ''}
+        </div>
+        <div class="admin-invite-meta">
+          <div class="admin-invite-meta-line">${escapeHtml(lastLogin)}</div>
+          ${ad.created_by ? `<div class="admin-invite-meta-line">added by ${escapeHtml(ad.created_by)}</div>` : ''}
+        </div>
+        <span class="admin-pill admin-pill-${status.tag}">${status.label}</span>
+        <div class="admin-invite-actions">
+          ${status.tag === 'active' ? `<button type="button" class="ghost-button admin-revoke-admin-btn" data-revoke-admin="${escapeAttr(ad.id)}">Revoke</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="admin-invite-list">${rows}</div>`;
+}
+
+function attachTeamHandlers() {
+  const form = document.getElementById('admin-add-form');
+  if (form) form.addEventListener('submit', onAddAdmin);
+
+  root.querySelectorAll('[data-revoke-admin]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.revokeAdmin;
+      if (!confirm("Revoke this admin's access? Their link and session will stop working immediately.")) return;
+      btn.disabled = true;
+      btn.textContent = 'Revoking...';
+      try {
+        const res = await fetch(`/api/admin/admins/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+        });
+        if (res.ok) {
+          await loadData();
+          const wrap = document.getElementById('admin-team-list-wrap');
+          if (wrap) {
+            wrap.innerHTML = renderAdminList(state.admins);
+            attachTeamHandlers();
+          }
+        } else {
+          alert('Revoke failed.');
+          btn.disabled = false;
+          btn.textContent = 'Revoke';
+        }
+      } catch {
+        alert('Network error.');
+        btn.disabled = false;
+        btn.textContent = 'Revoke';
+      }
+    });
+  });
+}
+
+async function onAddAdmin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('admin-add-btn');
+  const out = document.getElementById('admin-added');
+  out.innerHTML = '';
+
+  const email = (document.getElementById('admin-new-email').value || '').trim();
+  const name = (document.getElementById('admin-new-name').value || '').trim() || null;
+  if (!email) {
+    out.innerHTML = '<div class="admin-alert admin-alert-error">Add an email address.</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  try {
+    const res = await fetch('/api/admin/admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, name }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastAdminInvite = data;
+    paintAdminGenerated();
+    await loadData();
+    const wrap = document.getElementById('admin-team-list-wrap');
+    if (wrap) {
+      wrap.innerHTML = renderAdminList(state.admins);
+      attachTeamHandlers();
+    }
+    document.getElementById('admin-new-email').value = '';
+    document.getElementById('admin-new-name').value = '';
+  } catch (err) {
+    out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add admin';
+  }
+}
+
+// Surface the generated admin magic link + email status. Mirrors paintGenerated's
+// green/fallback logic so the owner gets a copyable link even if email fails.
+function paintAdminGenerated() {
+  const out = document.getElementById('admin-added');
+  const g = state.lastAdminInvite;
+  if (!out || !g) return;
+
+  let alertHtml;
+  if (g.email_sent) {
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Sent to ${escapeHtml(g.email)}.</strong> The sign-in link is also copied below as a backup.</div>`;
+  } else {
+    const errorNote = g.email_error ? ` <small class="admin-muted">(${escapeHtml(g.email_error)})</small>` : '';
+    const detailNote = g.email_error_detail
+      ? `<div class="admin-muted" style="margin-top:8px;font-size:11.5px;word-break:break-word;">${escapeHtml(g.email_error_detail)}</div>`
+      : '';
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Admin ${g.reused ? 'link refreshed' : 'added'}.</strong> Email delivery failed — copy the sign-in link below and send it manually.${errorNote}${detailNote}</div>`;
+  }
+
+  out.innerHTML = `${alertHtml}
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-email">${escapeHtml(g.email)}${g.name ? ' · ' + escapeHtml(g.name) : ''}${g.reused ? ' <span class="admin-muted">(refreshed)</span>' : ' <span class="admin-muted">(new)</span>'}</div>
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(g.url)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(g.url)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
 }
 
 // ---- Utilities ------------------------------------------------------------

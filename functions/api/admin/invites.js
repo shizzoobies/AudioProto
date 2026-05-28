@@ -9,7 +9,7 @@
 //        Usage history carries over - same invite, refreshed URL.
 
 import { getScenario, listScenarioTypesForDisplay } from '../../../shared/scenarios.js';
-import { sha256Hex, randomId, randomToken } from '../../../shared/auth.js';
+import { sha256Hex, randomId, randomToken, getAdminScope } from '../../../shared/auth.js';
 import { sendInviteEmail } from '../../../shared/email.js';
 
 const MIN_EXPIRY_DAYS = 1;
@@ -29,7 +29,8 @@ export async function onRequestGet({ env }) {
 async function listInvites(env) {
   const invitesRes = await env.DB.prepare(
     `SELECT id, recipient_email, recipient_name, created_at, expires_at,
-            revoked, revoked_at, last_click_at, last_call_at, total_calls
+            revoked, revoked_at, last_click_at, last_call_at, total_calls,
+            created_by
      FROM invites
      ORDER BY revoked ASC, created_at DESC`
   ).all();
@@ -75,6 +76,7 @@ async function listInvites(env) {
       last_click_at: inv.last_click_at,
       last_call_at: inv.last_call_at,
       total_calls: inv.total_calls,
+      created_by: inv.created_by,
       scenarios: byInvite.get(inv.id) || [],
     })),
   });
@@ -130,6 +132,10 @@ async function createInvites(request, env) {
 
   const now = Math.floor(Date.now() / 1000);
   const origin = env.INVITE_PUBLIC_URL || new URL(request.url).origin;
+  // Attribute this invite to whoever is signed in (owner email or named admin
+  // email). Middleware already verified an admin cookie; this resolves which.
+  const actor = await getAdminScope(request, env);
+  const createdBy = actor?.email || null;
   const results = [];
 
   for (const rec of recipients) {
@@ -152,9 +158,10 @@ async function createInvites(request, env) {
       await env.DB
         .prepare(`UPDATE invites
                   SET token_hash = ?, expires_at = ?,
-                      recipient_name = COALESCE(?, recipient_name)
+                      recipient_name = COALESCE(?, recipient_name),
+                      created_by = COALESCE(?, created_by)
                   WHERE id = ?`)
-        .bind(tokenHash, expiresAt, rec.name, inviteId)
+        .bind(tokenHash, expiresAt, rec.name, createdBy, inviteId)
         .run();
       const row = await env.DB
         .prepare(`SELECT created_at FROM invites WHERE id = ?`)
@@ -165,9 +172,9 @@ async function createInvites(request, env) {
       inviteId = randomId();
       await env.DB
         .prepare(`INSERT INTO invites
-                  (id, token_hash, recipient_email, recipient_name, created_at, expires_at)
-                  VALUES (?, ?, ?, ?, ?, ?)`)
-        .bind(inviteId, tokenHash, rec.email, rec.name, now, expiresAt)
+                  (id, token_hash, recipient_email, recipient_name, created_at, expires_at, created_by)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .bind(inviteId, tokenHash, rec.email, rec.name, now, expiresAt, createdBy)
         .run();
     }
 
@@ -196,6 +203,7 @@ async function createInvites(request, env) {
       scenario_ids: scenarios,
       expires_at: expiresAt,
       created_at: createdAt,
+      created_by: createdBy,
       reused,
       email_sent: emailResult.ok,
     };

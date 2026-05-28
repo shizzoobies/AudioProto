@@ -224,19 +224,57 @@ export async function getInviteScope(request, env) {
   };
 }
 
-// Returns { role: 'admin' } if the request carries a valid cs_admin cookie
-// (HMAC verifies + role claim is 'admin' + not expired). Returns null
-// otherwise. Used by admin routes to gate access; the middleware also calls
-// this for /api/admin/* paths.
+// Resolves the identity behind a valid cs_admin cookie, or null. The cookie
+// carries one of two payload shapes (one cookie, two shapes):
+//
+//   Owner   (password login): { role: 'admin', iat, exp }. No DB row; always
+//           trusted if the HMAC verifies. Returns { is_owner: true, ... }.
+//   Named   (magic link):      { scope: 'admin_user', admin_id, h, iat, exp }.
+//           Re-checked against the admins row on EVERY request, so revoking an
+//           admin (or rotating their token) takes effect on the next request.
+//
+// Both shapes return a truthy identity object, so the middleware gate (truthy =
+// allowed) keeps working for owner and named admins alike. Owner-only routes
+// must additionally check `.is_owner`. Used by the middleware for /api/admin/*
+// and by admin routes that need the caller's identity.
 export async function getAdminScope(request, env) {
   if (!env?.SESSION_SECRET) return null;
   const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
   if (!cookies.cs_admin) return null;
+
+  let payload;
   try {
-    const payload = await verifyToken(cookies.cs_admin, env.SESSION_SECRET);
-    if (payload?.role === 'admin') return { role: 'admin' };
+    payload = await verifyToken(cookies.cs_admin, env.SESSION_SECRET);
   } catch {
-    // invalid / expired
+    return null; // invalid / expired
   }
+  if (!payload) return null;
+
+  // Owner: legacy password-login cookie. No admin_id / scope claim.
+  if (payload.role === 'admin' && !payload.admin_id && !payload.scope) {
+    return {
+      is_owner: true,
+      admin_id: 'owner',
+      email: env.OWNER_EMAIL || 'owner',
+      name: 'Owner',
+    };
+  }
+
+  // Named admin: re-validate against the DB so revocation is instant.
+  if (payload.scope === 'admin_user' && payload.admin_id && env?.DB) {
+    const row = await env.DB
+      .prepare(`SELECT id, email, name, token_hash, revoked FROM admins WHERE id = ?`)
+      .bind(payload.admin_id)
+      .first();
+    if (!row || row.revoked) return null;
+    if (payload.h && row.token_hash !== payload.h) return null;
+    return {
+      is_owner: false,
+      admin_id: row.id,
+      email: row.email,
+      name: row.name,
+    };
+  }
+
   return null;
 }
