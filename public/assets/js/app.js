@@ -1062,6 +1062,7 @@ function renderCall(scenario) {
                   <h3 class="pos-step-title">Select Pick Up Location</h3>
                 </header>
                 <p class="pos-hint" id="pos-loc-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
+                <div class="pos-loc-map" id="pos-loc-map" hidden></div>
                 <div class="pos-loc-list" id="pos-loc-list"></div>
               </section>
 
@@ -1855,6 +1856,32 @@ function renderCall(scenario) {
         locHint.textContent = 'Pick the location nearest where the customer is loading. Sorted by distance.';
       }
     }
+
+    // Static map of the customer's area with the nearest branches pinned.
+    // Proxied through /api/staticmap so the Google key stays server-side; the
+    // image only appears once we have a geocoded origin to center on.
+    const mapEl = document.getElementById('pos-loc-map');
+    if (mapEl) {
+      if (originGeo && Number.isFinite(originGeo.lat) && Number.isFinite(originGeo.lng)) {
+        const pts = items
+          .filter((it) => Number.isFinite(it.loc.lat) && Number.isFinite(it.loc.lng))
+          .slice(0, 5)
+          .map((it) => `${it.loc.lat},${it.loc.lng}`)
+          .join('|');
+        const src = `/api/staticmap?c=${encodeURIComponent(originGeo.lat + ',' + originGeo.lng)}`
+          + (pts ? `&pts=${encodeURIComponent(pts)}` : '')
+          + '&w=600&h=200';
+        mapEl.innerHTML = '<img class="pos-loc-map-img" alt="Map of nearby pickup locations" loading="lazy">';
+        const img = mapEl.querySelector('img');
+        img.addEventListener('error', () => { mapEl.hidden = true; });
+        mapEl.hidden = false;
+        img.src = src;
+      } else {
+        mapEl.hidden = true;
+        mapEl.innerHTML = '';
+      }
+    }
+
     posLocList.innerHTML = items.map((item, i) => {
       const loc = item.loc;
       const recommended = i === 0;
