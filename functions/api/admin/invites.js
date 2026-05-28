@@ -10,6 +10,7 @@
 
 import { getScenario, listScenarioTypesForDisplay } from '../../../shared/scenarios.js';
 import { sha256Hex, randomId, randomToken } from '../../../shared/auth.js';
+import { sendInviteEmail } from '../../../shared/email.js';
 
 const MIN_EXPIRY_DAYS = 1;
 const MAX_EXPIRY_DAYS = 365;
@@ -114,7 +115,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const origin = new URL(request.url).origin;
+  const origin = env.INVITE_PUBLIC_URL || new URL(request.url).origin;
   const results = [];
 
   for (const rec of recipients) {
@@ -165,16 +166,27 @@ export async function onRequestPost({ request, env }) {
         .run();
     }
 
-    results.push({
+    const inviteUrl = `${origin}/me/${token}`;
+    const emailResult = await sendInviteEmail(env, {
+      to: rec.email,
+      name: rec.name,
+      url: inviteUrl,
+      expiresAt,
+    });
+
+    const resultEntry = {
       id: inviteId,
       email: rec.email,
       name: rec.name,
-      url: `${origin}/me/${token}`,
+      url: inviteUrl,
       scenario_ids: scenarios,
       expires_at: expiresAt,
       created_at: createdAt,
       reused,
-    });
+      email_sent: emailResult.ok,
+    };
+    if (!emailResult.ok) resultEntry.email_error = emailResult.error;
+    results.push(resultEntry);
   }
 
   return json({ invites: results }, 201);

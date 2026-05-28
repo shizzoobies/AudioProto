@@ -292,6 +292,7 @@ function renderInviteList(invites) {
         <span class="admin-pill admin-pill-${status.tag}">${status.label}</span>
         <div class="admin-invite-actions">
           ${status.tag === 'active' ? `<button type="button" class="ghost-button admin-revoke-btn" data-revoke="${escapeAttr(inv.id)}">Revoke</button>` : ''}
+          ${status.tag === 'active' ? `<button type="button" class="ghost-button" data-resend="${escapeAttr(inv.id)}">Resend</button>` : ''}
         </div>
       </div>
     `;
@@ -333,6 +334,51 @@ function attachInviteListHandlers() {
         alert('Network error.');
         btn.disabled = false;
         btn.textContent = 'Revoke';
+      }
+    });
+  });
+
+  root.querySelectorAll('[data-resend]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.resend;
+      if (!confirm('Resend this invite? This generates a fresh link — the previous link will stop working.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Resending…';
+      try {
+        const res = await fetch(`/api/admin/invites/${encodeURIComponent(id)}/resend`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok) {
+          // Refresh invite list.
+          await loadData();
+          const wrap = document.getElementById('admin-invite-list-wrap');
+          if (wrap) {
+            wrap.innerHTML = renderInviteList(state.invites);
+            attachInviteListHandlers();
+          }
+          // Surface new URL + email status in the generated panel.
+          const inv = state.invites.find((i) => i.id === id);
+          state.lastGenerated = [{
+            id,
+            email: inv?.recipient_email || '',
+            name: inv?.recipient_name || null,
+            url: data.url,
+            email_sent: data.email_sent,
+            email_error: data.email_error,
+            reused: true,
+          }];
+          paintGenerated();
+        } else {
+          alert('Resend failed: ' + (data?.error || res.statusText));
+          btn.disabled = false;
+          btn.textContent = 'Resend';
+        }
+      } catch {
+        alert('Network error.');
+        btn.disabled = false;
+        btn.textContent = 'Resend';
       }
     });
   });
@@ -404,6 +450,26 @@ function paintGenerated() {
     out.innerHTML = '';
     return;
   }
+
+  // Determine overall email status from the batch (all sent, none sent, mixed).
+  const allSent = state.lastGenerated.every((g) => g.email_sent === true);
+  const noneSent = state.lastGenerated.every((g) => g.email_sent === false);
+
+  let alertHtml;
+  if (allSent) {
+    const names = state.lastGenerated.map((g) => escapeHtml(g.email)).join(', ');
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Sent to ${names}.</strong> The link is also copied below as a backup.</div>`;
+  } else if (noneSent) {
+    const firstError = state.lastGenerated[0]?.email_error;
+    const errorNote = firstError
+      ? ` <small class="admin-muted">(${escapeHtml(firstError)})</small>`
+      : '';
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invite ready.</strong> Email delivery is not configured yet — copy the link below and send it manually.${errorNote}</div>`;
+  } else {
+    // Partial — some sent, some didn't.
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invites ready.</strong> Some emails sent — check each link below and send manually where needed.</div>`;
+  }
+
   const rows = state.lastGenerated.map((g) => `
     <div class="admin-generated-row">
       <div class="admin-generated-email">${escapeHtml(g.email)}${g.name ? ' · ' + escapeHtml(g.name) : ''}${g.reused ? ' <span class="admin-muted">(refreshed)</span>' : ' <span class="admin-muted">(new)</span>'}</div>
@@ -413,12 +479,9 @@ function paintGenerated() {
       </div>
     </div>
   `).join('');
-  out.innerHTML = `
-    <div class="admin-alert admin-alert-success">
-      <strong>Invite ready.</strong> Email delivery comes in Phase 3 — copy the link below and send it manually.
-    </div>
-    <div class="admin-generated-list">${rows}</div>
-  `;
+
+  out.innerHTML = `${alertHtml}<div class="admin-generated-list">${rows}</div>`;
+
   out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const url = btn.dataset.url;
