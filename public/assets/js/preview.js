@@ -69,9 +69,11 @@ const MOCK = {
   ],
 
   locations: [
-    { name: 'Gainesville Main',  entity: 'Entity 4471', address: '3501 SW Archer Rd, Gainesville FL 32608', phone: '(352) 555-0188', hours: 'Open until 7:00 PM', dist: '1.2', avail: [10, 15, 20, 26] },
-    { name: 'NW 13th Street',    entity: 'Entity 5532', address: '2960 NW 13th St, Gainesville FL 32609',   phone: '(352) 555-0211', hours: 'Open until 6:00 PM', dist: '2.6', avail: [15, 20] },
-    { name: 'Newberry Road',     entity: 'Entity 3390', address: '7000 W Newberry Rd, Gainesville FL 32605', phone: '(352) 555-0144', hours: 'Open until 8:00 PM', dist: '4.4', avail: [10, 15, 26] },
+    { name: 'Meridian Moving & Storage of Gainesville', entity: '833071', address: '4821 NW 6TH ST, GAINESVILLE, FL 32609',    phone: '(352) 555-0188', hours: 'Open until 7:00 PM', dist: '0.9' },
+    { name: '39th Convenience & Bait Shop',             entity: '511204', address: '3910 NW 13TH ST, GAINESVILLE, FL 32609',     phone: '(352) 555-0231', hours: 'Open until 9:00 PM', dist: '1.4' },
+    { name: 'EconoMart Food & Beverage',                entity: '622315', address: '1200 SE HAWTHORNE RD, GAINESVILLE, FL 32641', phone: '(352) 555-0177', hours: 'Open until 10:00 PM', dist: '2.1' },
+    { name: 'Meridian at University of Florida',        entity: '733428', address: '1800 W UNIVERSITY AVE, GAINESVILLE, FL 32603', phone: '(352) 555-0199', hours: 'Open until 6:00 PM', dist: '3.0' },
+    { name: 'Walkers One Stop Shop LLC',                entity: '844539', address: '5500 NW 34TH BLVD, GAINESVILLE, FL 32605',     phone: '(352) 555-0144', hours: 'Open until 8:00 PM', dist: '3.8' },
   ],
 
   // Cart matches the reference: truck + environmental fee + VLRF.
@@ -599,6 +601,10 @@ function leftRailHtml(step, filled) {
           <button type="button" class="csf-convert-btn">Convert to One-Way</button>
         </div>
       </section>
+      ${step >= 3 ? `
+      <section class="pos-card">
+        <div class="pos-card-head"><span class="pos-card-title">Entity ${esc(MOCK.locations[0].entity)}</span><span style="cursor:pointer;font-size:18px;line-height:1;font-weight:400;">+</span></div>
+      </section>` : ''}
       <section class="pos-card">
         <div class="pos-card-head"><span class="pos-card-title">Reservation Notes</span>${EDIT_ICON}</div>
         <div class="pos-card-body">
@@ -734,24 +740,97 @@ function posStep2() {
 }
 
 function posStep3() {
+  const pin = (n) => `<svg viewBox="0 0 24 30" fill="currentColor" aria-hidden="true"><path d="M12 0C6 0 1.5 4.5 1.5 10.5 1.5 18 12 30 12 30s10.5-12 10.5-19.5C22.5 4.5 18 0 12 0z"/></svg><span>${n}</span>`;
+  const pins = [
+    { x: '47%', y: '60%', n: 1 }, { x: '53%', y: '52%', n: 2 },
+    { x: '43%', y: '68%', n: 3 }, { x: '50%', y: '62%', n: 4 },
+  ].map((p) => `<div class="csf-map-pin" style="left:${p.x};top:${p.y};">${pin(p.n)}</div>`).join('');
+
+  const map = `
+    <div class="csf-map">
+      <div class="csf-map-roadtag">Road</div>
+      ${pins}
+    </div>
+  `;
+
+  const controls = `
+    <div class="csf-loc-controls">
+      <span class="csf-loc-sort">Sort by: <a class="csf-link">Distance to Customer &#9662;</a></span>
+      <div class="csf-loc-filters">
+        <label class="pos-check"><input type="checkbox" checked> Trucks</label>
+        <label class="pos-check"><input type="checkbox"> Trailers</label>
+        <label class="pos-check"><input type="checkbox"> Towing</label>
+      </div>
+      <div class="csf-loc-legend">
+        <span><i class="csf-legend-sq" style="background:#16a34a;"></i> Available</span>
+        <span><i class="csf-legend-sq" style="background:#ea7a1d;"></i> Alternate Models</span>
+        <span><i class="csf-legend-sq" style="background:#dc2626;"></i> No Availability</span>
+      </div>
+    </div>
+  `;
+
   const locs = MOCK.locations.map((loc, i) => {
-    const recommended = i === 0;
-    const chips = MOCK.truckSizes.map((t) =>
-      `<span class="pos-loc-chip${loc.avail.includes(t.size) ? '' : ' out'}">${t.size}' ${loc.avail.includes(t.size) ? '$' + t.base.toFixed(2) : 'N/A'}</span>`
-    ).join('');
+    const open = i === 0;
     return `
-      <button type="button" class="pos-loc${recommended ? ' recommended selected' : ''}" data-location="${esc(loc.name)}">
-        <div class="pos-loc-rank">${i + 1}</div>
-        <div class="pos-loc-main">
-          <div class="pos-loc-name">Meridian Moving &amp; Storage of ${esc(loc.name)}${recommended ? ' <span class="pos-loc-badge">Recommended</span>' : ''}</div>
-          <div class="pos-loc-addr mono">${esc(loc.address)}</div>
-          <div class="pos-loc-meta">${esc(loc.dist)} mi away &middot; ${esc(loc.hours)}</div>
-          <div class="pos-loc-equip">${chips}</div>
+      <div class="csf-loc-card">
+        <div class="csf-loc-card-head">
+          <span class="csf-loc-num">${i + 1}</span>
+          <span class="csf-loc-card-name">${esc(loc.name)}</span>
+          <span class="csf-loc-toggle">${open ? '&minus;' : '+'}</span>
         </div>
-      </button>
+        ${open ? `
+        <div class="csf-loc-card-body">
+          <div class="csf-loc-card-addr">${esc(loc.address)}</div>
+          <div class="csf-loc-card-dist">${esc(loc.dist)} mile(s)</div>
+          <div class="csf-loc-card-links">
+            <a class="csf-link">&#9678; Directions</a>
+            <a class="csf-link">Cross Contact (${esc(loc.entity)})</a>
+            <a class="csf-link">View ESL</a>
+          </div>
+        </div>` : ''}
+      </div>
     `;
   }).join('');
-  return `<div class="pos-loc-list">${locs}</div>`;
+
+  const equip = [
+    { model: "10' Moving Truck", price: '$19.95', sub: '+ $1.19/mile' },
+    { model: "15' Moving Truck", price: '$29.95', sub: '+ $1.19/mile' },
+    { model: "20' Moving Truck", price: '$39.95', sub: '+ $1.19/mile', sel: true },
+    { model: "26' Moving Truck", price: '$49.95', sub: '+ $1.19/mile' },
+    { model: "4' x 7' Utility Trailer", price: '$14.95' },
+    { model: "5' x 8' Utility Trailer", price: '$24.95' },
+    { model: "5' x 8' Cargo Trailer", price: '$24.95' },
+    { model: "4' x 8' Cargo Trailer", price: '$19.95' },
+    { model: "5' x 9' Utility Trailer with Ramp", price: '$29.95' },
+    { model: "6' x 12' Utility Trailer with Ramp", price: '$39.95' },
+  ];
+  const equipRows = equip.map((e) => `
+    <tr>
+      <td><span class="csf-eq-cell"><input type="checkbox"${e.sel ? ' checked' : ''}> ${esc(e.model)}</span></td>
+      <td>${esc(e.price)}${e.sub ? ` <span class="csf-eq-permile">${esc(e.sub)}</span>` : ''}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <p class="csf-loc-note">Based on the selections, rates may have been updated for this quote. If rates were updated, make sure to inform the customer of any changes before proceeding.</p>
+    ${map}
+    ${controls}
+    <div class="csf-loc-split">
+      <div>
+        <div class="csf-loc-avail-head">Available and Closest</div>
+        ${locs}
+        <a class="csf-loc-more">View More Locations…</a>
+      </div>
+      <div>
+        <div class="csf-equip-avail-name">${esc(MOCK.locations[0].name)}</div>
+        <select class="pos-input csf-equip-select"><option selected>Available Equipment</option></select>
+        <table class="csf-equip-table">
+          <thead><tr><th>Model</th><th>Price</th></tr></thead>
+          <tbody>${equipRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 function posStep4() {
@@ -762,8 +841,8 @@ function posStep4() {
       <div class="pos-sched-sub">Rental length: ${esc(R.rentalLength)}</div>
     </div>
     <div class="pos-sched-loc">
-      <div class="pos-sched-loc-title">Pick Up Location (${esc(loc.entity)})</div>
-      <div class="pos-sched-loc-name">Meridian Moving &amp; Storage of ${esc(loc.name)}</div>
+      <div class="pos-sched-loc-title">Pick Up Location (Entity ${esc(loc.entity)})</div>
+      <div class="pos-sched-loc-name">${esc(loc.name)}</div>
       <div class="pos-sched-loc-addr mono">${esc(loc.address)}</div>
       <div class="pos-sched-loc-addr mono">${esc(loc.phone)}</div>
     </div>

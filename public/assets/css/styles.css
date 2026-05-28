@@ -2533,6 +2533,73 @@ textarea {
 .csf-notes-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-tertiary); margin-top: 6px; }
 .csf-notes-text { font-size: 12.5px; color: var(--color-text-secondary); }
 
+/* --- Location step ------------------------------------------------------- */
+.csf-loc-note { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; margin: 0 0 14px; }
+.csf-map {
+  height: 200px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 28px, rgba(0,0,0,0.045) 28px 29px),
+    repeating-linear-gradient(90deg, transparent 0 28px, rgba(0,0,0,0.045) 28px 29px),
+    #e9ece6;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.csf-map-roadtag {
+  position: absolute; top: 8px; right: 8px;
+  background: #fff; border: 1px solid #c7c7c7;
+  font-size: 10px; padding: 3px 8px; border-radius: 2px; color: #555;
+}
+.csf-map-pin { position: absolute; width: 24px; height: 30px; transform: translate(-50%, -100%); color: var(--color-success); }
+.csf-map-pin svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+.csf-map-pin span { position: absolute; inset: 0 0 8px 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; }
+
+.csf-loc-controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--color-border); margin-bottom: 14px;
+  font-size: 12.5px;
+}
+.csf-loc-sort { font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.csf-loc-filters { display: flex; gap: 14px; }
+.csf-loc-legend { display: flex; gap: 14px; margin-left: auto; color: var(--color-text-secondary); }
+.csf-loc-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.csf-legend-sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+.csf-loc-split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 980px) { .csf-loc-split { grid-template-columns: 1fr; } }
+.csf-loc-avail-head { font-size: 12.5px; font-weight: 700; color: var(--color-success); margin-bottom: 8px; }
+.csf-loc-card { border: 1px solid var(--color-border); border-radius: 6px; margin-bottom: 8px; }
+.csf-loc-card-head { display: flex; align-items: center; gap: 9px; padding: 9px 10px; cursor: pointer; }
+.csf-loc-num {
+  width: 22px; height: 27px; flex-shrink: 0;
+  background: var(--color-success); color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: grid; place-items: center;
+  border-radius: 3px 3px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
+}
+.csf-loc-card-name { flex: 1; font-size: 12px; font-weight: 700; color: var(--color-text-primary); text-transform: uppercase; line-height: 1.3; }
+.csf-loc-toggle { width: 20px; height: 20px; flex-shrink: 0; border: 1px solid var(--color-border-strong); border-radius: 3px; display: grid; place-items: center; color: var(--color-text-secondary); font-size: 15px; line-height: 1; }
+.csf-loc-card-body { padding: 0 12px 12px 41px; font-size: 12.5px; color: var(--color-text-secondary); }
+.csf-loc-card-addr { line-height: 1.45; }
+.csf-loc-card-dist { font-style: italic; margin: 4px 0 8px; }
+.csf-loc-card-links { display: flex; flex-direction: column; gap: 6px; }
+.csf-loc-more { display: inline-block; margin-top: 8px; font-size: 12.5px; color: var(--color-accent); cursor: pointer; }
+
+.csf-equip-avail-name { font-size: 12.5px; font-weight: 700; text-transform: uppercase; color: var(--color-text-primary); margin-bottom: 8px; line-height: 1.3; }
+.csf-equip-select { width: 100%; margin-bottom: 10px; }
+.csf-equip-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.csf-equip-table thead th { background: #2b2b30; color: #fff; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 10px; }
+.csf-equip-table thead th:last-child { text-align: right; }
+.csf-equip-table td { padding: 9px 10px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+.csf-equip-table tbody tr:nth-child(even) td { background: var(--color-surface-elevated); }
+.csf-equip-table td:last-child { text-align: right; font-weight: 700; white-space: nowrap; }
+.csf-eq-cell { display: flex; align-items: center; gap: 9px; }
+.csf-equip-table input[type="checkbox"] { accent-color: var(--color-success); }
+.csf-eq-permile { font-weight: 500; color: var(--color-text-secondary); font-size: 11.5px; }
+
 .pos-verified {
   font-size: 10px;
   font-weight: 600;
