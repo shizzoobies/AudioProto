@@ -475,21 +475,29 @@ function transcriptHtmlFrom(turns) {
 
 const CSF_TABS = ['U-Move', 'U-Box', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
 
-// CSF top header — mirrors the real Customer Service Form chrome.
-function csfTopbar(stepTitle) {
+// CSF top header — mirrors the real Customer Service Form chrome. Step 1 shows
+// "New Reservation"; mid-reservation steps show Back / Next / Save-Close Quote.
+function csfTopbar(stepTitle, step) {
+  const actions = step === 1
+    ? `<button type="button" class="csf-new-btn">New Reservation</button>`
+    : `<div class="csf-topbar-actions">
+         <button type="button" class="csf-topbtn">${BACK_ICON} Back</button>
+         <button type="button" class="csf-topbtn">${NEXT_ICON} Next</button>
+         <button type="button" class="csf-topbtn">${CLOSE_ICON} Save/Close Quote</button>
+       </div>`;
   return `
     <div class="csf-topbar">
       <div class="csf-topbar-titles">
         <div class="csf-eyebrow">Customer Service Form</div>
         <div class="csf-title">${esc(stepTitle)}</div>
-        <div class="csf-subtitle">CSF Admin / Rules</div>
+        ${step === 1 ? '<div class="csf-subtitle">CSF Admin / Rules</div>' : ''}
       </div>
       <div class="csf-topbar-nav">
         <div class="csf-nav-row">
           <a class="csf-nav-link">FAQs</a>
           <a class="csf-nav-link">POS Dashboard</a>
         </div>
-        <button type="button" class="csf-new-btn">New Reservation</button>
+        ${actions}
       </div>
     </div>
   `;
@@ -504,6 +512,9 @@ function csfTabs() {
 
 const SCRIPT_ICON = `<svg class="csf-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const EDIT_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+const BACK_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M9 5 L6 8 L9 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const NEXT_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 5 L10 8 L7 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CLOSE_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
 // Step 1 left-rail opening script (greeting + first ask, both green).
 function leftScript() {
@@ -538,7 +549,6 @@ function panelScript(step) {
   }
   const lines = {
     3: ['The closest pickup spot to you is our Gainesville Main store on SW Archer Road. Does that work?'],
-    4: ['What time would you like to pick up on the Fourth?'],
     5: ['What is your preferred method of contact: email, phone, or text?', 'Can I go ahead and lock in that reservation for you?'],
   }[step] || [];
   if (!lines.length) return '';
@@ -835,23 +845,46 @@ function posStep3() {
 
 function posStep4() {
   const loc = MOCK.locations[0];
+  const addrParts = loc.address.split(',');
+  const street = addrParts.shift().trim();
+  const rest = addrParts.join(',').trim();
+  const truckSvg = `<svg viewBox="0 0 80 48" fill="none" aria-hidden="true"><rect x="2" y="12" width="46" height="26" rx="2" stroke="currentColor" stroke-width="2"/><path d="M48 20h15l13 10v8H48z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="20" cy="40" r="5" stroke="currentColor" stroke-width="2"/><circle cx="62" cy="40" r="5" stroke="currentColor" stroke-width="2"/></svg>`;
+  const times = ['Select a time...', '9:00 AM', '10:00 AM', '11:30 AM', '1:00 PM', '3:30 PM'];
   return `
-    <div class="pos-sched-truck">
-      <div class="pos-sched-row"><span class="pos-sched-truck-name">${esc(R.truckLabel)}</span><span class="mono">${esc(R.truckRate)}</span></div>
-      <div class="pos-sched-sub">Rental length: ${esc(R.rentalLength)}</div>
+    <div class="csf-sched-grid">
+      <div class="csf-sched-left">
+        <div class="csf-sched-truck-row">
+          <div class="csf-sched-truck-img">${truckSvg}</div>
+          <div>
+            <div class="csf-sched-truck-name">20' Moving Truck ${EDIT_ICON}</div>
+            <div class="csf-sched-truck-rate">$39.95 <span>+ $1.19/mile</span></div>
+          </div>
+        </div>
+        <div class="csf-sched-addlinks">
+          <a class="csf-link">&#43; Add Coverage</a>
+          <a class="csf-link">&#43; Add Dollies/Furniture Pads</a>
+          <a class="csf-link">&#43; Add Trailer / Towing</a>
+        </div>
+        <div class="csf-sched-loc-title">Pick Up Location (${esc(loc.entity)})</div>
+        <div class="csf-sched-loc-name">${esc(loc.name)}</div>
+        <div class="csf-sched-loc-addr">&#9678; ${esc(street)}</div>
+        <div class="csf-sched-loc-addr">${esc(rest)}</div>
+        <div class="csf-sched-loc-addr">&#9742; ${esc(loc.phone)}</div>
+        <div class="csf-sched-loc-links">
+          <a class="csf-link">Directions</a>
+          <a class="csf-link">Cross Contact</a>
+        </div>
+      </div>
+      <div class="csf-sched-right">
+        <div class="csf-sched-rl-label">Rental Length ${EDIT_ICON}</div>
+        <div class="csf-sched-rl-value">8 hour(s)</div>
+        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">What time would you like to pick up?</p></div>
+        <label class="pos-field"><span class="pos-field-label">Available Times</span><select class="pos-input">${times.map((t, i) => `<option${i === 0 ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+        <div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="pm4"> In Store</label><label class="pos-radio"><input type="radio" name="pm4"> TruckShare</label></div>
+        <a class="csf-link" style="display:inline-block;margin-bottom:12px;">Check Other Locations</a>
+        <label class="pos-check"><input type="checkbox"> Send to Traffic</label>
+      </div>
     </div>
-    <div class="pos-sched-loc">
-      <div class="pos-sched-loc-title">Pick Up Location (Entity ${esc(loc.entity)})</div>
-      <div class="pos-sched-loc-name">${esc(loc.name)}</div>
-      <div class="pos-sched-loc-addr mono">${esc(loc.address)}</div>
-      <div class="pos-sched-loc-addr mono">${esc(loc.phone)}</div>
-    </div>
-    <label class="pos-field"><span class="pos-field-label">Available Times</span><select class="pos-input"><option selected>9:00 AM</option><option>10:00 AM</option><option>11:30 AM</option><option>1:00 PM</option><option>3:30 PM</option></select></label>
-    <div class="pos-field">
-      <span class="pos-field-label">Pickup Method</span>
-      <div class="pos-radio-row"><label class="pos-radio"><input type="radio" name="pm4" checked> In Store</label><label class="pos-radio"><input type="radio" name="pm4"> TruckShare</label></div>
-    </div>
-    <label class="pos-check"><input type="checkbox"> Send to Traffic</label>
   `;
 }
 
@@ -935,7 +968,7 @@ function buildCallShell({
         <button class="danger-button" type="button">End call</button>
       </header>
       <div class="call-body">
-        ${csfTopbar(stepTitle)}
+        ${csfTopbar(stepTitle, step)}
         <div class="pos" data-rail="${showRightRail ? 'full' : 'single'}">
           ${leftRailHtml(step, filled)}
 

@@ -2610,6 +2610,41 @@ textarea {
   border-radius: var(--radius-sm);
 }
 
+/* --- CSF top-bar action buttons (Back / Next / Save-Close, steps 2-5) ---- */
+.csf-topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.csf-topbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 13px; font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.csf-topbtn:hover { background: var(--color-surface); }
+.csf-topbtn svg { width: 13px; height: 13px; color: var(--color-text-tertiary); }
+
+/* --- Scheduling step (2-up) ---------------------------------------------- */
+.csf-sched-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .csf-sched-grid { grid-template-columns: 1fr; } }
+.csf-sched-truck-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.csf-sched-truck-img { width: 84px; height: 56px; border-radius: 4px; background: var(--color-surface-elevated); display: grid; place-items: center; color: var(--color-text-tertiary); flex-shrink: 0; }
+.csf-sched-truck-img svg { width: 62px; height: 38px; }
+.csf-sched-truck-name { font-size: 14px; font-weight: 700; color: var(--color-text-primary); display: inline-flex; align-items: center; gap: 6px; }
+.csf-sched-truck-rate { font-size: 13px; font-weight: 700; color: var(--color-text-primary); margin-top: 3px; }
+.csf-sched-truck-rate span { font-weight: 500; color: var(--color-text-secondary); }
+.csf-sched-addlinks { display: flex; flex-direction: column; gap: 9px; margin-bottom: 16px; }
+.csf-sched-loc-title { font-size: 13px; font-weight: 700; color: var(--color-text-primary); }
+.csf-sched-loc-name { font-size: 13px; font-style: italic; color: var(--color-text-secondary); margin: 2px 0 7px; }
+.csf-sched-loc-addr { font-size: 12.5px; color: var(--color-text-secondary); line-height: 1.55; }
+.csf-sched-loc-links { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
+.csf-sched-rl-label { font-size: 13px; font-weight: 700; color: var(--color-text-primary); display: inline-flex; align-items: center; gap: 6px; }
+.csf-sched-rl-value { font-size: 13px; color: var(--color-text-secondary); margin: 3px 0 14px; }
+.csf-sched-right .csf-script-row { margin-bottom: 12px; }
+.csf-sched-right .pos-field { margin-bottom: 12px; }
+.csf-sched-right .pos-radio-row { margin-bottom: 12px; }
+
 .pos-verified {
   font-size: 10px;
   font-weight: 600;
