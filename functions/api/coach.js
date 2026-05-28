@@ -57,8 +57,18 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: COACHING_SYSTEM_PROMPT,
-        tools: [COACHING_TOOL],
+        // Cache the static rubric + tool definition (identical on every
+        // coaching call) — the dynamic transcript stays at full rate
+        // because it's unique per call. The system prompt + tool together
+        // clear Anthropic's 1024-token caching minimum easily and pay 10%
+        // of the input rate on cache hits.
+        system: [
+          { type: 'text', text: COACHING_SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' } },
+        ],
+        tools: [
+          { ...COACHING_TOOL, cache_control: { type: 'ephemeral' } },
+        ],
         tool_choice: { type: 'tool', name: COACHING_TOOL.name },
         messages: [{ role: 'user', content: userPrompt }],
       }),

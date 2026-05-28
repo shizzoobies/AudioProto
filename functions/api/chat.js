@@ -72,13 +72,21 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         model: modelId,
         max_tokens: maxTokens,
-        system: [
-          scenario.system_prompt,
-          currentDateBlock(),
+        // System blocks are split into a CACHED static prefix (persona prompt
+        // + premium voice direction) and an UNCACHED dynamic tail
+        // (date/weather/opening line). The static prefix is the biggest
+        // chunk (2-5k tokens for the persona prompt) and is identical for
+        // every call of the same persona, so caching it cuts that portion
+        // of the input bill to 10% on every turn after the first within the
+        // 5-minute TTL window. Date/weather/opening change per-call so
+        // caching them would just churn the cache without saving anything.
+        system: buildSystemBlocks({
+          scenarioPrompt: scenario.system_prompt,
           weatherBlock,
-          openingContinuationBlock(body?.opening_line),
-          usePremium ? (isShowcase ? premiumVoiceDirectionBlock() : genericPremiumVoiceBlock()) : '',
-        ].filter(Boolean).join('\n\n'),
+          usePremium,
+          isShowcase,
+          openingLine: body?.opening_line,
+        }),
         messages,
         stream: true,
       }),
@@ -106,6 +114,35 @@ export async function onRequestPost({ request, env }) {
       'X-Chat-Model': modelId,
     },
   });
+}
+
+// Build the system field as a content-block array so we can attach
+// `cache_control: ephemeral` to the static prefix. Anthropic caches every
+// block up to AND INCLUDING the marked one, so we mark the LAST static
+// block. The dynamic block goes after — never cached.
+function buildSystemBlocks({ scenarioPrompt, weatherBlock, usePremium, isShowcase, openingLine }) {
+  const staticBlocks = [
+    { type: 'text', text: scenarioPrompt },
+  ];
+  if (usePremium) {
+    staticBlocks.push({
+      type: 'text',
+      text: isShowcase ? premiumVoiceDirectionBlock() : genericPremiumVoiceBlock(),
+    });
+  }
+  // Single cache breakpoint at the end of the static prefix covers
+  // everything above it in one cache region.
+  staticBlocks[staticBlocks.length - 1].cache_control = { type: 'ephemeral' };
+
+  const dynamicText = [
+    currentDateBlock(),
+    weatherBlock,
+    openingContinuationBlock(openingLine),
+  ].filter(Boolean).join('\n\n');
+
+  return dynamicText
+    ? [...staticBlocks, { type: 'text', text: dynamicText }]
+    : staticBlocks;
 }
 
 // Personas have no idea what day it is unless we tell them. Without this
