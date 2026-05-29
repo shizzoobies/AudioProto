@@ -111,11 +111,11 @@ export default function CostCalculator() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF8F3", color: "#1A2332", fontFamily: "'Geist', -apple-system, system-ui, sans-serif" }}>
+    <div className="min-h-screen" style={{ background: "#FAF8F3", color: "#1A2332", fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
-        .display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.02em; }
-        .mono { font-family: 'Geist Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        .display { font-family: 'Playfair Display', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.02em; }
+        .mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
         input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 24px; }
         input[type="range"]::-webkit-slider-runnable-track { background: #E5E0D5; height: 2px; border-radius: 1px; }
         input[type="range"]::-moz-range-track { background: #E5E0D5; height: 2px; border-radius: 1px; }

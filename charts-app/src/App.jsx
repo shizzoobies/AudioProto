@@ -24,7 +24,7 @@ export default function App() {
           display: "flex",
           gap: 0,
           padding: "0 2rem",
-          fontFamily: "'Geist', system-ui, sans-serif",
+          fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
         {TABS.map((t) => (

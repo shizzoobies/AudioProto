@@ -109,11 +109,11 @@ export default function BudgetSimulator() {
   const finalTierColor = sim.finalTier === "fallback" ? FALLBACK.color : tiers[sim.finalTier].color;
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF8F3", color: "#1A2332", fontFamily: "'Geist', -apple-system, system-ui, sans-serif" }}>
+    <div className="min-h-screen" style={{ background: "#FAF8F3", color: "#1A2332", fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
-        .display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.02em; }
-        .mono { font-family: 'Geist Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        .display { font-family: 'Playfair Display', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.02em; }
+        .mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
         input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 24px; }
         input[type="range"]::-webkit-slider-runnable-track { background: #E5E0D5; height: 2px; border-radius: 1px; }
         input[type="range"]::-moz-range-track { background: #E5E0D5; height: 2px; border-radius: 1px; }
@@ -176,20 +176,20 @@ export default function BudgetSimulator() {
                 <CartesianGrid stroke="#F0EBE0" vertical={false} />
                 <XAxis
                   dataKey="day"
-                  tick={{ fontSize: 11, fontFamily: "Geist Mono", fill: "#6B6256" }}
+                  tick={{ fontSize: 11, fontFamily: "JetBrains Mono", fill: "#6B6256" }}
                   axisLine={{ stroke: "#E5E0D5" }}
                   tickLine={false}
-                  label={{ value: "Day of month", position: "insideBottom", offset: -2, style: { fontSize: 11, fill: "#6B6256", fontFamily: "Geist Mono" } }}
+                  label={{ value: "Day of month", position: "insideBottom", offset: -2, style: { fontSize: 11, fill: "#6B6256", fontFamily: "JetBrains Mono" } }}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fontFamily: "Geist Mono", fill: "#6B6256" }}
+                  tick={{ fontSize: 11, fontFamily: "JetBrains Mono", fill: "#6B6256" }}
                   axisLine={{ stroke: "#E5E0D5" }}
                   tickLine={false}
                   tickFormatter={(v) => "$" + v.toLocaleString()}
                   domain={[0, Math.max(state.budget, sim.projected) * 1.15]}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#1A2332", border: "none", borderRadius: 4, color: "#FAF8F3", fontSize: 12, fontFamily: "Geist Mono" }}
+                  contentStyle={{ background: "#1A2332", border: "none", borderRadius: 4, color: "#FAF8F3", fontSize: 12, fontFamily: "JetBrains Mono" }}
                   formatter={(v, name) => {
                     if (name === "spend") return [fmtUSD(v), "Spend"];
                     if (name === "budget") return [fmtUSD(v), "Ceiling"];

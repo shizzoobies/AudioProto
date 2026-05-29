@@ -115,18 +115,18 @@ export default function ROIModel() {
   }));
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF8F3", color: "#1A2332", fontFamily: "'Geist', -apple-system, system-ui, sans-serif" }}>
+    <div className="min-h-screen" style={{ background: "#FAF8F3", color: "#1A2332", fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
-        .display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.02em; }
-        .mono { font-family: 'Geist Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        .display { font-family: 'Playfair Display', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.02em; }
+        .mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
         input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 24px; }
         input[type="range"]::-webkit-slider-runnable-track { background: #E5E0D5; height: 2px; border-radius: 1px; }
         input[type="range"]::-moz-range-track { background: #E5E0D5; height: 2px; border-radius: 1px; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: #1A2332; border-radius: 50%; margin-top: -7px; cursor: grab; }
         input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background: #1A2332; border-radius: 50%; cursor: grab; border: none; }
         input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; background: #B8865B; }
-        input[type="number"] { background: transparent; border: none; border-bottom: 1px solid #E5E0D5; padding: 4px 0; font-family: 'Geist Mono', monospace; font-size: 18px; color: #1A2332; width: 100%; }
+        input[type="number"] { background: transparent; border: none; border-bottom: 1px solid #E5E0D5; padding: 4px 0; font-family: 'JetBrains Mono', monospace; font-size: 18px; color: #1A2332; width: 100%; }
         input[type="number"]:focus { outline: none; border-bottom-color: #1A2332; }
       `}</style>
 
@@ -327,18 +327,18 @@ export default function ROIModel() {
                 <CartesianGrid stroke="#F0EBE0" vertical={false} />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 11, fontFamily: "Geist Mono", fill: "#6B6256" }}
+                  tick={{ fontSize: 11, fontFamily: "JetBrains Mono", fill: "#6B6256" }}
                   axisLine={{ stroke: "#E5E0D5" }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fontFamily: "Geist Mono", fill: "#6B6256" }}
+                  tick={{ fontSize: 11, fontFamily: "JetBrains Mono", fill: "#6B6256" }}
                   axisLine={{ stroke: "#E5E0D5" }}
                   tickLine={false}
                   tickFormatter={(v) => fmtUSD(v)}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#1A2332", border: "none", borderRadius: 4, color: "#FAF8F3", fontSize: 12, fontFamily: "Geist Mono" }}
+                  contentStyle={{ background: "#1A2332", border: "none", borderRadius: 4, color: "#FAF8F3", fontSize: 12, fontFamily: "JetBrains Mono" }}
                   formatter={(v) => [fmtUSDFull(v), "Incremental revenue"]}
                   cursor={{ fill: "rgba(184, 134, 91, 0.06)" }}
                 />
@@ -347,10 +347,10 @@ export default function ROIModel() {
                   stroke="#9B2D2D"
                   strokeWidth={2}
                   strokeDasharray="6 4"
-                  label={{ value: `Platform cost: ${fmtUSDFull(state.platformCost)}`, position: "insideTopLeft", fill: "#9B2D2D", fontSize: 11, fontFamily: "Geist Mono" }}
+                  label={{ value: `Platform cost: ${fmtUSDFull(state.platformCost)}`, position: "insideTopLeft", fill: "#9B2D2D", fontSize: 11, fontFamily: "JetBrains Mono" }}
                 />
                 <Bar dataKey="revenue" fill="#1A2332" radius={[2, 2, 0, 0]} maxBarSize={64} isAnimationActive={false}>
-                  <LabelList dataKey="revenue" position="top" formatter={(v) => fmtUSD(v)} style={{ fontSize: 11, fontFamily: "Geist Mono", fill: "#1A2332" }} />
+                  <LabelList dataKey="revenue" position="top" formatter={(v) => fmtUSD(v)} style={{ fontSize: 11, fontFamily: "JetBrains Mono", fill: "#1A2332" }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
