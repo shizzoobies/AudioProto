@@ -1,6 +1,7 @@
 import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
+import { createDemoOrb } from './demo-orb.js';
 
 const state = {
   scenarioTypes: [],
@@ -21,6 +22,7 @@ const state = {
   silenceTimer: null,
   demoUnlocked: false,
   orb: null,
+  demoOrb: null,
 };
 
 // Meridian's San Antonio branch network. Surfaced in the CSR panel so the
@@ -101,6 +103,12 @@ function teardownAudio() {
   if (state.orb) {
     try { state.orb.dispose(); } catch {}
     state.orb = null;
+  }
+  // The demo-home "Living Voice" WebGL orb: dispose cancels its rAF so the
+  // shader loop never runs during a call or any other view.
+  if (state.demoOrb) {
+    try { state.demoOrb.dispose(); } catch {}
+    state.demoOrb = null;
   }
   if (state.audioPlayer) {
     state.audioPlayer.destroy();
@@ -441,12 +449,19 @@ function renderRecipientHome() {
   });
 }
 
-// Bespoke bright-editorial landing for the pitch demo recipient (is_demo). A
-// sealed loop: only the two scenario tiles are actionable — no nav, no links,
-// no escape. Mirrors renderRecipientHome's pre-amble (view/scenario reset,
-// conversation cancel, teardownAudio, title) and reuses the exact same
-// click + keydown wiring to startCall(personaId). Visuals are 100% CSS — no
-// network images — so it never blocks or jitters in a live room.
+// "The Living Voice" — a cinematic, sealed landing for the pitch demo recipient
+// (is_demo). The hero centerpiece is a luminous, organically breathing WebGL
+// voice orb (demo-orb.js) that reads as a live call on the line. The two
+// scenarios surface as glowing "lines open" entries (Sales vs Customer Service)
+// rather than equal white boxes. Sealed loop: only the two entries are
+// actionable — no nav, no links, no escape. Mirrors renderRecipientHome's
+// pre-amble (view/scenario reset, conversation cancel, teardownAudio, title)
+// and reuses the exact same click + keydown wiring to startCall(personaId).
+//
+// Bulletproof for a live room: a CSS radial-gradient poster paints instantly
+// behind the canvas; the WebGL canvas fades in only once initialized. On any
+// failure (no WebGL / shader compile / prefers-reduced-motion) the orb factory
+// returns null or throws, we keep the static poster, and never start a loop.
 function renderDemoHome() {
   state.view = 'recipient_home';
   state.activeScenario = null;
@@ -455,73 +470,96 @@ function renderDemoHome() {
     state.conversation.cancel();
     state.conversation = null;
   }
+  // teardownAudio() also disposes any prior demoOrb (cancels its rAF), so we
+  // never stack two shader loops when re-entering the demo home.
   teardownAudio();
 
   const r = state.recipient || {};
   const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
 
-  // Per-tile abstract motif: a sales "rising" mark vs a service "support" mark.
-  // Pure inline SVG, currentColor-driven, so it inherits the maroon accent.
-  const motif = (id) => {
-    if (id === 'demo_sales') {
-      return `<svg class="demo-tile-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M8 34 L20 22 L28 30 L40 14" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M32 14 L40 14 L40 22" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`;
-    }
-    if (id === 'demo_service') {
-      return `<svg class="demo-tile-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M14 30 a10 10 0 1 1 20 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-        <rect x="9" y="28" width="6" height="11" rx="3" stroke="currentColor" stroke-width="3"/>
-        <rect x="33" y="28" width="6" height="11" rx="3" stroke="currentColor" stroke-width="3"/>
-        <path d="M37 38 a6 5 0 0 1 -6 5 h-5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-      </svg>`;
-    }
-    return '';
-  };
-
   const kindLabel = (id) =>
-    id === 'demo_sales' ? 'Sales call'
-    : id === 'demo_service' ? 'Customer service call'
+    id === 'demo_sales' ? 'Sales'
+    : id === 'demo_service' ? 'Customer service'
     : 'Live call';
 
-  const cardsHtml = scenarios.map((p, i) => `
-    <li class="demo-tile demo-tile-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-tile-index:${i}" aria-label="Take the call with ${escapeAttr(p.customer_name || p.id)}">
-      <div class="demo-tile-glow" aria-hidden="true"></div>
-      <div class="demo-tile-top">
-        <span class="demo-tile-kind">${escapeHtml(kindLabel(p.id))}</span>
-        <span class="demo-tile-icon" aria-hidden="true">${motif(p.id)}</span>
+  // Each entry is a luminous "line open" node, not a boxed card. A pulsing
+  // signal dot + waveform mark ties it to the voice field; visuals branch on
+  // the persona id so Sales (maroon) and Customer service (terracotta) read
+  // distinctly. The whole node is the button (data-persona-id + role=button).
+  const waveMark = (id) => {
+    if (id === 'demo_sales') {
+      // Rising waveform — the upward energy of a close.
+      return `<svg class="demo-entry-wave" viewBox="0 0 64 24" fill="none" aria-hidden="true">
+        <path d="M2 16 L8 16 L12 8 L16 19 L20 4 L24 14 L28 11 L34 11 L38 6 L42 18 L46 9 L50 13 L54 13 L62 13"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+    // Calmer, steadier waveform — the reassuring cadence of support.
+    return `<svg class="demo-entry-wave" viewBox="0 0 64 24" fill="none" aria-hidden="true">
+      <path d="M2 12 L10 12 L14 7 L18 17 L22 9 L26 15 L30 11 L34 13 L38 8 L42 16 L46 11 L50 12 L62 12"
+        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  };
+
+  const entriesHtml = scenarios.map((p, i) => `
+    <li class="demo-entry demo-entry-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-entry-index:${i}" aria-label="Take the call with ${escapeAttr(p.customer_name || p.id)}">
+      <span class="demo-entry-aura" aria-hidden="true"></span>
+      <div class="demo-entry-head">
+        <span class="demo-entry-signal" aria-hidden="true"><span class="demo-entry-dot"></span></span>
+        <span class="demo-entry-kind">${escapeHtml(kindLabel(p.id))}</span>
+        <span class="demo-entry-status" aria-hidden="true">Line open</span>
       </div>
-      <div class="demo-tile-body">
-        <h2 class="demo-tile-name">${escapeHtml(p.customer_name || '')}</h2>
-        <p class="demo-tile-customer">${escapeHtml(p.customer_short || '')}</p>
-        <p class="demo-tile-tagline">${escapeHtml(p.tagline || '')}</p>
+      <div class="demo-entry-body">
+        <h2 class="demo-entry-name">${escapeHtml(p.customer_name || '')}</h2>
+        <p class="demo-entry-customer">${escapeHtml(p.customer_short || '')}</p>
+        <p class="demo-entry-tagline">${escapeHtml(p.tagline || '')}</p>
       </div>
-      <div class="demo-tile-cta">Take the call <span aria-hidden="true">→</span></div>
+      <div class="demo-entry-foot">
+        <span class="demo-entry-cta">Take the call <span class="demo-entry-arrow" aria-hidden="true">→</span></span>
+        <span class="demo-entry-wave-wrap" aria-hidden="true">${waveMark(p.id)}</span>
+      </div>
     </li>
   `).join('');
 
   dom.root.innerHTML = `
-    <section class="demo-home">
-      <div class="demo-hero">
-        <div class="demo-hero-canvas" aria-hidden="true">
-          <span class="demo-mesh demo-mesh-a"></span>
-          <span class="demo-mesh demo-mesh-b"></span>
-          <span class="demo-mesh demo-mesh-c"></span>
-          <span class="demo-grain"></span>
+    <section class="demo-home demo-living">
+      <div class="demo-stage">
+        <!-- Poster paints INSTANTLY (radial-gradient matching the orb's
+             resting glow). The WebGL canvas fades in over it once live; on any
+             failure the poster simply stays. -->
+        <div class="demo-orb-field" aria-hidden="true">
+          <div class="demo-orb-poster"></div>
+          <canvas class="demo-orb-canvas" id="demo-orb-canvas"></canvas>
         </div>
         <div class="demo-hero-content">
-          <div class="demo-eyebrow">Simulation</div>
+          <div class="demo-eyebrow"><span class="demo-eyebrow-pulse" aria-hidden="true"></span>Simulation</div>
           <h1 class="demo-title">Simulation Demo</h1>
-          <p class="demo-subhead">Two live call simulations — speak with a realistic AI customer, then receive a scored coaching report the moment you hang up.</p>
+          <p class="demo-subhead">Pick up a live call with a real-sounding AI customer. Speak naturally — the moment you hang up, a scored coaching report is waiting.</p>
         </div>
       </div>
-      <ul class="demo-grid">${cardsHtml}</ul>
-      <p class="demo-note" role="note">These are voice calls — please allow microphone access when prompted.</p>
+      <div class="demo-lines">
+        <p class="demo-lines-label" aria-hidden="true">Two lines open</p>
+        <ul class="demo-entries">${entriesHtml}</ul>
+      </div>
+      <p class="demo-note" role="note">These are real voice calls — please allow microphone access when prompted.</p>
     </section>
   `;
 
-  dom.root.querySelectorAll('.demo-tile').forEach((card) => {
+  // Progressive enhancement: try to bring the orb to life. Any failure
+  // (no WebGL context, shader compile error, reduced-motion) leaves the static
+  // poster in place — the hero is never blank. All WebGL is wrapped in
+  // try/catch and the factory also guards internally.
+  try {
+    const canvas = dom.root.querySelector('#demo-orb-canvas');
+    if (canvas) {
+      const orb = createDemoOrb({ canvas });
+      if (orb) state.demoOrb = orb;
+    }
+  } catch {
+    state.demoOrb = null; // silent fallback to poster
+  }
+
+  dom.root.querySelectorAll('.demo-entry').forEach((card) => {
     const go = () => startCall(card.dataset.personaId);
     card.addEventListener('click', go);
     card.addEventListener('keydown', (e) => {
