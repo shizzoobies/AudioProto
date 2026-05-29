@@ -1,6 +1,14 @@
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
 
+// Sentinel recipient_email that marks the single open "demo" invite. Reusing
+// the invites table (no new column / no migration) means the demo link is just
+// an invites row whose recipient_email equals this constant and whose assigned
+// scenarios are the two demo placeholders. Defined once here and imported by the
+// admin demo endpoint, the /demo/[token] landing, and the invites list filter so
+// the value can never drift.
+export const DEMO_RECIPIENT_EMAIL = '__demo__@simulation.local';
+
 function bytesToBase64Url(bytes) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) {

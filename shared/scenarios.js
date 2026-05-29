@@ -1242,6 +1242,80 @@ const PERSONA_DEFS = {
     ],
   },
 
+  // --- DEMO PLACEHOLDERS --------------------------------------------
+  // Two open-link demo scenarios (one Sales, one Customer Service). They are
+  // valid persona defs so getScenario('demo_sales') / getScenario('demo_service')
+  // resolve, but they are intentionally NOT referenced by any SCENARIO_TYPE, so
+  // they never appear in listScenarioTypesForDisplay() (and therefore never in
+  // the normal picker or the admin scenario-assignment list) - the same exclusion
+  // outcome as the showcase persona. They are reachable only through the demo
+  // invite link, which locks the cs_me cookie to exactly these two ids.
+  demo_sales: {
+    // TODO: fill in real demo scenario
+    customer_name: 'Demo Sales Caller',
+    customer_short: 'Demo Sales Caller - placeholder sales prospect',
+    voice_id: 'XrExE9yKIg1WjnnlVkGX',
+    voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
+    tagline: 'Placeholder Sales demo scenario - content to be filled in.',
+    identity: 'a placeholder sales prospect calling Meridian Moving & Storage for the demo',
+    emotional_state: 'neutral and conversational, here as a placeholder demo caller',
+    situation: [
+      'This is a placeholder Sales demo scenario. Real scenario content has not been written yet.',
+      'You are a generic prospect pricing out a move. Respond conversationally to whatever the agent says.',
+      'Keep it light and realistic until the real demo scenario is filled in.',
+    ],
+    life: [
+      'You are a placeholder character with no fixed backstory yet.',
+      'Improvise reasonable, mundane details if the agent asks; nothing is set in stone.',
+    ],
+    mannerisms: [
+      'Speak plainly and naturally, like a normal person on a phone.',
+      'Stay easygoing; you have no strong agenda in this placeholder scenario.',
+    ],
+    triggers: [
+      // TODO: fill in real demo scenario
+      'If the agent asks about your move, give a simple placeholder answer.',
+      'If the agent offers a deal, react mildly positively without committing.',
+      'If the agent stalls, gently prompt them to continue.',
+    ],
+    opening_lines: [
+      "Hi, I'm just looking into renting a truck and had a couple of quick questions.",
+    ],
+  },
+
+  demo_service: {
+    // TODO: fill in real demo scenario
+    customer_name: 'Demo Service Caller',
+    customer_short: 'Demo Service Caller - placeholder support caller',
+    voice_id: 'iP95p4xoKVk53GoZ742B',
+    voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
+    tagline: 'Placeholder Customer Service demo scenario - content to be filled in.',
+    identity: 'a placeholder customer calling Meridian Moving & Storage support for the demo',
+    emotional_state: 'calm and matter-of-fact, here as a placeholder demo caller',
+    situation: [
+      'This is a placeholder Customer Service demo scenario. Real scenario content has not been written yet.',
+      'You are a generic customer with a routine support question. Respond conversationally to whatever the agent says.',
+      'Keep it simple and realistic until the real demo scenario is filled in.',
+    ],
+    life: [
+      'You are a placeholder character with no fixed backstory yet.',
+      'Improvise reasonable, mundane details if the agent asks; nothing is set in stone.',
+    ],
+    mannerisms: [
+      'Speak plainly and naturally, like a normal person on a phone.',
+      'Stay patient and reasonable in this placeholder scenario.',
+    ],
+    triggers: [
+      // TODO: fill in real demo scenario
+      'If the agent asks for details, give a simple placeholder answer.',
+      'If the agent resolves your question, thank them and wrap up.',
+      'If the agent stalls, gently prompt them to continue.',
+    ],
+    opening_lines: [
+      "Hi, I had a quick question about a rental I have coming up.",
+    ],
+  },
+
   // --- SALES: OVERCOMING OBJECTIONS (premium) -----------------------
   // Five prospects, five different reasons to say "not yet." Each rewards the
   // three-point method: build genuine urgency, acknowledge the objection, and
@@ -2019,6 +2093,28 @@ export function getScenario(id) {
 export function getScenarioType(id) {
   if (typeof id !== 'string') return null;
   return Object.hasOwn(SCENARIO_TYPES, id) ? SCENARIO_TYPES[id] : null;
+}
+
+// The two placeholder demo scenarios, in order (Sales, Customer Service). The
+// open demo link locks its cs_me cookie to exactly these ids. They live in
+// SCENARIOS (so getScenario resolves them) but in no SCENARIO_TYPE (so they
+// never surface in listScenarioTypesForDisplay / the picker / the admin list).
+export const DEMO_SCENARIO_IDS = ['demo_sales', 'demo_service'];
+
+// Lightweight display tuples for the demo landing and the admin demo status,
+// resolved straight from SCENARIOS so they work even though the ids are not in
+// any displayed scenario type.
+export function listDemoScenariosForDisplay() {
+  return DEMO_SCENARIO_IDS.map((id) => {
+    const s = getScenario(id);
+    return {
+      id,
+      customer_name: s?.customer_name || id,
+      customer_short: s?.customer_short || '',
+      tagline: s?.tagline || '',
+      premium: !!s?.premium,
+    };
+  });
 }
 
 // Premium persona cast - POST-RESERVATION track (the people, not the scenarios)

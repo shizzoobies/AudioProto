@@ -6,7 +6,7 @@
 // persona display data so the frontend can render cards in one round trip.
 
 import { getInviteScope } from '../../../shared/auth.js';
-import { listScenarioTypesForDisplay } from '../../../shared/scenarios.js';
+import { listScenarioTypesForDisplay, getScenario } from '../../../shared/scenarios.js';
 
 export async function onRequestGet({ request, env }) {
   const scope = await getInviteScope(request, env);
@@ -19,7 +19,10 @@ export async function onRequestGet({ request, env }) {
   }
   const scenarios = [];
   for (const sid of scope.scenarios) {
-    const p = personaMap.get(sid);
+    // Fall back to getScenario for ids not in the displayed type list (e.g. the
+    // demo scenarios, which live in SCENARIOS but no SCENARIO_TYPE) so their
+    // names/taglines still render on the landing instead of a raw id.
+    const p = personaMap.get(sid) || getScenario(sid);
     scenarios.push({
       id: sid,
       customer_name: p?.customer_name || sid,

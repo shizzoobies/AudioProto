@@ -19,6 +19,8 @@ const state = {
   admin: null,         // { email, name, is_owner } — who is signed in
   admins: [],          // [{id, email, name, created_at, last_login_at, revoked, created_by}] (owner only)
   lastAdminInvite: null, // { id, email, name, url, email_sent, email_error?, reused }
+  demo: null,          // { active, scenarios:[{id,customer_name,tagline}], created_at }
+  lastDemoUrl: null,   // last generated demo URL (shown once with a Copy button)
 };
 
 init();
@@ -90,6 +92,8 @@ async function logout() {
   state.admin = null;
   state.admins = [];
   state.lastAdminInvite = null;
+  state.demo = null;
+  state.lastDemoUrl = null;
   renderLogin();
 }
 
@@ -149,6 +153,15 @@ async function loadData() {
     }
   } catch (e) {
     console.warn('invites load failed', e);
+  }
+
+  try {
+    const r = await fetch('/api/admin/demo', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.demo = await r.json();
+    }
+  } catch (e) {
+    console.warn('demo load failed', e);
   }
 
   // Team roster is owner-only; non-owners get a 403 we simply skip.
@@ -227,6 +240,8 @@ function paintDashboard() {
       <div id="admin-invite-list-wrap">${renderInviteList(state.invites)}</div>
     </section>
 
+    ${renderDemoSection()}
+
     ${renderTeamSection()}
 
     <section class="admin-section">
@@ -247,6 +262,7 @@ function paintDashboard() {
   form.addEventListener('change', updateSelectionCount);
   updateSelectionCount();
   attachInviteListHandlers();
+  attachDemoHandlers();
   attachTeamHandlers();
 
   // Load usage section and wire refresh button.
@@ -437,6 +453,143 @@ function attachInviteListHandlers() {
         alert('Network error.');
         btn.disabled = false;
         btn.textContent = 'Resend';
+      }
+    });
+  });
+}
+
+// ---- Demo link ------------------------------------------------------------
+
+// One shareable, no-password link to the two demo scenarios. Backed by the
+// invites system (sentinel recipient_email), so generate rotates the token,
+// revoke kills the link immediately. Mirrors the generated-URL + Copy + Revoke
+// patterns used for invites.
+function renderDemoSection() {
+  const demo = state.demo;
+  const active = !!demo?.active;
+  const scenarios = demo?.scenarios || [];
+  const scenarioNames = scenarios.length
+    ? scenarios.map((s) => escapeHtml(s.customer_name || s.id)).join(' · ')
+    : '';
+
+  const statusHtml = active
+    ? `<span class="admin-pill admin-pill-active">Active</span>${scenarioNames ? ` <span class="admin-muted">${scenarioNames}</span>` : ''}`
+    : `<span class="admin-muted">No demo link yet</span>${scenarioNames ? ` <span class="admin-muted">· ${scenarioNames}</span>` : ''}`;
+
+  return `
+    <section class="admin-section">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Demo</p>
+        <h2 class="admin-section-title">Demo link</h2>
+        <p class="admin-section-sub">One shareable link to the Sales + Customer Service demo scenarios. No password — anyone with the link can try it.</p>
+      </header>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+          ${statusHtml}
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="button" class="primary-button" id="admin-demo-generate-btn">${active ? 'Regenerate demo link' : 'Generate demo link'}</button>
+          ${active ? '<button type="button" class="ghost-button" id="admin-demo-revoke-btn">Revoke</button>' : ''}
+        </div>
+        <div id="admin-demo-generated" class="admin-generated"></div>
+      </div>
+    </section>
+  `;
+}
+
+function attachDemoHandlers() {
+  const genBtn = document.getElementById('admin-demo-generate-btn');
+  if (genBtn) genBtn.addEventListener('click', onGenerateDemo);
+  const revokeBtn = document.getElementById('admin-demo-revoke-btn');
+  if (revokeBtn) revokeBtn.addEventListener('click', onRevokeDemo);
+  // Re-render the last generated URL (if any) so a paintDashboard re-run keeps it.
+  paintDemoGenerated();
+}
+
+async function onGenerateDemo() {
+  const btn = document.getElementById('admin-demo-generate-btn');
+  const out = document.getElementById('admin-demo-generated');
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  try {
+    const res = await fetch('/api/admin/demo', { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastDemoUrl = data.url;
+    await loadData();
+    refreshDemoSection();
+    paintDemoGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+async function onRevokeDemo() {
+  if (!confirm('Revoke the demo link? Anyone holding it will lose access immediately.')) return;
+  const btn = document.getElementById('admin-demo-revoke-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
+  try {
+    const res = await fetch('/api/admin/demo', { method: 'DELETE', credentials: 'same-origin' });
+    if (res.ok) {
+      state.lastDemoUrl = null;
+      await loadData();
+      refreshDemoSection();
+    } else {
+      alert('Revoke failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    }
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+  }
+}
+
+// Swap just the Demo section's DOM in place and re-wire its handlers, so the
+// rest of the dashboard (and the generated URL state) is left untouched.
+function refreshDemoSection() {
+  const sections = root.querySelectorAll('.admin-section');
+  for (const sec of sections) {
+    const eyebrow = sec.querySelector('.admin-eyebrow');
+    if (eyebrow && eyebrow.textContent.trim() === 'Demo') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderDemoSection();
+      sec.replaceWith(tmp.firstElementChild);
+      break;
+    }
+  }
+  attachDemoHandlers();
+}
+
+function paintDemoGenerated() {
+  const out = document.getElementById('admin-demo-generated');
+  if (!out) return;
+  if (!state.lastDemoUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Demo link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastDemoUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastDemoUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
       }
     });
   });
