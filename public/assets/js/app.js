@@ -25,6 +25,8 @@ const state = {
   demoOrb: null,
   ringtone: null,
   precallOverlay: null,
+  callPaused: false,
+  callTimer: null,
 };
 
 // Meridian's San Antonio branch network. Surfaced in the CSR panel so the
@@ -94,6 +96,11 @@ function teardownAudio() {
   // view transition that tears down audio must also kill a stray ring so it
   // can never loop into a call or another screen.
   stopRingtone();
+  if (state.callTimer?.intervalId) {
+    clearInterval(state.callTimer.intervalId);
+  }
+  state.callTimer = null;
+  state.callPaused = false;
   if (state.silenceTimer) {
     clearTimeout(state.silenceTimer);
     state.silenceTimer = null;
@@ -1247,7 +1254,11 @@ function renderCall(scenario) {
           <div class="call-customer-name">${escapeHtml(displayName)}</div>
           <div class="call-scenario-title">${escapeHtml(displayTitle)} <span class="call-mode-pill">${escapeHtml(modeBadge)}</span>${premiumBadge}</div>
         </div>
-        <button class="danger-button" id="end-call" type="button">End call</button>
+        <div class="call-actions">
+          <span class="call-timer" id="call-timer" role="timer" aria-label="Call duration" title="Call duration">00:00</span>
+          <button class="ghost-button call-pause" id="call-pause" type="button" aria-pressed="false">Pause</button>
+          <button class="danger-button" id="end-call" type="button">End call</button>
+        </div>
       </header>
       <div class="call-body">
         ${useOrb ? `
@@ -1665,6 +1676,8 @@ function renderCall(scenario) {
   const phoneStatusHint = isPhone ? document.getElementById('phone-status-hint') : null;
   const endCallBtn = document.getElementById('end-call');
   const backBtn = document.getElementById('call-back');
+  const callTimerEl = document.getElementById('call-timer');
+  const callPauseBtn = document.getElementById('call-pause');
 
   function setPhoneState(s, text, hint) {
     if (!phoneStatus) return;
@@ -1966,6 +1979,7 @@ function renderCall(scenario) {
 
   async function startListening() {
     if (state.view !== 'call' || !isPhone) return;
+    if (state.callPaused) return;
     if (state.continuousRecorder) return;
     if (state.micDenied) {
       setPhoneState('error', 'Mic access denied', 'Reload the page and allow the mic, or switch to Chat mode.');
@@ -2055,6 +2069,81 @@ function renderCall(scenario) {
     composerSend.disabled = !enabled;
     composerSend.textContent = enabled ? 'Send' : 'Sending';
   }
+
+  // ---- Call timer + pause ----
+  // The timer accumulates real elapsed time. While paused, runningSince is null
+  // so callElapsedMs() stops advancing — the displayed duration freezes and
+  // resumes exactly where it left off.
+  function fmtDuration(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  function callElapsedMs() {
+    const t = state.callTimer;
+    if (!t) return 0;
+    return t.accMs + (t.runningSince ? Date.now() - t.runningSince : 0);
+  }
+  function renderCallTimer() {
+    if (callTimerEl) callTimerEl.textContent = fmtDuration(callElapsedMs());
+  }
+  function startCallTimer() {
+    if (state.callTimer?.intervalId) clearInterval(state.callTimer.intervalId);
+    state.callTimer = { accMs: 0, runningSince: Date.now(), intervalId: null };
+    renderCallTimer();
+    state.callTimer.intervalId = setInterval(renderCallTimer, 500);
+  }
+
+  function setCallPaused(paused) {
+    if (paused === state.callPaused) return;
+    state.callPaused = paused;
+    const t = state.callTimer;
+    if (paused) {
+      // Freeze the clock by folding the running span into the accumulator.
+      if (t && t.runningSince) {
+        t.accMs += Date.now() - t.runningSince;
+        t.runningSince = null;
+      }
+      renderCallTimer();
+      // Stop everything that would advance the conversation: silence timeout,
+      // the live mic, any in-flight transcription, and the customer's voice.
+      clearSilenceTimer();
+      if (state.continuousRecorder) {
+        state.continuousRecorder.cancel();
+        state.continuousRecorder = null;
+      }
+      if (state.sttController) {
+        try { state.sttController.abort(); } catch {}
+        state.sttController = null;
+      }
+      state.audioPlayer?.cancel();
+      if (isPhone) setPhoneState('paused', 'Call paused', 'Resume when you are ready.');
+      else setComposerEnabled(false);
+    } else {
+      if (t) t.runningSince = Date.now();
+      renderCallTimer();
+      if (isPhone) {
+        if (!conversation.isStreaming()) {
+          setPhoneState('your_turn', 'Your turn.', 'Just start talking. The line auto-detects your pause.');
+          startListening();
+        }
+      } else {
+        setComposerEnabled(true);
+        composerInput?.focus();
+      }
+    }
+    if (callPauseBtn) {
+      callPauseBtn.textContent = paused ? 'Resume' : 'Pause';
+      callPauseBtn.setAttribute('aria-pressed', String(paused));
+      callPauseBtn.classList.toggle('is-paused', paused);
+    }
+    const callEl = dom.root.querySelector('.call');
+    if (callEl) callEl.dataset.paused = String(paused);
+  }
+
+  callPauseBtn?.addEventListener('click', () => setCallPaused(!state.callPaused));
+  startCallTimer();
 
   // ---- POS reservation system ----
   const pos = document.getElementById('pos');

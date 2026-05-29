@@ -983,6 +983,44 @@ body[data-demo] .app-header {
   margin-bottom: var(--space-3);
 }
 
+.call-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.call-timer {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.04));
+  min-width: 60px;
+  text-align: center;
+}
+
+.call[data-paused="true"] .call-timer {
+  color: var(--color-text-soft, #6b7280);
+}
+
+.call-pause.is-paused {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* While paused, dim the reservation form so it reads as inactive without
+   blocking the trainee from glancing at what they had filled in. */
+.call[data-paused="true"] .pos {
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
 /* Visualizer
    ------------------------------------------------------------------ */
 .visualizer-wrap {
@@ -1506,6 +1544,15 @@ body[data-demo] .app-header {
 }
 .phone-status[data-state="error"] .phone-status-text {
   color: var(--color-danger);
+}
+
+.phone-status[data-state="paused"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.04));
+}
+.phone-status[data-state="paused"] .phone-status-dot {
+  background: var(--color-text-secondary);
+  animation: none;
 }
 
 @keyframes phone-pulse {
