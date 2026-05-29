@@ -3566,20 +3566,24 @@ body[data-recipient] #sign-out {
   margin: 0 0 22px;
   white-space: nowrap;
 }
-/* Hero tenets — three punchy promises that each expand to elaborate. Resting:
-   just the Fraunces line + an accent dot + a hairline "+" cue. Open (hover on
-   desktop, focus, or pinned via click): the detail reveals with a smooth
-   height + fade, the dot stretches into an accent bar, and the "+" becomes a
-   "-". Per-tenet accent (--tenet-accent) walks periwinkle -> teal. */
+/* Hero tenets — three promises laid out ACROSS the hero. Each rests as a clean
+   Fraunces line with a thin accent rule beneath; on hover (desktop), focus, or
+   click-to-pin (touch) the tenet ENLARGES — lifts + scales, its surface blooms
+   in, the accent rule extends, and the detail reveals. Hovering one dims its
+   siblings so it owns the moment. Per-tenet accent walks periwinkle -> teal. */
 .demo-tenets {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: start;
+  gap: clamp(6px, 1.2vw, 16px);
   width: 100%;
-  max-width: 34ch;
-  margin: 0 auto;
+  max-width: 840px;
+  margin: clamp(10px, 2vw, 26px) auto 0;
 }
 .demo-tenet {
+  position: relative;
   appearance: none;
   border: none;
   background: transparent;
@@ -3587,54 +3591,38 @@ body[data-recipient] #sign-out {
   cursor: pointer;
   color: var(--demo-ink);
   font-family: inherit;
-  padding: 12px 16px;
-  border-radius: 16px;
-  transition: background 0.35s ease, box-shadow 0.35s ease;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(16px, 1.7vw, 24px);
+  border-radius: 18px;
+  transform-origin: center top;
+  transition: transform 0.42s cubic-bezier(0.2, 0.7, 0.2, 1),
+              background 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease;
   outline: none;
 }
-.demo-tenet-row {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-.demo-tenet-dot {
-  flex: none;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: var(--tenet-accent);
-  transition: width 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
 .demo-tenet-line {
+  position: relative;
   font-family: 'Fraunces', Georgia, serif;
   font-optical-sizing: auto;
   font-weight: 500;
-  font-size: clamp(21px, 2.7vw, 30px);
-  line-height: 1.08;
+  font-size: clamp(20px, 2.2vw, 27px);
+  line-height: 1.1;
   letter-spacing: -0.018em;
+  padding-bottom: 12px;
+  transition: color 0.3s ease;
 }
-.demo-tenet-plus {
-  position: relative;
-  flex: none;
-  width: 14px;
-  height: 14px;
-  margin-left: auto;
-  opacity: 0.5;
-  transition: opacity 0.3s ease;
-}
-.demo-tenet-plus::before,
-.demo-tenet-plus::after {
+/* Thin accent rule under the line; grows from a stub to full on activate. */
+.demo-tenet-line::after {
   content: '';
   position: absolute;
-  inset: 50% 0 auto 0;
-  height: 1.6px;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 26px;
   border-radius: 2px;
   background: var(--tenet-accent);
-  transform: translateY(-50%);
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.3s ease;
-}
-.demo-tenet-plus::after {
-  transform: translateY(-50%) rotate(90deg);
+  opacity: 0.55;
+  transition: width 0.42s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.3s ease;
 }
 .demo-tenet-reveal {
   display: grid;
@@ -3650,15 +3638,25 @@ body[data-recipient] #sign-out {
   font-size: 14.5px;
   line-height: 1.55;
   color: var(--color-text-secondary);
-  padding-left: 22px;
   text-wrap: pretty;
   transition: opacity 0.32s ease, transform 0.32s ease;
 }
-/* Open states: pinned (click), keyboard focus, and — desktop only — hover. */
+/* Active = pinned (click) or keyboard focus. Desktop hover is layered below. */
 .demo-tenet.is-open,
 .demo-tenet:focus-visible {
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 10px 30px rgba(122, 131, 200, 0.12);
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 22px 50px rgba(122, 131, 200, 0.18);
+  transform: scale(1.06) translateY(-4px);
+}
+.demo-tenet.is-open .demo-tenet-line,
+.demo-tenet:focus-visible .demo-tenet-line {
+  color: var(--tenet-accent);
+}
+.demo-tenet.is-open .demo-tenet-line::after,
+.demo-tenet:focus-visible .demo-tenet-line::after {
+  width: 100%;
+  opacity: 1;
 }
 .demo-tenet.is-open .demo-tenet-reveal,
 .demo-tenet:focus-visible .demo-tenet-reveal {
@@ -3668,44 +3666,32 @@ body[data-recipient] #sign-out {
 .demo-tenet:focus-visible .demo-tenet-detail {
   opacity: 1;
   transform: none;
-  padding-top: 9px;
-}
-.demo-tenet.is-open .demo-tenet-dot,
-.demo-tenet:focus-visible .demo-tenet-dot {
-  width: 22px;
-}
-.demo-tenet.is-open .demo-tenet-plus,
-.demo-tenet:focus-visible .demo-tenet-plus {
-  opacity: 0.8;
-}
-.demo-tenet.is-open .demo-tenet-plus::after,
-.demo-tenet:focus-visible .demo-tenet-plus::after {
-  transform: translateY(-50%) rotate(0deg);
-  opacity: 0;
+  padding-top: 12px;
 }
 @media (hover: hover) {
+  /* Spotlight: hovering one tenet dims the others. */
+  .demo-tenets:hover .demo-tenet { opacity: 0.45; }
+  .demo-tenets:hover .demo-tenet:hover { opacity: 1; }
   .demo-tenet:hover {
-    background: rgba(255, 255, 255, 0.55);
-    box-shadow: 0 10px 30px rgba(122, 131, 200, 0.12);
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.66);
+    box-shadow: 0 22px 50px rgba(122, 131, 200, 0.18);
+    transform: scale(1.06) translateY(-4px);
   }
-  .demo-tenet:hover .demo-tenet-reveal {
-    grid-template-rows: 1fr;
+  .demo-tenet:hover .demo-tenet-line { color: var(--tenet-accent); }
+  .demo-tenet:hover .demo-tenet-line::after { width: 100%; opacity: 1; }
+  .demo-tenet:hover .demo-tenet-reveal { grid-template-rows: 1fr; }
+  .demo-tenet:hover .demo-tenet-detail { opacity: 1; transform: none; padding-top: 12px; }
+}
+@media (max-width: 720px) {
+  .demo-tenets {
+    grid-template-columns: 1fr;
+    max-width: 32ch;
+    gap: 4px;
   }
-  .demo-tenet:hover .demo-tenet-detail {
-    opacity: 1;
-    transform: none;
-    padding-top: 9px;
-  }
-  .demo-tenet:hover .demo-tenet-dot {
-    width: 22px;
-  }
-  .demo-tenet:hover .demo-tenet-plus {
-    opacity: 0.8;
-  }
-  .demo-tenet:hover .demo-tenet-plus::after {
-    transform: translateY(-50%) rotate(0deg);
-    opacity: 0;
-  }
+  /* Stacked: skip the scale so an open tenet never overruns the column. */
+  .demo-tenet.is-open,
+  .demo-tenet:focus-visible { transform: none; }
 }
 
 /* =========================================================================
