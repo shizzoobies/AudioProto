@@ -7,7 +7,7 @@
 // luminous, organically breathing voice orb over the light page: a soft radial
 // core glow, 2-3 concentric "breath" rings expanding on a sine of time, and
 // hand-rolled domain-warped value noise so the field shimmers like an open
-// line. Maroon brand accent (#8c1d2b) warming toward a terracotta/gold core.
+// line. Soft cool palette: pale-white core (#ecf0fc) through periwinkle (#96a2e0) to indigo rim (#7a83c8).
 //
 // Bulletproof-by-design: the caller paints a CSS poster instantly behind the
 // canvas; this module fades the canvas in only once the context + shader are
@@ -34,10 +34,10 @@ const FRAGMENT_SRC = `
   uniform vec2  u_resolution;
   uniform vec2  u_pointer;
 
-  // Brand palette.
-  const vec3 MAROON    = vec3(0.549, 0.114, 0.169); // #8c1d2b
-  const vec3 TERRACOTTA = vec3(0.871, 0.451, 0.318); // warm mid
-  const vec3 GOLD      = vec3(1.000, 0.851, 0.612); // soft gold core
+  // Demo palette — soft cool, decoupled from brand maroon.
+  const vec3 MAROON    = vec3(0.478, 0.514, 0.784); // #7a83c8 muted indigo-periwinkle rim
+  const vec3 TERRACOTTA = vec3(0.588, 0.635, 0.878); // #96a2e0 soft periwinkle mid
+  const vec3 GOLD      = vec3(0.925, 0.941, 0.988); // #ecf0fc pale cool-white core
 
   // Cheap hash + value noise (hand-rolled, no textures).
   float hash(vec2 p) {
@@ -96,9 +96,9 @@ const FRAGMENT_SRC = `
     float core = smoothstep(coreR + 0.34, 0.02, dist);  // soft wide falloff
     core = pow(core, 1.45);
 
-    // Hot center bloom for the gold heart.
+    // Hot center bloom — softened to a gentle haze, not a bright focal blob.
     float heart = smoothstep(0.20, 0.0, dist);
-    heart = pow(heart, 1.8) * (0.85 + 0.15 * breath);
+    heart = pow(heart, 2.4) * (0.55 + 0.10 * breath);
 
     // --- Breath rings: 3 concentric rings expanding outward on sines of time,
     // the "open line" pulse. Each ring is a thin gaussian band.
@@ -110,7 +110,7 @@ const FRAGMENT_SRC = `
       float band = exp(-pow((dist - radius) * 11.0, 2.0));
       // Rings fade as they travel outward and shimmer with the noise field.
       float falloff = smoothstep(0.85, 0.10, dist);
-      rings += band * falloff * (0.16 - fi * 0.035);
+      rings += band * falloff * (0.09 - fi * 0.020);
     }
 
     // Flowing shimmer texture over the core.
@@ -123,8 +123,8 @@ const FRAGMENT_SRC = `
     vec3 col = mix(GOLD, TERRACOTTA, smoothstep(0.0, 0.55, radial));
     col = mix(col, MAROON, smoothstep(0.40, 1.0, radial));
 
-    float intensity = core * shimmer + heart * 1.1 + rings;
-    intensity *= 0.92 + 0.08 * breath;
+    float intensity = core * shimmer + heart * 0.68 + rings;
+    intensity *= (0.92 + 0.08 * breath) * 0.62; // ~38% overall reduction — ambient haze
 
     // Premultiplied-style additive output; alpha follows intensity so the orb
     // blends seamlessly into the page rather than sitting on a hard disc.
