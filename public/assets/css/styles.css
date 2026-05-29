@@ -4285,6 +4285,31 @@ body[data-recipient] #sign-out {
   color: #ffffff;
   border-radius: 999px;
 }
+/* "Entire library" master toggle above the per-track scenario list. */
+.admin-all-scenarios {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+  cursor: pointer;
+}
+.admin-all-scenarios input {
+  margin-top: 2px;
+  flex: none;
+}
+.admin-all-scenarios-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+.admin-all-scenarios-text strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
 .admin-types-list {
   display: flex;
   flex-direction: column;

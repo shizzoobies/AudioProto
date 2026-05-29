@@ -34,7 +34,16 @@ export async function onRequestGet({ request, env }) {
   }
 
   const isDemo = scope.recipient_email === DEMO_RECIPIENT_EMAIL;
-  const isPreview = scope.recipient_email === PREVIEW_RECIPIENT_EMAIL;
+  // Full-library detection: the dedicated preview sentinel, OR any invite that
+  // has been granted EVERY real scenario (e.g. the admin "Entire library"
+  // checkbox on a per-person invite). Either way the visitor gets the whole
+  // library navigation rather than the flat recipient list.
+  const fullLib = [];
+  for (const t of listScenarioTypesForDisplay()) {
+    for (const p of (t.personas || [])) fullLib.push(p.id);
+  }
+  const coversLibrary = fullLib.length > 0 && fullLib.every((id) => scope.scenarios.has(id));
+  const isPreview = scope.recipient_email === PREVIEW_RECIPIENT_EMAIL || coversLibrary;
   return json({
     active: true,
     is_demo: isDemo,

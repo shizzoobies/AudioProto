@@ -227,6 +227,10 @@ function paintDashboard() {
             <span class="admin-scenarios-label">Scenarios</span>
             <span class="admin-selected-badge" id="selected-count" hidden>0 selected</span>
           </div>
+          <label class="admin-all-scenarios">
+            <input type="checkbox" id="admin-all-scenarios">
+            <span class="admin-all-scenarios-text"><strong>Entire library</strong> — give this person every scenario. Set an expiry below to keep it temporary.</span>
+          </label>
           <div class="admin-types-list">${typesHtml}</div>
         </div>
 
@@ -290,6 +294,13 @@ function paintDashboard() {
   const form = document.getElementById('admin-create-form');
   form.addEventListener('submit', onGenerate);
   form.addEventListener('change', updateSelectionCount);
+  const allBox = document.getElementById('admin-all-scenarios');
+  if (allBox) {
+    allBox.addEventListener('change', () => {
+      form.querySelectorAll('input[name="scenario_id"]').forEach((cb) => { cb.checked = allBox.checked; });
+      updateSelectionCount();
+    });
+  }
   updateSelectionCount();
   attachInviteListHandlers();
   attachDemoHandlers();
@@ -342,7 +353,16 @@ function renderType(t) {
 function updateSelectionCount() {
   const form = document.getElementById('admin-create-form');
   if (!form) return;
+  const all = form.querySelectorAll('input[name="scenario_id"]');
   const total = form.querySelectorAll('input[name="scenario_id"]:checked').length;
+
+  // Keep the "Entire library" master in sync: checked only when literally every
+  // scenario is selected; indeterminate when some-but-not-all are.
+  const allBox = document.getElementById('admin-all-scenarios');
+  if (allBox) {
+    allBox.checked = all.length > 0 && total === all.length;
+    allBox.indeterminate = total > 0 && total < all.length;
+  }
 
   const badge = document.getElementById('selected-count');
   if (badge) {
