@@ -9,6 +9,13 @@ const DECODER = new TextDecoder();
 // the value can never drift.
 export const DEMO_RECIPIENT_EMAIL = '__demo__@simulation.local';
 
+// Sentinel recipient_email marking the single token-gated "charts" link. Like
+// the demo, this reuses the invites table (no new table / no migration): the
+// charts link is one invites row whose recipient_email equals this constant. It
+// carries NO scenario assignments — it only gates the static /charts page via a
+// dedicated cs_charts cookie (see getChartsScope + functions/charts/_middleware).
+export const CHARTS_RECIPIENT_EMAIL = '__charts__@simulation.local';
+
 function bytesToBase64Url(bytes) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) {
@@ -230,6 +237,40 @@ export async function getInviteScope(request, env) {
     expires_at: row.expires_at,
     scenarios,
   };
+}
+
+// Validate a cs_charts cookie against the charts sentinel invites row. Returns
+// { invite_id, expires_at } when the cookie is present, signed, scoped to
+// 'charts', and still matches a non-revoked, non-expired charts row whose
+// token_hash equals the cookie's. Re-reads D1 every call so revoke/regenerate
+// is instant. Used only to gate the static /charts page; grants no app access.
+export async function getChartsScope(request, env) {
+  if (!env?.SESSION_SECRET || !env?.DB) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  const t = cookies.cs_charts;
+  if (!t) return null;
+  let payload;
+  try {
+    payload = await verifyToken(t, env.SESSION_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.scope !== 'charts' || !payload?.invite_id || !payload?.h) return null;
+
+  const row = await env.DB
+    .prepare(
+      `SELECT id, recipient_email, expires_at, token_hash
+       FROM invites WHERE id = ? AND revoked = 0 LIMIT 1`
+    )
+    .bind(payload.invite_id)
+    .first();
+  if (!row) return null;
+  if (row.recipient_email !== CHARTS_RECIPIENT_EMAIL) return null;
+  if (row.token_hash !== payload.h) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (row.expires_at && row.expires_at < now) return null;
+
+  return { invite_id: row.id, expires_at: row.expires_at };
 }
 
 // Resolves the identity behind a valid cs_admin cookie, or null. The cookie
