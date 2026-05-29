@@ -1300,6 +1300,11 @@ const PERSONA_DEFS = {
     voice_id: 'XrExE9yKIg1WjnnlVkGX',
     voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
     tagline: 'A prospect weighing their options before they commit.',
+    points: [
+      'A prospect pricing a move, still shopping around',
+      'Build genuine urgency without overpromising',
+      'Handle the price objection and ask for the business',
+    ],
     identity: 'a placeholder sales prospect calling Meridian Moving & Storage for the demo',
     emotional_state: 'neutral and conversational, here as a placeholder demo caller',
     situation: [
@@ -1333,6 +1338,11 @@ const PERSONA_DEFS = {
     voice_id: 'iP95p4xoKVk53GoZ742B',
     voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
     tagline: 'A customer who needs something sorted out, fast.',
+    points: [
+      'A customer with a question about a booking',
+      'Listen, take ownership, reassure',
+      'Resolve it cleanly and confirm the next step',
+    ],
     identity: 'a placeholder customer calling Meridian Moving & Storage support for the demo',
     emotional_state: 'calm and matter-of-fact, here as a placeholder demo caller',
     situation: [

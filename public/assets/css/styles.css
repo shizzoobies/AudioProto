@@ -3755,12 +3755,6 @@ body[data-recipient] #sign-out {
 .demo-entry {
   position: relative;
   isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(18px, 2vw, 26px);
-  min-height: 230px;
-  /* Generous padding so the cluster is a large click target */
-  padding: clamp(28px, 3.5vw, 44px) clamp(24px, 3vw, 40px);
   cursor: pointer;
   color: var(--demo-ink);
   /* NO background, NO border, NO box-shadow, NO backdrop-filter */
@@ -3768,9 +3762,39 @@ body[data-recipient] #sign-out {
   border: none;
   box-shadow: none;
   border-radius: 20px;
-  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
-  /* The hover glow is via an ::after pseudo, not a box property */
+  /* 3D context for the hover flip. The flip + enlarge live on the inner
+     .demo-entry-flip so they never collide with the staged entrance animation
+     that animates THIS element's own transform. */
+  perspective: 1500px;
   outline-offset: 4px;
+}
+/* The flippable inner: front = identity, back = "in this call" detail. */
+.demo-entry-flip {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.62s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.demo-entry-face {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2vw, 26px);
+  /* Generous padding so the cluster is a large click target */
+  padding: clamp(28px, 3.5vw, 44px) clamp(24px, 3vw, 40px);
+  border-radius: 20px;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.demo-entry-front {
+  position: relative;
+  min-height: 230px;
+}
+.demo-entry-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  justify-content: center;
+  gap: 16px;
 }
 /* The aura is a diffuse glow that floats behind the entire cluster,
    centered on it rather than anchored to a corner. It is the only visual
@@ -3793,23 +3817,28 @@ body[data-recipient] #sign-out {
   background: radial-gradient(ellipse at 50% 50%, rgba(95, 166, 173, 0.24), transparent 70%);
 }
 
-/* Hover / focus: lift + glow bloom. No box, no border change. */
-.demo-entry:hover,
-.demo-entry:focus-visible {
-  transform: translateY(-6px);
+/* Hover / focus: ENLARGE + flip to the detail face, aura blooms. The lift +
+   scale + 180° flip all ride the inner .demo-entry-flip. */
+.demo-entry:hover {
+  z-index: 2;
   outline: none;
 }
 .demo-entry:focus-visible {
-  /* Accessible ring that stays invisible-ish but keyboard-navigable */
+  z-index: 2;
+  /* Ring sits on the entry (not a face) so it stays visible through the flip. */
   outline: 2px solid rgba(122, 131, 200, 0.40);
 }
 .demo-entry-demo_service:focus-visible {
   outline-color: rgba(95, 166, 173, 0.45);
 }
+.demo-entry:hover .demo-entry-flip,
+.demo-entry:focus-visible .demo-entry-flip {
+  transform: scale(1.05) translateY(-6px) rotateY(180deg);
+}
 .demo-entry:hover .demo-entry-aura,
 .demo-entry:focus-visible .demo-entry-aura {
   opacity: 1;
-  transform: scale(1.08);
+  transform: scale(1.12);
 }
 
 /* Head row: pulsing signal dot + kind + "Line open" status. */
@@ -3902,6 +3931,44 @@ body[data-recipient] #sign-out {
   height: 24px;
 }
 
+/* ---- Back face: "in this call" detail ----------------------------------- */
+.demo-entry-back-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--color-accent);
+}
+.demo-entry-demo_service .demo-entry-back-label { color: #3f868d; }
+.demo-entry-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.demo-entry-points li {
+  position: relative;
+  padding-left: 20px;
+  font-size: clamp(14px, 1.4vw, 16px);
+  line-height: 1.4;
+  color: var(--demo-ink);
+}
+.demo-entry-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 9px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+.demo-entry-demo_service .demo-entry-points li::before { background: #3f868d; }
+.demo-entry-back .demo-entry-cta { margin-top: 4px; }
+
 /* ---- Mic note ------------------------------------------------------------ */
 .demo-note {
   text-align: center;
@@ -3934,6 +4001,14 @@ body[data-recipient] #sign-out {
   .demo-stage {
     min-height: clamp(360px, 56vh, 520px);
   }
+}
+
+/* Reduced motion: skip the 3D flip — keep the front face (its tagline carries
+   the gist) so nothing lurches for users who opt out of motion. */
+@media (prefers-reduced-motion: reduce) {
+  .demo-entry-flip { transition: none; }
+  .demo-entry:hover .demo-entry-flip,
+  .demo-entry:focus-visible .demo-entry-flip { transform: none; }
 }
 
 /* ---- Staged entrance + living motion (safe / opt-in) --------------------- */

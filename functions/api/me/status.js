@@ -29,6 +29,7 @@ export async function onRequestGet({ request, env }) {
       customer_short: p?.customer_short || '',
       tagline: p?.tagline || '',
       premium: !!p?.premium,
+      points: Array.isArray(p?.points) ? p.points : [],
     });
   }
 

@@ -517,21 +517,33 @@ function renderDemoHome() {
     </svg>`;
   };
 
+  const pointsHtml = (p) => (Array.isArray(p.points) ? p.points : [])
+    .map((pt) => `<li>${escapeHtml(pt)}</li>`).join('');
+
   const entriesHtml = scenarios.map((p, i) => `
-    <li class="demo-entry demo-entry-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-entry-index:${i}" aria-label="Take the call with ${escapeAttr(p.customer_name || p.id)}">
+    <li class="demo-entry demo-entry-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-entry-index:${i}" aria-label="Take the call: ${escapeAttr(p.customer_name || p.id)}">
       <span class="demo-entry-aura" aria-hidden="true"></span>
-      <div class="demo-entry-head">
-        <span class="demo-entry-signal" aria-hidden="true"><span class="demo-entry-dot"></span></span>
-        <span class="demo-entry-status" aria-hidden="true">Line open</span>
-      </div>
-      <div class="demo-entry-body">
-        <h2 class="demo-entry-name">${escapeHtml(p.customer_name || '')}</h2>
-        <p class="demo-entry-customer">${escapeHtml(p.customer_short || '')}</p>
-        <p class="demo-entry-tagline">${escapeHtml(p.tagline || '')}</p>
-      </div>
-      <div class="demo-entry-foot">
-        <span class="demo-entry-cta">Take the call <span class="demo-entry-arrow" aria-hidden="true">→</span></span>
-        <span class="demo-entry-wave-wrap" aria-hidden="true">${waveMark(p.id)}</span>
+      <div class="demo-entry-flip">
+        <div class="demo-entry-face demo-entry-front">
+          <div class="demo-entry-head">
+            <span class="demo-entry-signal" aria-hidden="true"><span class="demo-entry-dot"></span></span>
+            <span class="demo-entry-status" aria-hidden="true">Line open</span>
+          </div>
+          <div class="demo-entry-body">
+            <h2 class="demo-entry-name">${escapeHtml(p.customer_name || '')}</h2>
+            <p class="demo-entry-customer">${escapeHtml(p.customer_short || '')}</p>
+            <p class="demo-entry-tagline">${escapeHtml(p.tagline || '')}</p>
+          </div>
+          <div class="demo-entry-foot">
+            <span class="demo-entry-cta">Take the call <span class="demo-entry-arrow" aria-hidden="true">→</span></span>
+            <span class="demo-entry-wave-wrap" aria-hidden="true">${waveMark(p.id)}</span>
+          </div>
+        </div>
+        <div class="demo-entry-face demo-entry-back" aria-hidden="true">
+          <p class="demo-entry-back-label">In this call</p>
+          <ul class="demo-entry-points">${pointsHtml(p)}</ul>
+          <span class="demo-entry-cta">Take the call <span class="demo-entry-arrow" aria-hidden="true">→</span></span>
+        </div>
       </div>
     </li>
   `).join('');
