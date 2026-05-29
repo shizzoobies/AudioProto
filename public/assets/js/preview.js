@@ -239,7 +239,7 @@ function renderHomeWelcome() {
   return `
     <section class="welcome">
       <header class="welcome-hero">
-        <div class="welcome-eyebrow">Customer service simulation</div>
+        <div class="welcome-eyebrow">Simulation</div>
         <h1 class="welcome-title">Education &amp; Development</h1>
         <p class="welcome-lead">Pick a track to practice. Each is a set of realistic, voice-driven customer calls with a scored coaching report at the end.</p>
       </header>

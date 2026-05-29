@@ -237,7 +237,7 @@ function renderHome() {
   dom.root.innerHTML = `
     <section class="welcome">
       <header class="welcome-hero">
-        <div class="welcome-eyebrow">Customer service simulation</div>
+        <div class="welcome-eyebrow">Simulation</div>
         <h1 class="welcome-title">Education &amp; Development</h1>
         <p class="welcome-lead">Pick a track to practice. Each is a set of realistic, voice-driven customer calls with a scored coaching report at the end.</p>
       </header>
@@ -518,7 +518,7 @@ function renderWelcome() {
         <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to home</button>
       </div>
       <header class="welcome-hero">
-        <div class="welcome-eyebrow">Customer service simulation</div>
+        <div class="welcome-eyebrow">Simulation</div>
         <h1 class="welcome-title">Take a call.<br>Get coached.</h1>
         <p class="welcome-lead">Step into a realistic customer call with an AI that stays in character. End the call when you are ready and get a scored coaching report on six dimensions, with quoted evidence from your call and one concrete thing to try next time.</p>
       </header>
