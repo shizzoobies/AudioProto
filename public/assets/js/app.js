@@ -25,6 +25,7 @@ const state = {
   demoOrb: null,
   ringtone: null,
   precallOverlay: null,
+  precallStash: null,
   callPaused: false,
   callTimer: null,
 };
@@ -924,9 +925,19 @@ async function startCall(typeOrPersonaId) {
     opening_line: chosen,
     blind,
   };
-  // New start sequence: a pre-call modal (over a blurred page) -> a ringing
-  // screen (looped ringtone) -> Answer (mic init + the live call). The card
-  // click no longer drops straight into the call; it surfaces the modal.
+  // New start sequence: the pre-call modal opens over the FULL scenario shell,
+  // blurred — so the trainee sees the call they're about to take, not the
+  // picker list. Flow: preview backdrop -> modal -> ring -> Answer (mic init +
+  // the live call). For agents/kiosk we stash the live view (a detached
+  // fragment keeps its wired listeners) so Cancel/Decline restores it intact;
+  // recipient/demo homes are re-rendered on return so their WebGL orb re-inits.
+  state.precallStash = null;
+  if (!state.recipient) {
+    const frag = document.createDocumentFragment();
+    while (dom.root.firstChild) frag.appendChild(dom.root.firstChild);
+    state.precallStash = { frag, view: state.view };
+  }
+  renderCall(state.activeScenario, { preview: true });
   openPreCall(state.activeScenario);
 }
 
@@ -981,11 +992,25 @@ function dismissPreCall() {
 function returnFromPreCall() {
   dismissPreCall();
   if (state.recipient) {
+    // Re-render so the sealed home (and its WebGL orb) rebuilds cleanly; the
+    // stashed backdrop, if any, is discarded.
+    state.precallStash = null;
     if (state.recipient.is_demo) renderDemoHome();
     else renderRecipientHome();
+    return;
   }
-  // Agents / kiosk: their underlying view is still mounted behind the modal,
-  // so simply dismissing restores it. No re-render needed.
+  // Agents / kiosk: the preview backdrop replaced their view, so reattach the
+  // stashed (still-wired) DOM and restore the view marker.
+  const stash = state.precallStash;
+  state.precallStash = null;
+  if (stash) {
+    while (dom.root.firstChild) dom.root.removeChild(dom.root.firstChild);
+    dom.root.appendChild(stash.frag);
+    state.view = stash.view;
+    setDocumentTitle('');
+  } else {
+    renderHome();
+  }
 }
 
 // Step 1: the pre-call modal over a blurred version of the current page. We do
@@ -1075,6 +1100,9 @@ function beginRinging(scenario) {
 // audio unlock (mic permission is requested inside renderCall's first turn,
 // exactly as before — never on the modal or ring step).
 function answerCall(scenario) {
+  // The call is going live — drop the stashed backdrop view; renderCall builds
+  // the real, fully-wired call over the (about-to-be-replaced) preview shell.
+  state.precallStash = null;
   dismissPreCall();
   renderCall(scenario);
 }
@@ -1130,7 +1158,12 @@ function mountPreCall(overlay, onPrimary, scenario) {
   };
 }
 
-function renderCall(scenario) {
+function renderCall(scenario, opts = {}) {
+  // Preview mode renders the call shell as a static, blurred backdrop for the
+  // pre-call modal. It builds the DOM exactly like a live call but performs NO
+  // live wiring (no audio, conversation, mic, timer, or event handlers) — those
+  // only spin up when the trainee Answers and renderCall runs for real.
+  const preview = !!opts.preview;
   state.view = 'call';
   setDocumentTitle(scenario.blind ? 'Live call' : `Call: ${scenario.customer_name}`);
   teardownAudio();
@@ -1663,6 +1696,15 @@ function renderCall(scenario) {
       </div>
     </section>
   `;
+
+  // Preview backdrop: DOM is built; stop before any live wiring. The shell sits
+  // blurred behind the pre-call modal (pointer-events are disabled by the
+  // body[data-precall] blur rule), so unwired controls are inert by design.
+  if (preview) {
+    const callEl = dom.root.querySelector('.call');
+    if (callEl) callEl.dataset.preview = 'true';
+    return;
+  }
 
   const transcript = document.getElementById('transcript');
   const visualizerWrap = document.getElementById('visualizer-wrap');
