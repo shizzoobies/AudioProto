@@ -36,7 +36,7 @@ export async function onRequestPost(context) {
   }
 
   // Invite recipients can only call scenarios in their assigned set. Returns
-  // null when the visitor has no valid cs_me, so trainee sessions and magic
+  // null when the visitor has no valid cs_me, so agent sessions and magic
   // visitors are unaffected. The invite row is re-checked on every request,
   // so revocation kicks in mid-conversation on the next turn.
   const inviteScope = await getInviteScope(request, env);

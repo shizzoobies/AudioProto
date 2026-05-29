@@ -43,7 +43,7 @@ function renderLogin(errorMsg) {
     <section class="admin-login">
       <header class="admin-login-head">
         <h1 class="admin-login-title">Admin login</h1>
-        <p class="admin-login-sub">Enter the admin password to manage training invites.</p>
+        <p class="admin-login-sub">Enter the admin password to manage simulation invites.</p>
       </header>
       <form id="admin-login-form" autocomplete="off">
         <label class="admin-field">
@@ -178,8 +178,8 @@ function paintDashboard() {
     <section class="admin-section">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Invite recipients</p>
-        <h1 class="admin-section-title">Send a training invite</h1>
-        <p class="admin-section-sub">Pick the scenarios you want this batch of recipients to train on, then send invites one at a time. The selection stays put between sends.</p>
+        <h1 class="admin-section-title">Send a simulation invite</h1>
+        <p class="admin-section-sub">Pick the scenarios you want this batch of recipients to practice, then send invites one at a time. The selection stays put between sends.</p>
       </header>
 
       <form id="admin-create-form" autocomplete="off">
@@ -492,7 +492,7 @@ async function onGenerate(e) {
       attachInviteListHandlers();
     }
     // Reset recipient fields only — scenarios stay sticky so the next person
-    // gets the same training set without re-picking.
+    // gets the same simulation set without re-picking.
     document.getElementById('admin-email').value = '';
     document.getElementById('admin-name').value = '';
   } catch (err) {
@@ -602,7 +602,7 @@ function renderUsageEmptyState(reason) {
         </div>
       </div>`;
   }
-  return `<div class="admin-empty">No API calls logged yet — take a training call to populate this.</div>`;
+  return `<div class="admin-empty">No API calls logged yet — take a simulation to populate this.</div>`;
 }
 
 function renderUsagePanel(data) {

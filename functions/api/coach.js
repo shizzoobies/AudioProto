@@ -153,7 +153,7 @@ ${scenario.description}
 Success criteria for this scenario:
 ${criteria}
 
-Full transcript (the agent is the trainee; ${scenario.customer_name} is the roleplayed customer):
+Full transcript (the CSR agent speaks first; ${scenario.customer_name} is the roleplayed customer):
 ${formattedTranscript}
 
 Submit your coaching report now by calling submit_coaching_report.`;

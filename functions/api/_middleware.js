@@ -6,10 +6,10 @@ import {
 } from '../../shared/auth.js';
 
 // Public paths skip auth entirely.
-//   /api/auth          - trainee login (you can't be authed before you log in)
+//   /api/auth          - agent login (you can't be authed before you log in)
 //   /api/magic-status  - kiosk frontend probes for a valid cs_magic on boot
 //   /api/me/status     - recipient frontend probes for a valid cs_me on boot
-//   /api/admin/login   - admin login (same logic as trainee auth)
+//   /api/admin/login   - admin login (same logic as agent auth)
 const PUBLIC_PATHS = new Set([
   '/api/auth',
   '/api/magic-status',
@@ -17,7 +17,7 @@ const PUBLIC_PATHS = new Set([
   '/api/admin/login',
 ]);
 
-// /api/admin/* (except login) require cs_admin SPECIFICALLY. A trainee session,
+// /api/admin/* (except login) require cs_admin SPECIFICALLY. An agent session,
 // magic cookie, or invite cookie does not grant access to admin endpoints.
 const ADMIN_API_PREFIX = '/api/admin/';
 
@@ -38,7 +38,7 @@ export async function onRequest(context) {
 
   const cookies = parseCookies(request.headers.get('Cookie') || '');
 
-  // Normal session: the gate for trainees who logged in with APP_PASSWORD.
+  // Normal session: the gate for agents who logged in with APP_PASSWORD.
   if (cookies.session) {
     try {
       await verifyToken(cookies.session, env.SESSION_SECRET);

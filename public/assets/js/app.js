@@ -24,7 +24,7 @@ const state = {
 };
 
 // Meridian's San Antonio branch network. Surfaced in the CSR panel so the
-// trainee can match the pickup branch to where the customer is loading.
+// agent can match the pickup branch to where the customer is loading.
 const BRANCHES = [
   {
     name: 'Downtown',
@@ -211,7 +211,7 @@ async function init() {
     setCallMode('phone');
     renderKioskSplash(state.kioskScenario);
   } else if (state.recipient) {
-    // Invite recipient: their personal training page lists the scenarios the
+    // Invite recipient: their personal simulation page lists the scenarios the
     // admin assigned them. Same phone default.
     setCallMode('phone');
     renderRecipientHome();
@@ -222,7 +222,7 @@ async function init() {
   dom.signOut.addEventListener('click', signOut);
 }
 
-// The training-center landing. Two scenario tracks (still being built) plus an
+// The Education & Development landing. Two scenario tracks (still being built) plus an
 // entry into the full existing library (renderWelcome -> picker -> call).
 function renderHome() {
   state.view = 'home';
@@ -237,13 +237,13 @@ function renderHome() {
   dom.root.innerHTML = `
     <section class="welcome">
       <header class="welcome-hero">
-        <div class="welcome-eyebrow">Customer service training</div>
-        <h1 class="welcome-title">Training Center</h1>
+        <div class="welcome-eyebrow">Customer service simulation</div>
+        <h1 class="welcome-title">Education &amp; Development</h1>
         <p class="welcome-lead">Pick a track to practice. Each is a set of realistic, voice-driven customer calls with a scored coaching report at the end.</p>
       </header>
 
       <div class="welcome-section">
-        <div class="welcome-section-eyebrow">Training tracks</div>
+        <div class="welcome-section-eyebrow">Simulation tracks</div>
         <p class="welcome-section-sub">Choose the kind of call you want to work on.</p>
       </div>
 
@@ -285,7 +285,7 @@ function renderHome() {
               <path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
             </svg>
           </div>
-          <h3 class="mode-choice-title">Explore More Scenario Training</h3>
+          <h3 class="mode-choice-title">Explore More Scenarios</h3>
           <p class="mode-choice-text">The full library: the five core scenario types, the random "surprise me" call, and the Elena showcase. Chat or phone mode.</p>
           <span class="mode-choice-cta">Open the library <span aria-hidden="true">›</span></span>
         </button>
@@ -315,7 +315,7 @@ function renderComingSoon(title) {
   dom.root.innerHTML = `
     <section class="welcome">
       <div class="welcome-back">
-        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to home</button>
       </div>
       <header class="welcome-hero">
         <div class="welcome-eyebrow">Coming soon</div>
@@ -352,7 +352,7 @@ function renderKioskSplash(scenarioId) {
   dom.root.innerHTML = `
     <section class="kiosk-splash">
       <header class="kiosk-splash-header">
-        <div class="kiosk-eyebrow">Sales training</div>
+        <div class="kiosk-eyebrow">Sales simulation</div>
         <h1 class="kiosk-title">${escapeHtml(typeTitle)}</h1>
         <p class="kiosk-subtitle">Practice the three-point method: build genuine urgency, acknowledge the objection, and ask for the business again.</p>
       </header>
@@ -372,7 +372,7 @@ function renderKioskSplash(scenarioId) {
   document.getElementById('kiosk-take-call').addEventListener('click', () => startCall(scenarioId));
 }
 
-// Invite recipient's personal training page. They land here from /me/<token>
+// Invite recipient's personal simulation page. They land here from /me/<token>
 // (D1-backed invite link). Lists the scenarios the admin assigned them, with
 // the same card UI as the Sales picker, plus a greeting and mic disclaimer.
 // Clicking a card launches the scenario directly (no per-card splash - the
@@ -393,12 +393,12 @@ function renderRecipientHome() {
   const name = typeof r.recipient_name === 'string' && r.recipient_name.trim()
     ? r.recipient_name.trim()
     : '';
-  const greeting = name ? `Hi ${escapeHtml(name)}` : 'Welcome to your training';
+  const greeting = name ? `Hi ${escapeHtml(name)}` : 'Welcome to your simulations';
   const countLine = scenarios.length === 0
     ? 'No scenarios have been assigned yet.'
     : scenarios.length === 1
-      ? 'You have one training call to take.'
-      : `You have ${scenarios.length} training calls to take.`;
+      ? 'You have one simulation to take.'
+      : `You have ${scenarios.length} simulations to take.`;
 
   const cardsHtml = scenarios.map((p) => `
     <li class="scenario-card" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" aria-label="Start the call with ${escapeAttr(p.customer_name || p.id)}">
@@ -413,7 +413,7 @@ function renderRecipientHome() {
   dom.root.innerHTML = `
     <section class="recipient-home">
       <header class="recipient-header">
-        <div class="recipient-eyebrow">Sales training</div>
+        <div class="recipient-eyebrow">Sales simulation</div>
         <h1 class="recipient-title">${greeting}</h1>
         <p class="recipient-subtitle">${escapeHtml(countLine)}</p>
       </header>
@@ -465,7 +465,7 @@ function renderSectionScenarios(section) {
   dom.root.innerHTML = `
     <section class="picker">
       <div class="welcome-back">
-        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to home</button>
       </div>
       <header class="picker-header">
         <div class="picker-format-row">
@@ -515,10 +515,10 @@ function renderWelcome() {
   dom.root.innerHTML = `
     <section class="welcome">
       <div class="welcome-back">
-        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+        <button class="ghost-button" data-action="home" type="button"><span aria-hidden="true">‹</span> Back to home</button>
       </div>
       <header class="welcome-hero">
-        <div class="welcome-eyebrow">Customer service training</div>
+        <div class="welcome-eyebrow">Customer service simulation</div>
         <h1 class="welcome-title">Take a call.<br>Get coached.</h1>
         <p class="welcome-lead">Step into a realistic customer call with an AI that stays in character. End the call when you are ready and get a scored coaching report on six dimensions, with quoted evidence from your call and one concrete thing to try next time.</p>
       </header>
@@ -1151,7 +1151,7 @@ function renderCall(scenario) {
               </section>
 
               <section class="pos-step csf-checkout" data-step="5" hidden>
-                <div class="pos-test-banner">Training mode. Card details are not stored or charged.</div>
+                <div class="pos-test-banner">Simulation mode. Card details are not stored or charged.</div>
                 <div class="pos-card-status" id="pos-card-status">Enter the card in the Credit Card panel to confirm.</div>
 
                 <section class="pos-card">
@@ -1747,7 +1747,7 @@ function renderCall(scenario) {
   let selectedRecord = null;
   let storageAsked = false;
   // Geocoded origin/destination for distance-ranked branches and one-way
-  // mileage. Null until the trainee picks a place from the city typeahead.
+  // mileage. Null until the agent picks a place from the city typeahead.
   let originGeo = null;
   let destGeo = null;
 
@@ -2128,7 +2128,7 @@ function renderCall(scenario) {
     });
     input.addEventListener('blur', () => {
       // Let a click settle, then resolve free-typed text to the best match so
-      // ranking still works if the trainee tabbed past the dropdown.
+      // ranking still works if the agent tabbed past the dropdown.
       setTimeout(async () => {
         hide();
         const v = input.value.trim();
@@ -2295,7 +2295,7 @@ function renderCall(scenario) {
   }
 
   // Gates live only where they are the natural action of the step, so the
-  // trainee is never dead-ended on an unrelated field. The Details and Time
+  // agent is never dead-ended on an unrelated field. The Details and Time
   // steps never block; you choose a truck on Equipment, a branch on Location,
   // and enter the card on Checkout.
   function validateStep(n) {
@@ -2342,7 +2342,7 @@ function renderCall(scenario) {
 
   posBackBtn.addEventListener('click', () => showStep(posStep - 1));
 
-  // CSF topbar Back/Next mirror the in-panel nav so the trainee can drive the
+  // CSF topbar Back/Next mirror the in-panel nav so the agent can drive the
   // reservation from the header too. Next routes through requestSubmit so it
   // hits the same validation/storage-modal flow as the panel Continue button.
   posTopBackBtn?.addEventListener('click', () => { if (posStep > 1) showStep(posStep - 1); });
@@ -2636,7 +2636,7 @@ function renderReport(scenario, report) {
   setDocumentTitle(`Report: ${scenario.customer_name}`);
   // Kiosk visitors have nowhere to go but back into the same scenario - even
   // if the "Back to scenarios" button shows for any reason, it just retries.
-  // Recipients go to their personal training page; trainees go to the picker.
+  // Recipients go to their personal simulation page; agents go to the picker.
   const onNewCall = state.kiosk
     ? () => startCall(scenario.id)
     : state.recipient
@@ -2709,7 +2709,7 @@ function appendSilenceMarker(transcript) {
   return li;
 }
 
-// Branch picker modal. Lets the trainee see each branch's full details
+// Branch picker modal. Lets the agent see each branch's full details
 // and lock one in without leaving the reservation form. Writes the chosen
 // branch into the given select and fires a change event so the cost
 // estimate recomputes.

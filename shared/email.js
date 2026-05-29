@@ -14,8 +14,8 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
 
   // Default matches the verified root domain in Resend. Override via env
   // INVITE_FROM_ADDRESS if you've also verified a sending subdomain.
-  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Training <training@ka-testing.com>';
-  const subject = 'Your Meridian training session is ready';
+  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Simulations <training@ka-testing.com>';
+  const subject = 'Your Meridian simulation is ready';
   const displayName = name || to;
 
   const expiryLine = expiresAt
@@ -42,7 +42,7 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
           <!-- Body -->
           <tr>
             <td style="padding:36px 36px 32px;">
-              <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">Your training session is ready${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
+              <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">Your simulation is ready${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
               <p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">
                 You've been invited to practice sales conversations on Meridian's call simulator. Click the button below to get started — no account needed.
               </p>
@@ -73,7 +73,7 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
           <!-- Footer -->
           <tr>
             <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Training &mdash; this email was sent by your training administrator.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations &mdash; this email was sent by your simulation administrator.</p>
             </td>
           </tr>
 
@@ -84,7 +84,7 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
 </body>
 </html>`;
 
-  const text = `Your Meridian training session is ready${displayName && displayName !== to ? ', ' + displayName : ''}.
+  const text = `Your Meridian simulation is ready${displayName && displayName !== to ? ', ' + displayName : ''}.
 
 You've been invited to practice sales conversations on Meridian's call simulator. Follow the link below to get started — no account needed.
 
@@ -92,7 +92,7 @@ ${url}
 ${expiryText}
 
 ---
-Meridian Training — this email was sent by your training administrator.`;
+Meridian Simulations — this email was sent by your simulation administrator.`;
 
   try {
     const res = await fetch(RESEND_API, {
@@ -128,7 +128,7 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
   const apiKey = env?.RESEND_API_KEY;
   if (!apiKey) return { ok: false, error: 'no_api_key' };
 
-  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Training <training@ka-testing.com>';
+  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Simulations <training@ka-testing.com>';
   const subject = "You've been given admin access to the Call Simulator";
   const displayName = name || to;
 
@@ -153,7 +153,7 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
             <td style="padding:36px 36px 32px;">
               <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">You've been given admin access${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
               <p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">
-                You can now manage training invites on Meridian's call simulator — send invites, pick scenarios, and track usage. Click the button below to open the admin dashboard. No password needed; this link signs you in.
+                You can now manage simulation invites on Meridian's call simulator — send invites, pick scenarios, and track usage. Click the button below to open the admin dashboard. No password needed; this link signs you in.
               </p>
 
               <!-- CTA button — real <a> so Outlook renders it -->
@@ -180,7 +180,7 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
           <!-- Footer -->
           <tr>
             <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Training &mdash; this email was sent by a call simulator administrator.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations &mdash; this email was sent by a call simulator administrator.</p>
             </td>
           </tr>
 
@@ -193,12 +193,12 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
 
   const text = `You've been given admin access${displayName && displayName !== to ? ', ' + displayName : ''}.
 
-You can now manage training invites on Meridian's call simulator — send invites, pick scenarios, and track usage. Follow the link below to open the admin dashboard. No password needed; this link signs you in.
+You can now manage simulation invites on Meridian's call simulator — send invites, pick scenarios, and track usage. Follow the link below to open the admin dashboard. No password needed; this link signs you in.
 
 ${url}
 
 ---
-Meridian Training — this email was sent by a call simulator administrator.`;
+Meridian Simulations — this email was sent by a call simulator administrator.`;
 
   try {
     const res = await fetch(RESEND_API, {

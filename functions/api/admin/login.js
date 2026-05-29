@@ -1,4 +1,4 @@
-// Admin auth gate for the dashboard. Separate from the trainee app password:
+// Admin auth gate for the dashboard. Separate from the agent app password:
 // only the admin who provisions ADMIN_PASSWORD in the Pages dashboard can mint
 // cs_admin cookies, which in turn unlock /admin and /api/admin/*. The cookie
 // is HMAC-signed with the same SESSION_SECRET we use for other cookies (one

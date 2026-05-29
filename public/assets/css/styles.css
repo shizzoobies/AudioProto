@@ -3295,14 +3295,14 @@ body[data-kiosk] #error-back {
 }
 
 /* Invite recipient mode (D1-backed multi-scenario). The recipient can navigate
-   back to their personal training page, so we keep the back buttons visible
+   back to their personal simulation page, so we keep the back buttons visible
    (the JS handlers route them to renderRecipientHome instead of renderPicker).
    We only hide Sign out, since they didn't log in with a password. */
 body[data-recipient] #sign-out {
   display: none !important;
 }
 
-/* Recipient personal training page - the list of assigned scenarios. */
+/* Recipient personal simulation page - the list of assigned scenarios. */
 /* Recipient personal landing page — what an invitee sees after clicking
    their magic-link email. Premium light treatment matching the admin /
    email surfaces. */

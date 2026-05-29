@@ -151,7 +151,7 @@ const MOCK = {
     {
       id: 'inv_002',
       recipient_name: 'Priya Nair',
-      recipient_email: 'priya@meridiantraining.org',
+      recipient_email: 'priya@meridiansimulations.org',
       scenarios: [
         { customer_name: 'Sarah Mitchell', tagline: 'Emotional, just moved across town.' },
       ],
@@ -239,13 +239,13 @@ function renderHomeWelcome() {
   return `
     <section class="welcome">
       <header class="welcome-hero">
-        <div class="welcome-eyebrow">Customer service training</div>
-        <h1 class="welcome-title">Training Center</h1>
+        <div class="welcome-eyebrow">Customer service simulation</div>
+        <h1 class="welcome-title">Education &amp; Development</h1>
         <p class="welcome-lead">Pick a track to practice. Each is a set of realistic, voice-driven customer calls with a scored coaching report at the end.</p>
       </header>
 
       <div class="welcome-section">
-        <div class="welcome-section-eyebrow">Training tracks</div>
+        <div class="welcome-section-eyebrow">Simulation tracks</div>
         <p class="welcome-section-sub">Choose the kind of call you want to work on.</p>
       </div>
 
@@ -287,7 +287,7 @@ function renderHomeWelcome() {
               <path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
             </svg>
           </div>
-          <h3 class="mode-choice-title">Explore More Scenario Training</h3>
+          <h3 class="mode-choice-title">Explore More Scenarios</h3>
           <p class="mode-choice-text">The full library: the five core scenario types, the random "surprise me" call, and the Elena showcase. Chat or phone mode.</p>
           <span class="mode-choice-cta">Open the library <span aria-hidden="true">›</span></span>
         </button>
@@ -357,7 +357,7 @@ function renderPickerPersona() {
   return `
     <section class="picker">
       <div class="welcome-back">
-        <button class="ghost-button" type="button"><span aria-hidden="true">‹</span> Back to training center</button>
+        <button class="ghost-button" type="button"><span aria-hidden="true">‹</span> Back to home</button>
       </div>
       <header class="picker-header">
         <div class="picker-format-row">
@@ -423,9 +423,9 @@ function renderRecipientHome() {
   return `
     <section class="recipient-home">
       <header class="recipient-header">
-        <div class="recipient-eyebrow">Sales training</div>
+        <div class="recipient-eyebrow">Sales simulation</div>
         <h1 class="recipient-title">Hi Jordan</h1>
-        <p class="recipient-subtitle">You have 3 training calls to take.</p>
+        <p class="recipient-subtitle">You have 3 simulations to take.</p>
       </header>
       <div class="recipient-disclaimer" role="note">
         <strong>These are voice calls.</strong> When prompted, please allow microphone access for this page so the customer can hear you.
@@ -439,7 +439,7 @@ function renderKioskSplash() {
   return `
     <section class="kiosk-splash">
       <header class="kiosk-splash-header">
-        <div class="kiosk-eyebrow">Sales training</div>
+        <div class="kiosk-eyebrow">Sales simulation</div>
         <h1 class="kiosk-title">Overcoming Objections</h1>
         <p class="kiosk-subtitle">Practice the three-point method: build genuine urgency, acknowledge the objection, and ask for the business again.</p>
       </header>
@@ -1313,7 +1313,7 @@ function renderAdminLogin() {
     <section class="admin-login">
       <header class="admin-login-head">
         <h1 class="admin-login-title">Admin login</h1>
-        <p class="admin-login-sub">Enter the admin password to manage training invites.</p>
+        <p class="admin-login-sub">Enter the admin password to manage simulation invites.</p>
       </header>
       <form autocomplete="off">
         <label class="admin-field">
@@ -1417,8 +1417,8 @@ function renderAdminDashboard() {
     <section class="admin-section">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Invite recipients</p>
-        <h1 class="admin-section-title">Send a training invite</h1>
-        <p class="admin-section-sub">Pick the scenarios you want this batch of recipients to train on, then send invites one at a time.</p>
+        <h1 class="admin-section-title">Send a simulation invite</h1>
+        <p class="admin-section-sub">Pick the scenarios you want this batch of recipients to practice, then send invites one at a time.</p>
       </header>
 
       <form autocomplete="off">
@@ -1473,11 +1473,11 @@ function renderAdminDashboard() {
 
 const STATES = [
   { id: 'auth-login',            label: 'Auth — Login splash',                render: renderAuthLogin },
-  { id: 'home-welcome',          label: 'Home — Training center landing',      render: renderHomeWelcome },
+  { id: 'home-welcome',          label: 'Home — Education & Development landing', render: renderHomeWelcome },
   { id: 'picker-type',           label: 'Picker — Scenario type grid',         render: renderPickerType },
   { id: 'picker-persona',        label: 'Picker — Persona list (Damage Dispute)', render: renderPickerPersona },
   { id: 'picker-random',         label: 'Picker — Random card isolated',       render: renderPickerRandom },
-  { id: 'recipient-home',        label: 'Recipient — Personal training page',  render: renderRecipientHome },
+  { id: 'recipient-home',        label: 'Recipient — Personal simulation page', render: renderRecipientHome },
   { id: 'kiosk-splash',          label: 'Kiosk — Mic disclaimer splash',       render: renderKioskSplash },
   { id: 'call-idle',             label: 'Call — Idle / Connecting',            render: renderCallIdle },
   { id: 'call-customer-speaking', label: 'Call — Customer speaking',           render: renderCallCustomerSpeaking },

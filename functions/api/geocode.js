@@ -15,7 +15,7 @@
 
 const PHOTON_SEARCH = 'https://photon.komoot.io/api/';
 const GOOGLE_TEXT_SEARCH = 'https://places.googleapis.com/v1/places:searchText';
-const USER_AGENT = 'MeridianCallSimulator/1.0 (training demo; +https://ka-testing.com)';
+const USER_AGENT = 'MeridianCallSimulator/1.0 (education demo; +https://ka-testing.com)';
 // San Antonio metro center, for both providers' location bias.
 const SA_LAT = 29.4246;
 const SA_LON = -98.4951;
