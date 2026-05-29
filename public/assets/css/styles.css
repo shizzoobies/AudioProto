@@ -3487,6 +3487,51 @@ body[data-recipient] #sign-out {
   z-index: 0;
   pointer-events: none;
   overflow: visible;
+  transition: opacity 1s ease;
+}
+
+/* Cinematic video backdrop. Sits at the same layer as the orb field but spans
+   the WHOLE demo-home (inset:0) so footage runs behind the hero AND the entries.
+   Hidden (opacity:0) until JS confirms a real clip is playing, then crossfades
+   in; the orb field is faded out via .demo-home[data-video="ready"]. */
+.demo-video-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.demo-video-field[data-active="true"] {
+  opacity: 1;
+}
+.demo-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Legibility scrim over the footage. Lightens behind the dark Playfair title
+   (top) and the note (bottom), stays clearer through the middle so the clip
+   shows. Neutral paper tone to keep the bright editorial feel — TUNE once the
+   real footage lands (and consider flipping text to light for dark clips). */
+.demo-video-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(252, 251, 253, 0.62) 0%,
+      rgba(252, 251, 253, 0.14) 34%,
+      rgba(252, 251, 253, 0.0) 58%,
+      rgba(252, 251, 253, 0.24) 100%
+    );
+}
+.demo-home[data-video="ready"] .demo-orb-field {
+  opacity: 0;
 }
 
 /* POSTER: paints INSTANTLY, matching the orb's resting glow (gold heart ->

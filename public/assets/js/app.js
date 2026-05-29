@@ -557,6 +557,19 @@ function renderDemoHome() {
         <div class="demo-orb-poster"></div>
         <canvas class="demo-orb-canvas" id="demo-orb-canvas"></canvas>
       </div>
+      <!-- Cinematic video backdrop (optional, drop-in). Hidden until a real
+           clip exists at /assets/video/demo-backdrop.{webm,mp4} (+ optional
+           poster demo-backdrop-poster.jpg). On successful playback it fades in
+           and the orb above is retired; if the file is absent, fails, or the
+           visitor prefers reduced motion, the orb stays the backdrop. Served
+           same-origin, allowed by the existing CSP (media-src 'self'). -->
+      <div class="demo-video-field" id="demo-video-field" data-active="false" aria-hidden="true">
+        <video class="demo-video" id="demo-video" muted loop playsinline preload="auto" poster="/assets/video/demo-backdrop-poster.jpg">
+          <source src="/assets/video/demo-backdrop.webm" type="video/webm">
+          <source src="/assets/video/demo-backdrop.mp4" type="video/mp4">
+        </video>
+        <div class="demo-video-scrim" aria-hidden="true"></div>
+      </div>
       <div class="demo-stage">
         <div class="demo-hero-content">
           <h1 class="demo-title">Simulation Demo</h1>
@@ -596,6 +609,41 @@ function renderDemoHome() {
     }
   } catch {
     state.demoOrb = null; // silent fallback to poster
+  }
+
+  // Optional cinematic video backdrop. We always render the <video> markup but
+  // only switch to it once a real clip actually starts playing. Absent file
+  // (404), playback failure, or reduced-motion all leave the orb backdrop in
+  // place — so the page is correct now and "lights up" the moment a clip is
+  // dropped at /assets/video/demo-backdrop.{webm,mp4}, no code change needed.
+  try {
+    const video = dom.root.querySelector('#demo-video');
+    const videoField = dom.root.querySelector('#demo-video-field');
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (video && videoField && !reduceMotion) {
+      let settled = false;
+      const activate = () => {
+        if (settled) return;
+        settled = true;
+        const home = dom.root.querySelector('.demo-home');
+        if (home) home.dataset.video = 'ready';
+        videoField.dataset.active = 'true';
+        // Retire the orb: stop its WebGL loop now that the video is the backdrop.
+        try { state.demoOrb?.dispose(); } catch {}
+        state.demoOrb = null;
+      };
+      video.addEventListener('playing', activate, { once: true });
+      // All sources failed (e.g. the file isn't there yet) — keep the orb.
+      video.addEventListener('error', () => { settled = true; }, { once: true });
+      // Muted autoplay needs an explicit kick in some browsers; a rejection
+      // (no playable source) just leaves the orb up.
+      const p = video.play && video.play();
+      if (p && typeof p.catch === 'function') p.catch(() => { settled = true; });
+      // Safety net: stop waiting after a few seconds if nothing ever plays.
+      setTimeout(() => { settled = true; }, 4000);
+    }
+  } catch {
+    // Any failure here is non-fatal — the orb backdrop remains.
   }
 
   dom.root.querySelectorAll('.demo-entry').forEach((card) => {
