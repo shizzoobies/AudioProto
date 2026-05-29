@@ -160,6 +160,8 @@ async function init() {
     if (me && me.active && Array.isArray(me.scenarios)) {
       state.recipient = me;
       document.body.dataset.recipient = 'true';
+      // The demo is a sealed pitch surface: drop the global app header chrome.
+      if (me.is_demo) document.body.dataset.demo = 'true';
     } else {
       // No scoped cookie - require a normal trainee session, else bounce to login.
       let sessionOk = false;
@@ -532,7 +534,6 @@ function renderDemoHome() {
       </div>
       <div class="demo-stage">
         <div class="demo-hero-content">
-          <div class="demo-eyebrow"><span class="demo-eyebrow-pulse" aria-hidden="true"></span>Simulation</div>
           <h1 class="demo-title">Simulation Demo</h1>
           <p class="demo-subhead">Pick up a live call with a real-sounding AI customer. Speak naturally — the moment you hang up, a scored coaching report is waiting.</p>
         </div>

@@ -249,6 +249,11 @@ textarea {
   transition: opacity 0.2s ease;
 }
 
+/* The Demo is a sealed pitch surface — hide the global app header chrome. */
+body[data-demo] .app-header {
+  display: none;
+}
+
 /* Buttons
    ------------------------------------------------------------------ */
 .ghost-button {
