@@ -1304,6 +1304,82 @@ function renderCallPosHint() {
   `;
 }
 
+// The "Reservation Complete" POS screen the real CSF shows after Reserve Now
+// (before our app pivots to coaching). Green success banner (success is green
+// everywhere; the maroon accent stays on the buttons), then a summary + charges
+// card, then the footer. No left rail / cart — full-width like the target.
+function renderReservationComplete() {
+  const truckSvg = `<svg viewBox="0 0 80 48" width="64" height="40" fill="none" aria-hidden="true"><rect x="2" y="12" width="46" height="26" rx="2" stroke="currentColor" stroke-width="2"/><path d="M48 20h15l13 10v8H48z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="20" cy="40" r="5" stroke="currentColor" stroke-width="2"/><circle cx="62" cy="40" r="5" stroke="currentColor" stroke-width="2"/></svg>`;
+  const charges = [
+    { label: "26' Moving Van", sub: 'plus $1.19/mile', amount: '$49.95' },
+    { label: 'Environmental Fee', sub: '', amount: '$1.00' },
+    { label: 'Vehicle License Recovery Fee - FL H/W Truck', sub: '', amount: '$1.20' },
+    { label: 'Estimated Tax', sub: '', amount: '$3.91' },
+  ];
+  return `
+    <section class="call" data-call-mode="phone">
+      <div class="call-body" style="padding: 18px;">
+        <div class="csf-complete">
+          <div class="csf-complete-banner">
+            <div class="csf-complete-banner-title">&#9989; Reservation Complete</div>
+            <p class="csf-complete-banner-text">The reservation has been completed!</p>
+            <p class="csf-complete-banner-text">If they would like to receive helpful videos regarding their rental, <a class="csf-link">click here</a></p>
+            <div class="csf-complete-banner-foot">
+              <select class="pos-input csf-complete-lang"><option>English</option><option>French</option><option>Spanish</option></select>
+              <a class="csf-link">Receipt</a>
+            </div>
+          </div>
+          <div class="pos-card csf-complete-card">
+            <div class="pos-card-body">
+              <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Your reservation has been completed. A confirmation and link to the Meridian app has been sent via text to ${esc(R.phone)}. Prior to your pickup, you can complete your check-in through the app, as well as confirm, review or make any changes to your reservation. 70318282</p></div>
+              <h3 class="csf-complete-name">Customer Name: ${esc(R.customerName)}</h3>
+              <div class="csf-complete-grid">
+                <div class="csf-complete-col">
+                  <div class="csf-complete-subhead">Reservation Summary</div>
+                  <div class="csf-complete-truck">${truckSvg}</div>
+                  <div class="csf-complete-model">26' MOVING VAN</div>
+                  <dl class="csf-complete-facts">
+                    <div><dt>Pick Up Date:</dt><dd>09/26/2026</dd></div>
+                    <div><dt>Pick Up Time:</dt><dd>10:00 AM</dd></div>
+                    <div><dt>Hours Reserved:</dt><dd>10 hours</dd></div>
+                    <div><dt>Rental Type:</dt><dd>In Town</dd></div>
+                  </dl>
+                  <div class="csf-complete-loc">
+                    <div class="csf-complete-map" aria-hidden="true"></div>
+                    <div class="csf-complete-loc-info">
+                      <em>MERIDIAN MOVING &amp; STORAGE OF GAINESVILLE</em>
+                      <span>4821 NW 6TH ST</span>
+                      <span>GAINESVILLE, FL 32609</span>
+                      <span>(352) 415-8437</span>
+                      <a class="csf-link">&#9678; Directions</a>
+                      <a class="csf-link">Cross Contact</a>
+                      <a class="csf-link">&#43; Add Storage in GAINESVILLE, FL</a>
+                    </div>
+                  </div>
+                  <label class="pos-check" style="margin-top:10px;"><input type="checkbox"> GAINESVILLE, FL 32609</label>
+                  <div style="margin-top:8px;"><button type="button" class="csf-btn-secondary">Start Moving Help</button></div>
+                </div>
+                <div class="csf-complete-col">
+                  <div class="csf-complete-subhead">Summary of Charges</div>
+                  <div class="csf-complete-charges">
+                    ${charges.map((c) => `<div class="csf-complete-charge"><span class="csf-complete-charge-label">${esc(c.label)}${c.sub ? `<span class="csf-complete-charge-sub">${esc(c.sub)}</span>` : ''}</span><span class="csf-complete-charge-amt">${esc(c.amount)}</span></div>`).join('')}
+                    <div class="csf-complete-charge csf-complete-total"><span class="csf-complete-charge-label">Total:</span><span class="csf-complete-charge-amt">$56.06<span class="csf-complete-charge-sub">plus $1.19/mile (due in store)</span></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="csf-complete-foot">
+            <span class="csf-complete-foot-note">Does this same customer need to make another reservation? Click below to make another reservation for this customer.</span>
+            <a class="csf-link">&#43; Create New Reservation for this Customer</a>
+            <button type="button" class="csf-btn-secondary">Close</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderReportGenerating() {
   return `
     <section class="analyzing">
@@ -1604,7 +1680,8 @@ const STATES = [
   { id: 'call-step-time',        label: '5 · CSF — Step 4: Scheduling',        render: renderCallStepTime },
   { id: 'call-step-checkout',    label: '5 · CSF — Step 5: Checkout',          render: renderCallStepCheckout },
   { id: 'call-pos-script-hint',  label: '5 · CSF — POS script hint cards',     render: renderCallPosHint },
-  // --- 6. End of call: coaching ---
+  // --- 6. End of call: reservation complete, then coaching ---
+  { id: 'reservation-complete',  label: '6 · CSF — Reservation Complete screen', render: renderReservationComplete },
   { id: 'report-generating',     label: '6 · Report — Generating spinner',     render: renderReportGenerating },
   { id: 'report-shown',          label: '6 · Report — Full coaching report',   render: renderReportShown },
   // --- Other surfaces ---

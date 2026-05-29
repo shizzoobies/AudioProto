@@ -2733,6 +2733,47 @@ body[data-demo] .app-main {
 }
 .csf-btn-secondary:hover { background: var(--color-accent-muted); }
 
+/* ---- Reservation Complete (post-Reserve POS confirmation) ---------------- */
+.csf-complete { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.csf-complete-banner {
+  background: rgba(21, 128, 61, 0.10);
+  border: 1px solid rgba(21, 128, 61, 0.30);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+.csf-complete-banner-title { color: var(--color-success); font-weight: 700; font-size: 15px; letter-spacing: 0.02em; margin-bottom: 6px; }
+.csf-complete-banner-text { margin: 0 0 4px; font-size: 13.5px; color: var(--color-text-secondary); }
+.csf-complete-banner-foot { display: flex; align-items: center; gap: 24px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(21, 128, 61, 0.20); }
+.csf-complete-lang { max-width: 180px; }
+.csf-complete-card { background: var(--color-surface); }
+.csf-complete-name { font-size: 18px; font-weight: 600; margin: 14px 0 4px; color: var(--color-text-primary); }
+.csf-complete-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; margin-top: 8px; }
+.csf-complete-subhead { font-size: 16px; font-weight: 600; color: var(--color-text-primary); padding-bottom: 6px; border-bottom: 1px solid var(--color-border); margin-bottom: 12px; }
+.csf-complete-truck { color: var(--color-text-secondary); }
+.csf-complete-model { font-weight: 700; font-size: 14px; margin: 6px 0 10px; }
+.csf-complete-facts { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.csf-complete-facts > div { display: flex; gap: 8px; font-size: 13px; }
+.csf-complete-facts dt { font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.csf-complete-facts dd { margin: 0; color: var(--color-accent); }
+.csf-complete-loc { display: flex; gap: 12px; margin-top: 14px; }
+.csf-complete-map { width: 120px; height: 96px; flex: none; border: 1px solid var(--color-border); border-radius: 4px; background: linear-gradient(135deg, #e8edf2, #dde6ee); }
+.csf-complete-loc-info { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--color-text-secondary); }
+.csf-complete-loc-info em { font-style: italic; color: var(--color-text-primary); }
+.csf-complete-charges { display: flex; flex-direction: column; gap: 14px; }
+.csf-complete-charge { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; font-size: 13.5px; }
+.csf-complete-charge-label { display: flex; flex-direction: column; color: var(--color-text-primary); }
+.csf-complete-charge-sub { font-size: 11px; color: var(--color-text-tertiary); font-weight: 400; }
+.csf-complete-charge-amt { color: var(--color-accent); font-weight: 600; text-align: right; white-space: nowrap; }
+.csf-complete-total { border-top: 1px solid var(--color-border); padding-top: 12px; }
+.csf-complete-total .csf-complete-charge-label { font-weight: 700; }
+.csf-complete-total .csf-complete-charge-amt { color: var(--color-text-primary); font-weight: 700; }
+.csf-complete-foot { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding-top: 8px; }
+.csf-complete-foot-note { font-size: 13px; color: var(--color-text-secondary); }
+
+@media (max-width: 720px) {
+  .csf-complete-grid { grid-template-columns: 1fr; gap: 18px; }
+}
+
 .pos-verified {
   font-size: 10px;
   font-weight: 600;
