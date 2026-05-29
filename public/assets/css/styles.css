@@ -19,6 +19,7 @@
 
   --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -205,10 +206,20 @@ textarea {
 .app-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-5);
+  background: transparent;
+}
+
+/* Minimal, unobtrusive sign-out — the only chrome left up top. */
+.app-header #sign-out {
+  border-color: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+.app-header #sign-out:hover:not(:disabled) {
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 .app-brand {
@@ -369,15 +380,13 @@ body[data-demo] .app-header {
 
 .welcome-title {
   margin: 0 0 var(--space-4);
-  font-size: 52px;
-  font-weight: 700;
-  line-height: 1.04;
-  letter-spacing: -0.03em;
-  background: linear-gradient(180deg, var(--color-text-primary), #9ca3af);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 54px;
+  font-weight: 500;
+  line-height: 1.0;
+  letter-spacing: -0.025em;
+  color: var(--color-text-primary);
 }
 
 .welcome-lead {
@@ -505,21 +514,21 @@ body[data-demo] .app-header {
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-6);
-  background: var(--color-surface);
+  background: linear-gradient(180deg, var(--color-surface), var(--color-surface-elevated));
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-bubble);
   cursor: pointer;
   color: var(--color-text-primary);
   font-family: inherit;
-  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  transition: border-color 0.22s ease, transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.22s ease;
 }
 
 .mode-choice:hover,
 .mode-choice:focus-visible {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-elevated);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lift);
+  border-color: rgba(140, 29, 43, 0.28);
+  transform: translateY(-4px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 22px 48px rgba(140, 29, 43, 0.12);
   outline: none;
 }
 
@@ -560,9 +569,12 @@ body[data-demo] .app-header {
 
 .mode-choice-title {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
 }
 
 .mode-choice-text {
@@ -715,9 +727,12 @@ body[data-demo] .app-header {
 
 .picker-title {
   margin: 0 0 var(--space-2);
-  font-size: 32px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 38px;
+  font-weight: 500;
   letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .picker-subtitle {
@@ -739,20 +754,20 @@ body[data-demo] .app-header {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-5);
-  background: var(--color-surface);
+  padding: var(--space-6);
+  background: linear-gradient(180deg, var(--color-surface), var(--color-surface-elevated));
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-bubble);
   cursor: pointer;
-  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  transition: border-color 0.22s ease, transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.22s ease;
 }
 
 .scenario-card:hover,
 .scenario-card:focus-visible {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-elevated);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lift);
+  border-color: rgba(140, 29, 43, 0.28);
+  transform: translateY(-4px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 22px 48px rgba(140, 29, 43, 0.12);
   outline: none;
 }
 
@@ -852,9 +867,12 @@ body[data-demo] .app-header {
 
 .scenario-title {
   margin: var(--space-2) 0 0;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
 }
 
 .scenario-customer {
@@ -3382,12 +3400,14 @@ body[data-recipient] #sign-out {
   font-weight: 700;
 }
 .recipient-title {
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   margin: 6px 0 4px;
   color: var(--color-text-primary);
-  line-height: 1.15;
+  line-height: 1.05;
 }
 .recipient-subtitle {
   margin: 0;
@@ -4367,9 +4387,12 @@ body[data-recipient] #sign-out {
   color: var(--color-accent);
 }
 .kiosk-title {
-  font-size: 32px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 38px;
+  font-weight: 500;
   letter-spacing: -0.02em;
+  line-height: 1.05;
   margin: 8px 0 12px;
 }
 .kiosk-subtitle {
@@ -4388,8 +4411,11 @@ body[data-recipient] #sign-out {
   gap: var(--space-3);
 }
 .kiosk-card-name {
-  font-size: 22px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
   margin: 0;
 }
 .kiosk-card-short {
