@@ -523,14 +523,14 @@ function renderDemoHome() {
 
   dom.root.innerHTML = `
     <section class="demo-home demo-living">
+      <!-- Orb field is a page-level background layer: first child of demo-home
+           so it spans behind BOTH the hero and the entries grid. Pointer-events
+           none + z-index 0 so all content above it stays fully clickable. -->
+      <div class="demo-orb-field" aria-hidden="true">
+        <div class="demo-orb-poster"></div>
+        <canvas class="demo-orb-canvas" id="demo-orb-canvas"></canvas>
+      </div>
       <div class="demo-stage">
-        <!-- Poster paints INSTANTLY (radial-gradient matching the orb's
-             resting glow). The WebGL canvas fades in over it once live; on any
-             failure the poster simply stays. -->
-        <div class="demo-orb-field" aria-hidden="true">
-          <div class="demo-orb-poster"></div>
-          <canvas class="demo-orb-canvas" id="demo-orb-canvas"></canvas>
-        </div>
         <div class="demo-hero-content">
           <div class="demo-eyebrow"><span class="demo-eyebrow-pulse" aria-hidden="true"></span>Simulation</div>
           <h1 class="demo-title">Simulation Demo</h1>

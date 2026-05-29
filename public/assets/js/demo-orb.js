@@ -68,9 +68,12 @@ const FRAGMENT_SRC = `
   }
 
   void main() {
-    // Aspect-correct, origin-centered coordinates. The field is square in the
-    // shorter dimension so the orb never stretches.
-    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+    // Aspect-correct coordinates anchored so the orb center sits in the upper
+    // region of the field (~28% from the top). gl_FragCoord is bottom-origin so
+    // 0.72 * height puts the anchor ~28% from the top. Horizontal stays at 0.5.
+    // The orb is scaled by min(resolution) so it stays circular on any ratio.
+    vec2 anchor = vec2(0.5 * u_resolution.x, 0.72 * u_resolution.y);
+    vec2 uv = (gl_FragCoord.xy - anchor) / min(u_resolution.x, u_resolution.y);
 
     // Gentle cursor influence: shift the field center a touch toward the
     // pointer. Kept faint — bulletproof, not all-out.

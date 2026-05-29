@@ -3371,6 +3371,7 @@ body[data-recipient] #sign-out {
   --demo-paper: #fcfbfd;
   --demo-maroon: #7a83c8;
   --demo-terracotta: #5fa6ad;
+  position: relative;
   max-width: 1080px;
   margin: 0 auto;
   padding: clamp(40px, 7vw, 88px) clamp(20px, 5vw, 48px) clamp(56px, 9vw, 104px);
@@ -3387,6 +3388,7 @@ body[data-recipient] #sign-out {
    ========================================================================= */
 .demo-stage {
   position: relative;
+  z-index: 1;
   isolation: isolate;
   display: grid;
   place-items: center;
@@ -3396,10 +3398,17 @@ body[data-recipient] #sign-out {
   padding: clamp(24px, 4vw, 48px) 0 clamp(8px, 2vw, 24px);
 }
 
-/* The orb field is full-bleed within the stage; it sits behind the headline. */
+/* The orb field is now a page-level background: first child of .demo-home,
+   spanning behind both the hero and the entries cards. The visual center of
+   the orb is anchored in the UPPER region (poster + shader offset) so it reads
+   as a hero element whose soft glow simply continues flowing down behind the
+   cards — one continuous atmospheric field, not a hard stop. */
 .demo-orb-field {
   position: absolute;
-  inset: -8% -12%;
+  top: 0;
+  left: -12%;
+  right: -12%;
+  height: clamp(900px, 118vh, 1280px);
   z-index: 0;
   pointer-events: none;
   overflow: visible;
@@ -3408,15 +3417,17 @@ body[data-recipient] #sign-out {
 /* POSTER: paints INSTANTLY, matching the orb's resting glow (gold heart ->
    terracotta -> maroon, melting into the light page). A faint radial darkening
    sits BEHIND the orb only so the glow reads on the bright page. This is the
-   permanent fallback — it stays if WebGL/shader/reduced-motion fail. */
+   permanent fallback — it stays if WebGL/shader/reduced-motion fail.
+   Centers are shifted UP (~26%) so the orb reads as a hero element whose soft
+   glow flows down behind the entries, matching the shader anchor offset. */
 .demo-orb-poster {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(closest-side at 50% 48%, rgba(236, 240, 252, 0.72) 0%, rgba(236, 240, 252, 0) 22%),
-    radial-gradient(closest-side at 50% 48%, rgba(150, 162, 224, 0.32) 0%, rgba(150, 162, 224, 0) 40%),
-    radial-gradient(closest-side at 50% 49%, rgba(122, 131, 200, 0.22) 0%, rgba(122, 131, 200, 0) 58%),
-    radial-gradient(closest-side at 50% 50%, rgba(122, 131, 200, 0.07) 0%, rgba(122, 131, 200, 0) 70%);
+    radial-gradient(closest-side at 50% 26%, rgba(236, 240, 252, 0.72) 0%, rgba(236, 240, 252, 0) 22%),
+    radial-gradient(closest-side at 50% 26%, rgba(150, 162, 224, 0.32) 0%, rgba(150, 162, 224, 0) 40%),
+    radial-gradient(closest-side at 50% 27%, rgba(122, 131, 200, 0.22) 0%, rgba(122, 131, 200, 0) 58%),
+    radial-gradient(closest-side at 50% 28%, rgba(122, 131, 200, 0.07) 0%, rgba(122, 131, 200, 0) 70%);
   filter: saturate(0.95);
 }
 
@@ -3494,6 +3505,8 @@ body[data-recipient] #sign-out {
    wired into the voice field. Sales = maroon, Customer service = terracotta.
    ========================================================================= */
 .demo-lines {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 2.4vw, 24px);
