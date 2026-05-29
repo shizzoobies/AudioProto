@@ -19,7 +19,7 @@
 
   --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -3425,7 +3425,7 @@ body[data-recipient] #sign-out {
 
 /* =========================================================================
    Demo landing (renderDemoHome) — bespoke bright-editorial pitch surface.
-   Light + maroon, generated CSS visuals only (no images), Fraunces display
+   Light + maroon, generated CSS visuals only (no images), Playfair Display
    serif for the hero. Sealed: only the two clusters are actionable. Motion is
    subtle and gated behind prefers-reduced-motion: no-preference.
 
@@ -3445,10 +3445,10 @@ body[data-recipient] #sign-out {
   /* Stretch to full viewport width by overriding parent padding */
   margin-left: calc(-1 * var(--space-5));
   margin-right: calc(-1 * var(--space-5));
-  padding: clamp(40px, 7vw, 88px) 0 clamp(56px, 9vw, 104px);
+  padding: clamp(16px, 3vw, 40px) 0 clamp(48px, 8vw, 88px);
   display: flex;
   flex-direction: column;
-  gap: clamp(36px, 6vw, 68px);
+  gap: clamp(20px, 4vw, 44px);
   /* Clip nothing — the orb must reach both edges */
   overflow: visible;
 }
@@ -3470,9 +3470,9 @@ body[data-recipient] #sign-out {
   max-width: 960px;
   margin-left: auto;
   margin-right: auto;
-  padding: clamp(24px, 4vw, 48px) clamp(24px, 5vw, 48px) clamp(8px, 2vw, 24px);
+  padding: clamp(16px, 3vw, 32px) clamp(24px, 5vw, 48px) clamp(8px, 1.5vw, 18px);
   text-align: center;
-  min-height: clamp(440px, 64vh, 680px);
+  min-height: clamp(300px, 46vh, 480px);
 }
 
 /* The orb field spans the FULL width of .demo-home (which is now full-viewport-
@@ -3556,18 +3556,18 @@ body[data-recipient] #sign-out {
   box-shadow: 0 0 0 0 rgba(122, 131, 200, 0.5);
 }
 .demo-title {
-  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-optical-sizing: auto;
   font-weight: 500;
   font-size: clamp(34px, 8.5vw, 104px);
   line-height: 0.94;
   letter-spacing: -0.025em;
   color: var(--demo-ink);
-  margin: 0 0 22px;
+  margin: 0;
   white-space: nowrap;
 }
 /* Hero tenets — three promises laid out ACROSS the hero. Each rests as a clean
-   Fraunces line with a thin accent rule beneath; on hover (desktop), focus, or
+   display-serif line with a thin accent rule beneath; on hover (desktop), focus, or
    click-to-pin (touch) the tenet ENLARGES — lifts + scales, its surface blooms
    in, the accent rule extends, and the detail reveals. Hovering one dims its
    siblings so it owns the moment. Per-tenet accent walks periwinkle -> teal. */
@@ -3580,7 +3580,7 @@ body[data-recipient] #sign-out {
   gap: clamp(6px, 1.2vw, 16px);
   width: 100%;
   max-width: 840px;
-  margin: clamp(10px, 2vw, 26px) auto 0;
+  margin: clamp(6px, 1.4vw, 16px) auto 0;
 }
 .demo-tenet {
   position: relative;
@@ -3595,14 +3595,15 @@ body[data-recipient] #sign-out {
   flex-direction: column;
   padding: clamp(16px, 1.7vw, 24px);
   border-radius: 18px;
-  transform-origin: center top;
-  transition: transform 0.42s cubic-bezier(0.2, 0.7, 0.2, 1),
+  transform-origin: center bottom;
+  /* Slight overshoot so it rises with life and settles back into place. */
+  transition: transform 0.5s cubic-bezier(0.34, 1.32, 0.64, 1),
               background 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease;
   outline: none;
 }
 .demo-tenet-line {
   position: relative;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-display);
   font-optical-sizing: auto;
   font-weight: 500;
   font-size: clamp(20px, 2.2vw, 27px);
@@ -3646,8 +3647,8 @@ body[data-recipient] #sign-out {
 .demo-tenet:focus-visible {
   z-index: 2;
   background: rgba(255, 255, 255, 0.66);
-  box-shadow: 0 22px 50px rgba(122, 131, 200, 0.18);
-  transform: scale(1.06) translateY(-4px);
+  box-shadow: 0 26px 56px rgba(122, 131, 200, 0.2);
+  transform: scale(1.08) translateY(-18px);
 }
 .demo-tenet.is-open .demo-tenet-line,
 .demo-tenet:focus-visible .demo-tenet-line {
@@ -3675,8 +3676,8 @@ body[data-recipient] #sign-out {
   .demo-tenet:hover {
     z-index: 2;
     background: rgba(255, 255, 255, 0.66);
-    box-shadow: 0 22px 50px rgba(122, 131, 200, 0.18);
-    transform: scale(1.06) translateY(-4px);
+    box-shadow: 0 26px 56px rgba(122, 131, 200, 0.2);
+    transform: scale(1.08) translateY(-18px);
   }
   .demo-tenet:hover .demo-tenet-line { color: var(--tenet-accent); }
   .demo-tenet:hover .demo-tenet-line::after { width: 100%; opacity: 1; }
@@ -3856,7 +3857,7 @@ body[data-recipient] #sign-out {
   margin-top: auto;
 }
 .demo-entry-name {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-display);
   font-optical-sizing: auto;
   font-weight: 500;
   font-size: clamp(28px, 3.2vw, 38px);
