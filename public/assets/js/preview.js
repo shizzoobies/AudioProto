@@ -999,6 +999,8 @@ function buildCallShell({
   phoneStatusState = 'connecting',
   phoneStatusText = 'Connecting...',
   phoneStatusHint = 'Putting the call through.',
+  timer = '00:00',
+  paused = false,
 } = {}) {
   const trashIcon = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const infoIcon = `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
@@ -1024,14 +1026,18 @@ function buildCallShell({
   const primaryLabel = step === 5 ? 'Book it' : (step === 1 ? 'Continue' : 'Next');
 
   return `
-    <section class="call" data-call-mode="phone">
+    <section class="call" data-call-mode="phone"${paused ? ' data-paused="true"' : ''}>
       <header class="call-header">
         <button class="ghost-button call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
           <div class="call-customer-name">${esc(R.customerName)}</div>
           <div class="call-scenario-title">The Price Shopper <span class="call-mode-pill">Phone call</span></div>
         </div>
-        <button class="danger-button" type="button">End call</button>
+        <div class="call-actions">
+          <span class="call-timer" role="timer" aria-label="Call duration">${esc(timer)}</span>
+          <button class="ghost-button call-pause${paused ? ' is-paused' : ''}" type="button" aria-pressed="${paused ? 'true' : 'false'}">${paused ? 'Resume' : 'Pause'}</button>
+          <button class="danger-button" type="button">End call</button>
+        </div>
       </header>
       <div class="call-body">
         ${csfTopbar(stepTitle, step)}
@@ -1090,6 +1096,7 @@ function renderCallCustomerSpeaking() {
   return buildCallShell({
     step: 1,
     filled: false,
+    timer: '01:12',
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
     phoneStatusState: 'customer_talking',
     phoneStatusText: 'Derek Huang is talking...',
@@ -1101,6 +1108,7 @@ function renderCallYourTurn() {
   return buildCallShell({
     step: 1,
     filled: false,
+    timer: '01:48',
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
     phoneStatusState: 'your_turn',
     phoneStatusText: 'Your turn — just talk.',
@@ -1108,15 +1116,112 @@ function renderCallYourTurn() {
   });
 }
 
+function renderCallListening() {
+  return buildCallShell({
+    step: 1,
+    filled: false,
+    timer: '02:05',
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
+    phoneStatusState: 'listening',
+    phoneStatusText: 'Listening to you...',
+    phoneStatusHint: 'Pause a beat when you finish.',
+  });
+}
+
+function renderCallThinking() {
+  // Simulator latency — the call clock freezes here (not a "live" state).
+  return buildCallShell({
+    step: 1,
+    filled: false,
+    timer: '02:20',
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 2)),
+    phoneStatusState: 'thinking',
+    phoneStatusText: 'Derek Huang is thinking...',
+    phoneStatusHint: 'Customer reply coming in.',
+  });
+}
+
+function renderCallPaused() {
+  // Pause freezes the timer + dims the form (data-paused), mic + audio halt.
+  return buildCallShell({
+    step: 2,
+    filled: true,
+    showRightRail: true,
+    timer: '03:26',
+    paused: true,
+    transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 3)),
+    phoneStatusState: 'paused',
+    phoneStatusText: 'Call paused',
+    phoneStatusHint: 'Resume when you are ready.',
+  });
+}
+
 function renderCallMultiTurn() {
   return buildCallShell({
     step: 1,
     filled: false,
+    timer: '03:48',
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript),
     phoneStatusState: 'your_turn',
     phoneStatusText: 'Your turn — just talk.',
     phoneStatusHint: 'Pause for a beat when you finish and your reply sends.',
   });
+}
+
+// ---- Pre-call modal + ring screen (the start-of-call sequence) ------------
+// Both are full-screen overlays in the real app; here they're contained in a
+// .preview-frame so they sit in flow and work in the stacked "print all" view.
+
+function renderPrecallModal() {
+  const backdrop = buildCallShell({ step: 1, filled: false, phoneStatusState: 'connecting', phoneStatusText: 'Connecting...', phoneStatusHint: 'Putting the call through.' });
+  const closeIcon = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  return `
+    <div class="preview-frame">
+      <div class="preview-frame-blur">${backdrop}</div>
+      <div class="precall-overlay">
+        <div class="precall-scrim"></div>
+        <div class="precall-card" role="dialog" aria-modal="true">
+          <button type="button" class="precall-close" aria-label="Cancel">${closeIcon}</button>
+          <div class="precall-eyebrow">The Price Shopper</div>
+          <h2 class="precall-name">${esc(R.customerName)}</h2>
+          <p class="precall-short">Budget-conscious, comparing three companies</p>
+          <p class="precall-tagline">Wants the cheapest 15' in the city.</p>
+          <div class="precall-actions">
+            <button type="button" class="ghost-button precall-cancel">Cancel</button>
+            <button type="button" class="primary-button precall-start">Start <span aria-hidden="true">›</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRingScreen() {
+  const backdrop = buildCallShell({ step: 1, filled: false, phoneStatusState: 'connecting', phoneStatusText: 'Connecting...', phoneStatusHint: 'Putting the call through.' });
+  const phoneIcon = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const phoneFill = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" fill="currentColor" stroke="none"/></svg>`;
+  return `
+    <div class="preview-frame">
+      <div class="preview-frame-blur">${backdrop}</div>
+      <div class="precall-overlay precall-ringing">
+        <div class="precall-scrim"></div>
+        <div class="ring-screen" role="dialog" aria-modal="true">
+          <div class="ring-status">Incoming call…</div>
+          <div class="ring-avatar" aria-hidden="true">
+            <span class="ring-pulse ring-pulse-1"></span>
+            <span class="ring-pulse ring-pulse-2"></span>
+            <span class="ring-avatar-core">${phoneIcon}</span>
+          </div>
+          <div class="ring-name">${esc(R.customerName)}</div>
+          <div class="ring-sub">The Price Shopper</div>
+          <div class="ring-actions">
+            <button type="button" class="ring-btn ring-decline" aria-label="Decline call">${phoneFill}</button>
+            <button type="button" class="ring-btn ring-answer">${phoneFill}<span class="ring-answer-label">Answer</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderCallStepDetails() {
@@ -1471,28 +1576,42 @@ function renderAdminDashboard() {
 // State catalog
 // ---------------------------------------------------------------------------
 
+// Ordered to walk the scenario journey top-to-bottom: choose a scenario →
+// pre-call modal → ring → answer → live call phases → POS steps → coaching
+// report. Non-scenario surfaces (kiosk/auth/admin) trail at the end.
 const STATES = [
-  { id: 'auth-login',            label: 'Auth — Login splash',                render: renderAuthLogin },
-  { id: 'home-welcome',          label: 'Home — Education & Development landing', render: renderHomeWelcome },
-  { id: 'picker-type',           label: 'Picker — Scenario type grid',         render: renderPickerType },
-  { id: 'picker-persona',        label: 'Picker — Persona list (Damage Dispute)', render: renderPickerPersona },
-  { id: 'picker-random',         label: 'Picker — Random card isolated',       render: renderPickerRandom },
-  { id: 'recipient-home',        label: 'Recipient — Personal simulation page', render: renderRecipientHome },
-  { id: 'kiosk-splash',          label: 'Kiosk — Mic disclaimer splash',       render: renderKioskSplash },
-  { id: 'call-idle',             label: 'Call — Idle / Connecting',            render: renderCallIdle },
-  { id: 'call-customer-speaking', label: 'Call — Customer speaking',           render: renderCallCustomerSpeaking },
-  { id: 'call-your-turn',        label: 'Call — Your turn',                    render: renderCallYourTurn },
-  { id: 'call-multi-turn',       label: 'Call — Multi-turn transcript',        render: renderCallMultiTurn },
-  { id: 'call-step-details',     label: 'Call — Step 1: Details',              render: renderCallStepDetails },
-  { id: 'call-step-equipment',   label: 'Call — Step 2: Equipment',            render: renderCallStepEquipment },
-  { id: 'call-step-location',    label: 'Call — Step 3: Location',             render: renderCallStepLocation },
-  { id: 'call-step-time',        label: 'Call — Step 4: Time / Scheduling',    render: renderCallStepTime },
-  { id: 'call-step-checkout',    label: 'Call — Step 5: Checkout',             render: renderCallStepCheckout },
-  { id: 'call-pos-script-hint',  label: 'Call — POS script hint cards',        render: renderCallPosHint },
-  { id: 'report-generating',     label: 'Report — Generating spinner',         render: renderReportGenerating },
-  { id: 'report-shown',          label: 'Report — Full coaching report',       render: renderReportShown },
-  { id: 'admin-login',           label: 'Admin — Login card',                  render: renderAdminLogin },
-  { id: 'admin-dashboard',       label: 'Admin — Dashboard (invites + scenarios)', render: renderAdminDashboard },
+  // --- 1. Start page: choose a scenario ---
+  { id: 'home-welcome',          label: '1 · Start — Education & Development landing', render: renderHomeWelcome },
+  { id: 'picker-type',           label: '1 · Start — Scenario type grid',      render: renderPickerType },
+  { id: 'picker-persona',        label: '1 · Start — Persona list (Damage Dispute)', render: renderPickerPersona },
+  { id: 'picker-random',         label: '1 · Start — Random "surprise me" card', render: renderPickerRandom },
+  { id: 'recipient-home',        label: '1 · Start — Recipient / invite home',  render: renderRecipientHome },
+  // --- 2. Start-of-call sequence ---
+  { id: 'precall-modal',         label: '2 · Pre-call — Modal over blurred call', render: renderPrecallModal },
+  { id: 'ring-screen',           label: '3 · Ring — Incoming call (answer/decline)', render: renderRingScreen },
+  // --- 4. Live call phases ---
+  { id: 'call-idle',             label: '4 · Call — Connecting / answered',    render: renderCallIdle },
+  { id: 'call-customer-speaking', label: '4 · Call — Customer speaking',       render: renderCallCustomerSpeaking },
+  { id: 'call-listening',        label: '4 · Call — Listening to you',         render: renderCallListening },
+  { id: 'call-your-turn',        label: '4 · Call — Your turn',                render: renderCallYourTurn },
+  { id: 'call-thinking',         label: '4 · Call — Customer thinking (clock frozen)', render: renderCallThinking },
+  { id: 'call-paused',           label: '4 · Call — Paused (timer frozen, form dimmed)', render: renderCallPaused },
+  { id: 'call-multi-turn',       label: '4 · Call — Multi-turn transcript',    render: renderCallMultiTurn },
+  // --- 5. The CSF reservation steps ---
+  { id: 'call-step-details',     label: '5 · CSF — Step 1: Details',           render: renderCallStepDetails },
+  { id: 'call-step-equipment',   label: '5 · CSF — Step 2: Equipment',         render: renderCallStepEquipment },
+  { id: 'call-step-location',    label: '5 · CSF — Step 3: Location',          render: renderCallStepLocation },
+  { id: 'call-step-time',        label: '5 · CSF — Step 4: Scheduling',        render: renderCallStepTime },
+  { id: 'call-step-checkout',    label: '5 · CSF — Step 5: Checkout',          render: renderCallStepCheckout },
+  { id: 'call-pos-script-hint',  label: '5 · CSF — POS script hint cards',     render: renderCallPosHint },
+  // --- 6. End of call: coaching ---
+  { id: 'report-generating',     label: '6 · Report — Generating spinner',     render: renderReportGenerating },
+  { id: 'report-shown',          label: '6 · Report — Full coaching report',   render: renderReportShown },
+  // --- Other surfaces ---
+  { id: 'kiosk-splash',          label: '· Kiosk — Mic disclaimer splash',     render: renderKioskSplash },
+  { id: 'auth-login',            label: '· Auth — Login splash',               render: renderAuthLogin },
+  { id: 'admin-login',           label: '· Admin — Login card',                render: renderAdminLogin },
+  { id: 'admin-dashboard',       label: '· Admin — Dashboard (invites + scenarios)', render: renderAdminDashboard },
 ];
 
 // ---------------------------------------------------------------------------

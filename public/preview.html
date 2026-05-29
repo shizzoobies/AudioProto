@@ -7,7 +7,7 @@
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/assets/css/styles.css">
 <style>
   /* Preview-only chrome — does not touch styles.css */
@@ -84,6 +84,25 @@
   /* Single-state view: only show the active state */
   .preview-state { display: none; }
   .preview-state.active { display: block; }
+
+  /* The pre-call modal + ring screen are position:fixed overlays in the real
+     app (blurring #app-root). The preview has no #app-root, and fixed overlays
+     would break the stacked "print all" view, so we contain them in a frame:
+     the overlay becomes position:absolute and the backdrop is blurred locally. */
+  .preview-frame {
+    position: relative;
+    height: 86vh;
+    overflow: hidden;
+    background: var(--color-bg, #f4f5f7);
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+  }
+  .preview-frame-blur {
+    height: 100%;
+    overflow: hidden;
+    filter: blur(8px);
+    pointer-events: none;
+  }
+  .preview-frame .precall-overlay { position: absolute; }
 </style>
 </head>
 <body class="app-page" data-app-state="ready">
