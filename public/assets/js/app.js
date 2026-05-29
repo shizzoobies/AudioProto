@@ -498,11 +498,6 @@ function renderDemoHome() {
   const r = state.recipient || {};
   const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
 
-  const kindLabel = (id) =>
-    id === 'demo_sales' ? 'Sales'
-    : id === 'demo_service' ? 'Customer service'
-    : 'Live call';
-
   // Each entry is a luminous "line open" node, not a boxed card. A pulsing
   // signal dot + waveform mark ties it to the voice field; visuals branch on
   // the persona id so Sales (maroon) and Customer service (terracotta) read
@@ -527,7 +522,6 @@ function renderDemoHome() {
       <span class="demo-entry-aura" aria-hidden="true"></span>
       <div class="demo-entry-head">
         <span class="demo-entry-signal" aria-hidden="true"><span class="demo-entry-dot"></span></span>
-        <span class="demo-entry-kind">${escapeHtml(kindLabel(p.id))}</span>
         <span class="demo-entry-status" aria-hidden="true">Line open</span>
       </div>
       <div class="demo-entry-body">

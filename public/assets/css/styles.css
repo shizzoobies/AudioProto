@@ -3832,15 +3832,6 @@ body[data-recipient] #sign-out {
   background: var(--demo-maroon);
 }
 .demo-entry-demo_service .demo-entry-dot { background: #3f868d; }
-.demo-entry-kind {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-weight: 500;
-  color: var(--color-accent);
-}
-.demo-entry-demo_service .demo-entry-kind { color: #3f868d; }
 .demo-entry-status {
   margin-left: auto;
   font-family: var(--font-mono);

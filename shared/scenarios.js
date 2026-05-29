@@ -1295,11 +1295,11 @@ const PERSONA_DEFS = {
   // invite link, which locks the cs_me cookie to exactly these two ids.
   demo_sales: {
     // TODO: fill in real demo scenario
-    customer_name: 'Demo Sales Caller',
-    customer_short: 'Demo Sales Caller - placeholder sales prospect',
+    customer_name: 'Sales',
+    customer_short: 'Pricing out a move',
     voice_id: 'XrExE9yKIg1WjnnlVkGX',
     voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
-    tagline: 'Placeholder Sales demo scenario - content to be filled in.',
+    tagline: 'A prospect weighing their options before they commit.',
     identity: 'a placeholder sales prospect calling Meridian Moving & Storage for the demo',
     emotional_state: 'neutral and conversational, here as a placeholder demo caller',
     situation: [
@@ -1328,11 +1328,11 @@ const PERSONA_DEFS = {
 
   demo_service: {
     // TODO: fill in real demo scenario
-    customer_name: 'Demo Service Caller',
-    customer_short: 'Demo Service Caller - placeholder support caller',
+    customer_name: 'Customer Service',
+    customer_short: 'A question about a booking',
     voice_id: 'iP95p4xoKVk53GoZ742B',
     voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
-    tagline: 'Placeholder Customer Service demo scenario - content to be filled in.',
+    tagline: 'A customer who needs something sorted out, fast.',
     identity: 'a placeholder customer calling Meridian Moving & Storage support for the demo',
     emotional_state: 'calm and matter-of-fact, here as a placeholder demo caller',
     situation: [
