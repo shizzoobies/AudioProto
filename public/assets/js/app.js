@@ -390,15 +390,21 @@ function renderRecipientHome() {
 
   const r = state.recipient || {};
   const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
+  const isDemo = !!r.is_demo;
   const name = typeof r.recipient_name === 'string' && r.recipient_name.trim()
     ? r.recipient_name.trim()
     : '';
-  const greeting = name ? `Hi ${escapeHtml(name)}` : 'Welcome to your simulations';
-  const countLine = scenarios.length === 0
-    ? 'No scenarios have been assigned yet.'
-    : scenarios.length === 1
-      ? 'You have one simulation to take.'
-      : `You have ${scenarios.length} simulations to take.`;
+  const eyebrow = isDemo ? 'Simulation' : 'Sales simulation';
+  const greeting = isDemo
+    ? 'Simulation Demo'
+    : (name ? `Hi ${escapeHtml(name)}` : 'Welcome to your simulations');
+  const countLine = isDemo
+    ? 'Choose a call to begin.'
+    : scenarios.length === 0
+      ? 'No scenarios have been assigned yet.'
+      : scenarios.length === 1
+        ? 'You have one simulation to take.'
+        : `You have ${scenarios.length} simulations to take.`;
 
   const cardsHtml = scenarios.map((p) => `
     <li class="scenario-card" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" aria-label="Start the call with ${escapeAttr(p.customer_name || p.id)}">
@@ -413,7 +419,7 @@ function renderRecipientHome() {
   dom.root.innerHTML = `
     <section class="recipient-home">
       <header class="recipient-header">
-        <div class="recipient-eyebrow">Sales simulation</div>
+        <div class="recipient-eyebrow">${eyebrow}</div>
         <h1 class="recipient-title">${greeting}</h1>
         <p class="recipient-subtitle">${escapeHtml(countLine)}</p>
       </header>
