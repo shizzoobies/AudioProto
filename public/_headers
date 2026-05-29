@@ -5,3 +5,8 @@
   Permissions-Policy: microphone=(self), camera=(), geolocation=(), interest-cohort=()
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Cache-Control: no-cache, no-store, must-revalidate
+
+# The cinematic backdrop video (and its poster) is a large static asset — let it
+# cache instead of inheriting the site-wide no-store. More specific path wins.
+/assets/video/*
+  Cache-Control: public, max-age=86400
