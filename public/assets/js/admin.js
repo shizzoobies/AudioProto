@@ -23,6 +23,8 @@ const state = {
   lastDemoUrl: null,   // last generated demo URL (shown once with a Copy button)
   charts: null,        // { active, created_at, last_click_at }
   lastChartsUrl: null, // last generated charts URL (shown once with a Copy button)
+  preview: null,       // { active, created_at, last_click_at, scenario_count }
+  lastPreviewUrl: null,// last generated full-library preview URL (shown once)
 };
 
 init();
@@ -98,6 +100,8 @@ async function logout() {
   state.lastDemoUrl = null;
   state.charts = null;
   state.lastChartsUrl = null;
+  state.preview = null;
+  state.lastPreviewUrl = null;
   renderLogin();
 }
 
@@ -175,6 +179,15 @@ async function loadData() {
     }
   } catch (e) {
     console.warn('charts load failed', e);
+  }
+
+  try {
+    const r = await fetch('/api/admin/preview', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.preview = await r.json();
+    }
+  } catch (e) {
+    console.warn('preview load failed', e);
   }
 
   // Team roster is owner-only; non-owners get a 403 we simply skip.
@@ -257,6 +270,8 @@ function paintDashboard() {
 
     ${renderChartsSection()}
 
+    ${renderPreviewSection()}
+
     ${renderTeamSection()}
 
     <section class="admin-section">
@@ -279,6 +294,7 @@ function paintDashboard() {
   attachInviteListHandlers();
   attachDemoHandlers();
   attachChartsHandlers();
+  attachPreviewHandlers();
   attachTeamHandlers();
 
   // Load usage section and wire refresh button.
@@ -722,6 +738,137 @@ function paintChartsGenerated() {
         <div class="admin-generated-url-row">
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastChartsUrl)}">
           <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastChartsUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
+// ---- Full library preview link --------------------------------------------
+
+// One token-gated, no-password link to the WHOLE trainee library (every real
+// scenario, the random call, the showcase) — for prospects to roam and try
+// anything. Excludes the placeholder demo scenarios and the /charts page.
+// Backed by the invites system (sentinel recipient_email); generate rotates the
+// token + re-syncs the full scenario set, revoke kills it immediately.
+function renderPreviewSection() {
+  const preview = state.preview;
+  const active = !!preview?.active;
+  const count = preview?.scenario_count;
+  const statusHtml = active
+    ? `<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">Full library${count ? ` · ${count} scenarios` : ''}</span>`
+    : '<span class="admin-muted">No preview link yet</span>';
+
+  return `
+    <section class="admin-section">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Preview</p>
+        <h2 class="admin-section-title">Full library link</h2>
+        <p class="admin-section-sub">One shareable link to the whole library — every scenario, the random call, the showcase. No password. (The demo placeholders and the charts page are not included.)</p>
+      </header>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+          ${statusHtml}
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="button" class="primary-button" id="admin-preview-generate-btn">${active ? 'Regenerate library link' : 'Generate library link'}</button>
+          ${active ? '<button type="button" class="ghost-button" id="admin-preview-revoke-btn">Revoke</button>' : ''}
+        </div>
+        <div id="admin-preview-generated" class="admin-generated"></div>
+      </div>
+    </section>
+  `;
+}
+
+function attachPreviewHandlers() {
+  const genBtn = document.getElementById('admin-preview-generate-btn');
+  if (genBtn) genBtn.addEventListener('click', onGeneratePreview);
+  const revokeBtn = document.getElementById('admin-preview-revoke-btn');
+  if (revokeBtn) revokeBtn.addEventListener('click', onRevokePreview);
+  paintPreviewGenerated();
+}
+
+async function onGeneratePreview() {
+  const btn = document.getElementById('admin-preview-generate-btn');
+  const out = document.getElementById('admin-preview-generated');
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  try {
+    const res = await fetch('/api/admin/preview', { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastPreviewUrl = data.url;
+    await loadData();
+    refreshPreviewSection();
+    paintPreviewGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+async function onRevokePreview() {
+  if (!confirm('Revoke the full-library link? Anyone holding it will lose access immediately.')) return;
+  const btn = document.getElementById('admin-preview-revoke-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
+  try {
+    const res = await fetch('/api/admin/preview', { method: 'DELETE', credentials: 'same-origin' });
+    if (res.ok) {
+      state.lastPreviewUrl = null;
+      await loadData();
+      refreshPreviewSection();
+    } else {
+      alert('Revoke failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    }
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+  }
+}
+
+function refreshPreviewSection() {
+  const sections = root.querySelectorAll('.admin-section');
+  for (const sec of sections) {
+    const eyebrow = sec.querySelector('.admin-eyebrow');
+    if (eyebrow && eyebrow.textContent.trim() === 'Preview') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderPreviewSection();
+      sec.replaceWith(tmp.firstElementChild);
+      break;
+    }
+  }
+  attachPreviewHandlers();
+}
+
+function paintPreviewGenerated() {
+  const out = document.getElementById('admin-preview-generated');
+  if (!out) return;
+  if (!state.lastPreviewUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Library link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastPreviewUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastPreviewUrl)}">Copy</button>
         </div>
       </div>
     </div>`;

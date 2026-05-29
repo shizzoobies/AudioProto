@@ -177,10 +177,19 @@ async function init() {
       me = null;
     }
     if (me && me.active && Array.isArray(me.scenarios)) {
-      state.recipient = me;
+      // Hide sign-out for any scoped link.
       document.body.dataset.recipient = 'true';
-      // The demo is a sealed pitch surface: drop the global app header chrome.
-      if (me.is_demo) document.body.dataset.demo = 'true';
+      if (me.is_preview) {
+        // Full-library preview link: roams the WHOLE library like a normal
+        // agent (full home/picker nav, in-call back/cancel all behave), just
+        // with no sign-out. Intentionally NOT a sealed recipient, so we leave
+        // state.recipient unset and let routing fall through to renderHome().
+        state.previewMode = true;
+      } else {
+        state.recipient = me;
+        // The demo is a sealed pitch surface: drop the global app header chrome.
+        if (me.is_demo) document.body.dataset.demo = 'true';
+      }
     } else {
       // No scoped cookie - require a normal trainee session, else bounce to login.
       let sessionOk = false;

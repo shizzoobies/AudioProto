@@ -5,7 +5,7 @@
 // display name (if any), expiry, and their assigned scenarios hydrated with
 // persona display data so the frontend can render cards in one round trip.
 
-import { getInviteScope, DEMO_RECIPIENT_EMAIL } from '../../../shared/auth.js';
+import { getInviteScope, DEMO_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL } from '../../../shared/auth.js';
 import { listScenarioTypesForDisplay, getScenario } from '../../../shared/scenarios.js';
 
 export async function onRequestGet({ request, env }) {
@@ -34,12 +34,14 @@ export async function onRequestGet({ request, env }) {
   }
 
   const isDemo = scope.recipient_email === DEMO_RECIPIENT_EMAIL;
+  const isPreview = scope.recipient_email === PREVIEW_RECIPIENT_EMAIL;
   return json({
     active: true,
     is_demo: isDemo,
+    is_preview: isPreview,
     // Don't surface the internal sentinel address to the client.
-    recipient_name: isDemo ? null : (scope.recipient_name || null),
-    recipient_email: isDemo ? null : scope.recipient_email,
+    recipient_name: (isDemo || isPreview) ? null : (scope.recipient_name || null),
+    recipient_email: (isDemo || isPreview) ? null : scope.recipient_email,
     expires_at: scope.expires_at,
     scenarios,
   });

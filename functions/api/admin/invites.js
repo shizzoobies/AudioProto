@@ -9,7 +9,7 @@
 //        Usage history carries over - same invite, refreshed URL.
 
 import { getScenario, listScenarioTypesForDisplay } from '../../../shared/scenarios.js';
-import { sha256Hex, randomId, randomToken, getAdminScope, DEMO_RECIPIENT_EMAIL, CHARTS_RECIPIENT_EMAIL } from '../../../shared/auth.js';
+import { sha256Hex, randomId, randomToken, getAdminScope, DEMO_RECIPIENT_EMAIL, CHARTS_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL } from '../../../shared/auth.js';
 import { sendInviteEmail } from '../../../shared/email.js';
 
 const MIN_EXPIRY_DAYS = 1;
@@ -38,7 +38,10 @@ async function listInvites(env) {
   // so it never appears in the regular Active Invites list. It has its own
   // Demo section / endpoint.
   const invites = (invitesRes?.results || []).filter(
-    (i) => i.recipient_email !== DEMO_RECIPIENT_EMAIL && i.recipient_email !== CHARTS_RECIPIENT_EMAIL
+    (i) =>
+      i.recipient_email !== DEMO_RECIPIENT_EMAIL &&
+      i.recipient_email !== CHARTS_RECIPIENT_EMAIL &&
+      i.recipient_email !== PREVIEW_RECIPIENT_EMAIL
   );
   if (!invites.length) return json({ invites: [] });
 

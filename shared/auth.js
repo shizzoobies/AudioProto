@@ -16,6 +16,15 @@ export const DEMO_RECIPIENT_EMAIL = '__demo__@simulation.local';
 // dedicated cs_charts cookie (see getChartsScope + functions/charts/_middleware).
 export const CHARTS_RECIPIENT_EMAIL = '__charts__@simulation.local';
 
+// Sentinel recipient_email for the open "full library preview" link. Like the
+// demo, it reuses the invites table: one row whose recipient_email is this
+// constant, assigned EVERY real scenario so its cs_me cookie unlocks the whole
+// trainee library (all tracks, random, the showcase) with no password. The two
+// placeholder demo scenarios and the /charts page are intentionally NOT part of
+// it. app.js routes this scope to the normal home/library instead of the sealed
+// recipient list (see /api/me/status -> is_preview).
+export const PREVIEW_RECIPIENT_EMAIL = '__preview__@simulation.local';
+
 function bytesToBase64Url(bytes) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) {
