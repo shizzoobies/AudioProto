@@ -249,6 +249,13 @@ body[data-demo] .app-header {
   display: none;
 }
 
+/* The demo hero bleeds full-bleed left/right via negative margins, but the
+   app-main top padding was leaving a strip of page background above the orb
+   field. Drop it so the luminous hero reaches the very top of the viewport. */
+body[data-demo] .app-main {
+  padding-top: 0;
+}
+
 /* Buttons
    ------------------------------------------------------------------ */
 .ghost-button {
@@ -3559,13 +3566,146 @@ body[data-recipient] #sign-out {
   margin: 0 0 22px;
   white-space: nowrap;
 }
-.demo-subhead {
-  font-size: clamp(16px, 1.9vw, 20px);
+/* Hero tenets — three punchy promises that each expand to elaborate. Resting:
+   just the Fraunces line + an accent dot + a hairline "+" cue. Open (hover on
+   desktop, focus, or pinned via click): the detail reveals with a smooth
+   height + fade, the dot stretches into an accent bar, and the "+" becomes a
+   "-". Per-tenet accent (--tenet-accent) walks periwinkle -> teal. */
+.demo-tenets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 34ch;
+  margin: 0 auto;
+}
+.demo-tenet {
+  appearance: none;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--demo-ink);
+  font-family: inherit;
+  padding: 12px 16px;
+  border-radius: 16px;
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+  outline: none;
+}
+.demo-tenet-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.demo-tenet-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--tenet-accent);
+  transition: width 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.demo-tenet-line {
+  font-family: 'Fraunces', Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-size: clamp(21px, 2.7vw, 30px);
+  line-height: 1.08;
+  letter-spacing: -0.018em;
+}
+.demo-tenet-plus {
+  position: relative;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+.demo-tenet-plus::before,
+.demo-tenet-plus::after {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1.6px;
+  border-radius: 2px;
+  background: var(--tenet-accent);
+  transform: translateY(-50%);
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.3s ease;
+}
+.demo-tenet-plus::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+.demo-tenet-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.demo-tenet-detail {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(-3px);
+  font-family: var(--font-ui);
+  font-size: 14.5px;
   line-height: 1.55;
   color: var(--color-text-secondary);
-  margin: 0;
-  max-width: 42ch;
-  text-wrap: balance;
+  padding-left: 22px;
+  text-wrap: pretty;
+  transition: opacity 0.32s ease, transform 0.32s ease;
+}
+/* Open states: pinned (click), keyboard focus, and — desktop only — hover. */
+.demo-tenet.is-open,
+.demo-tenet:focus-visible {
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 10px 30px rgba(122, 131, 200, 0.12);
+}
+.demo-tenet.is-open .demo-tenet-reveal,
+.demo-tenet:focus-visible .demo-tenet-reveal {
+  grid-template-rows: 1fr;
+}
+.demo-tenet.is-open .demo-tenet-detail,
+.demo-tenet:focus-visible .demo-tenet-detail {
+  opacity: 1;
+  transform: none;
+  padding-top: 9px;
+}
+.demo-tenet.is-open .demo-tenet-dot,
+.demo-tenet:focus-visible .demo-tenet-dot {
+  width: 22px;
+}
+.demo-tenet.is-open .demo-tenet-plus,
+.demo-tenet:focus-visible .demo-tenet-plus {
+  opacity: 0.8;
+}
+.demo-tenet.is-open .demo-tenet-plus::after,
+.demo-tenet:focus-visible .demo-tenet-plus::after {
+  transform: translateY(-50%) rotate(0deg);
+  opacity: 0;
+}
+@media (hover: hover) {
+  .demo-tenet:hover {
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 10px 30px rgba(122, 131, 200, 0.12);
+  }
+  .demo-tenet:hover .demo-tenet-reveal {
+    grid-template-rows: 1fr;
+  }
+  .demo-tenet:hover .demo-tenet-detail {
+    opacity: 1;
+    transform: none;
+    padding-top: 9px;
+  }
+  .demo-tenet:hover .demo-tenet-dot {
+    width: 22px;
+  }
+  .demo-tenet:hover .demo-tenet-plus {
+    opacity: 0.8;
+  }
+  .demo-tenet:hover .demo-tenet-plus::after {
+    transform: translateY(-50%) rotate(0deg);
+    opacity: 0;
+  }
 }
 
 /* =========================================================================

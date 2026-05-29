@@ -554,7 +554,32 @@ function renderDemoHome() {
       <div class="demo-stage">
         <div class="demo-hero-content">
           <h1 class="demo-title">Simulation Demo</h1>
-          <p class="demo-subhead">Pick up a live call with a real-sounding AI customer. Speak naturally — the moment you hang up, a scored coaching report is waiting.</p>
+          <div class="demo-tenets">
+            <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#7a83c8">
+              <span class="demo-tenet-row">
+                <span class="demo-tenet-dot" aria-hidden="true"></span>
+                <span class="demo-tenet-line">Real enough to sweat.</span>
+                <span class="demo-tenet-plus" aria-hidden="true"></span>
+              </span>
+              <span class="demo-tenet-reveal"><span class="demo-tenet-detail">Live AI voice with real-time reasoning. The customer listens, hesitates, and pushes back like a real person on the line.</span></span>
+            </button>
+            <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#6f8bbf">
+              <span class="demo-tenet-row">
+                <span class="demo-tenet-dot" aria-hidden="true"></span>
+                <span class="demo-tenet-line">Safe enough to fail.</span>
+                <span class="demo-tenet-plus" aria-hidden="true"></span>
+              </span>
+              <span class="demo-tenet-reveal"><span class="demo-tenet-detail">Risk-free, fully controlled scenarios. Fumble the open, try the bold line, blow the close — never a real customer, never real trust on the line.</span></span>
+            </button>
+            <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#5fa6ad">
+              <span class="demo-tenet-row">
+                <span class="demo-tenet-dot" aria-hidden="true"></span>
+                <span class="demo-tenet-line">Fast enough to fix it.</span>
+                <span class="demo-tenet-plus" aria-hidden="true"></span>
+              </span>
+              <span class="demo-tenet-reveal"><span class="demo-tenet-detail">The moment you hang up, a scored, customizable coaching report is waiting — so the very next call is already sharper.</span></span>
+            </button>
+          </div>
         </div>
       </div>
       <div class="demo-lines">
@@ -584,6 +609,16 @@ function renderDemoHome() {
     card.addEventListener('click', go);
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
+  // Hero tenets: click/tap pins a tenet open (desktop also peeks on hover via
+  // CSS). Independent toggles — the presenter can fan them all open.
+  dom.root.querySelectorAll('.demo-tenet').forEach((t) => {
+    t.addEventListener('click', () => {
+      const open = t.getAttribute('aria-expanded') === 'true';
+      t.setAttribute('aria-expanded', String(!open));
+      t.classList.toggle('is-open', !open);
     });
   });
 }
