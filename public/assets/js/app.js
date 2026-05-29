@@ -212,9 +212,11 @@ async function init() {
     renderKioskSplash(state.kioskScenario);
   } else if (state.recipient) {
     // Invite recipient: their personal simulation page lists the scenarios the
-    // admin assigned them. Same phone default.
+    // admin assigned them. Same phone default. The pitch-demo recipient gets
+    // the bespoke bright-editorial landing instead.
     setCallMode('phone');
-    renderRecipientHome();
+    if (state.recipient.is_demo) renderDemoHome();
+    else renderRecipientHome();
   } else {
     renderHome();
   }
@@ -431,6 +433,95 @@ function renderRecipientHome() {
   `;
 
   dom.root.querySelectorAll('.scenario-card').forEach((card) => {
+    const go = () => startCall(card.dataset.personaId);
+    card.addEventListener('click', go);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+}
+
+// Bespoke bright-editorial landing for the pitch demo recipient (is_demo). A
+// sealed loop: only the two scenario tiles are actionable — no nav, no links,
+// no escape. Mirrors renderRecipientHome's pre-amble (view/scenario reset,
+// conversation cancel, teardownAudio, title) and reuses the exact same
+// click + keydown wiring to startCall(personaId). Visuals are 100% CSS — no
+// network images — so it never blocks or jitters in a live room.
+function renderDemoHome() {
+  state.view = 'recipient_home';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  const r = state.recipient || {};
+  const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
+
+  // Per-tile abstract motif: a sales "rising" mark vs a service "support" mark.
+  // Pure inline SVG, currentColor-driven, so it inherits the maroon accent.
+  const motif = (id) => {
+    if (id === 'demo_sales') {
+      return `<svg class="demo-tile-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M8 34 L20 22 L28 30 L40 14" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 14 L40 14 L40 22" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+    if (id === 'demo_service') {
+      return `<svg class="demo-tile-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M14 30 a10 10 0 1 1 20 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <rect x="9" y="28" width="6" height="11" rx="3" stroke="currentColor" stroke-width="3"/>
+        <rect x="33" y="28" width="6" height="11" rx="3" stroke="currentColor" stroke-width="3"/>
+        <path d="M37 38 a6 5 0 0 1 -6 5 h-5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </svg>`;
+    }
+    return '';
+  };
+
+  const kindLabel = (id) =>
+    id === 'demo_sales' ? 'Sales call'
+    : id === 'demo_service' ? 'Customer service call'
+    : 'Live call';
+
+  const cardsHtml = scenarios.map((p, i) => `
+    <li class="demo-tile demo-tile-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-tile-index:${i}" aria-label="Take the call with ${escapeAttr(p.customer_name || p.id)}">
+      <div class="demo-tile-glow" aria-hidden="true"></div>
+      <div class="demo-tile-top">
+        <span class="demo-tile-kind">${escapeHtml(kindLabel(p.id))}</span>
+        <span class="demo-tile-icon" aria-hidden="true">${motif(p.id)}</span>
+      </div>
+      <div class="demo-tile-body">
+        <h2 class="demo-tile-name">${escapeHtml(p.customer_name || '')}</h2>
+        <p class="demo-tile-customer">${escapeHtml(p.customer_short || '')}</p>
+        <p class="demo-tile-tagline">${escapeHtml(p.tagline || '')}</p>
+      </div>
+      <div class="demo-tile-cta">Take the call <span aria-hidden="true">→</span></div>
+    </li>
+  `).join('');
+
+  dom.root.innerHTML = `
+    <section class="demo-home">
+      <div class="demo-hero">
+        <div class="demo-hero-canvas" aria-hidden="true">
+          <span class="demo-mesh demo-mesh-a"></span>
+          <span class="demo-mesh demo-mesh-b"></span>
+          <span class="demo-mesh demo-mesh-c"></span>
+          <span class="demo-grain"></span>
+        </div>
+        <div class="demo-hero-content">
+          <div class="demo-eyebrow">Simulation</div>
+          <h1 class="demo-title">Simulation Demo</h1>
+          <p class="demo-subhead">Two live call simulations — speak with a realistic AI customer, then receive a scored coaching report the moment you hang up.</p>
+        </div>
+      </div>
+      <ul class="demo-grid">${cardsHtml}</ul>
+      <p class="demo-note" role="note">These are voice calls — please allow microphone access when prompted.</p>
+    </section>
+  `;
+
+  dom.root.querySelectorAll('.demo-tile').forEach((card) => {
     const go = () => startCall(card.dataset.personaId);
     card.addEventListener('click', go);
     card.addEventListener('keydown', (e) => {
@@ -1685,8 +1776,10 @@ function renderCall(scenario) {
   backBtn.addEventListener('click', () => {
     conversation.cancel();
     teardownAudio();
-    if (state.recipient) renderRecipientHome();
-    else renderPicker();
+    if (state.recipient) {
+      if (state.recipient.is_demo) renderDemoHome();
+      else renderRecipientHome();
+    } else renderPicker();
   });
 
   function setComposerEnabled(enabled) {
@@ -2646,7 +2739,7 @@ function renderReport(scenario, report) {
   const onNewCall = state.kiosk
     ? () => startCall(scenario.id)
     : state.recipient
-      ? renderRecipientHome
+      ? (state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
       : renderPicker;
   const node = renderReportHtml(scenario, report, {
     onNewCall,
@@ -2669,7 +2762,7 @@ function renderShortCall(scenario) {
   `;
   document.getElementById('ended-back').addEventListener('click',
     state.kiosk ? () => startCall(scenario.id)
-    : state.recipient ? renderRecipientHome
+    : state.recipient ? (state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
     : renderPicker);
   document.getElementById('ended-retry').addEventListener('click', () => startCall(scenario.id));
 }
@@ -2688,7 +2781,7 @@ function renderCoachingError(scenario, messages, err) {
   `;
   document.getElementById('error-back').addEventListener('click',
     state.kiosk ? () => startCall(scenario.id)
-    : state.recipient ? renderRecipientHome
+    : state.recipient ? (state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
     : renderPicker);
   document.getElementById('error-retry').addEventListener('click', () => runCoaching(scenario, messages));
 }
