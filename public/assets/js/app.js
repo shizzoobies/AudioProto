@@ -124,44 +124,44 @@ const dom = {
 async function init() {
   renderPickerSkeleton();
 
-  // First try the normal session. If that fails, fall back to checking for a
-  // valid magic-link cookie - magic visitors don't have a session at all and
-  // shouldn't be bounced to the login page.
-  let sessionOk = false;
+  // Scoped cookies WIN over a normal session. A kiosk magic link or an
+  // invite/demo recipient cookie means the visitor is in a sealed, scoped
+  // experience and must see it even if a trainee session also exists in the
+  // same browser (e.g. an admin opening the demo link). Only when neither
+  // scoped cookie is active do we fall back to the normal trainee session.
+  let magic = null;
   try {
-    const sessionRes = await fetch('/api/session', { credentials: 'same-origin' });
-    sessionOk = sessionRes.ok;
+    const r = await fetch('/api/magic-status', { credentials: 'same-origin' });
+    if (r.ok) magic = await r.json();
   } catch {
-    sessionOk = false;
+    magic = null;
   }
-  if (!sessionOk) {
-    // Legacy single-scenario magic link first (kept while we run both systems
-    // in parallel during rollout).
-    let magic = null;
+  if (magic && magic.active && typeof magic.scenario === 'string') {
+    state.kiosk = true;
+    state.kioskScenario = magic.scenario;
+    document.body.dataset.kiosk = 'true';
+  } else {
+    // Invite recipient / demo (D1-backed, multi-scenario, scoped).
+    let me = null;
     try {
-      const r = await fetch('/api/magic-status', { credentials: 'same-origin' });
-      if (r.ok) magic = await r.json();
+      const r = await fetch('/api/me/status', { credentials: 'same-origin' });
+      if (r.ok) me = await r.json();
     } catch {
-      magic = null;
+      me = null;
     }
-    if (magic && magic.active && typeof magic.scenario === 'string') {
-      state.kiosk = true;
-      state.kioskScenario = magic.scenario;
-      document.body.dataset.kiosk = 'true';
+    if (me && me.active && Array.isArray(me.scenarios)) {
+      state.recipient = me;
+      document.body.dataset.recipient = 'true';
     } else {
-      // Invite recipient (D1-backed, multi-scenario per person). Falls through
-      // to login redirect if neither path applies.
-      let me = null;
+      // No scoped cookie - require a normal trainee session, else bounce to login.
+      let sessionOk = false;
       try {
-        const r = await fetch('/api/me/status', { credentials: 'same-origin' });
-        if (r.ok) me = await r.json();
+        const sessionRes = await fetch('/api/session', { credentials: 'same-origin' });
+        sessionOk = sessionRes.ok;
       } catch {
-        me = null;
+        sessionOk = false;
       }
-      if (me && me.active && Array.isArray(me.scenarios)) {
-        state.recipient = me;
-        document.body.dataset.recipient = 'true';
-      } else {
+      if (!sessionOk) {
         window.location.replace('/');
         return;
       }
