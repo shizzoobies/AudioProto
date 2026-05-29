@@ -41,11 +41,7 @@ export async function onRequestPost(context) {
     return jsonError('transcript_too_short', 400);
   }
 
-  const openingLine = typeof body?.opening_line === 'string' && body.opening_line.trim()
-    ? body.opening_line.trim().slice(0, 600)
-    : (scenario.opening_lines?.[0] || scenario.opening_line || '');
-
-  const userPrompt = buildUserPrompt(scenario, transcript, openingLine);
+  const userPrompt = buildUserPrompt(scenario, transcript);
 
   let upstream;
   try {
@@ -131,13 +127,16 @@ function sanitizeTranscript(transcript) {
   return out.slice(-80);
 }
 
-function buildUserPrompt(scenario, transcript, openingLine) {
+function buildUserPrompt(scenario, transcript) {
   const criteria = (scenario.success_criteria || [])
     .map((c, i) => `${i + 1}. ${c}`)
     .join('\n');
 
+  // Agent-first: the trainee (the CSR agent) greets first, then the customer
+  // responds. The transcript already leads with the agent's greeting, so we
+  // do NOT prepend a synthetic customer opening — that would misrepresent who
+  // spoke first and credit the trainee with a line they never said.
   const lines = [];
-  lines.push(`[Customer opening] ${scenario.customer_name}: ${openingLine}`);
   for (const m of transcript) {
     const speaker = m.role === 'assistant' ? `${scenario.customer_name}` : 'Agent';
     lines.push(`[${speaker}] ${m.content}`);
@@ -153,7 +152,7 @@ ${scenario.description}
 Success criteria for this scenario:
 ${criteria}
 
-Full transcript (the CSR agent speaks first; ${scenario.customer_name} is the roleplayed customer):
+Full transcript (the CSR agent is the trainee and greets first; ${scenario.customer_name} is the roleplayed customer who responds):
 ${formattedTranscript}
 
 Submit your coaching report now by calling submit_coaching_report.`;

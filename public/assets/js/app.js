@@ -23,6 +23,8 @@ const state = {
   demoUnlocked: false,
   orb: null,
   demoOrb: null,
+  ringtone: null,
+  precallOverlay: null,
 };
 
 // Meridian's San Antonio branch network. Surfaced in the CSR panel so the
@@ -88,6 +90,10 @@ function setCallMode(mode) {
 }
 
 function teardownAudio() {
+  // Defensive: the ringtone is normally stopped on Answer/Decline/Esc, but any
+  // view transition that tears down audio must also kill a stray ring so it
+  // can never loop into a call or another screen.
+  stopRingtone();
   if (state.silenceTimer) {
     clearTimeout(state.silenceTimer);
     state.silenceTimer = null;
@@ -906,7 +912,210 @@ async function startCall(typeOrPersonaId) {
     opening_line: chosen,
     blind,
   };
-  renderCall(state.activeScenario);
+  // New start sequence: a pre-call modal (over a blurred page) -> a ringing
+  // screen (looped ringtone) -> Answer (mic init + the live call). The card
+  // click no longer drops straight into the call; it surfaces the modal.
+  openPreCall(state.activeScenario);
+}
+
+// ---- Pre-call start sequence: modal -> ring -> answer -> connect ----
+//
+// state.ringtone holds the single live Audio() instance so we never stack
+// rings; stopRingtone() is the one cleanup path called from Answer, Decline,
+// Esc, backdrop, and teardown. state.precallOverlay holds the modal/ring DOM
+// so any view transition can tear it down.
+
+function stopRingtone() {
+  if (state.ringtone) {
+    try {
+      state.ringtone.pause();
+      state.ringtone.currentTime = 0;
+      state.ringtone.src = '';
+      state.ringtone.load();
+    } catch {}
+    state.ringtone = null;
+  }
+}
+
+function startRingtone() {
+  // Single-instance guard: stop any prior ring before starting a new one.
+  stopRingtone();
+  try {
+    const audio = new Audio('/assets/audio/ring-sunrise.wav');
+    audio.loop = true;
+    state.ringtone = audio;
+    // Start on the user gesture (Start click) so autoplay is permitted. If the
+    // promise rejects (rare), we keep the visual ring screen working anyway.
+    const p = audio.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch {
+    state.ringtone = null;
+  }
+}
+
+function dismissPreCall() {
+  stopRingtone();
+  const overlay = state.precallOverlay;
+  state.precallOverlay = null;
+  if (overlay) {
+    if (overlay._cleanup) overlay._cleanup();
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  }
+}
+
+// Returns the visitor to wherever they were when they tapped the card,
+// without starting a call. The sealed demo returns to the demo home (no
+// nav/escape), recipients to their home, everyone else to the picker.
+function returnFromPreCall() {
+  dismissPreCall();
+  if (state.recipient) {
+    if (state.recipient.is_demo) renderDemoHome();
+    else renderRecipientHome();
+  }
+  // Agents / kiosk: their underlying view is still mounted behind the modal,
+  // so simply dismissing restores it. No re-render needed.
+}
+
+// Step 1: the pre-call modal over a blurred version of the current page. We do
+// NOT navigate yet — the existing view stays mounted and gets blurred via the
+// body data-attr so the modal reads as an overlay on "where they were".
+function openPreCall(scenario) {
+  const displayName = scenario.blind ? 'Caller' : (scenario.customer_name || 'Caller');
+  const displayShort = scenario.blind ? '' : (scenario.customer_short || '');
+  const displayTagline = scenario.blind ? "You won't know who's on the line until you answer." : (scenario.tagline || '');
+  const typeTitle = scenario.blind ? 'Incoming call' : (scenario.type_title || scenario.title || '');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'precall-overlay';
+  overlay.innerHTML = `
+    <div class="precall-scrim" data-precall-dismiss></div>
+    <div class="precall-card" role="dialog" aria-modal="true" aria-labelledby="precall-title">
+      <button type="button" class="precall-close" data-precall-dismiss aria-label="Cancel">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="precall-eyebrow">${escapeHtml(typeTitle)}</div>
+      <h2 class="precall-name" id="precall-title">${escapeHtml(displayName)}</h2>
+      ${displayShort ? `<p class="precall-short">${escapeHtml(displayShort)}</p>` : ''}
+      ${displayTagline ? `<p class="precall-tagline">${escapeHtml(displayTagline)}</p>` : ''}
+      <div class="precall-actions">
+        <button type="button" class="ghost-button precall-cancel" data-precall-dismiss>Cancel</button>
+        <button type="button" class="primary-button precall-start" id="precall-start">Start <span aria-hidden="true">›</span></button>
+      </div>
+    </div>
+  `;
+  mountPreCall(overlay, () => beginRinging(scenario), scenario);
+  const startBtn = overlay.querySelector('#precall-start');
+  if (startBtn) setTimeout(() => startBtn.focus(), 50);
+}
+
+// Step 2: the incoming-call / ringing screen. Replaces the modal card with a
+// ringing view in the same overlay; the ringtone loops (started here on the
+// Start gesture). Answer -> connect; Decline -> back to where they were.
+function beginRinging(scenario) {
+  // Reuse the overlay shell but swap its content for the ring screen.
+  dismissPreCall();
+
+  const displayName = scenario.blind ? 'Caller' : (scenario.customer_name || 'Caller');
+  const typeTitle = scenario.blind ? 'Incoming call' : (scenario.type_title || scenario.title || 'Incoming call');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'precall-overlay precall-ringing';
+  overlay.innerHTML = `
+    <div class="precall-scrim"></div>
+    <div class="ring-screen" role="dialog" aria-modal="true" aria-labelledby="ring-name" aria-describedby="ring-status">
+      <div class="ring-status" id="ring-status">Incoming call…</div>
+      <div class="ring-avatar" aria-hidden="true">
+        <span class="ring-pulse ring-pulse-1"></span>
+        <span class="ring-pulse ring-pulse-2"></span>
+        <span class="ring-avatar-core">
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+      <div class="ring-name" id="ring-name">${escapeHtml(displayName)}</div>
+      <div class="ring-sub">${escapeHtml(typeTitle)}</div>
+      <div class="ring-actions">
+        <button type="button" class="ring-btn ring-decline" id="ring-decline" aria-label="Decline call">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <button type="button" class="ring-btn ring-answer" id="ring-answer">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z" fill="currentColor" stroke="none"/></svg>
+          <span class="ring-answer-label">Answer</span>
+        </button>
+      </div>
+    </div>
+  `;
+  mountPreCall(overlay, null, scenario);
+  // The ringtone starts here — beginRinging runs from the Start click, a real
+  // user gesture, so autoplay of looped media is allowed.
+  startRingtone();
+
+  const answerBtn = overlay.querySelector('#ring-answer');
+  const declineBtn = overlay.querySelector('#ring-decline');
+  if (declineBtn) declineBtn.addEventListener('click', returnFromPreCall);
+  if (answerBtn) {
+    answerBtn.addEventListener('click', () => answerCall(scenario));
+    setTimeout(() => answerBtn.focus(), 50);
+  }
+}
+
+// Step 3: Answer. Stops the ring, tears down the overlay, then connects the
+// live call. This click is the user gesture renderCall uses for mic init and
+// audio unlock (mic permission is requested inside renderCall's first turn,
+// exactly as before — never on the modal or ring step).
+function answerCall(scenario) {
+  dismissPreCall();
+  renderCall(scenario);
+}
+
+// Shared mounting for the modal and ring overlays: blurs the underlying page,
+// traps focus, and wires Esc + backdrop dismissal. onPrimary (when provided)
+// is the Start handler; dismissal always returns the visitor to where they
+// were. We only auto-dismiss-to-previous-view for backdrop/Esc/Cancel; Answer
+// and Start call their own handlers and tear the overlay down themselves.
+function mountPreCall(overlay, onPrimary, scenario) {
+  // Tear down any prior overlay first (single instance).
+  dismissPreCall();
+  document.body.appendChild(overlay);
+  document.body.dataset.precall = 'true';
+  state.precallOverlay = overlay;
+
+  const focusable = () => Array.from(
+    overlay.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])')
+  ).filter((el) => !el.disabled && el.offsetParent !== null);
+
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      returnFromPreCall();
+      return;
+    }
+    if (e.key === 'Tab') {
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+  document.addEventListener('keydown', onKey);
+
+  overlay.querySelectorAll('[data-precall-dismiss]').forEach((el) => {
+    el.addEventListener('click', returnFromPreCall);
+  });
+
+  const startBtn = overlay.querySelector('#precall-start');
+  if (startBtn && onPrimary) startBtn.addEventListener('click', onPrimary);
+
+  overlay._cleanup = () => {
+    document.removeEventListener('keydown', onKey);
+    delete document.body.dataset.precall;
+  };
 }
 
 function renderCall(scenario) {
@@ -1588,23 +1797,27 @@ function renderCall(scenario) {
     if (ttsPending.has(ttsNextEnqueue)) drainTts();
   }
 
-  // Speak the opening line. In phone mode the bubble fills when the
-  // audio actually starts so the text never beats the voice. In chat
-  // mode the line is shown immediately (no audio to wait for).
+  // Agent-first start. For all normal scenarios the AGENT greets first: we do
+  // NOT auto-play the customer opening line and do NOT push a customer opening
+  // bubble — the trainee's greeting is the first turn. The ONLY exception is
+  // the showcase persona (Elena), which is built to introduce HERSELF; for the
+  // showcase we keep the original opening-line behavior so she still opens.
   let openingMessage = null;
-  if (isPhone) {
-    openingMessage = appendMessage(transcript, 'customer', customerLabel, '');
-    const openingBubble = openingMessage.querySelector('.message-bubble');
-    if (openingBubble) openingBubble.classList.add('streaming');
-    speakSentence(scenario.opening_line, {
-      onPlay: () => {
-        if (!openingBubble) return;
-        openingBubble.textContent = normalizeForTranscript(stripVoiceTags(scenario.opening_line));
-        openingBubble.classList.remove('streaming');
-      },
-    });
-  } else {
-    appendMessage(transcript, 'customer', customerLabel, normalizeForTranscript(scenario.opening_line));
+  if (isShowcaseCall) {
+    if (isPhone) {
+      openingMessage = appendMessage(transcript, 'customer', customerLabel, '');
+      const openingBubble = openingMessage.querySelector('.message-bubble');
+      if (openingBubble) openingBubble.classList.add('streaming');
+      speakSentence(scenario.opening_line, {
+        onPlay: () => {
+          if (!openingBubble) return;
+          openingBubble.textContent = normalizeForTranscript(stripVoiceTags(scenario.opening_line));
+          openingBubble.classList.remove('streaming');
+        },
+      });
+    } else {
+      appendMessage(transcript, 'customer', customerLabel, normalizeForTranscript(scenario.opening_line));
+    }
   }
 
   // In phone mode the bubble is created on first audio-segment play so
@@ -1661,7 +1874,12 @@ function renderCall(scenario) {
 
   const conversation = new Conversation({
     scenario,
-    openingLine: scenario.opening_line,
+    // Agent-first: normal scenarios send NO opening_line, so the server's
+    // openingContinuationBlock stays empty and the model simply responds to
+    // the trainee's greeting (it never opened the call). Only the showcase
+    // persona, which opens with a client-side line, anchors that line here so
+    // she continues rather than re-introducing herself.
+    openingLine: isShowcaseCall ? scenario.opening_line : '',
     onAssistantStart: () => {
       clearSilenceTimer();
       // Chat mode shows text as it streams. Phone mode creates the
@@ -1707,6 +1925,16 @@ function renderCall(scenario) {
 
   if (isPhone) {
     setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');
+    // Agent-first: the trainee greets first. For the showcase persona Elena
+    // opens (her opening-line audio plays, and audioPlayer.onEnd hands the
+    // turn back), so we don't start listening here. For every normal scenario
+    // there's no customer audio to wait on — open the mic now so the trainee
+    // can greet. The Answer click was the user gesture, so startListening's
+    // getUserMedia call has a valid gesture chain.
+    if (!isShowcaseCall) {
+      setPhoneState('your_turn', 'Your turn — greet the caller.', 'They just picked up. Say hello and introduce yourself.');
+      startListening();
+    }
   } else {
     composerInput.focus();
 

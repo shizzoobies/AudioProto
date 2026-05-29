@@ -4375,3 +4375,257 @@ body[data-recipient] #sign-out {
   font-size: 16px;
   padding: 14px 28px;
 }
+
+/* ===== Pre-call start sequence: modal + ring screen ===== */
+/* The modal/ring overlay sits over a BLURRED version of the current page
+   (the SPA root is blurred in place — we do not navigate away). The card is
+   neutral/glassy so it reads well on both the light/maroon app and the demo's
+   cool palette. */
+body[data-precall] #app-root {
+  filter: blur(8px);
+  transition: filter 0.2s ease;
+  pointer-events: none;
+}
+
+.precall-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.precall-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: view-fade-in 0.2s ease;
+}
+
+/* ---- Step 1: pre-call modal ---- */
+.precall-card {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 92vw);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  padding: var(--space-6);
+  text-align: center;
+  animation: precall-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.precall-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.precall-close:hover {
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+
+.precall-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+}
+
+.precall-name {
+  margin: 0 0 var(--space-2);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.precall-short {
+  margin: 0 0 var(--space-2);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.precall-tagline {
+  margin: 0 0 var(--space-5);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-tertiary);
+}
+
+.precall-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.precall-start {
+  font-size: 15px;
+  padding: 12px 28px;
+}
+
+/* ---- Step 2: ringing / incoming-call screen ---- */
+.precall-ringing .precall-scrim {
+  background: rgba(8, 12, 24, 0.62);
+}
+
+.ring-screen {
+  position: relative;
+  z-index: 1;
+  width: min(380px, 92vw);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(17, 24, 39, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  color: #f8fafc;
+  animation: precall-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ring-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.62);
+  margin-bottom: var(--space-5);
+}
+
+.ring-avatar {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  margin: 0 auto var(--space-4);
+  display: grid;
+  place-items: center;
+}
+
+.ring-avatar-core {
+  position: relative;
+  z-index: 2;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: radial-gradient(circle at 32% 30%, #34d399, #059669);
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.45);
+}
+
+.ring-pulse {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.35);
+  z-index: 1;
+}
+
+.ring-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ring-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.ring-actions {
+  margin-top: var(--space-6);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 56px;
+}
+
+.ring-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.ring-btn svg {
+  width: 60px;
+  height: 60px;
+  padding: 17px;
+  border-radius: 999px;
+  box-sizing: border-box;
+}
+
+.ring-answer svg {
+  background: #16a34a;
+  box-shadow: 0 8px 22px rgba(22, 163, 74, 0.5);
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.ring-answer:hover svg { background: #15803d; transform: translateY(-2px); }
+
+.ring-decline svg {
+  background: #dc2626;
+  transform: rotate(135deg);
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.45);
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.ring-decline:hover svg { background: #b91c1c; }
+
+.ring-answer-label { color: rgba(248, 250, 252, 0.85); }
+
+@keyframes precall-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ring-pulse-out {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ring-pulse-1 { animation: ring-pulse-out 1.8s ease-out infinite; }
+  .ring-pulse-2 { animation: ring-pulse-out 1.8s ease-out infinite 0.9s; }
+  .ring-avatar-core { animation: ring-core-bob 1.8s ease-in-out infinite; }
+}
+
+@keyframes ring-core-bob {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Reduced motion: no pulses/pop, the screens just appear. */
+@media (prefers-reduced-motion: reduce) {
+  .precall-card,
+  .ring-screen,
+  .precall-scrim { animation: none; }
+  .ring-pulse { display: none; }
+}
