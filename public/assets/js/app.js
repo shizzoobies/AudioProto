@@ -79,6 +79,11 @@ const BRANCHES = [
   },
 ];
 
+// Call states during which the call clock accrues time. Everything else
+// (connecting, processing, thinking, paused) is treated as simulator latency
+// and is NOT counted, so the duration reflects real conversational time.
+const TIMER_LIVE_STATES = new Set(['your_turn', 'listening', 'customer_talking']);
+
 function setCallMode(mode) {
   if (mode === 'chat') {
     state.callMode = 'chat';
@@ -1679,11 +1684,20 @@ function renderCall(scenario) {
   const callTimerEl = document.getElementById('call-timer');
   const callPauseBtn = document.getElementById('call-pause');
 
+  // Drives the call clock: the timer only accrues time during these states.
+  // 'connecting', 'processing', and 'thinking' are simulator latency (STT +
+  // model + TTS warmup) and are intentionally NOT counted, so the duration
+  // reflects real conversational time for call-efficiency measurement.
+  let currentPhoneState = 'connecting';
+  let chatStreaming = false;
+
   function setPhoneState(s, text, hint) {
     if (!phoneStatus) return;
     phoneStatus.dataset.state = s;
+    currentPhoneState = s;
     if (text != null) phoneStatusText.textContent = text;
     if (hint != null) phoneStatusHint.textContent = hint;
+    updateCallClock();
   }
 
   const audioPlayer = new AudioPlayer({
@@ -1898,7 +1912,11 @@ function renderCall(scenario) {
       // Chat mode shows text as it streams. Phone mode creates the
       // bubble lazily on first audio-segment play so text never
       // beats the voice.
-      if (!isPhone) ensureStreamingBubble(customerLabel);
+      if (!isPhone) {
+        chatStreaming = true;
+        updateCallClock();
+        ensureStreamingBubble(customerLabel);
+      }
     },
     onAssistantDelta: (text) => {
       if (!isPhone) appendToStreamingBubble(text);
@@ -1907,7 +1925,11 @@ function renderCall(scenario) {
       // Chat mode finalizes immediately. Phone mode finalizes when the
       // audio queue drains (audioPlayer.onEnd above) so the trailing
       // sentences land in sync.
-      if (!isPhone) finalizeTurnBubble();
+      if (!isPhone) {
+        finalizeTurnBubble();
+        chatStreaming = false;
+        updateCallClock();
+      }
       armSilenceTimer();
     },
     onSentence: (sentence) => speakSentence(sentence, {
@@ -1929,6 +1951,8 @@ function renderCall(scenario) {
         'System',
         `We hit an error talking to the customer (${err.message || 'unknown'}). You can try sending again.`
       );
+      chatStreaming = false;
+      updateCallClock();
       setComposerEnabled(true);
     },
   });
@@ -2071,9 +2095,14 @@ function renderCall(scenario) {
   }
 
   // ---- Call timer + pause ----
-  // The timer accumulates real elapsed time. While paused, runningSince is null
-  // so callElapsedMs() stops advancing — the displayed duration freezes and
-  // resumes exactly where it left off.
+  // The clock is a "conversational time" measure for call efficiency: it only
+  // accrues while the call is in a LIVE state (the trainee's turn, the trainee
+  // talking, or the customer talking). It freezes during simulator latency
+  // ('connecting' / 'processing' / 'thinking'), during model streaming in chat
+  // mode, and while manually paused. Internally we fold each running span into
+  // accMs and null runningSince to stop it; the displayed value freezes and
+  // later resumes exactly where it left off. The clock therefore starts on the
+  // first spoken turn (when the conversation first goes live), not at mount.
   function fmtDuration(ms) {
     const total = Math.max(0, Math.floor(ms / 1000));
     const m = Math.floor(total / 60);
@@ -2088,9 +2117,32 @@ function renderCall(scenario) {
   function renderCallTimer() {
     if (callTimerEl) callTimerEl.textContent = fmtDuration(callElapsedMs());
   }
+  function clockShouldRun() {
+    if (state.callPaused) return false;
+    if (isPhone) return TIMER_LIVE_STATES.has(currentPhoneState);
+    // Chat mode: count whenever the model is not actively generating.
+    return !chatStreaming;
+  }
+  function setClockRunning(running) {
+    const t = state.callTimer;
+    if (!t) return;
+    if (running && !t.runningSince) {
+      t.runningSince = Date.now();
+    } else if (!running && t.runningSince) {
+      t.accMs += Date.now() - t.runningSince;
+      t.runningSince = null;
+    }
+    renderCallTimer();
+  }
+  function updateCallClock() {
+    setClockRunning(clockShouldRun());
+  }
   function startCallTimer() {
     if (state.callTimer?.intervalId) clearInterval(state.callTimer.intervalId);
-    state.callTimer = { accMs: 0, runningSince: Date.now(), intervalId: null };
+    // Initialize stopped at 00:00; updateCallClock() starts it once the call
+    // is in a live state (i.e. the first spoken turn).
+    state.callTimer = { accMs: 0, runningSince: null, intervalId: null };
+    updateCallClock();
     renderCallTimer();
     state.callTimer.intervalId = setInterval(renderCallTimer, 500);
   }
@@ -2098,14 +2150,7 @@ function renderCall(scenario) {
   function setCallPaused(paused) {
     if (paused === state.callPaused) return;
     state.callPaused = paused;
-    const t = state.callTimer;
     if (paused) {
-      // Freeze the clock by folding the running span into the accumulator.
-      if (t && t.runningSince) {
-        t.accMs += Date.now() - t.runningSince;
-        t.runningSince = null;
-      }
-      renderCallTimer();
       // Stop everything that would advance the conversation: silence timeout,
       // the live mic, any in-flight transcription, and the customer's voice.
       clearSilenceTimer();
@@ -2121,8 +2166,6 @@ function renderCall(scenario) {
       if (isPhone) setPhoneState('paused', 'Call paused', 'Resume when you are ready.');
       else setComposerEnabled(false);
     } else {
-      if (t) t.runningSince = Date.now();
-      renderCallTimer();
       if (isPhone) {
         if (!conversation.isStreaming()) {
           setPhoneState('your_turn', 'Your turn.', 'Just start talking. The line auto-detects your pause.');
@@ -2133,6 +2176,9 @@ function renderCall(scenario) {
         composerInput?.focus();
       }
     }
+    // Re-evaluate the clock against the new pause + state (setPhoneState above
+    // already did this for phone; this covers chat and the pause-on path).
+    updateCallClock();
     if (callPauseBtn) {
       callPauseBtn.textContent = paused ? 'Resume' : 'Pause';
       callPauseBtn.setAttribute('aria-pressed', String(paused));
