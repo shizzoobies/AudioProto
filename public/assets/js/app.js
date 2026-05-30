@@ -107,6 +107,10 @@ function teardownAudio() {
   }
   state.callTimer = null;
   state.callPaused = false;
+  if (state.fieldTip) {
+    try { state.fieldTip.remove(); } catch {}
+    state.fieldTip = null;
+  }
   if (state.silenceTimer) {
     clearTimeout(state.silenceTimer);
     state.silenceTimer = null;
@@ -3058,6 +3062,56 @@ function renderCall(scenario, opts = {}) {
     e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
   });
 
+  // ---- Per-field CSR script tooltips ---------------------------------------
+  // As the rep tabs/clicks from field to field, a floating "what to say" bubble
+  // follows focus (mirrors the live U-Haul CSF). It's pure focus UI on the POS
+  // form, so it behaves identically in phone and chat mode. Delegated on the
+  // POS container so it survives per-step re-renders.
+  const FIELD_SCRIPTS = {
+    __lookup__: 'May I start with your cell phone number or email address?',
+    moving_from: 'What zip code, city, or landmark are you moving from?',
+    moving_to: 'And where are you moving to?',
+    pickup_date: 'What day would you like to pick up?',
+    load_size: 'How many bedrooms are you moving?',
+    rental_length: 'How many days do you need the truck?',
+    miles: 'About how many miles is the move?',
+    pickup_time: 'What time would you like to pick up?',
+    storage: 'Will you need storage before or after your move?',
+    receipt_email: "What's the best email for the reservation receipt?",
+    receipt_phone: 'And the best phone number to reach you?',
+    current_address: 'May I please have your current address?',
+    card_number: 'Which credit card would you like to use to confirm the reservation?',
+    card_zip: 'And the billing zip code for that card?',
+  };
+  if (state.fieldTip) { try { state.fieldTip.remove(); } catch {} }
+  const fieldTip = document.createElement('div');
+  fieldTip.className = 'pos-fieldtip';
+  fieldTip.hidden = true;
+  fieldTip.innerHTML = `<span class="pos-fieldtip-icon" aria-hidden="true">${SCRIPT_ICON}</span><span class="pos-fieldtip-text"></span>`;
+  document.body.appendChild(fieldTip);
+  state.fieldTip = fieldTip;
+  const fieldTipText = fieldTip.querySelector('.pos-fieldtip-text');
+
+  function showFieldTip(el) {
+    const key = el.getAttribute('data-rsv') || (el.id === 'pos-lookup-input' ? '__lookup__' : '');
+    const script = key && FIELD_SCRIPTS[key];
+    if (!script) { fieldTip.hidden = true; return; }
+    fieldTipText.textContent = script;
+    fieldTip.hidden = false;
+    const r = el.getBoundingClientRect();
+    const th = fieldTip.offsetHeight;
+    let top = r.top - th - 8;
+    if (top < 8) top = r.bottom + 8; // not enough room above → drop below
+    fieldTip.style.top = `${Math.round(top)}px`;
+    fieldTip.style.left = `${Math.round(r.left)}px`;
+  }
+  pos.addEventListener('focusin', (e) => {
+    const el = e.target.closest('[data-rsv], #pos-lookup-input');
+    if (el) showFieldTip(el);
+    else fieldTip.hidden = true;
+  });
+  pos.addEventListener('focusout', () => { fieldTip.hidden = true; });
+
   function reserve() {
     const q = computeQuote();
     const loc = LOC_BY_NAME[selectedLocation] || {};
@@ -3080,52 +3134,57 @@ function renderCall(scenario, opts = {}) {
     if (posPanel) posPanel.hidden = true;
     if (posTabs) posTabs.hidden = true;
     posResult.innerHTML = `
-      <div class="pos-receipt">
-        <div class="pos-receipt-head">
-          <div class="pos-receipt-tag"><span class="pos-receipt-check" aria-hidden="true">&#10003;</span> Reservation confirmed</div>
-          <div class="pos-receipt-conf"><span class="pos-receipt-conf-label">Confirmation number</span><span class="pos-receipt-conf-num mono">${escapeHtml(conf)}</span></div>
+      <div class="csf-complete">
+        <div class="csf-complete-banner">
+          <div class="csf-complete-banner-title">&#9989; Reservation Complete</div>
+          <p class="csf-complete-banner-text">The reservation has been completed!</p>
+          <p class="csf-complete-banner-text">A confirmation ${getRsv('receipt_phone') ? `has been sent via text to <span class="mono">${escapeHtml(getRsv('receipt_phone'))}</span>` : 'has been sent to the customer'}. Confirmation number <strong class="mono">${escapeHtml(conf)}</strong>.</p>
         </div>
-        <div class="pos-receipt-grid">
-          <div class="pos-receipt-section">
-            <div class="pos-receipt-section-title">Customer</div>
-            <div class="pos-receipt-line"><span>Name</span><span>${escapeHtml(custName)}</span></div>
-            ${getRsv('receipt_phone') ? `<div class="pos-receipt-line"><span>Phone</span><span class="mono">${escapeHtml(getRsv('receipt_phone'))}</span></div>` : ''}
-            ${getRsv('receipt_email') ? `<div class="pos-receipt-line"><span>Email</span><span class="mono">${escapeHtml(getRsv('receipt_email'))}</span></div>` : ''}
-          </div>
-          <div class="pos-receipt-section">
-            <div class="pos-receipt-section-title">Trip</div>
-            <div class="pos-receipt-line"><span>Move type</span><span>${q.oneWay ? 'One Way' : 'In Town'}</span></div>
-            ${ls ? `<div class="pos-receipt-line"><span>Load</span><span>${escapeHtml(ls.label)}</span></div>` : ''}
-            <div class="pos-receipt-line"><span>Pickup</span><span>${escapeHtml(getRsv('pickup_date'))} &middot; ${escapeHtml(getRsv('pickup_time') || 'time TBD')}</span></div>
-            <div class="pos-receipt-line"><span>Location</span><span>${escapeHtml(loc.name ? 'Meridian of ' + loc.name : 'TBD')}</span></div>
-          </div>
-          <div class="pos-receipt-section">
-            <div class="pos-receipt-section-title">Equipment</div>
-            <div class="pos-receipt-line"><span>Truck</span><span>${escapeHtml(q.truck ? q.truck.label : 'TBD')}</span></div>
-            <div class="pos-receipt-line"><span>Rental length</span><span>${escapeHtml(q.oneWay ? `${q.ow ? q.ow.days : 1} days (one-way)` : (rl ? rl.label : '1 day'))}</span></div>
-            ${q.miles > 0 ? `<div class="pos-receipt-line"><span>${q.oneWay ? 'Distance' : 'Mileage'}</span><span>${escapeHtml(String(q.miles))} mi</span></div>` : ''}
-            <div class="pos-receipt-line"><span>Waiver</span><span>${escapeHtml(q.waiver.label)}</span></div>
-            ${(q.padsChecked || q.dollyChecked) ? `<div class="pos-receipt-line"><span>Add-ons</span><span>${[q.padsChecked && 'Pads', q.dollyChecked && 'Dolly'].filter(Boolean).join(', ')}</span></div>` : ''}
+        <div class="pos-card csf-complete-card">
+          <div class="pos-card-body">
+            <h3 class="csf-complete-name">Customer Name: ${escapeHtml(custName)}</h3>
+            <div class="csf-complete-grid">
+              <div class="csf-complete-col">
+                <div class="csf-complete-subhead">Reservation Summary</div>
+                <div class="csf-complete-model">${escapeHtml(q.truck ? q.truck.label.toUpperCase() : 'TRUCK')}</div>
+                <dl class="csf-complete-facts">
+                  <div><dt>Pick Up Date:</dt><dd>${escapeHtml(getRsv('pickup_date') || 'TBD')}</dd></div>
+                  <div><dt>Pick Up Time:</dt><dd>${escapeHtml(getRsv('pickup_time') || 'TBD')}</dd></div>
+                  <div><dt>Rental Length:</dt><dd>${escapeHtml(q.oneWay ? `${q.ow ? q.ow.days : 1} days (one-way)` : (rl ? rl.label : '1 day'))}</dd></div>
+                  <div><dt>Rental Type:</dt><dd>${q.oneWay ? 'One Way' : 'In Town'}</dd></div>
+                  ${ls ? `<div><dt>Move:</dt><dd>${escapeHtml(ls.label)}</dd></div>` : ''}
+                </dl>
+                <div class="csf-complete-loc">
+                  <div class="csf-complete-map" aria-hidden="true"></div>
+                  <div class="csf-complete-loc-info">
+                    <em>${escapeHtml(loc.name ? 'Meridian of ' + loc.name : 'Pickup location TBD')}</em>
+                    ${loc.address ? `<span>${escapeHtml(loc.address)}</span>` : ''}
+                    ${loc.phone ? `<span class="mono">${escapeHtml(loc.phone)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="csf-complete-col">
+                <div class="csf-complete-subhead">Summary of Charges</div>
+                <div class="csf-complete-charges">
+                  ${q.lines.map((l) => `<div class="csf-complete-charge"><span class="csf-complete-charge-label">${escapeHtml(l.label)}</span><span class="csf-complete-charge-amt mono">${fmtMoney(l.amount)}</span></div>`).join('')}
+                  <div class="csf-complete-charge"><span class="csf-complete-charge-label">Estimated Tax</span><span class="csf-complete-charge-amt mono">${fmtMoney(q.tax)}</span></div>
+                  <div class="csf-complete-charge csf-complete-total"><span class="csf-complete-charge-label">Total:</span><span class="csf-complete-charge-amt mono">${fmtMoney(q.total)}</span></div>
+                  <div class="pos-cc-chip" data-brand="${escapeAttr(brand)}" style="margin-top:8px;">
+                    <span class="pos-cc-brand">${escapeHtml(brand === 'unknown' ? 'CARD' : brand.toUpperCase())}</span>
+                    <span class="mono">•••• ${escapeHtml(last4)}</span>
+                    <span class="mono">exp ${escapeHtml(exp)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pos-receipt-readback" style="margin-top:16px;">
+              <div class="pos-receipt-readback-title">Read back to the caller</div>
+              <p>"Your confirmation number is <strong class="mono">${escapeHtml(conf)}</strong>. We're holding a ${escapeHtml(q.truck ? q.truck.label : 'truck')} for you at the ${escapeHtml(loc.name || 'pickup')} location on ${escapeHtml(getRsv('pickup_date'))} at ${escapeHtml(getRsv('pickup_time') || 'your selected time')}. Your total comes to ${escapeHtml(fmtMoney(q.total))} on the card ending in ${escapeHtml(last4)}. Is there anything else I can help you with?"</p>
+            </div>
           </div>
         </div>
-        <div class="pos-receipt-cart">
-          ${lineHtml}
-          <div class="pos-cart-rule"></div>
-          <div class="pos-cart-line pos-cart-subtotal"><div class="pos-cart-line-label">Subtotal</div><div class="pos-cart-line-amt mono">${fmtMoney(q.subtotal)}</div></div>
-          <div class="pos-cart-line pos-cart-line-muted"><div class="pos-cart-line-label">Estimated tax</div><div class="pos-cart-line-amt mono">${fmtMoney(q.tax)}</div></div>
-          <div class="pos-cart-rule"></div>
-          <div class="pos-cart-line pos-cart-total"><div class="pos-cart-line-label">Total</div><div class="pos-cart-line-amt mono">${fmtMoney(q.total)}</div></div>
-          <div class="pos-cc-chip" data-brand="${escapeAttr(brand)}">
-            <span class="pos-cc-brand">${escapeHtml(brand === 'unknown' ? 'CARD' : brand.toUpperCase())}</span>
-            <span class="mono">•••• ${escapeHtml(last4)}</span>
-            <span class="mono">exp ${escapeHtml(exp)}</span>
-          </div>
-        </div>
-        <div class="pos-receipt-readback">
-          <div class="pos-receipt-readback-title">Read back to the caller</div>
-          <p>"Your confirmation number is <strong class="mono">${escapeHtml(conf)}</strong>. We're holding a ${escapeHtml(q.truck ? q.truck.label : 'truck')} for you at the ${escapeHtml(loc.name || 'pickup')} location on ${escapeHtml(getRsv('pickup_date'))} at ${escapeHtml(getRsv('pickup_time') || 'your selected time')}. Your total comes to ${escapeHtml(fmtMoney(q.total))} on the card ending in ${escapeHtml(last4)}. Is there anything else I can help you with?"</p>
-        </div>
-        <div class="pos-receipt-actions">
+        <div class="csf-complete-foot">
+          <span class="csf-complete-foot-note">Does this same customer need to make another reservation?</span>
           <button class="ghost-button" type="button" id="pos-new">Start another reservation</button>
         </div>
       </div>
