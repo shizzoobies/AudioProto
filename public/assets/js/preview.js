@@ -1765,3 +1765,51 @@ if (initialId && STATES.some((s) => s.id === initialId)) {
 } else {
   showState(STATES[0].id);
 }
+
+// ---------------------------------------------------------------------------
+// Per-field CSR script tooltip — mirrors the live focus-follow bubble so the
+// behavior is testable here (no live call needed). Keyed off each field's label
+// text. Delegated on the preview root, so it works across every CSF state.
+// ---------------------------------------------------------------------------
+const PREVIEW_FIELD_SCRIPTS = {
+  'moving from': 'What zip code, city, or landmark are you moving from?',
+  'moving to': 'And where are you moving to?',
+  'move/pickup date': 'What day would you like to pick up?',
+  'how many bedrooms': 'How many bedrooms are you moving?',
+  'credit card number': 'Which credit card would you like to use to confirm the reservation?',
+  'card number': 'Which credit card would you like to use to confirm the reservation?',
+  'billing zip code': 'And the billing zip code for that card?',
+  'email for reservation receipt': "What's the best email for the reservation receipt?",
+  'phone number': 'And the best phone number to reach you?',
+  'current address': 'May I please have your current address?',
+  'storage location': 'Will you need storage before or after your move?',
+};
+const PREVIEW_LOOKUP_SCRIPT = 'May I start with your cell phone number or email address?';
+const pvTip = document.createElement('div');
+pvTip.className = 'pos-fieldtip';
+pvTip.hidden = true;
+pvTip.innerHTML = `<span class="pos-fieldtip-icon" aria-hidden="true">${SCRIPT_ICON}</span><span class="pos-fieldtip-text"></span>`;
+document.body.appendChild(pvTip);
+const pvTipText = pvTip.querySelector('.pos-fieldtip-text');
+function pvNorm(s) { return String(s || '').toLowerCase().replace(/^\*\s*/, '').replace(/[:?]\s*$/, '').trim(); }
+root.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el.matches || !el.matches('input, select, textarea')) { pvTip.hidden = true; return; }
+  let script = '';
+  if (el.closest('.pos-lookup')) {
+    script = PREVIEW_LOOKUP_SCRIPT;
+  } else {
+    const field = el.closest('.pos-field');
+    const label = field && field.querySelector('.pos-field-label');
+    if (label) script = PREVIEW_FIELD_SCRIPTS[pvNorm(label.textContent)] || '';
+  }
+  if (!script) { pvTip.hidden = true; return; }
+  pvTipText.textContent = script;
+  pvTip.hidden = false;
+  const r = el.getBoundingClientRect();
+  let top = r.top - pvTip.offsetHeight - 8;
+  if (top < 8) top = r.bottom + 8;
+  pvTip.style.top = `${Math.round(top)}px`;
+  pvTip.style.left = `${Math.round(r.left)}px`;
+});
+root.addEventListener('focusout', () => { pvTip.hidden = true; });
