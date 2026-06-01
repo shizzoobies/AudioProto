@@ -1100,6 +1100,15 @@ body[data-demo] .app-main {
   display: none;
 }
 
+/* Showcase: while the trainee is just talking to Elena (the "meet" stage), the
+   reservation workspace stays hidden — it only appears once she steps into the
+   customer scenario. Orb-independent, so it applies to the premium orb showcase
+   and the plain showcase alike. */
+.call[data-showcase-stage="meet"] .csf-topbar,
+.call[data-showcase-stage="meet"] .pos {
+  display: none;
+}
+
 /* Scenario mode: standard call layout, orb shrinks to a compact band
    above the transcript so the CRM and reservation tools have room. */
 .call[data-orb-mode="scenario"] .orb-zone {

@@ -1375,7 +1375,7 @@ function renderCall(scenario, opts = {}) {
   ).join('');
 
   dom.root.innerHTML = `
-    <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}>
+    <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}${isShowcaseCall ? ' data-showcase-stage="meet"' : ''}>
       <header class="call-header">
         <button class="ghost-button call-back" id="call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
@@ -2073,6 +2073,13 @@ function renderCall(scenario, opts = {}) {
       if (orbZone) orbZone.dataset.orbMode = mode;
       const callEl = dom.root.querySelector('.call');
       if (callEl && useOrb) callEl.dataset.orbMode = mode;
+      // Showcase: keep the reservation workspace hidden while the trainee is
+      // just chatting with Elena (meet). It only appears once she steps into the
+      // customer scenario ([mode:scenario]); a return to [mode:meta] hides it
+      // again. Independent of the premium orb, so it works either way.
+      if (callEl && isShowcaseCall) {
+        callEl.dataset.showcaseStage = (mode === 'scenario') ? 'scenario' : 'meet';
+      }
       state.orb?.setMode(mode);
     },
     onError: (err) => {
