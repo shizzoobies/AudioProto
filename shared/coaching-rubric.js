@@ -8,9 +8,9 @@ You receive:
 - The full transcript of the call, with the customer's opening line included.
 
 Your job:
-- Score the agent on a 1 to 5 scale across six dimensions.
+- Score the agent on a 1 to 5 scale across five sections that follow the arc of the call.
 - Be specific. Quote a real, short moment from the transcript as evidence for each score.
-- Be constructive. For every dimension, name one concrete thing to try, in one sentence.
+- Be constructive. For every section, name one concrete thing to try, in one sentence.
 - Be honest. Do not inflate scores. A 3 is fine. A 4 is good. A 5 is rare and earned.
 - Identify 2 to 4 strengths and 2 to 4 growth areas, each as a short concrete sentence.
 - End with the single most impactful thing the agent should try next time, written in second person ("Try opening with...").
@@ -18,13 +18,12 @@ Your job:
 
 Tone: warm, direct, specific. Not gushy. Not harsh. Talk to a colleague, not a child.
 
-Scoring rubric:
-- rapport (Rapport & Empathy): Did they acknowledge feelings, use the customer's name appropriately, match tone?
-- listening (Active Listening): Did they confirm understanding, ask clarifying questions, avoid talking over the customer?
-- problem_solving (Problem Solving): Did they move toward a resolution efficiently? Offer options? Avoid loops?
-- sales (Sales Acumen): Did they identify the right opportunities, position value, handle objections? If the scenario was not sales-shaped (a complaint, dispute, or pure support call), score what they did to preserve the relationship and future business, and note in the evidence that traditional sales was not the focus.
-- policy (Policy & Accuracy): Did they stay accurate to Meridian's stated policies? Did they avoid promising things outside the policy reference?
-- resolution (Overall Resolution): Did the call end with the customer's issue resolved, a clear next step, or did it stall?
+Scoring rubric (five sections - the first four follow the call in order, the fifth is cross-cutting):
+- beginning (Beginning - Greeting the Customer): How well did they open the call? A proper branded greeting, giving their name, asking how they can help, and setting a warm, professional tone from the first moment.
+- gathering (Gathering the Rental Information): Did they collect the reservation details the call needed - the move details, the right equipment and truck size, dates and duration - by asking good questions, confirming understanding, and getting it accurate?
+- scheduling (Scheduling the Reservation): Did they handle the pickup location and time and move the reservation toward being locked in, correctly and efficiently?
+- wrap_up (Wrap Up): Did they confirm and read back the reservation, cover next steps, answer any last questions, and close the call professionally?
+- general (General): Cross-cutting skills that can surface anywhere in the call - overcoming objections, reading required advisories, and catching upsell opportunities (for example, offering storage when it comes up). Score how well they handled these when the moments arose. If none arose, score what they did to preserve the relationship and future business, and note that in the evidence.
 
 Style rules:
 - Do not use em dashes anywhere in your output. Use commas, periods, or restart sentences.
@@ -49,7 +48,7 @@ const SCORE_ENTRY_SCHEMA = {
     },
     suggestion: {
       type: 'string',
-      description: 'One concrete sentence describing what to try differently next time on this dimension.',
+      description: 'One concrete sentence describing what to try differently next time in this section of the call.',
     },
   },
   required: ['score', 'evidence', 'suggestion'],
@@ -70,14 +69,13 @@ export const COACHING_TOOL = {
       scores: {
         type: 'object',
         properties: {
-          rapport: SCORE_ENTRY_SCHEMA,
-          listening: SCORE_ENTRY_SCHEMA,
-          problem_solving: SCORE_ENTRY_SCHEMA,
-          sales: SCORE_ENTRY_SCHEMA,
-          policy: SCORE_ENTRY_SCHEMA,
-          resolution: SCORE_ENTRY_SCHEMA,
+          beginning: SCORE_ENTRY_SCHEMA,
+          gathering: SCORE_ENTRY_SCHEMA,
+          scheduling: SCORE_ENTRY_SCHEMA,
+          wrap_up: SCORE_ENTRY_SCHEMA,
+          general: SCORE_ENTRY_SCHEMA,
         },
-        required: ['rapport', 'listening', 'problem_solving', 'sales', 'policy', 'resolution'],
+        required: ['beginning', 'gathering', 'scheduling', 'wrap_up', 'general'],
       },
       strengths: {
         type: 'array',
@@ -112,10 +110,9 @@ export const COACHING_TOOL = {
 };
 
 export const RUBRIC_DISPLAY = [
-  { key: 'rapport', label: 'Rapport & Empathy' },
-  { key: 'listening', label: 'Active Listening' },
-  { key: 'problem_solving', label: 'Problem Solving' },
-  { key: 'sales', label: 'Sales Acumen' },
-  { key: 'policy', label: 'Policy & Accuracy' },
-  { key: 'resolution', label: 'Overall Resolution' },
+  { key: 'beginning', label: 'Beginning — Greeting the Customer' },
+  { key: 'gathering', label: 'Gathering the Rental Information' },
+  { key: 'scheduling', label: 'Scheduling the Reservation' },
+  { key: 'wrap_up', label: 'Wrap Up' },
+  { key: 'general', label: 'General' },
 ];

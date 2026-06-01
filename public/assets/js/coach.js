@@ -1,10 +1,13 @@
+// The scorecard sections follow the arc of the call (Beginning -> Gather ->
+// Scheduling -> Wrap Up), plus a cross-cutting General section. Mirrors the
+// keys in shared/coaching-rubric.js (kept in sync by hand; this file ships to
+// the browser without the shared import).
 const RUBRIC_DISPLAY = [
-  { key: 'rapport', label: 'Rapport & Empathy' },
-  { key: 'listening', label: 'Active Listening' },
-  { key: 'problem_solving', label: 'Problem Solving' },
-  { key: 'sales', label: 'Sales Acumen' },
-  { key: 'policy', label: 'Policy & Accuracy' },
-  { key: 'resolution', label: 'Overall Resolution' },
+  { key: 'beginning', label: 'Beginning — Greeting the Customer' },
+  { key: 'gathering', label: 'Gathering the Rental Information' },
+  { key: 'scheduling', label: 'Scheduling the Reservation' },
+  { key: 'wrap_up', label: 'Wrap Up' },
+  { key: 'general', label: 'General' },
 ];
 
 export async function requestCoachingReport(scenarioId, transcript, openingLine) {
@@ -79,7 +82,7 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
       <p class="report-pullquote-text">${escapeHtml(report.one_thing_to_try_next_time || '')}</p>
     </blockquote>
 
-    <h2 class="report-section-title">Rubric breakdown</h2>
+    <h2 class="report-section-title">Scorecard</h2>
     <div class="report-rubric">
       ${RUBRIC_DISPLAY.map((entry) => renderRubricCard(entry, report.scores?.[entry.key])).join('')}
     </div>

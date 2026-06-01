@@ -2002,6 +2002,11 @@ body[data-demo] .app-main {
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
 }
+/* The four call-phase sections sit in a 2x2; the cross-cutting "General"
+   section (always last) spans the full width below them. */
+.report-rubric .rubric-card:last-child {
+  grid-column: 1 / -1;
+}
 
 .rubric-card {
   padding: var(--space-4) var(--space-5);

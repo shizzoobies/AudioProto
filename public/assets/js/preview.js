@@ -100,35 +100,30 @@ const MOCK = {
     ],
     one_thing_to_try_next_time: 'After you\'ve handled the price objection, move straight to the close: "Can I go ahead and get that Saturday reservation locked in for you?" Don\'t wait for the customer to ask.',
     scores: {
-      rapport: {
+      beginning: {
         score: 4,
-        evidence: '"I understand — price matters" acknowledged the customer\'s concern without being defensive.',
-        suggestion: 'Use the customer\'s name once or twice to build more personal warmth.',
+        evidence: '"Thanks for calling Meridian, this is Derek, how can I help?" opened with a clean branded greeting.',
+        suggestion: 'Use the customer\'s name once you have it to build a little more personal warmth up front.',
       },
-      listening: {
+      gathering: {
+        score: 4,
+        evidence: 'Correctly identified the load size from the furniture description and confirmed the 15-foot truck.',
+        suggestion: 'Read back the move details once collected so the customer can catch anything you missed.',
+      },
+      scheduling: {
         score: 3,
-        evidence: 'Correctly identified the load size from the furniture description.',
-        suggestion: 'When the customer mentioned U-Haul by name, reflect it back: "You\'ve been shopping around — that\'s smart."',
+        evidence: 'Confirmed the pickup location but never nailed down a firm pickup time.',
+        suggestion: 'Lock the time explicitly: "Let\'s set your pickup for 9 AM Saturday — does that work?"',
       },
-      problem_solving: {
-        score: 4,
-        evidence: 'Pivoted to a value comparison rather than defending the price directly.',
-        suggestion: 'Offer to email a written quote so the customer can compare side-by-side at their own pace.',
-      },
-      sales: {
+      wrap_up: {
         score: 2,
-        evidence: 'No explicit ask for the reservation was made before the call ended.',
-        suggestion: 'Trial-close after the value pitch: "Does that work for you?" then move to the reservation.',
+        evidence: 'Call ended without reading back the reservation or confirming a next step.',
+        suggestion: 'Always close with a read-back: confirmation number, truck, date, time, and total.',
       },
-      policy: {
+      general: {
         score: 3,
-        evidence: 'Correctly quoted the 15-foot rate and per-mile charge.',
-        suggestion: 'Mention the environmental fee and VLRF upfront so the final total isn\'t a surprise.',
-      },
-      resolution: {
-        score: 3,
-        evidence: 'Customer received enough information to make a decision, but did not commit.',
-        suggestion: 'End every call with a clear next action — either a reservation or a callback time.',
+        evidence: 'Handled the price objection calmly but missed the furniture-pads upsell when the sectional came up.',
+        suggestion: 'When a storage or add-on opportunity surfaces, name it: "While we\'re here, would storage help?"',
       },
     },
   },
@@ -1395,12 +1390,11 @@ function renderReportGenerating() {
 function renderReportShown() {
   const r = MOCK.report;
   const RUBRIC = [
-    { key: 'rapport',         label: 'Rapport & Empathy' },
-    { key: 'listening',       label: 'Active Listening' },
-    { key: 'problem_solving', label: 'Problem Solving' },
-    { key: 'sales',           label: 'Sales Acumen' },
-    { key: 'policy',          label: 'Policy & Accuracy' },
-    { key: 'resolution',      label: 'Overall Resolution' },
+    { key: 'beginning',  label: 'Beginning — Greeting the Customer' },
+    { key: 'gathering',  label: 'Gathering the Rental Information' },
+    { key: 'scheduling', label: 'Scheduling the Reservation' },
+    { key: 'wrap_up',    label: 'Wrap Up' },
+    { key: 'general',    label: 'General' },
   ];
 
   function rubricCard(entry, data) {
@@ -1475,7 +1469,7 @@ function renderReportShown() {
         <p class="report-pullquote-text">${esc(r.one_thing_to_try_next_time)}</p>
       </blockquote>
 
-      <h2 class="report-section-title">Rubric breakdown</h2>
+      <h2 class="report-section-title">Scorecard</h2>
       <div class="report-rubric">
         ${RUBRIC.map((entry) => rubricCard(entry, r.scores[entry.key])).join('')}
       </div>
