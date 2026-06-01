@@ -585,11 +585,7 @@ function renderDemoHome() {
       </div>
       <div class="demo-stage">
         <div class="demo-hero-content">
-          <div class="demo-brand" aria-label="First Call">
-            <span class="demo-brand-dot" aria-hidden="true"></span>
-            <span class="demo-brand-name">First Call</span>
-          </div>
-          <h1 class="demo-title">Simulation Demo</h1>
+          <h1 class="demo-title demo-title-solo">Demo</h1>
         </div>
         <div class="demo-tenets">
           <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#F26522">
@@ -625,7 +621,7 @@ function renderDemoHome() {
             <img class="demo-splash-logo" src="/assets/img/first-call-logo.png" alt="First Call" width="1200" height="529" />
           </h1>
           <p class="demo-splash-tagline">Realistic call simulation and instant coaching.</p>
-          <button type="button" class="demo-splash-enter" id="demo-splash-enter">Enter the demo <span aria-hidden="true">&rsaquo;</span></button>
+          <button type="button" class="demo-splash-enter" id="demo-splash-enter">Get Started! <span aria-hidden="true">&rsaquo;</span></button>
         </div>
       </div>
     </section>

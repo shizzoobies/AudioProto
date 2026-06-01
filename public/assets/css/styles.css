@@ -3800,6 +3800,30 @@ body[data-recipient] #sign-out {
 .demo-entry-tagline {
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
+/* The hero headline is now a single word — give it a touch more presence. */
+.demo-title-solo {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+/* When the splash lifts, the "Demo" headline settles into place: rises, sharpens
+   out of a soft blur, and tightens its tracking. */
+.demo-home[data-splash="done"] .demo-title-solo {
+  animation: demo-title-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+@keyframes demo-title-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.9);
+    letter-spacing: 0.08em;
+    filter: blur(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    letter-spacing: -0.03em;
+    filter: blur(0);
+  }
+}
 /* Hero tenets — three promises laid out ACROSS the hero. Each rests as a clean
    display-serif line with a thin accent rule beneath; on hover (desktop), focus, or
    click-to-pin (touch) the tenet ENLARGES — lifts + scales, its surface blooms
@@ -4302,38 +4326,58 @@ body[data-recipient] #sign-out {
   width: clamp(280px, 52vw, 560px);
   height: auto;
   filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
-  animation: demo-splash-logo-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Entrance pop, then a perpetual cute float + gentle tilt. */
+  animation:
+    demo-splash-logo-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both,
+    demo-splash-logo-float 5s ease-in-out 0.9s infinite;
+  transform-origin: center 60%;
+  will-change: transform;
 }
 @keyframes demo-splash-logo-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  from { opacity: 0; transform: translateY(18px) scale(0.94); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes demo-splash-logo-float {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); }
+  25%  { transform: translateY(-9px) rotate(-1.1deg) scale(1.012); }
+  50%  { transform: translateY(0) rotate(0deg) scale(1); }
+  75%  { transform: translateY(-5px) rotate(1.1deg) scale(1.008); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
 }
 .demo-splash-tagline {
   margin: 14px 0 30px;
   font-size: clamp(15px, 2vw, 20px);
   color: rgba(255, 255, 255, 0.85);
 }
+/* No container — a clean text call-to-action that lifts and nudges its arrow. */
 .demo-splash-enter {
   appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   border: none;
-  background: #F26522;
-  color: #0c0d10;
+  background: none;
+  color: #F26522;
   font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 15px;
-  padding: 13px 30px;
-  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(17px, 2.4vw, 22px);
+  letter-spacing: 0.01em;
+  padding: 6px 4px;
   cursor: pointer;
-  box-shadow: 0 12px 34px rgba(242, 101, 34, 0.34);
-  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+  transition: color 0.18s ease, transform 0.18s ease, letter-spacing 0.18s ease;
+}
+.demo-splash-enter span {
+  display: inline-block;
+  transition: transform 0.18s ease;
 }
 .demo-splash-enter:hover {
-  background: #ff7a33;
+  color: #ff7a33;
   transform: translateY(-1px);
-  box-shadow: 0 16px 40px rgba(242, 101, 34, 0.42);
+  letter-spacing: 0.03em;
+}
+.demo-splash-enter:hover span {
+  transform: translateX(4px);
 }
 
 /* ---- Responsive ---------------------------------------------------------- */
@@ -4364,6 +4408,9 @@ body[data-recipient] #sign-out {
   .demo-entry-flip { transition: none; }
   .demo-entry:hover .demo-entry-flip,
   .demo-entry:focus-visible .demo-entry-flip { transform: none; }
+  /* No splash-logo float, no headline fly-in for users who opt out. */
+  .demo-splash-logo { animation: none; }
+  .demo-home[data-splash="done"] .demo-title-solo { animation: none; }
 }
 
 /* ---- Staged entrance + living motion (safe / opt-in) --------------------- */
