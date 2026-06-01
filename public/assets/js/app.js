@@ -534,7 +534,7 @@ function renderDemoHome() {
     .map((pt) => `<li>${escapeHtml(pt)}</li>`).join('');
 
   const entriesHtml = scenarios.map((p, i) => `
-    <li class="demo-entry demo-entry-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-entry-index:${i}" aria-label="Take the call: ${escapeAttr(p.customer_name || p.id)}">
+    <li class="demo-entry demo-entry-${escapeAttr(p.id)}" data-persona-id="${escapeAttr(p.id)}" tabindex="0" role="button" style="--demo-entry-index:${i}" aria-label="Take the call: ${escapeAttr(p.card_title || p.customer_name || p.id)}">
       <span class="demo-entry-aura" aria-hidden="true"></span>
       <div class="demo-entry-flip">
         <div class="demo-entry-face demo-entry-front">
@@ -543,7 +543,7 @@ function renderDemoHome() {
             <span class="demo-entry-status" aria-hidden="true">Line open</span>
           </div>
           <div class="demo-entry-body">
-            <h2 class="demo-entry-name">${escapeHtml(p.customer_name || '')}</h2>
+            <h2 class="demo-entry-name">${escapeHtml(p.card_title || p.customer_name || '')}</h2>
             <p class="demo-entry-customer">${escapeHtml(p.customer_short || '')}</p>
             <p class="demo-entry-tagline">${escapeHtml(p.tagline || '')}</p>
           </div>
