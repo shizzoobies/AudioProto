@@ -3671,20 +3671,25 @@ body[data-recipient] #sign-out {
 .demo-video-scrim {
   position: absolute;
   inset: 0;
+  /* Frosted glass over the footage: a real blur softens the moving clip so text
+     reads crisply on top, plus a stronger light wash concentrated behind the
+     upper-center headline/tenets. */
+  -webkit-backdrop-filter: blur(4px) saturate(1.04);
+  backdrop-filter: blur(4px) saturate(1.04);
   background:
     radial-gradient(
-      120% 78% at 50% 38%,
-      rgba(252, 251, 253, 0.85) 0%,
-      rgba(252, 251, 253, 0.50) 40%,
-      rgba(252, 251, 253, 0.12) 65%,
-      rgba(252, 251, 253, 0.0) 80%
+      122% 82% at 50% 38%,
+      rgba(252, 251, 253, 0.93) 0%,
+      rgba(252, 251, 253, 0.68) 42%,
+      rgba(252, 251, 253, 0.26) 66%,
+      rgba(252, 251, 253, 0.04) 82%
     ),
     linear-gradient(
       180deg,
-      rgba(252, 251, 253, 0.50) 0%,
-      rgba(252, 251, 253, 0.16) 36%,
-      rgba(252, 251, 253, 0.0) 60%,
-      rgba(252, 251, 253, 0.26) 100%
+      rgba(252, 251, 253, 0.62) 0%,
+      rgba(252, 251, 253, 0.26) 36%,
+      rgba(252, 251, 253, 0.06) 60%,
+      rgba(252, 251, 253, 0.34) 100%
     );
 }
 .demo-home[data-video="ready"] .demo-orb-field {
@@ -3805,7 +3810,7 @@ body[data-recipient] #sign-out {
 .demo-entry-name,
 .demo-entry-customer,
 .demo-entry-tagline {
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.95), 0 0 10px rgba(255, 255, 255, 0.6);
 }
 /* The hero headline is the flat First Call logo, assembled on entry from image
    shards that rain down and lock into place. The crisp <img> sits underneath and
@@ -3904,10 +3909,10 @@ body[data-recipient] #sign-out {
   position: relative;
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-weight: 500;
-  font-size: clamp(20px, 2.2vw, 27px);
-  line-height: 1.1;
-  letter-spacing: -0.018em;
+  font-weight: 600;
+  font-size: clamp(22px, 2.5vw, 30px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
   padding-bottom: 12px;
   transition: color 0.3s ease;
 }
@@ -4178,21 +4183,23 @@ body[data-recipient] #sign-out {
 .demo-entry-name {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-weight: 500;
-  font-size: clamp(28px, 3.2vw, 38px);
+  font-weight: 600;
+  font-size: clamp(30px, 3.4vw, 42px);
   line-height: 1.02;
-  letter-spacing: -0.018em;
+  letter-spacing: -0.02em;
   color: var(--demo-ink);
   margin: 0;
 }
 .demo-entry-customer {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--color-text-tertiary);
   margin: 0;
 }
 .demo-entry-tagline {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 500;
   line-height: 1.5;
   color: var(--color-text-secondary);
   margin: 4px 0 0;

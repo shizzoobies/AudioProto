@@ -1297,15 +1297,14 @@ const PERSONA_DEFS = {
     // Demo Sales prospect: Maya, a long-distance one-way mover. Moderate
     // difficulty, winnable. The call rewards building GENUINE urgency around a
     // real, fixed deadline and actually ASKING FOR THE BUSINESS. Price is not
-    // the lever; commitment-in-the-moment is. The tile reads "Sales" (card_title)
-    // while the caller you actually talk to is Maya.
+    // the lever; commitment-in-the-moment is. The tile now reads "Maya" (the
+    // person you actually talk to), with the Sales context in the subtitle.
     customer_name: 'Maya',
-    card_title: 'Sales',
-    customer_short: 'One-way move, still on the fence',
+    customer_short: 'Sales · pricing a one-way move',
     voice_id: 'BZgkqPqms7Kj9ulSkVzn',
     voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.45, use_speaker_boost: true },
     location: { label: 'Columbus, OH', lat: 39.9612, lon: -82.9988 },
-    tagline: 'A relocation she has not booked yet. Give her a reason to lock it in today.',
+    tagline: 'Relocating to Denver and still on the fence. Give her a reason to lock it in today.',
     points: [
       'A long-distance, one-way mover pricing it out',
       'Build genuine urgency around a real, fixed deadline',
