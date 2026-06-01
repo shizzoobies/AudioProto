@@ -1,13 +1,31 @@
-// The scorecard sections follow the arc of the call (Beginning -> Gather ->
-// Scheduling -> Wrap Up), plus a cross-cutting General section. Mirrors the
-// keys in shared/coaching-rubric.js (kept in sync by hand; this file ships to
-// the browser without the shared import).
+// The scorecard is five collapsible sections following the arc of the call
+// (Beginning -> Gather -> Scheduling -> Wrap Up), plus a cross-cutting General
+// section, each with its own sub-item cards. Mirrors the keys in
+// shared/coaching-rubric.js (kept in sync by hand; this file ships to the
+// browser without the shared import).
 const RUBRIC_DISPLAY = [
-  { key: 'beginning', label: 'Beginning — Greeting the Customer' },
-  { key: 'gathering', label: 'Gathering the Rental Information' },
-  { key: 'scheduling', label: 'Scheduling the Reservation' },
-  { key: 'wrap_up', label: 'Wrap Up' },
-  { key: 'general', label: 'General' },
+  { label: 'Beginning — Greeting the Customer', items: [
+    { key: 'beginning_greeting', label: 'Branded greeting & self-intro' },
+    { key: 'beginning_offer', label: 'Offer to help & set the tone' },
+  ] },
+  { label: 'Gathering the Rental Information', items: [
+    { key: 'gathering_details', label: 'Move details' },
+    { key: 'gathering_equipment', label: 'Equipment match' },
+  ] },
+  { label: 'Scheduling the Reservation', items: [
+    { key: 'scheduling_location', label: 'Pickup location' },
+    { key: 'scheduling_time', label: 'Pickup time' },
+  ] },
+  { label: 'Wrap Up', items: [
+    { key: 'wrap_readback', label: 'Read-back & confirmation' },
+    { key: 'wrap_close', label: 'Professional close' },
+  ] },
+  { label: 'General', items: [
+    { key: 'general_objections', label: 'Overcoming objections' },
+    { key: 'general_advisories', label: 'Reading advisories' },
+    { key: 'general_upsell', label: 'Upsell opportunities' },
+    { key: 'general_policy', label: 'Policy & accuracy' },
+  ] },
 ];
 
 export async function requestCoachingReport(scenarioId, transcript, openingLine) {
@@ -83,8 +101,8 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
     </blockquote>
 
     <h2 class="report-section-title">Scorecard</h2>
-    <div class="report-rubric">
-      ${RUBRIC_DISPLAY.map((entry) => renderRubricCard(entry, report.scores?.[entry.key])).join('')}
+    <div class="report-scorecard">
+      ${RUBRIC_DISPLAY.map((section) => renderScoreSection(section, report.scores)).join('')}
     </div>
 
     <div class="report-actions">
@@ -99,6 +117,30 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
   root.querySelector('#report-retry').addEventListener('click', () => onRetry?.());
 
   return root;
+}
+
+// A collapsible scorecard section: a <details open> (native, no JS) with a
+// summary showing the section name + its average score, and the sub-item cards
+// inside. The four phase sections hold 2 cards; General holds 4.
+function renderScoreSection(section, scores) {
+  const items = section.items || [];
+  const vals = items
+    .map((it) => Number(scores?.[it.key]?.score))
+    .filter((n) => Number.isFinite(n));
+  const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+  const chevron = `<svg class="report-section-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `
+    <details class="report-section" open>
+      <summary class="report-section-summary">
+        <span class="report-section-name">${escapeHtml(section.label)}</span>
+        ${avg != null ? `<span class="report-section-avg"><strong>${avg.toFixed(1)}</strong> <span>/ 5</span></span>` : '<span class="report-section-avg report-section-avg-none">No score</span>'}
+        ${chevron}
+      </summary>
+      <div class="report-section-cards">
+        ${items.map((it) => renderRubricCard(it, scores?.[it.key])).join('')}
+      </div>
+    </details>
+  `;
 }
 
 function renderRubricCard(entry, data) {

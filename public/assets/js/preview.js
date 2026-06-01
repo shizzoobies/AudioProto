@@ -100,30 +100,65 @@ const MOCK = {
     ],
     one_thing_to_try_next_time: 'After you\'ve handled the price objection, move straight to the close: "Can I go ahead and get that Saturday reservation locked in for you?" Don\'t wait for the customer to ask.',
     scores: {
-      beginning: {
+      beginning_greeting: {
         score: 4,
-        evidence: '"Thanks for calling Meridian, this is Derek, how can I help?" opened with a clean branded greeting.',
-        suggestion: 'Use the customer\'s name once you have it to build a little more personal warmth up front.',
+        evidence: '"Thanks for calling Meridian, this is Derek" opened with a clean branded greeting.',
+        suggestion: 'Slow the greeting down a touch so the brand and your name land clearly.',
       },
-      gathering: {
+      beginning_offer: {
         score: 4,
-        evidence: 'Correctly identified the load size from the furniture description and confirmed the 15-foot truck.',
-        suggestion: 'Read back the move details once collected so the customer can catch anything you missed.',
+        evidence: '"How can I help you today?" set a warm, ready-to-help tone right away.',
+        suggestion: 'Use the customer\'s name once you have it to add a little personal warmth.',
       },
-      scheduling: {
+      gathering_details: {
+        score: 4,
+        evidence: 'Asked where they were moving from and to and confirmed the date.',
+        suggestion: 'Read the move details back once collected so the customer can catch anything you missed.',
+      },
+      gathering_equipment: {
         score: 3,
-        evidence: 'Confirmed the pickup location but never nailed down a firm pickup time.',
-        suggestion: 'Lock the time explicitly: "Let\'s set your pickup for 9 AM Saturday — does that work?"',
+        evidence: 'Identified the 15-foot truck from the furniture description.',
+        suggestion: 'Briefly say why that size fits ("most 2-bedrooms do great in the 15-foot").',
       },
-      wrap_up: {
+      scheduling_location: {
+        score: 4,
+        evidence: 'Confirmed the Gainesville branch as the closest pickup.',
+        suggestion: 'Mention the address and hours so the customer knows exactly where to go.',
+      },
+      scheduling_time: {
         score: 2,
-        evidence: 'Call ended without reading back the reservation or confirming a next step.',
-        suggestion: 'Always close with a read-back: confirmation number, truck, date, time, and total.',
+        evidence: 'Never nailed down a firm pickup time before moving on.',
+        suggestion: 'Lock the time explicitly: "Let\'s set pickup for 9 AM Saturday, does that work?"',
       },
-      general: {
+      wrap_readback: {
+        score: 2,
+        evidence: 'Call ended without reading back the reservation or a confirmation number.',
+        suggestion: 'Always read back: confirmation number, truck, date, time, and total.',
+      },
+      wrap_close: {
         score: 3,
-        evidence: 'Handled the price objection calmly but missed the furniture-pads upsell when the sectional came up.',
-        suggestion: 'When a storage or add-on opportunity surfaces, name it: "While we\'re here, would storage help?"',
+        evidence: '"Anything else I can do for you?" gave a courteous close.',
+        suggestion: 'Confirm the next step (the texted confirmation + app check-in) before saying goodbye.',
+      },
+      general_objections: {
+        score: 4,
+        evidence: 'Handled the price-vs-competitor objection calmly with a value comparison.',
+        suggestion: 'After answering the objection, move straight to the ask instead of waiting.',
+      },
+      general_advisories: {
+        score: 3,
+        evidence: 'Quoted the rate but did not mention the environmental fee or VLRF upfront.',
+        suggestion: 'Read the required fees and advisories before the total so nothing is a surprise.',
+      },
+      general_upsell: {
+        score: 2,
+        evidence: 'Missed the furniture-pads upsell when the sectional came up.',
+        suggestion: 'When a storage or add-on opportunity surfaces, name it: "Would storage help while you settle in?"',
+      },
+      general_policy: {
+        score: 4,
+        evidence: 'Correctly quoted the 15-foot rate and per-mile charge.',
+        suggestion: 'Keep policy references exact; avoid promising holds beyond the stated cutoff.',
       },
     },
   },
@@ -1390,11 +1425,28 @@ function renderReportGenerating() {
 function renderReportShown() {
   const r = MOCK.report;
   const RUBRIC = [
-    { key: 'beginning',  label: 'Beginning — Greeting the Customer' },
-    { key: 'gathering',  label: 'Gathering the Rental Information' },
-    { key: 'scheduling', label: 'Scheduling the Reservation' },
-    { key: 'wrap_up',    label: 'Wrap Up' },
-    { key: 'general',    label: 'General' },
+    { label: 'Beginning — Greeting the Customer', items: [
+      { key: 'beginning_greeting', label: 'Branded greeting & self-intro' },
+      { key: 'beginning_offer', label: 'Offer to help & set the tone' },
+    ] },
+    { label: 'Gathering the Rental Information', items: [
+      { key: 'gathering_details', label: 'Move details' },
+      { key: 'gathering_equipment', label: 'Equipment match' },
+    ] },
+    { label: 'Scheduling the Reservation', items: [
+      { key: 'scheduling_location', label: 'Pickup location' },
+      { key: 'scheduling_time', label: 'Pickup time' },
+    ] },
+    { label: 'Wrap Up', items: [
+      { key: 'wrap_readback', label: 'Read-back & confirmation' },
+      { key: 'wrap_close', label: 'Professional close' },
+    ] },
+    { label: 'General', items: [
+      { key: 'general_objections', label: 'Overcoming objections' },
+      { key: 'general_advisories', label: 'Reading advisories' },
+      { key: 'general_upsell', label: 'Upsell opportunities' },
+      { key: 'general_policy', label: 'Policy & accuracy' },
+    ] },
   ];
 
   function rubricCard(entry, data) {
@@ -1422,6 +1474,24 @@ function renderReportShown() {
         <p class="rubric-evidence">${esc(data.evidence || '')}</p>
         <p class="rubric-suggestion"><span class="rubric-suggestion-label">Try next time</span> ${esc(data.suggestion || '')}</p>
       </article>
+    `;
+  }
+
+  function scoreSection(section) {
+    const vals = section.items.map((it) => Number(r.scores[it.key]?.score)).filter((n) => Number.isFinite(n));
+    const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+    const chevron = `<svg class="report-section-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    return `
+      <details class="report-section" open>
+        <summary class="report-section-summary">
+          <span class="report-section-name">${esc(section.label)}</span>
+          ${avg != null ? `<span class="report-section-avg"><strong>${avg.toFixed(1)}</strong> <span>/ 5</span></span>` : ''}
+          ${chevron}
+        </summary>
+        <div class="report-section-cards">
+          ${section.items.map((it) => rubricCard(it, r.scores[it.key])).join('')}
+        </div>
+      </details>
     `;
   }
 
@@ -1470,8 +1540,8 @@ function renderReportShown() {
       </blockquote>
 
       <h2 class="report-section-title">Scorecard</h2>
-      <div class="report-rubric">
-        ${RUBRIC.map((entry) => rubricCard(entry, r.scores[entry.key])).join('')}
+      <div class="report-scorecard">
+        ${RUBRIC.map((section) => scoreSection(section)).join('')}
       </div>
 
       <div class="report-actions">

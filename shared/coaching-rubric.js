@@ -8,9 +8,9 @@ You receive:
 - The full transcript of the call, with the customer's opening line included.
 
 Your job:
-- Score the agent on a 1 to 5 scale across five sections that follow the arc of the call.
+- Score the agent on a 1 to 5 scale across 12 items, grouped into five sections that follow the arc of the call.
 - Be specific. Quote a real, short moment from the transcript as evidence for each score.
-- Be constructive. For every section, name one concrete thing to try, in one sentence.
+- Be constructive. For every item, name one concrete thing to try, in one sentence.
 - Be honest. Do not inflate scores. A 3 is fine. A 4 is good. A 5 is rare and earned.
 - Identify 2 to 4 strengths and 2 to 4 growth areas, each as a short concrete sentence.
 - End with the single most impactful thing the agent should try next time, written in second person ("Try opening with...").
@@ -18,12 +18,31 @@ Your job:
 
 Tone: warm, direct, specific. Not gushy. Not harsh. Talk to a colleague, not a child.
 
-Scoring rubric (five sections - the first four follow the call in order, the fifth is cross-cutting):
-- beginning (Beginning - Greeting the Customer): How well did they open the call? A proper branded greeting, giving their name, asking how they can help, and setting a warm, professional tone from the first moment.
-- gathering (Gathering the Rental Information): Did they collect the reservation details the call needed - the move details, the right equipment and truck size, dates and duration - by asking good questions, confirming understanding, and getting it accurate?
-- scheduling (Scheduling the Reservation): Did they handle the pickup location and time and move the reservation toward being locked in, correctly and efficiently?
-- wrap_up (Wrap Up): Did they confirm and read back the reservation, cover next steps, answer any last questions, and close the call professionally?
-- general (General): Cross-cutting skills that can surface anywhere in the call - overcoming objections, reading required advisories, and catching upsell opportunities (for example, offering storage when it comes up). Score how well they handled these when the moments arose. If none arose, score what they did to preserve the relationship and future business, and note that in the evidence.
+Scoring rubric. Score each of the 12 items below from 1 to 5. They are grouped into five sections; the first four follow the call in order, the fifth is cross-cutting.
+
+Beginning - Greeting the Customer:
+- beginning_greeting (Branded greeting and self-intro): Did they open with a proper branded greeting and give their name? For example, "Thank you for calling Meridian Moving and Storage, this is ___."
+- beginning_offer (Offer to help and set the tone): Did they ask how they can help and set a warm, professional tone from the first moment?
+
+Gathering the Rental Information:
+- gathering_details (Move details): Did they collect the move details the reservation needs - where from and to, the date, the load size - by asking good questions and confirming understanding?
+- gathering_equipment (Equipment match): Did they recommend the right truck size for the move and present the rate and options clearly?
+
+Scheduling the Reservation:
+- scheduling_location (Pickup location): Did they select or confirm the right pickup branch for the customer?
+- scheduling_time (Pickup time): Did they lock in a firm pickup date and time?
+
+Wrap Up:
+- wrap_readback (Read-back and confirmation): Did they read back and confirm the reservation details, including the confirmation number?
+- wrap_close (Professional close): Did they cover next steps, ask if there is anything else, and close the call courteously?
+
+General (cross-cutting - can surface anywhere in the call):
+- general_objections (Overcoming objections): Did they handle objections (price, competitor, hesitation) and keep the call moving toward a booking?
+- general_advisories (Reading advisories): Did they read or cover the required advisories, notices, and disclosures when they applied?
+- general_upsell (Upsell opportunities): Did they catch upsell opportunities (storage, furniture pads, a dolly, coverage) when the moment came up?
+- general_policy (Policy and accuracy): Did they stay accurate to Meridian's stated policies and avoid promising things outside them?
+
+For any item where the moment never arose in this call, score what they did to set up success and note in the evidence that the moment did not come up.
 
 Style rules:
 - Do not use em dashes anywhere in your output. Use commas, periods, or restart sentences.
@@ -48,7 +67,7 @@ const SCORE_ENTRY_SCHEMA = {
     },
     suggestion: {
       type: 'string',
-      description: 'One concrete sentence describing what to try differently next time in this section of the call.',
+      description: 'One concrete sentence describing what to try differently next time for this item.',
     },
   },
   required: ['score', 'evidence', 'suggestion'],
@@ -69,13 +88,26 @@ export const COACHING_TOOL = {
       scores: {
         type: 'object',
         properties: {
-          beginning: SCORE_ENTRY_SCHEMA,
-          gathering: SCORE_ENTRY_SCHEMA,
-          scheduling: SCORE_ENTRY_SCHEMA,
-          wrap_up: SCORE_ENTRY_SCHEMA,
-          general: SCORE_ENTRY_SCHEMA,
+          beginning_greeting: SCORE_ENTRY_SCHEMA,
+          beginning_offer: SCORE_ENTRY_SCHEMA,
+          gathering_details: SCORE_ENTRY_SCHEMA,
+          gathering_equipment: SCORE_ENTRY_SCHEMA,
+          scheduling_location: SCORE_ENTRY_SCHEMA,
+          scheduling_time: SCORE_ENTRY_SCHEMA,
+          wrap_readback: SCORE_ENTRY_SCHEMA,
+          wrap_close: SCORE_ENTRY_SCHEMA,
+          general_objections: SCORE_ENTRY_SCHEMA,
+          general_advisories: SCORE_ENTRY_SCHEMA,
+          general_upsell: SCORE_ENTRY_SCHEMA,
+          general_policy: SCORE_ENTRY_SCHEMA,
         },
-        required: ['beginning', 'gathering', 'scheduling', 'wrap_up', 'general'],
+        required: [
+          'beginning_greeting', 'beginning_offer',
+          'gathering_details', 'gathering_equipment',
+          'scheduling_location', 'scheduling_time',
+          'wrap_readback', 'wrap_close',
+          'general_objections', 'general_advisories', 'general_upsell', 'general_policy',
+        ],
       },
       strengths: {
         type: 'array',
@@ -109,10 +141,29 @@ export const COACHING_TOOL = {
   },
 };
 
+// Display structure for the scorecard: five collapsible sections, each holding
+// its sub-item cards. Keys mirror COACHING_TOOL.scores above.
 export const RUBRIC_DISPLAY = [
-  { key: 'beginning', label: 'Beginning — Greeting the Customer' },
-  { key: 'gathering', label: 'Gathering the Rental Information' },
-  { key: 'scheduling', label: 'Scheduling the Reservation' },
-  { key: 'wrap_up', label: 'Wrap Up' },
-  { key: 'general', label: 'General' },
+  { label: 'Beginning — Greeting the Customer', items: [
+    { key: 'beginning_greeting', label: 'Branded greeting & self-intro' },
+    { key: 'beginning_offer', label: 'Offer to help & set the tone' },
+  ] },
+  { label: 'Gathering the Rental Information', items: [
+    { key: 'gathering_details', label: 'Move details' },
+    { key: 'gathering_equipment', label: 'Equipment match' },
+  ] },
+  { label: 'Scheduling the Reservation', items: [
+    { key: 'scheduling_location', label: 'Pickup location' },
+    { key: 'scheduling_time', label: 'Pickup time' },
+  ] },
+  { label: 'Wrap Up', items: [
+    { key: 'wrap_readback', label: 'Read-back & confirmation' },
+    { key: 'wrap_close', label: 'Professional close' },
+  ] },
+  { label: 'General', items: [
+    { key: 'general_objections', label: 'Overcoming objections' },
+    { key: 'general_advisories', label: 'Reading advisories' },
+    { key: 'general_upsell', label: 'Upsell opportunities' },
+    { key: 'general_policy', label: 'Policy & accuracy' },
+  ] },
 ];

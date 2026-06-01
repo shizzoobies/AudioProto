@@ -1997,15 +1997,54 @@ body[data-demo] .app-main {
   color: var(--color-text-secondary);
 }
 
-.report-rubric {
+/* Scorecard: five collapsible sections, each with its sub-item cards. */
+.report-scorecard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.report-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.report-section-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.report-section-summary::-webkit-details-marker { display: none; }
+.report-section-summary:hover { background: var(--color-surface-elevated); }
+.report-section-name {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+.report-section-avg {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+.report-section-avg strong { color: var(--color-accent); font-size: 16px; }
+.report-section-avg-none { color: var(--color-text-tertiary); }
+.report-section-chevron {
+  flex: none;
+  color: var(--color-text-tertiary);
+  transition: transform 0.2s ease;
+}
+.report-section[open] .report-section-chevron { transform: rotate(180deg); }
+.report-section-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
-}
-/* The four call-phase sections sit in a 2x2; the cross-cutting "General"
-   section (always last) spans the full width below them. */
-.report-rubric .rubric-card:last-child {
-  grid-column: 1 / -1;
+  padding: 0 var(--space-5) var(--space-5);
 }
 
 .rubric-card {
@@ -2173,7 +2212,7 @@ body[data-demo] .app-main {
     grid-template-columns: 1fr;
   }
 
-  .report-rubric {
+  .report-section-cards {
     grid-template-columns: 1fr;
   }
 
