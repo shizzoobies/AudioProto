@@ -3709,6 +3709,36 @@ body[data-recipient] #sign-out {
   align-items: center;
   max-width: 44ch;
 }
+/* "First Call" brand wordmark above the title — a frosted pill so it reads over
+   the bright footage. Swap the dot + name for a logo <img> when one is ready. */
+.demo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: clamp(14px, 2vw, 22px);
+  padding: 7px 16px 7px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 20px rgba(30, 36, 50, 0.08);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.demo-brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--demo-maroon);
+  flex: none;
+}
+.demo-brand-name {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.005em;
+  color: var(--demo-ink);
+}
 .demo-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -4180,12 +4210,21 @@ body[data-recipient] #sign-out {
   gap: 14px 24px;
   flex-wrap: wrap;
 }
+.demo-footer-brandcol {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 .demo-footer-brand {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-size: 18px;
+  font-size: 19px;
   letter-spacing: -0.01em;
   color: #ffffff;
+}
+.demo-footer-tagline {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
 }
 .demo-footer-note {
   font-size: 13px;

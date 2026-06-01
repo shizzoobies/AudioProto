@@ -585,6 +585,10 @@ function renderDemoHome() {
       </div>
       <div class="demo-stage">
         <div class="demo-hero-content">
+          <div class="demo-brand" aria-label="First Call">
+            <span class="demo-brand-dot" aria-hidden="true"></span>
+            <span class="demo-brand-name">First Call</span>
+          </div>
           <h1 class="demo-title">Simulation Demo</h1>
         </div>
         <div class="demo-tenets">
@@ -608,7 +612,10 @@ function renderDemoHome() {
       </div>
       <footer class="demo-footer">
         <div class="demo-footer-inner">
-          <span class="demo-footer-brand">Meridian Simulations</span>
+          <div class="demo-footer-brandcol">
+            <span class="demo-footer-brand">First Call</span>
+            <span class="demo-footer-tagline">Realistic call simulation and instant coaching.</span>
+          </div>
           <span class="demo-footer-note" role="note">Real voice calls — please allow microphone access when prompted.</span>
         </div>
       </footer>
