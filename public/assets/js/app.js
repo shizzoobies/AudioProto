@@ -606,7 +606,12 @@ function renderDemoHome() {
         <p class="demo-lines-label" aria-hidden="true">Two lines open</p>
         <ul class="demo-entries">${entriesHtml}</ul>
       </div>
-      <p class="demo-note" role="note">These are real voice calls — please allow microphone access when prompted.</p>
+      <footer class="demo-footer">
+        <div class="demo-footer-inner">
+          <span class="demo-footer-brand">Meridian Simulations</span>
+          <span class="demo-footer-note" role="note">Real voice calls — please allow microphone access when prompted.</span>
+        </div>
+      </footer>
     </section>
   `;
 
