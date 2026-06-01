@@ -258,6 +258,11 @@ body[data-demo] .app-main {
      dark footer, so no strip of page background shows under it on scroll. */
   padding-bottom: 0;
 }
+/* The demo is a single, non-scrolling screen — lock the page so it can't scroll
+   past the footer. */
+body[data-demo] {
+  overflow: hidden;
+}
 
 /* Buttons
    ------------------------------------------------------------------ */
@@ -3573,14 +3578,14 @@ body[data-recipient] #sign-out {
   margin-left: calc(-1 * var(--space-5));
   margin-right: calc(-1 * var(--space-5));
   padding: clamp(16px, 3vw, 40px) 0 0;
-  /* Fill at least the viewport so the dark footer sits at the bottom with no
-     page background showing between it and the content. */
-  min-height: 100vh;
+  /* Single non-scrolling screen: exactly the viewport tall, content fits, and
+     the dark footer ends at the bottom. Overflow is clipped so nothing scrolls. */
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: clamp(20px, 4vw, 44px);
-  /* Clip nothing — the orb must reach both edges */
-  overflow: visible;
+  gap: clamp(12px, 2.2vw, 28px);
+  overflow: hidden;
 }
 
 /* =========================================================================
@@ -3602,7 +3607,10 @@ body[data-recipient] #sign-out {
   margin-right: auto;
   padding: clamp(16px, 3vw, 32px) clamp(24px, 5vw, 48px) clamp(8px, 1.5vw, 18px);
   text-align: center;
-  min-height: clamp(300px, 46vh, 480px);
+  /* Absorb the slack so the hero centers in the space above the tiles + footer
+     and the whole demo fits one screen without scrolling. */
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* The orb field spans the FULL width of .demo-home (which is now full-viewport-
