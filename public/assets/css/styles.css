@@ -3635,20 +3635,27 @@ body[data-recipient] #sign-out {
   object-fit: cover;
   display: block;
 }
-/* Legibility scrim over the footage. Lightens behind the dark Playfair title
-   (top) and the note (bottom), stays clearer through the middle so the clip
-   shows. Neutral paper tone to keep the bright editorial feel — TUNE once the
-   real footage lands (and consider flipping text to light for dark clips). */
+/* Legibility scrim over the footage. A concentrated translucent light wash
+   sits behind the dark Playfair title + tenets (upper-center) so they read
+   clearly over the bright clip, fading out so the footage still shows through
+   the lower and side areas; a gentle top/bottom frame keeps the editorial feel. */
 .demo-video-scrim {
   position: absolute;
   inset: 0;
   background:
+    radial-gradient(
+      120% 78% at 50% 38%,
+      rgba(252, 251, 253, 0.85) 0%,
+      rgba(252, 251, 253, 0.50) 40%,
+      rgba(252, 251, 253, 0.12) 65%,
+      rgba(252, 251, 253, 0.0) 80%
+    ),
     linear-gradient(
       180deg,
-      rgba(252, 251, 253, 0.62) 0%,
-      rgba(252, 251, 253, 0.14) 34%,
-      rgba(252, 251, 253, 0.0) 58%,
-      rgba(252, 251, 253, 0.24) 100%
+      rgba(252, 251, 253, 0.50) 0%,
+      rgba(252, 251, 253, 0.16) 36%,
+      rgba(252, 251, 253, 0.0) 60%,
+      rgba(252, 251, 253, 0.26) 100%
     );
 }
 .demo-home[data-video="ready"] .demo-orb-field {

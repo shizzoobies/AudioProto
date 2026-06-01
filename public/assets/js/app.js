@@ -635,9 +635,17 @@ function renderDemoHome() {
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (video && videoField && !reduceMotion) {
       let settled = false;
+      // Play the backdrop slower than real time for a calmer, more cinematic
+      // feel. Some browsers reset the rate when the source loads, so re-assert
+      // it on loadeddata and on the first 'playing'.
+      const BACKDROP_RATE = 0.6;
+      const setRate = () => { try { video.defaultPlaybackRate = BACKDROP_RATE; video.playbackRate = BACKDROP_RATE; } catch {} };
+      setRate();
+      video.addEventListener('loadeddata', setRate);
       const activate = () => {
         if (settled) return;
         settled = true;
+        setRate();
         const home = dom.root.querySelector('.demo-home');
         if (home) home.dataset.video = 'ready';
         videoField.dataset.active = 'true';
