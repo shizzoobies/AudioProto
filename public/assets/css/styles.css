@@ -4296,7 +4296,7 @@ body[data-recipient] #sign-out {
   z-index: 1;
   margin-top: auto;
   background: #1b1f2a;
-  padding: clamp(28px, 4vw, 52px) clamp(24px, 5vw, 48px);
+  padding: clamp(13px, 1.9vw, 24px) clamp(24px, 5vw, 48px);
 }
 .demo-footer-inner {
   max-width: 960px;
@@ -4304,7 +4304,7 @@ body[data-recipient] #sign-out {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px 24px;
+  gap: 10px 24px;
   flex-wrap: wrap;
 }
 .demo-footer-brandcol {
@@ -4314,13 +4314,8 @@ body[data-recipient] #sign-out {
 }
 .demo-footer-logo {
   display: block;
-  width: clamp(132px, 20vw, 176px);
+  width: clamp(100px, 13vw, 132px);
   height: auto;
-  margin-bottom: 4px;
-}
-.demo-footer-tagline {
-  font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.5);
 }
 .demo-footer-note {
   font-size: 13px;
