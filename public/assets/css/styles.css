@@ -3569,8 +3569,13 @@ body[data-recipient] #sign-out {
   /* First Call brand: U-Haul orange + black. (Var names kept for compatibility:
      --demo-maroon is now the orange primary, --demo-terracotta the black accent
      used by the second scenario tile.) */
-  --demo-ink: #1a1c22;
+  --demo-ink: #101216;
   --demo-paper: #fcfbfd;
+  /* Darken the secondary/tertiary body text demo-wide so every line reads crisp
+     over the bright still backdrop (tile taglines, tenet detail, labels, etc.).
+     The footer/splash use their own light colors, so they're unaffected. */
+  --color-text-secondary: #1d2026;
+  --color-text-tertiary: #2c3038;
   --demo-maroon: #F26522;
   --demo-terracotta: #1b1f2a;
   position: relative;
@@ -3785,6 +3790,15 @@ body[data-recipient] #sign-out {
   color: var(--demo-ink);
   margin: 0;
   white-space: nowrap;
+}
+/* Subtle white halo so the dark headline + tile text stay crisp over the bright
+   still backdrop. */
+.demo-title,
+.demo-tenet-line,
+.demo-entry-name,
+.demo-entry-customer,
+.demo-entry-tagline {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 /* Hero tenets — three promises laid out ACROSS the hero. Each rests as a clean
    display-serif line with a thin accent rule beneath; on hover (desktop), focus, or
