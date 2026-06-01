@@ -577,7 +577,7 @@ function renderDemoHome() {
            visitor prefers reduced motion, the orb stays the backdrop. Served
            same-origin, allowed by the existing CSP (media-src 'self'). -->
       <div class="demo-video-field" id="demo-video-field" data-active="false" aria-hidden="true">
-        <video class="demo-video" id="demo-video" muted loop playsinline preload="auto" poster="/assets/video/demo-backdrop-poster.jpg">
+        <video class="demo-video" id="demo-video" muted playsinline preload="auto" poster="/assets/video/demo-backdrop-poster.jpg">
           <source src="/assets/video/demo-backdrop.webm" type="video/webm">
           <source src="/assets/video/demo-backdrop.mp4" type="video/mp4">
         </video>
