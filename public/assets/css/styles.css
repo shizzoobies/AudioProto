@@ -3656,6 +3656,13 @@ body[data-recipient] #sign-out {
   height: 100%;
   object-fit: cover;
   display: block;
+  /* Two clips stacked here; only the "showing" one is opaque, the other waits
+     at 0 so swaps are a soft 1.2s dissolve (no hard loop-seam cut). */
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.demo-video.is-showing {
+  opacity: 1;
 }
 /* Legibility scrim over the footage. A concentrated translucent light wash
    sits behind the dark Playfair title + tenets (upper-center) so they read
