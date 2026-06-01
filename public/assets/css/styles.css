@@ -4563,6 +4563,10 @@ body[data-recipient] #sign-out {
   display: inline-block;
   transition: transform 0.18s ease;
 }
+.demo-splash-enter:focus,
+.demo-splash-enter:focus-visible {
+  outline: none;
+}
 .demo-splash-enter:hover {
   color: #ff7a33;
   transform: translateY(-1px);

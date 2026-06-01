@@ -799,7 +799,6 @@ function renderDemoHome() {
         window.setTimeout(() => { landingLogo.dataset.state = 'formed'; }, 240 + 1500);
       }
     });
-    setTimeout(() => { try { splashEnter.focus(); } catch {} }, 60);
   }
 
   dom.root.querySelectorAll('.demo-entry').forEach((card) => {
