@@ -912,12 +912,23 @@ function setupMicTest(root) {
       setStatus('Microphone connected — say something to see the level move.', '');
       const AC = window.AudioContext || window.webkitAudioContext;
       audioCtx = new AC();
-      try { audioCtx.resume && audioCtx.resume(); } catch {}
+      // Contexts created outside a direct gesture start suspended; resume so the
+      // graph actually runs (otherwise the analyser only ever sees silence).
+      try { await audioCtx.resume(); } catch {}
       const src = audioCtx.createMediaStreamSource(stream);
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.4;
       buffer = new Uint8Array(analyser.fftSize);
+      // Chrome will not "pull" audio from a MediaStreamSource unless the graph
+      // reaches a destination, so route the analyser through a MUTED gain node
+      // to the speakers. Gain 0 means no feedback, but the graph stays live and
+      // the meter actually moves.
+      const sink = audioCtx.createGain();
+      sink.gain.value = 0;
       src.connect(analyser);
+      analyser.connect(sink);
+      sink.connect(audioCtx.destination);
       raf = requestAnimationFrame(tick);
       populateDevices();
     } catch (err) {
