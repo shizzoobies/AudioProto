@@ -1332,7 +1332,7 @@ async function startCall(typeOrPersonaId) {
   const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
   state.activeScenario = {
     ...persona,
-    title: persona.type_title,
+    title: persona.type_title || persona.title || '',
     opening_line: chosen,
     blind,
   };

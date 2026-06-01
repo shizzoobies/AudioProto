@@ -1310,6 +1310,19 @@ const PERSONA_DEFS = {
       'Build genuine urgency around a real, fixed deadline',
       'Ask for the business and lock the reservation today',
     ],
+    // Used by the coaching report (server reads these from the def): a clean
+    // title for the report header, a situation summary, and the success criteria
+    // the rubric scores against - tuned to this call's goals (urgency + close).
+    title: 'One-Way Reservation',
+    description: 'Maya is relocating from Columbus, Ohio to Denver, Colorado in about two weeks and called Meridian to price a one-way truck for her two-bedroom move (a 20-foot one-way). She has not booked anything yet and is mentally planning to "do it this weekend." She is not price-shopping; what holds her back is committing in the moment. Her timeline has no slack: her Columbus lease ends and her new-job orientation is a fixed Monday she cannot miss. The agent should understand the move, recommend and price the one-way truck, build genuine urgency around that real deadline (limited one-way inventory on her route and weekend, and the rate holding if she books now) without fake pressure, reassure her real anxieties, and actually ask for the business and lock the reservation before the call ends.',
+    success_criteria: [
+      "Open with a warm, branded greeting and understand Maya's move before pitching: one-way, Columbus to Denver (about 1,100 miles), two-bedroom.",
+      'Recommend the right equipment (a 20-foot one-way truck) and present the one-way rate clearly and confidently, without haggling or apologizing for the price.',
+      'Build genuine urgency around her real, fixed deadline: limited one-way inventory on her route and weekend, and the rate holding if she books today. No fake scarcity or pressure.',
+      'Reassure the anxieties she surfaces (driving a large truck, bringing the dog, doing the move solo) so booking feels easy and safe.',
+      'Ask for the business and actually move to lock the reservation on this call. Do not simply quote her and let her go.',
+      'Read back and confirm the one-way reservation details (truck, route, pickup date and location, confirmation) and close professionally.',
+    ],
     identity: 'a 33-year-old marketing manager relocating from Columbus, Ohio to Denver, Colorado, calling Meridian Moving & Storage to price a one-way truck',
     emotional_state: 'friendly and a little frazzled, excited and anxious about the move, here to "just get a number" but closer to ready than you let on',
     situation: [

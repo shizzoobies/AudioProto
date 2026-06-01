@@ -27,6 +27,7 @@ export async function onRequestGet({ request, env }) {
       id: sid,
       customer_name: p?.customer_name || sid,
       customer_short: p?.customer_short || '',
+      title: p?.title || '',
       tagline: p?.tagline || '',
       premium: !!p?.premium,
       points: Array.isArray(p?.points) ? p.points : [],
