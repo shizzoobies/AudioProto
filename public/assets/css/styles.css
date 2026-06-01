@@ -3807,29 +3807,63 @@ body[data-recipient] #sign-out {
 .demo-entry-tagline {
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
-/* The hero headline is now a single word — give it a touch more presence. */
-.demo-title-solo {
-  font-weight: 600;
-  letter-spacing: -0.03em;
+/* The hero headline is the flat First Call logo, assembled on entry from image
+   shards that rain down and lock into place. The crisp <img> sits underneath and
+   the shard layer overlays it; once the shards land we fade the crisp image in
+   and the shards out (a seamless swap, since together they ARE the image). */
+.demo-logo {
+  position: relative;
+  display: inline-block;
+  width: clamp(260px, 46vw, 540px);
+  line-height: 0;
 }
-/* When the splash lifts, the "Demo" headline settles into place: rises, sharpens
-   out of a soft blur, and tightens its tracking. */
-.demo-home[data-splash="done"] .demo-title-solo {
-  animation: demo-title-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+.demo-logo-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+  transition: opacity 0.45s ease;
 }
-@keyframes demo-title-in {
-  from {
-    opacity: 0;
-    transform: translateY(28px) scale(0.9);
-    letter-spacing: 0.08em;
-    filter: blur(7px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    letter-spacing: -0.03em;
-    filter: blur(0);
-  }
+.demo-logo[data-state="formed"] .demo-logo-img {
+  opacity: 1;
+}
+.demo-logo-shatter {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+.demo-logo[data-state="formed"] .demo-logo-shatter {
+  opacity: 0;
+}
+.demo-shard {
+  position: absolute;
+  background-image: url('/assets/img/first-call-landing.png');
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: translate(var(--sx, 0), var(--sy, -140px)) rotate(var(--sr, 0deg));
+  will-change: transform, opacity;
+}
+/* Pieces fall from their scattered start and settle home; the ease-out gives a
+   small "landing" snap as each shard locks into the mark. */
+.demo-logo[data-state="forming"] .demo-shard,
+.demo-logo[data-state="formed"] .demo-shard {
+  animation: demo-shard-in 0.9s cubic-bezier(0.16, 0.84, 0.24, 1) var(--delay, 0ms) both;
+}
+@keyframes demo-shard-in {
+  0% { opacity: 0; transform: translate(var(--sx), var(--sy)) rotate(var(--sr)); }
+  16% { opacity: 1; }
+  100% { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+}
+/* On Enter the splash's 3D logo drops and tumbles out as the shards take over. */
+.demo-home[data-splash="done"] .demo-splash-logo {
+  animation: demo-splash-logo-fall 0.7s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+@keyframes demo-splash-logo-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(70px) rotate(9deg) scale(0.82); filter: blur(2px); }
 }
 /* Hero tenets — three promises laid out ACROSS the hero. Each rests as a clean
    display-serif line with a thin accent rule beneath; on hover (desktop), focus, or
@@ -4415,9 +4449,12 @@ body[data-recipient] #sign-out {
   .demo-entry-flip { transition: none; }
   .demo-entry:hover .demo-entry-flip,
   .demo-entry:focus-visible .demo-entry-flip { transform: none; }
-  /* No splash-logo float, no headline fly-in for users who opt out. */
+  /* No splash-logo float/fall, no shard shatter for users who opt out — the JS
+     shows the crisp landing logo directly instead. */
   .demo-splash-logo { animation: none; }
-  .demo-home[data-splash="done"] .demo-title-solo { animation: none; }
+  .demo-home[data-splash="done"] .demo-splash-logo { animation: none; }
+  .demo-logo[data-state="forming"] .demo-shard,
+  .demo-logo[data-state="formed"] .demo-shard { animation: none; opacity: 0; }
 }
 
 /* ---- Staged entrance + living motion (safe / opt-in) --------------------- */

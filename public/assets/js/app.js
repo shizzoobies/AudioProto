@@ -597,7 +597,10 @@ function renderDemoHome() {
       </div>
       <div class="demo-stage">
         <div class="demo-hero-content">
-          <h1 class="demo-title demo-title-solo">Demo</h1>
+          <div class="demo-logo" id="demo-landing-logo" data-state="hidden" aria-label="First Call">
+            <img class="demo-logo-img" src="/assets/img/first-call-landing.png" alt="First Call" width="1080" height="476" />
+            <div class="demo-logo-shatter" id="demo-logo-shatter" aria-hidden="true"></div>
+          </div>
         </div>
         <div class="demo-tenets">
           <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#F26522">
@@ -753,12 +756,34 @@ function renderDemoHome() {
   // guarantees the muted video plays through (and freezes on its last frame).
   const splashHome = dom.root.querySelector('.demo-home');
   const splashEnter = dom.root.querySelector('#demo-splash-enter');
+
+  // The landing headline is the flat First Call logo, assembled from shards that
+  // rain down and lock into place — so when the splash's 3D logo "falls and
+  // shatters" on Enter, the pieces reform into this mark. Built hidden; on Enter
+  // the shards animate in (forming), then we swap to the crisp image (formed).
+  const landingLogo = dom.root.querySelector('#demo-landing-logo');
+  const shatterBox = dom.root.querySelector('#demo-logo-shatter');
+  const reduceMotionLogo = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (landingLogo && shatterBox) {
+    if (reduceMotionLogo) {
+      landingLogo.dataset.state = 'formed'; // no shatter — just show the logo
+    } else {
+      buildLogoShatter(shatterBox, 9, 4);
+    }
+  }
+
   if (splashEnter) {
     splashEnter.addEventListener('click', () => {
       if (splashHome) splashHome.dataset.splash = 'done';
       // The clips ping-pong on the splash; entering freezes whichever one is
       // showing to a crisp still frame as the landing backdrop.
       try { backdropCtl?.freeze?.(); } catch {}
+      // As the 3D splash logo falls and breaks apart, the landing shards rain in
+      // and assemble; then swap to the crisp logo.
+      if (landingLogo && !reduceMotionLogo) {
+        window.setTimeout(() => { landingLogo.dataset.state = 'forming'; }, 240);
+        window.setTimeout(() => { landingLogo.dataset.state = 'formed'; }, 240 + 1500);
+      }
     });
     setTimeout(() => { try { splashEnter.focus(); } catch {} }, 60);
   }
@@ -780,6 +805,44 @@ function renderDemoHome() {
       t.classList.toggle('is-open', !open);
     });
   });
+}
+
+// Build a cols x rows grid of image shards over the landing logo. Each shard is
+// a div whose background is the logo, sprite-positioned to show just its cell,
+// with a randomized "fallen" start (above the page, scattered, rotated) handed
+// to the CSS animation via custom properties. Staggered top-to-bottom so the
+// pieces rain into place and assemble the mark.
+function buildLogoShatter(container, cols, rows) {
+  if (!container) return;
+  const frag = document.createDocumentFragment();
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const shard = document.createElement('div');
+      shard.className = 'demo-shard';
+      shard.style.left = `${(c / cols) * 100}%`;
+      shard.style.top = `${(r / rows) * 100}%`;
+      shard.style.width = `${100 / cols}%`;
+      shard.style.height = `${100 / rows}%`;
+      // CSS sprite math: scale the bg to cols x rows tiles, then position the
+      // cell. The (n-1) divisor is the correct percentage-positioning formula.
+      shard.style.backgroundSize = `${cols * 100}% ${rows * 100}%`;
+      const bx = cols > 1 ? (c / (cols - 1)) * 100 : 0;
+      const by = rows > 1 ? (r / (rows - 1)) * 100 : 0;
+      shard.style.backgroundPosition = `${bx}% ${by}%`;
+      // Fallen start: from above (negative Y), scattered X, random spin.
+      const sx = Math.round((Math.random() * 2 - 1) * 46);
+      const sy = Math.round(-130 - Math.random() * 170);
+      const sr = Math.round((Math.random() * 2 - 1) * 70);
+      shard.style.setProperty('--sx', `${sx}px`);
+      shard.style.setProperty('--sy', `${sy}px`);
+      shard.style.setProperty('--sr', `${sr}deg`);
+      // Rain top rows in first, with a little jitter so it doesn't march.
+      const delay = Math.round(r * 70 + Math.random() * 130);
+      shard.style.setProperty('--delay', `${delay}ms`);
+      frag.appendChild(shard);
+    }
+  }
+  container.appendChild(frag);
 }
 
 // A built-out home track (e.g. Sales: Overcoming Objections). Lists the
