@@ -2025,9 +2025,13 @@ body[data-demo] {
   cursor: pointer;
   list-style: none;
   user-select: none;
+  /* Darker header tab so each section reads distinctly, not an all-white block. */
+  background: #e9ecf1;
 }
 .report-section-summary::-webkit-details-marker { display: none; }
-.report-section-summary:hover { background: var(--color-surface-elevated); }
+.report-section-summary:hover { background: #e1e5ec; }
+/* When expanded, divide the header tab from the cards below it. */
+.report-section[open] .report-section-summary { border-bottom: 1px solid var(--color-border); }
 .report-section-name {
   font-weight: 600;
   font-size: 16px;
