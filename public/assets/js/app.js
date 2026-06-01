@@ -562,7 +562,7 @@ function renderDemoHome() {
   `).join('');
 
   dom.root.innerHTML = `
-    <section class="demo-home demo-living">
+    <section class="demo-home demo-living" data-splash="active">
       <!-- Orb field is a page-level background layer: first child of demo-home
            so it spans behind BOTH the hero and the entries grid. Pointer-events
            none + z-index 0 so all content above it stays fully clickable. -->
@@ -619,6 +619,13 @@ function renderDemoHome() {
           <span class="demo-footer-note" role="note">Real voice calls — please allow microphone access when prompted.</span>
         </div>
       </footer>
+      <div class="demo-splash" id="demo-splash">
+        <div class="demo-splash-inner">
+          <h1 class="demo-splash-wordmark">First Call</h1>
+          <p class="demo-splash-tagline">Realistic call simulation and instant coaching.</p>
+          <button type="button" class="demo-splash-enter" id="demo-splash-enter">Enter the demo <span aria-hidden="true">&rsaquo;</span></button>
+        </div>
+      </div>
     </section>
   `;
 
@@ -677,6 +684,20 @@ function renderDemoHome() {
     }
   } catch {
     // Any failure here is non-fatal — the orb backdrop remains.
+  }
+
+  // Splash gate: the demo opens behind a "First Call" splash over the playing
+  // clip; clicking Enter reveals the landing and is the user gesture that
+  // guarantees the muted video plays through (and freezes on its last frame).
+  const splashHome = dom.root.querySelector('.demo-home');
+  const splashEnter = dom.root.querySelector('#demo-splash-enter');
+  const splashVideo = dom.root.querySelector('#demo-video');
+  if (splashEnter) {
+    splashEnter.addEventListener('click', () => {
+      if (splashHome) splashHome.dataset.splash = 'done';
+      try { splashVideo?.play?.(); } catch {}
+    });
+    setTimeout(() => { try { splashEnter.focus(); } catch {} }, 60);
   }
 
   dom.root.querySelectorAll('.demo-entry').forEach((card) => {
