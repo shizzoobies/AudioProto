@@ -10,3 +10,7 @@
 # cache instead of inheriting the site-wide no-store. More specific path wins.
 /assets/video/*
   Cache-Control: public, max-age=86400
+
+# The 3D logo image is a static brand asset — cache it too.
+/assets/img/*
+  Cache-Control: public, max-age=86400

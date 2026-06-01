@@ -621,7 +621,9 @@ function renderDemoHome() {
       </footer>
       <div class="demo-splash" id="demo-splash">
         <div class="demo-splash-inner">
-          <h1 class="demo-splash-wordmark">First Call</h1>
+          <h1 class="demo-splash-wordmark">
+            <img class="demo-splash-logo" src="/assets/img/first-call-logo.png" alt="First Call" width="1200" height="529" />
+          </h1>
           <p class="demo-splash-tagline">Realistic call simulation and instant coaching.</p>
           <button type="button" class="demo-splash-enter" id="demo-splash-enter">Enter the demo <span aria-hidden="true">&rsaquo;</span></button>
         </div>
