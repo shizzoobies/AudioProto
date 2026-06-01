@@ -624,7 +624,7 @@ function renderDemoHome() {
       <footer class="demo-footer">
         <div class="demo-footer-inner">
           <div class="demo-footer-brandcol">
-            <span class="demo-footer-brand">First Call</span>
+            <img class="demo-footer-logo" src="/assets/img/first-call-light.png" alt="First Call" width="600" height="265" />
             <span class="demo-footer-tagline">Realistic call simulation and instant coaching.</span>
           </div>
           <span class="demo-footer-note" role="note">Real voice calls — please allow microphone access when prompted.</span>

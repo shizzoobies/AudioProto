@@ -4305,12 +4305,11 @@ body[data-recipient] #sign-out {
   flex-direction: column;
   gap: 3px;
 }
-.demo-footer-brand {
-  font-family: var(--font-display);
-  font-optical-sizing: auto;
-  font-size: 19px;
-  letter-spacing: -0.01em;
-  color: #F26522;
+.demo-footer-logo {
+  display: block;
+  width: clamp(132px, 20vw, 176px);
+  height: auto;
+  margin-bottom: 4px;
 }
 .demo-footer-tagline {
   font-size: 12.5px;
