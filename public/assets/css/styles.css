@@ -3645,18 +3645,57 @@ body[data-recipient] #sign-out {
   background:
     radial-gradient(
       120% 78% at 50% 38%,
-      rgba(252, 251, 253, 0.85) 0%,
-      rgba(252, 251, 253, 0.50) 40%,
-      rgba(252, 251, 253, 0.12) 65%,
-      rgba(252, 251, 253, 0.0) 80%
+      rgba(252, 251, 253, 0.42) 0%,
+      rgba(252, 251, 253, 0.18) 45%,
+      rgba(252, 251, 253, 0.0) 72%
     ),
     linear-gradient(
       180deg,
-      rgba(252, 251, 253, 0.50) 0%,
-      rgba(252, 251, 253, 0.16) 36%,
+      rgba(252, 251, 253, 0.42) 0%,
+      rgba(252, 251, 253, 0.12) 36%,
       rgba(252, 251, 253, 0.0) 60%,
-      rgba(252, 251, 253, 0.26) 100%
+      rgba(252, 251, 253, 0.24) 100%
     );
+}
+
+/* Elevated frosted-glass panel that lifts the title + tenets off the footage.
+   Translucent so the clip still shows through, with a backdrop blur (legibility
+   + premium glass), a hairline highlight, and a soft drop shadow for the lift.
+   If a browser can't do backdrop-filter, it degrades to a translucent panel. */
+.demo-hero-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.4vw, 16px);
+  /* Hug the widest child (the nowrap title) instead of a fixed width, so the
+     big headline never overflows the card. */
+  width: fit-content;
+  max-width: min(920px, 94vw);
+  padding: clamp(26px, 3.2vw, 40px) clamp(24px, 3vw, 40px);
+  border-radius: 28px;
+  background: rgba(252, 251, 253, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 26px 70px rgba(30, 36, 50, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+.demo-hero-panel .demo-tenets {
+  margin-top: 0;
+  max-width: 100%;
+}
+/* Let the nowrap title set the card width; the tenets fill it. */
+.demo-hero-panel .demo-hero-content {
+  max-width: none;
+}
+/* A whisper of light behind the glyphs keeps them crisp where the panel is
+   most translucent. */
+.demo-title,
+.demo-tenet-line {
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.45);
 }
 .demo-home[data-video="ready"] .demo-orb-field {
   opacity: 0;

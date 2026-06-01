@@ -584,6 +584,7 @@ function renderDemoHome() {
         <div class="demo-video-scrim" aria-hidden="true"></div>
       </div>
       <div class="demo-stage">
+        <div class="demo-hero-panel">
         <div class="demo-hero-content">
           <h1 class="demo-title">Simulation Demo</h1>
         </div>
@@ -600,6 +601,7 @@ function renderDemoHome() {
             <span class="demo-tenet-line">Fast enough to fix it.</span>
             <span class="demo-tenet-reveal"><span class="demo-tenet-detail">The moment you hang up, a scored, customizable coaching report is waiting — so the very next call is already sharper.</span></span>
           </button>
+        </div>
         </div>
       </div>
       <div class="demo-lines">
