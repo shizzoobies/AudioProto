@@ -3657,9 +3657,9 @@ body[data-recipient] #sign-out {
   object-fit: cover;
   display: block;
   /* Two clips stacked here; only the "showing" one is opaque, the other waits
-     at 0 so swaps are a soft 1.2s dissolve (no hard loop-seam cut). */
+     at 0 so swaps are a slow 2.4s dissolve (no hard loop-seam cut). */
   opacity: 0;
-  transition: opacity 1.2s ease;
+  transition: opacity 2.4s ease-in-out;
 }
 .demo-video.is-showing {
   opacity: 1;

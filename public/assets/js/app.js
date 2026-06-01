@@ -670,7 +670,7 @@ function renderDemoHome() {
       // reset the rate on source load, so re-assert it.
       const BACKDROP_RATE = 0.6;
       const SEGMENT_MS = 5600;   // visible time per clip before the next dissolve
-      const CROSSFADE_MS = 1200; // matches the CSS opacity transition
+      const CROSSFADE_MS = 2400; // matches the CSS opacity transition
       const setRate = (v) => { try { v.defaultPlaybackRate = BACKDROP_RATE; v.playbackRate = BACKDROP_RATE; } catch {} };
       setRate(videoA); setRate(videoB);
       videoA.addEventListener('loadeddata', () => setRate(videoA));
