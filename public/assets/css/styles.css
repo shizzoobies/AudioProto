@@ -4295,7 +4295,7 @@ body[data-recipient] #sign-out {
   position: relative;
   z-index: 1;
   margin-top: auto;
-  background: #1b1f2a;
+  background: #000;
   padding: clamp(13px, 1.9vw, 24px) clamp(24px, 5vw, 48px);
 }
 .demo-footer-inner {
@@ -4317,9 +4317,148 @@ body[data-recipient] #sign-out {
   width: clamp(100px, 13vw, 132px);
   height: auto;
 }
-.demo-footer-note {
+/* Mic-test call to action in the footer (opens the device-test modal). */
+.demo-footer-mictest {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: var(--font-ui);
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  padding: 4px 2px;
+  transition: color 0.18s ease;
+}
+.demo-footer-mictest:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+.demo-footer-mictest-here {
+  color: #F26522;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  letter-spacing: 0.03em;
+}
+.demo-footer-mictest:hover .demo-footer-mictest-here {
+  color: #ff7a33;
+}
+
+/* ---- Microphone / device test modal -------------------------------------- */
+.mic-test {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+.mic-test[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+.mic-test-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 9, 12, 0.62);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.mic-test-card {
+  position: relative;
+  width: min(440px, 100%);
+  background: var(--demo-paper, #ffffff);
+  border-radius: 18px;
+  padding: 30px 28px 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.38);
+  text-align: center;
+  transform: translateY(10px) scale(0.98);
+  transition: transform 0.22s ease;
+}
+.mic-test[data-open="true"] .mic-test-card {
+  transform: none;
+}
+.mic-test-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  appearance: none;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.mic-test-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(242, 101, 34, 0.12);
+  color: #F26522;
+}
+.mic-test-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--demo-ink, #1b1f2a);
+}
+.mic-test-sub {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.mic-test-meter {
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.mic-test-meter-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #F26522, #ff8a4c);
+  transition: width 0.06s linear;
+}
+.mic-test-status {
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  min-height: 1.2em;
+  color: var(--color-text-secondary);
+}
+.mic-test[data-state="ok"] .mic-test-status {
+  color: #1f9d55;
+}
+.mic-test[data-state="error"] .mic-test-status {
+  color: var(--color-danger, #d23b3b);
+}
+.mic-test-devices {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  font-size: 13px;
+  background: #ffffff;
+  color: var(--demo-ink, #1b1f2a);
+}
+.mic-test-devices[hidden] {
+  display: none;
+}
+.mic-test-done {
+  width: 100%;
 }
 
 /* ---- Splash gate (cinematic intro) ---------------------------------------

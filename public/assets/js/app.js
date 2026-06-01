@@ -626,7 +626,7 @@ function renderDemoHome() {
           <div class="demo-footer-brandcol">
             <img class="demo-footer-logo" src="/assets/img/first-call-light.png" alt="First Call" width="600" height="265" />
           </div>
-          <span class="demo-footer-note" role="note">Real voice calls — please allow microphone access when prompted.</span>
+          <button type="button" class="demo-footer-mictest" id="demo-mic-test">Click <span class="demo-footer-mictest-here">HERE</span> to test your mic</button>
         </div>
       </footer>
       <div class="demo-splash" id="demo-splash">
@@ -636,6 +636,21 @@ function renderDemoHome() {
           </h1>
           <p class="demo-splash-tagline">Realistic call simulation and instant coaching.</p>
           <button type="button" class="demo-splash-enter" id="demo-splash-enter">Get Started! <span aria-hidden="true">&rsaquo;</span></button>
+        </div>
+      </div>
+      <div class="mic-test" id="mic-test" data-open="false" data-state="" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Test your microphone">
+        <div class="mic-test-backdrop" data-mic-close></div>
+        <div class="mic-test-card" tabindex="-1">
+          <button type="button" class="mic-test-close" id="mic-test-close" aria-label="Close">&times;</button>
+          <div class="mic-test-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </div>
+          <h2 class="mic-test-title">Test your microphone</h2>
+          <p class="mic-test-sub">Say something out loud and watch the bar move. The scenarios use real voice, so make sure your mic is working before you start.</p>
+          <div class="mic-test-meter" aria-hidden="true"><span class="mic-test-meter-fill" id="mic-test-fill"></span></div>
+          <p class="mic-test-status" id="mic-test-status" role="status" aria-live="polite">Requesting microphone access&hellip;</p>
+          <select class="mic-test-devices" id="mic-test-devices" aria-label="Microphone" hidden></select>
+          <button type="button" class="primary-button mic-test-done" id="mic-test-done">Done</button>
         </div>
       </div>
     </section>
@@ -804,6 +819,135 @@ function renderDemoHome() {
       t.classList.toggle('is-open', !open);
     });
   });
+
+  // Footer mic / device test: lets the visitor confirm their microphone works
+  // before starting a voice scenario.
+  setupMicTest(dom.root);
+}
+
+// Microphone / device test modal. Opened from the footer "test your mic" link.
+// Requests mic access, draws a live input-level meter (Web Audio RMS), lists the
+// available input devices, and reports clear status / errors. Self-contained:
+// it acquires its own stream and tears it down on close, so it never collides
+// with the scenario's own microphone use.
+function setupMicTest(root) {
+  const openBtn = root.querySelector('#demo-mic-test');
+  const modal = root.querySelector('#mic-test');
+  if (!openBtn || !modal) return;
+  const fill = modal.querySelector('#mic-test-fill');
+  const statusEl = modal.querySelector('#mic-test-status');
+  const deviceSel = modal.querySelector('#mic-test-devices');
+  const card = modal.querySelector('.mic-test-card');
+  const closeEls = [
+    modal.querySelector('#mic-test-close'),
+    modal.querySelector('#mic-test-done'),
+    modal.querySelector('[data-mic-close]'),
+  ].filter(Boolean);
+
+  let stream = null;
+  let audioCtx = null;
+  let analyser = null;
+  let buffer = null;
+  let raf = null;
+  let gotSignal = false;
+
+  const setStatus = (text, state) => {
+    if (statusEl) statusEl.textContent = text;
+    modal.dataset.state = state || '';
+  };
+
+  const stop = () => {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    if (stream) { try { stream.getTracks().forEach((t) => t.stop()); } catch {} stream = null; }
+    if (audioCtx) { try { audioCtx.close(); } catch {} audioCtx = null; }
+    analyser = null; buffer = null;
+    if (fill) fill.style.width = '0%';
+  };
+
+  const tick = () => {
+    if (!analyser || !buffer) return;
+    analyser.getByteTimeDomainData(buffer);
+    let sum = 0;
+    for (let i = 0; i < buffer.length; i++) {
+      const v = (buffer[i] - 128) / 128;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / buffer.length);
+    const pct = Math.max(0, Math.min(100, Math.round(rms * 320)));
+    if (fill) fill.style.width = `${pct}%`;
+    if (pct > 8 && !gotSignal) {
+      gotSignal = true;
+      setStatus('Looking good — your microphone is working.', 'ok');
+    }
+    raf = requestAnimationFrame(tick);
+  };
+
+  const populateDevices = async () => {
+    if (!deviceSel || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter((d) => d.kind === 'audioinput');
+      if (mics.length <= 1) { deviceSel.hidden = true; return; }
+      deviceSel.hidden = false;
+      deviceSel.innerHTML = mics
+        .map((d, i) => `<option value="${escapeAttr(d.deviceId)}">${escapeHtml(d.label || `Microphone ${i + 1}`)}</option>`)
+        .join('');
+      const active = stream && stream.getAudioTracks && stream.getAudioTracks()[0];
+      const activeId = active && active.getSettings && active.getSettings().deviceId;
+      if (activeId) deviceSel.value = activeId;
+    } catch {}
+  };
+
+  const start = async (deviceId) => {
+    stop();
+    gotSignal = false;
+    setStatus('Requesting microphone access…', '');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('This browser cannot access the microphone.', 'error');
+      return;
+    }
+    try {
+      const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStatus('Microphone connected — say something to see the level move.', '');
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      try { audioCtx.resume && audioCtx.resume(); } catch {}
+      const src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      buffer = new Uint8Array(analyser.fftSize);
+      src.connect(analyser);
+      raf = requestAnimationFrame(tick);
+      populateDevices();
+    } catch (err) {
+      const name = err && err.name;
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        setStatus('Microphone blocked. Allow mic access in your browser, then try again.', 'error');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setStatus('No microphone found. Plug one in and try again.', 'error');
+      } else {
+        setStatus('Could not access the microphone. Check your device settings.', 'error');
+      }
+    }
+  };
+
+  const open = () => {
+    modal.dataset.open = 'true';
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { try { card && card.focus(); } catch {} }, 30);
+    start();
+  };
+  const close = () => {
+    modal.dataset.open = 'false';
+    modal.setAttribute('aria-hidden', 'true');
+    stop();
+  };
+
+  openBtn.addEventListener('click', open);
+  closeEls.forEach((el) => el.addEventListener('click', close));
+  if (deviceSel) deviceSel.addEventListener('change', () => start(deviceSel.value));
+  modal.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 }
 
 // Build a cols x rows grid of image shards over the landing logo. Each shard is
