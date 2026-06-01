@@ -3561,10 +3561,13 @@ body[data-recipient] #sign-out {
    content stays in a ~960px column.
    ========================================================================= */
 .demo-home {
-  --demo-ink: #20242e;
+  /* First Call brand: U-Haul orange + black. (Var names kept for compatibility:
+     --demo-maroon is now the orange primary, --demo-terracotta the black accent
+     used by the second scenario tile.) */
+  --demo-ink: #1a1c22;
   --demo-paper: #fcfbfd;
-  --demo-maroon: #7a83c8;
-  --demo-terracotta: #5fa6ad;
+  --demo-maroon: #F26522;
+  --demo-terracotta: #1b1f2a;
   position: relative;
   /* Stretch to full viewport width by overriding parent padding */
   margin-left: calc(-1 * var(--space-5));
@@ -3680,8 +3683,8 @@ body[data-recipient] #sign-out {
   background:
     radial-gradient(closest-side at 50% 26%, rgba(236, 240, 252, 0.72) 0%, rgba(236, 240, 252, 0) 22%),
     radial-gradient(closest-side at 50% 26%, rgba(150, 162, 224, 0.32) 0%, rgba(150, 162, 224, 0) 40%),
-    radial-gradient(closest-side at 50% 27%, rgba(122, 131, 200, 0.22) 0%, rgba(122, 131, 200, 0) 58%),
-    radial-gradient(closest-side at 50% 28%, rgba(122, 131, 200, 0.07) 0%, rgba(122, 131, 200, 0) 70%);
+    radial-gradient(closest-side at 50% 27%, rgba(242, 101, 34, 0.22) 0%, rgba(242, 101, 34, 0) 58%),
+    radial-gradient(closest-side at 50% 28%, rgba(242, 101, 34, 0.07) 0%, rgba(242, 101, 34, 0) 70%);
   filter: saturate(0.95);
 }
 
@@ -3753,7 +3756,7 @@ body[data-recipient] #sign-out {
   padding: 6px 14px 6px 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(122, 131, 200, 0.18);
+  border: 1px solid rgba(242, 101, 34, 0.18);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -3762,7 +3765,7 @@ body[data-recipient] #sign-out {
   height: 7px;
   border-radius: 50%;
   background: var(--demo-maroon);
-  box-shadow: 0 0 0 0 rgba(122, 131, 200, 0.5);
+  box-shadow: 0 0 0 0 rgba(242, 101, 34, 0.5);
 }
 .demo-title {
   font-family: var(--font-display);
@@ -3856,7 +3859,7 @@ body[data-recipient] #sign-out {
 .demo-tenet:focus-visible {
   z-index: 2;
   background: rgba(255, 255, 255, 0.66);
-  box-shadow: 0 26px 56px rgba(122, 131, 200, 0.2);
+  box-shadow: 0 26px 56px rgba(242, 101, 34, 0.2);
   transform: scale(1.08) translateY(-18px);
 }
 .demo-tenet.is-open .demo-tenet-line,
@@ -3885,7 +3888,7 @@ body[data-recipient] #sign-out {
   .demo-tenet:hover {
     z-index: 2;
     background: rgba(255, 255, 255, 0.66);
-    box-shadow: 0 26px 56px rgba(122, 131, 200, 0.2);
+    box-shadow: 0 26px 56px rgba(242, 101, 34, 0.2);
     transform: scale(1.08) translateY(-18px);
   }
   .demo-tenet:hover .demo-tenet-line { color: var(--tenet-accent); }
@@ -3955,8 +3958,8 @@ body[data-recipient] #sign-out {
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(122, 131, 200, 0.18) 25%,
-    rgba(122, 131, 200, 0.18) 75%,
+    rgba(242, 101, 34, 0.18) 25%,
+    rgba(242, 101, 34, 0.18) 75%,
     transparent
   );
   pointer-events: none;
@@ -4020,10 +4023,10 @@ body[data-recipient] #sign-out {
   transition: opacity 0.5s ease, transform 0.5s ease;
 }
 .demo-entry-demo_sales .demo-entry-aura {
-  background: radial-gradient(ellipse at 50% 50%, rgba(122, 131, 200, 0.22), transparent 70%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(242, 101, 34, 0.22), transparent 70%);
 }
 .demo-entry-demo_service .demo-entry-aura {
-  background: radial-gradient(ellipse at 50% 50%, rgba(95, 166, 173, 0.24), transparent 70%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(27, 31, 42, 0.24), transparent 70%);
 }
 
 /* Hover / focus: ENLARGE + flip to the detail face, aura blooms. The lift +
@@ -4035,10 +4038,10 @@ body[data-recipient] #sign-out {
 .demo-entry:focus-visible {
   z-index: 2;
   /* Ring sits on the entry (not a face) so it stays visible through the flip. */
-  outline: 2px solid rgba(122, 131, 200, 0.40);
+  outline: 2px solid rgba(242, 101, 34, 0.40);
 }
 .demo-entry-demo_service:focus-visible {
-  outline-color: rgba(95, 166, 173, 0.45);
+  outline-color: rgba(27, 31, 42, 0.45);
 }
 .demo-entry:hover .demo-entry-flip,
 .demo-entry:focus-visible .demo-entry-flip {
@@ -4069,7 +4072,7 @@ body[data-recipient] #sign-out {
   border-radius: 50%;
   background: var(--demo-maroon);
 }
-.demo-entry-demo_service .demo-entry-dot { background: #3f868d; }
+.demo-entry-demo_service .demo-entry-dot { background: #1b1f2a; }
 .demo-entry-status {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -4122,7 +4125,7 @@ body[data-recipient] #sign-out {
   font-weight: 600;
   color: var(--color-accent);
 }
-.demo-entry-demo_service .demo-entry-cta { color: #3f868d; }
+.demo-entry-demo_service .demo-entry-cta { color: #1b1f2a; }
 .demo-entry-arrow {
   transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
@@ -4132,7 +4135,7 @@ body[data-recipient] #sign-out {
 }
 .demo-entry-wave-wrap {
   display: inline-flex;
-  color: rgba(122, 131, 200, 0.40);
+  color: rgba(242, 101, 34, 0.40);
 }
 .demo-entry-demo_service .demo-entry-wave-wrap { color: rgba(63, 134, 141, 0.45); }
 .demo-entry-wave {
@@ -4149,7 +4152,7 @@ body[data-recipient] #sign-out {
   letter-spacing: 0.2em;
   color: var(--color-accent);
 }
-.demo-entry-demo_service .demo-entry-back-label { color: #3f868d; }
+.demo-entry-demo_service .demo-entry-back-label { color: #1b1f2a; }
 .demo-entry-points {
   list-style: none;
   margin: 0;
@@ -4175,7 +4178,7 @@ body[data-recipient] #sign-out {
   border-radius: 2px;
   background: var(--color-accent);
 }
-.demo-entry-demo_service .demo-entry-points li::before { background: #3f868d; }
+.demo-entry-demo_service .demo-entry-points li::before { background: #1b1f2a; }
 .demo-entry-back .demo-entry-cta { margin-top: 4px; }
 
 /* ---- Mic note ------------------------------------------------------------ */
@@ -4220,7 +4223,7 @@ body[data-recipient] #sign-out {
   font-optical-sizing: auto;
   font-size: 19px;
   letter-spacing: -0.01em;
-  color: #ffffff;
+  color: #F26522;
 }
 .demo-footer-tagline {
   font-size: 12.5px;
@@ -4243,7 +4246,7 @@ body[data-recipient] #sign-out {
   .demo-entry {
     min-height: 0;
     /* Subtle separator between stacked clusters */
-    border-bottom: 1px solid rgba(122, 131, 200, 0.10);
+    border-bottom: 1px solid rgba(242, 101, 34, 0.10);
   }
   .demo-entry:last-child {
     border-bottom: none;
@@ -4297,8 +4300,8 @@ body[data-recipient] #sign-out {
   to   { opacity: 1; }
 }
 @keyframes demo-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(122, 131, 200, 0.5); }
-  50%      { box-shadow: 0 0 0 6px rgba(122, 131, 200, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 101, 34, 0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(242, 101, 34, 0); }
 }
 @keyframes demo-breathe {
   0%, 100% { opacity: 0.12; transform: scale(1); }

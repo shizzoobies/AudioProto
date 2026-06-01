@@ -592,15 +592,15 @@ function renderDemoHome() {
           <h1 class="demo-title">Simulation Demo</h1>
         </div>
         <div class="demo-tenets">
-          <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#7a83c8">
+          <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#F26522">
             <span class="demo-tenet-line">Real enough to sweat.</span>
             <span class="demo-tenet-reveal"><span class="demo-tenet-detail">Live AI voice with real-time reasoning. The customer listens, hesitates, and pushes back like a real person on the line.</span></span>
           </button>
-          <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#6f8bbf">
+          <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#D2541A">
             <span class="demo-tenet-line">Safe enough to fail.</span>
             <span class="demo-tenet-reveal"><span class="demo-tenet-detail">Risk-free, fully controlled scenarios. Fumble the open, try the bold line, blow the close — never a real customer, never real trust on the line.</span></span>
           </button>
-          <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#5fa6ad">
+          <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#1b1f2a">
             <span class="demo-tenet-line">Fast enough to fix it.</span>
             <span class="demo-tenet-reveal"><span class="demo-tenet-detail">The moment you hang up, a scored, customizable coaching report is waiting — so the very next call is already sharper.</span></span>
           </button>
