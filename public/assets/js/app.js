@@ -577,13 +577,21 @@ function renderDemoHome() {
            visitor prefers reduced motion, the orb stays the backdrop. Served
            same-origin, allowed by the existing CSP (media-src 'self'). -->
       <div class="demo-video-field" id="demo-video-field" data-active="false" aria-hidden="true">
-        <video class="demo-video demo-video-a" id="demo-video" muted playsinline preload="auto" poster="/assets/video/demo-backdrop-poster.jpg">
+        <video class="demo-video" id="demo-video" muted playsinline preload="auto" poster="/assets/video/demo-backdrop-poster.jpg">
           <source src="/assets/video/demo-backdrop.webm" type="video/webm">
           <source src="/assets/video/demo-backdrop.mp4" type="video/mp4">
         </video>
-        <video class="demo-video demo-video-b" id="demo-video-b" muted playsinline preload="auto">
+        <video class="demo-video" muted playsinline preload="auto">
           <source src="/assets/video/demo-backdrop-2.webm" type="video/webm">
           <source src="/assets/video/demo-backdrop-2.mp4" type="video/mp4">
+        </video>
+        <video class="demo-video" muted playsinline preload="auto">
+          <source src="/assets/video/demo-backdrop-3.webm" type="video/webm">
+          <source src="/assets/video/demo-backdrop-3.mp4" type="video/mp4">
+        </video>
+        <video class="demo-video" muted playsinline preload="auto">
+          <source src="/assets/video/demo-backdrop-4.webm" type="video/webm">
+          <source src="/assets/video/demo-backdrop-4.mp4" type="video/mp4">
         </video>
         <div class="demo-video-scrim" aria-hidden="true"></div>
       </div>
@@ -650,21 +658,21 @@ function renderDemoHome() {
   // (404), playback failure, or reduced-motion all leave the orb backdrop in
   // place — so the page is correct now and "lights up" the moment a clip is
   // dropped at /assets/video/demo-backdrop.{webm,mp4}, no code change needed.
-  // Two cinematic clips that ping-pong with a soft dissolve instead of one clip
-  // hard-looping (the loop seam glitches). Clip A (HeaderOriginal) plays for a
-  // few seconds, crossfades to clip B (Header2), then crossfades back, and so on
-  // — the hidden clip's loop/restart always happens at opacity 0, so the seam is
-  // never visible. On Enter we freeze whichever clip is showing as the still.
+  // Four cinematic clips that rotate with a soft dissolve instead of one clip
+  // hard-looping (the loop seam glitches). The first clip (HeaderOriginal) plays
+  // for a few seconds, crossfades to the next (Header2 -> 3 -> 4 -> back to 1),
+  // and so on — the hidden clip's loop/restart always happens at opacity 0, so
+  // the seam is never visible. On Enter we freeze whichever clip is showing.
   let backdropCtl = null;
   try {
-    const videoA = dom.root.querySelector('#demo-video');
-    const videoB = dom.root.querySelector('#demo-video-b');
     const videoField = dom.root.querySelector('#demo-video-field');
+    const videos = videoField ? Array.from(videoField.querySelectorAll('video.demo-video')) : [];
+    const primary = videos[0];
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (videoA && videoB && videoField && !reduceMotion) {
+    if (videoField && videos.length && primary && !reduceMotion) {
       let settled = false;
       let stopped = false;
-      let showing = videoA;
+      let current = 0;            // index of the clip currently showing
       let swapTimer = null;
       // Slower than real time for a calmer, cinematic feel. Browsers sometimes
       // reset the rate on source load, so re-assert it.
@@ -672,16 +680,16 @@ function renderDemoHome() {
       const SEGMENT_MS = 5600;   // visible time per clip before the next dissolve
       const CROSSFADE_MS = 2400; // matches the CSS opacity transition
       const setRate = (v) => { try { v.defaultPlaybackRate = BACKDROP_RATE; v.playbackRate = BACKDROP_RATE; } catch {} };
-      setRate(videoA); setRate(videoB);
-      videoA.addEventListener('loadeddata', () => setRate(videoA));
-      videoB.addEventListener('loadeddata', () => setRate(videoB));
+      videos.forEach((v) => { setRate(v); v.addEventListener('loadeddata', () => setRate(v)); });
 
-      // Crossfade from the showing clip to the other one.
+      // Crossfade from the showing clip to the next one in the rotation.
       const swap = () => {
         if (stopped) return;
         // Demo DOM was replaced (navigated into a call) — end the loop cleanly.
         if (!videoField.isConnected) { stopped = true; return; }
-        const next = showing === videoA ? videoB : videoA;
+        const outgoing = videos[current];
+        const nextIdx = (current + 1) % videos.length;
+        const next = videos[nextIdx];
         // Never let the *visible* segment run into a clip's end (a hard freeze):
         // if too little runway remains, restart it from the top first.
         try {
@@ -693,28 +701,27 @@ function renderDemoHome() {
         setRate(next);
         try { next.play(); } catch {}
         next.classList.add('is-showing');
-        showing.classList.remove('is-showing');
-        const outgoing = showing;
-        showing = next;
+        outgoing.classList.remove('is-showing');
+        current = nextIdx;
         // Pause the now-hidden clip once it has fully faded (saves CPU; it
         // resumes mid-clip next time for continuity).
-        window.setTimeout(() => { if (!stopped && outgoing !== showing) { try { outgoing.pause(); } catch {} } }, CROSSFADE_MS + 80);
+        window.setTimeout(() => { if (!stopped && videos[current] !== outgoing) { try { outgoing.pause(); } catch {} } }, CROSSFADE_MS + 80);
         swapTimer = window.setTimeout(swap, SEGMENT_MS);
       };
 
       const activate = () => {
         if (settled) return;
         settled = true;
-        setRate(videoA);
+        setRate(primary);
         const home = dom.root.querySelector('.demo-home');
         if (home) home.dataset.video = 'ready';
         videoField.dataset.active = 'true';
-        showing = videoA;
-        videoA.classList.add('is-showing');
+        current = 0;
+        primary.classList.add('is-showing');
         // Retire the orb: stop its WebGL loop now that the video is the backdrop.
         try { state.demoOrb?.dispose(); } catch {}
         state.demoOrb = null;
-        // Begin the ping-pong.
+        // Begin the rotation.
         swapTimer = window.setTimeout(swap, SEGMENT_MS);
       };
 
@@ -723,17 +730,16 @@ function renderDemoHome() {
         freeze() {
           stopped = true;
           if (swapTimer) { window.clearTimeout(swapTimer); swapTimer = null; }
-          try { videoA.pause(); } catch {}
-          try { videoB.pause(); } catch {}
+          videos.forEach((v) => { try { v.pause(); } catch {} });
         },
       };
 
-      videoA.addEventListener('playing', activate, { once: true });
+      primary.addEventListener('playing', activate, { once: true });
       // All sources failed (e.g. the file isn't there yet) — keep the orb.
-      videoA.addEventListener('error', () => { settled = true; }, { once: true });
+      primary.addEventListener('error', () => { settled = true; }, { once: true });
       // Muted autoplay needs an explicit kick in some browsers; a rejection
       // (no playable source) just leaves the orb up.
-      const p = videoA.play && videoA.play();
+      const p = primary.play && primary.play();
       if (p && typeof p.catch === 'function') p.catch(() => { settled = true; });
       // Safety net: stop waiting after a few seconds if nothing ever plays.
       setTimeout(() => { settled = true; }, 4000);
