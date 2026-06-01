@@ -4354,6 +4354,13 @@ body[data-recipient] #sign-out {
   opacity: 0;
   pointer-events: none;
 }
+/* On the splash there's no body text over the footage (just the logo + CTA), so
+   skip the frosted blur the landing needs - it muddies/darkens the bright clip.
+   Let the footage read crisp and bright; the splash gradient handles contrast. */
+.demo-home[data-splash="active"] .demo-video-scrim {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 .demo-splash-inner {
   display: flex;
   flex-direction: column;
