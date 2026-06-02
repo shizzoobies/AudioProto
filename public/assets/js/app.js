@@ -3733,6 +3733,20 @@ function renderCall(scenario, opts = {}) {
   renderLocations();
   updateCardChip();
   showStep(1);
+
+  // Caller ID: when a known repeat customer calls, their number is already on
+  // the line — prefill the lookup and pull up the verify modal so the agent just
+  // confirms. Skipped for showcase + blind calls (where revealing the caller
+  // would break the format).
+  const callerRecord = scenario.customer_record;
+  if (!isShowcaseCall && !scenario.blind && callerRecord && callerRecord.found === true && callerRecord.phone) {
+    if (posLookupInput) posLookupInput.value = callerRecord.phone;
+    setTimeout(() => {
+      // Bail if the call ended before the pop fired (avoid a stray overlay).
+      if (!posLookupInput || !posLookupInput.isConnected) return;
+      try { openCustomerModal({ mode: 'found', record: callerRecord, query: callerRecord.phone }); } catch {}
+    }, 700);
+  }
 }
 
 async function runCoaching(scenario, messages) {
