@@ -25,6 +25,7 @@ const state = {
   lastChartsUrl: null, // last generated charts URL (shown once with a Copy button)
   preview: null,       // { active, created_at, last_click_at, scenario_count }
   lastPreviewUrl: null,// last generated full-library preview URL (shown once)
+  rubric: null,        // { sections:[{key,label}], items:[{key,section,label,guidance,enabled,is_custom,position}] }
 };
 
 init();
@@ -190,6 +191,15 @@ async function loadData() {
     console.warn('preview load failed', e);
   }
 
+  try {
+    const r = await fetch('/api/admin/rubric', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.rubric = await r.json();
+    }
+  } catch (e) {
+    console.warn('rubric load failed', e);
+  }
+
   // Team roster is owner-only; non-owners get a 403 we simply skip.
   if (state.admin?.is_owner) {
     try {
@@ -276,6 +286,8 @@ function paintDashboard() {
 
     ${renderPreviewSection()}
 
+    ${renderRubricSection()}
+
     ${renderTeamSection()}
 
     <section class="admin-section">
@@ -306,12 +318,176 @@ function paintDashboard() {
   attachDemoHandlers();
   attachChartsHandlers();
   attachPreviewHandlers();
+  attachRubricHandlers();
   attachTeamHandlers();
 
   // Load usage section and wire refresh button.
   loadUsage();
   const refreshBtn = document.getElementById('admin-usage-refresh');
   if (refreshBtn) refreshBtn.addEventListener('click', loadUsage);
+}
+
+// ---- Call Review rubric ---------------------------------------------------
+// Admin control over what the AI scores and what shows on each call's Call
+// Review. Unchecking turns an item OFF everywhere (dropped from the AI prompt +
+// tool schema and hidden on the report). Add custom items per section; default
+// items can be disabled but not deleted.
+
+function renderRubricSection() {
+  return `
+    <section class="admin-section">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Call Review</p>
+        <h2 class="admin-section-title">Scorecard rubric</h2>
+        <p class="admin-section-sub">Choose what the AI scores and what appears on each call's Call Review. Uncheck an item to turn it off everywhere; add your own items to any section. Changes apply to the next call scored.</p>
+      </header>
+      <div id="admin-rubric-wrap">${renderRubricBody(state.rubric)}</div>
+    </section>
+  `;
+}
+
+function renderRubricBody(rubric) {
+  if (!rubric || !Array.isArray(rubric.items)) {
+    return '<div class="admin-empty">Loading rubric…</div>';
+  }
+  const sections = Array.isArray(rubric.sections) ? rubric.sections : [];
+  const items = rubric.items || [];
+  return sections.map((sec) => {
+    const list = items
+      .filter((it) => it.section === sec.key)
+      .sort((a, b) => (a.position || 0) - (b.position || 0));
+    const on = list.filter((it) => it.enabled).length;
+    return `
+      <div class="admin-rubric-section">
+        <div class="admin-rubric-sechead">
+          <span class="admin-rubric-seclabel">${escapeHtml(sec.label)}</span>
+          <span class="admin-rubric-seccount">${on}/${list.length} on</span>
+        </div>
+        <div class="admin-rubric-items">
+          ${list.map((it) => renderRubricItem(it)).join('') || '<div class="admin-empty">No items in this section.</div>'}
+        </div>
+        <details class="admin-rubric-add">
+          <summary class="admin-rubric-addbtn">+ Add item</summary>
+          <div class="admin-rubric-editform" data-add-section="${escapeAttr(sec.key)}">
+            <input class="admin-input" data-field="label" placeholder="Item label (e.g. Active listening)">
+            <textarea class="admin-input admin-rubric-guidance" data-field="guidance" rows="2" placeholder="What should the AI look for? (the scoring guidance it reads)"></textarea>
+            <button type="button" class="primary-button" data-add>Add item</button>
+          </div>
+        </details>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRubricItem(it) {
+  const custom = !!it.is_custom;
+  return `
+    <div class="admin-rubric-item${it.enabled ? '' : ' is-off'}" data-key="${escapeAttr(it.key)}">
+      <label class="admin-rubric-toggle" title="${it.enabled ? 'Showing — uncheck to turn off' : 'Off — check to turn on'}">
+        <input type="checkbox" data-toggle ${it.enabled ? 'checked' : ''}>
+      </label>
+      <div class="admin-rubric-main">
+        <div class="admin-rubric-label">${escapeHtml(it.label)}${custom ? ' <span class="admin-pill">custom</span>' : ''}</div>
+        <div class="admin-rubric-guide">${escapeHtml(it.guidance)}</div>
+        <details class="admin-rubric-edit">
+          <summary class="admin-rubric-editbtn">Edit</summary>
+          <div class="admin-rubric-editform">
+            <input class="admin-input" data-field="label" value="${escapeAttr(it.label)}">
+            <textarea class="admin-input admin-rubric-guidance" data-field="guidance" rows="3">${escapeHtml(it.guidance)}</textarea>
+            <div class="admin-rubric-editactions">
+              <button type="button" class="primary-button" data-save>Save changes</button>
+              ${custom
+                ? '<button type="button" class="ghost-button admin-rubric-del" data-delete>Delete</button>'
+                : '<span class="admin-rubric-note">Default item — uncheck above to turn it off.</span>'}
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  `;
+}
+
+function attachRubricHandlers() {
+  const wrap = document.getElementById('admin-rubric-wrap');
+  if (!wrap || wrap.dataset.wired === '1') return;
+  wrap.dataset.wired = '1'; // the wrap element persists across body re-renders
+
+  wrap.addEventListener('change', (e) => {
+    const cb = e.target.closest('input[data-toggle]');
+    if (!cb) return;
+    const key = cb.closest('[data-key]')?.dataset.key;
+    if (key) rubricOp({ op: 'toggle', key, enabled: cb.checked });
+  });
+
+  wrap.addEventListener('click', (e) => {
+    const saveBtn = e.target.closest('[data-save]');
+    const delBtn = e.target.closest('[data-delete]');
+    const addBtn = e.target.closest('[data-add]');
+
+    if (saveBtn) {
+      const row = saveBtn.closest('[data-key]');
+      const key = row?.dataset.key;
+      const form = saveBtn.closest('.admin-rubric-editform');
+      const label = form.querySelector('[data-field="label"]').value.trim();
+      const guidance = form.querySelector('[data-field="guidance"]').value.trim();
+      const item = (state.rubric?.items || []).find((i) => i.key === key);
+      const section = item?.section;
+      const enabled = row.querySelector('input[data-toggle]')?.checked ? 1 : 0;
+      if (!key || !section || !label || !guidance) return;
+      rubricOp({ op: 'upsert', item: { key, section, label, guidance, enabled } });
+      return;
+    }
+    if (delBtn) {
+      const key = delBtn.closest('[data-key]')?.dataset.key;
+      if (!key) return;
+      if (!confirm('Delete this custom item? This cannot be undone.')) return;
+      rubricOp({ op: 'delete', key });
+      return;
+    }
+    if (addBtn) {
+      const form = addBtn.closest('[data-add-section]');
+      const section = form?.dataset.addSection;
+      const label = form.querySelector('[data-field="label"]').value.trim();
+      const guidance = form.querySelector('[data-field="guidance"]').value.trim();
+      if (!section || !label || !guidance) {
+        alert('Add a label and the scoring guidance first.');
+        return;
+      }
+      rubricOp({ op: 'upsert', item: { section, label, guidance, enabled: 1 } });
+    }
+  });
+}
+
+async function rubricOp(payload) {
+  try {
+    const res = await fetch('/api/admin/rubric', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      alert(`Rubric update failed: ${parts.join(' — ') || res.status}`);
+      return;
+    }
+  } catch (err) {
+    alert(`Network error: ${err?.message || err}`);
+    return;
+  }
+  await refreshRubricBody();
+}
+
+async function refreshRubricBody() {
+  try {
+    const r = await fetch('/api/admin/rubric', { credentials: 'same-origin' });
+    if (r.ok) state.rubric = await r.json();
+  } catch {
+    // keep prior state on a failed refresh
+  }
+  const wrap = document.getElementById('admin-rubric-wrap');
+  if (wrap) wrap.innerHTML = renderRubricBody(state.rubric);
 }
 
 // One scenario type rendered as a <details>. Description is shown on expand,

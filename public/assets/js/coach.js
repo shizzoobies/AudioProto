@@ -102,7 +102,8 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
 
     <h2 class="report-section-title">Call Review</h2>
     <div class="report-scorecard">
-      ${RUBRIC_DISPLAY.map((section) => renderScoreSection(section, report.scores)).join('')}
+      ${(Array.isArray(report.rubric) && report.rubric.length ? report.rubric : RUBRIC_DISPLAY)
+        .map((section) => renderScoreSection(section, report.scores)).join('')}
     </div>
 
     <div class="report-actions">

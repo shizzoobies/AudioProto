@@ -1,5 +1,6 @@
 import { getScenario } from '../../shared/scenarios.js';
-import { COACHING_SYSTEM_PROMPT, COACHING_TOOL } from '../../shared/coaching-rubric.js';
+import { buildCoaching } from '../../shared/coaching-rubric.js';
+import { loadRubricForCoaching } from '../../shared/rubric-store.js';
 import { getMagicScope, getInviteScope } from '../../shared/auth.js';
 import { recordUsage } from '../../shared/usage.js';
 
@@ -43,6 +44,11 @@ export async function onRequestPost(context) {
 
   const userPrompt = buildUserPrompt(scenario, transcript);
 
+  // Build the system prompt + tool schema from the live (admin-editable) rubric;
+  // falls back to the in-code defaults if the DB rubric is unavailable. `display`
+  // is returned to the client so the report renders exactly the enabled items.
+  const { systemPrompt, tool, display } = buildCoaching(await loadRubricForCoaching(env));
+
   let upstream;
   try {
     upstream = await fetch(ANTHROPIC_URL, {
@@ -61,13 +67,13 @@ export async function onRequestPost(context) {
         // clear Anthropic's 1024-token caching minimum easily and pay 10%
         // of the input rate on cache hits.
         system: [
-          { type: 'text', text: COACHING_SYSTEM_PROMPT,
+          { type: 'text', text: systemPrompt,
             cache_control: { type: 'ephemeral' } },
         ],
         tools: [
-          { ...COACHING_TOOL, cache_control: { type: 'ephemeral' } },
+          { ...tool, cache_control: { type: 'ephemeral' } },
         ],
-        tool_choice: { type: 'tool', name: COACHING_TOOL.name },
+        tool_choice: { type: 'tool', name: tool.name },
         messages: [{ role: 'user', content: userPrompt }],
       }),
     });
@@ -91,7 +97,7 @@ export async function onRequestPost(context) {
   }
 
   const toolBlock = (payload?.content || []).find(
-    (b) => b?.type === 'tool_use' && b?.name === COACHING_TOOL.name
+    (b) => b?.type === 'tool_use' && b?.name === tool.name
   );
   if (!toolBlock?.input) {
     return jsonError('no_tool_use', 502);
@@ -107,7 +113,9 @@ export async function onRequestPost(context) {
     output_tokens: payload.usage?.output_tokens || 0,
   });
 
-  return new Response(JSON.stringify(toolBlock.input), {
+  // Attach the rubric display structure so the client renders exactly the
+  // enabled items (and we no longer hand-sync a rubric copy in the browser).
+  return new Response(JSON.stringify({ ...toolBlock.input, rubric: display }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
