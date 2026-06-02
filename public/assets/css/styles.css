@@ -4667,11 +4667,22 @@ body[data-recipient] #sign-out {
   /* Admin-specific shadows not in the global palette. */
   --color-accent-strong: #6f1622;
   --color-success-muted: #dcfce7;
-  --admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --admin-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
   --admin-shadow-pop: 0 16px 40px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
+  /* Layered, premium card depth: an inner top highlight + a tight contact
+     shadow + a soft ambient shadow. */
+  --admin-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 28px rgba(15, 23, 42, 0.05);
 
-  background: var(--color-bg);
+  /* A refined backdrop: a whisper of brand glow up top over a soft neutral
+     gradient, so the page reads as crafted rather than flat gray. */
+  background:
+    radial-gradient(1100px 520px at 50% -8%, rgba(140, 29, 43, 0.045), transparent 62%),
+    linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
+  background-attachment: fixed;
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   margin: 0;
@@ -4681,21 +4692,22 @@ body[data-recipient] #sign-out {
 
 /* Re-skin shared buttons inside the admin surface. */
 .admin-body .primary-button {
-  background: var(--color-accent);
+  background: linear-gradient(180deg, #a52736, var(--color-accent));
   color: #ffffff;
   border: 1px solid var(--color-accent);
-  border-radius: 8px;
+  border-radius: 9px;
   font-weight: 600;
   font-size: 13.5px;
   letter-spacing: -0.005em;
   padding: 10px 18px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
-  box-shadow: var(--admin-shadow-sm);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 6px 16px rgba(140, 29, 43, 0.18);
 }
 .admin-body .primary-button:hover:not(:disabled) {
-  background: var(--color-accent-strong);
+  background: linear-gradient(180deg, var(--color-accent), var(--color-accent-strong));
   border-color: var(--color-accent-strong);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1), 0 10px 24px rgba(140, 29, 43, 0.26);
 }
 .admin-body .primary-button:active:not(:disabled) { transform: translateY(1px); }
 .admin-body .primary-button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
@@ -4718,12 +4730,13 @@ body[data-recipient] #sign-out {
 
 /* Top banner */
 .admin-banner {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(180deg, #ffffff, #fbfbfc);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
+  padding: 17px 32px;
 }
 .admin-brand {
   font-weight: 700;
@@ -4736,8 +4749,8 @@ body[data-recipient] #sign-out {
 }
 .admin-brand-dot {
   width: 9px; height: 9px; border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-muted);
+  background: radial-gradient(circle at 35% 30%, #b8313f, var(--color-accent));
+  box-shadow: 0 0 0 3px var(--color-accent-muted), 0 1px 2px rgba(140, 29, 43, 0.4);
 }
 .admin-main {
   max-width: 1020px;
@@ -4758,29 +4771,34 @@ body[data-recipient] #sign-out {
   align-items: center;
   gap: 8px;
   padding: 12px 0;
-  background: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
+  background: rgba(247, 248, 250, 0.78);
+  -webkit-backdrop-filter: saturate(1.1) blur(10px);
+  backdrop-filter: saturate(1.1) blur(10px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
 }
 .admin-nav-link {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-decoration: none;
-  padding: 6px 13px;
+  padding: 7px 14px;
   border-radius: 999px;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   background: var(--color-surface);
+  box-shadow: var(--admin-shadow-sm);
   white-space: nowrap;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
 }
 .admin-nav-link:hover {
   color: var(--color-text-primary);
-  border-color: var(--color-text-tertiary);
+  border-color: var(--color-border-strong);
 }
+.admin-nav-link:active { transform: translateY(1px); }
 .admin-nav-link.is-active {
-  background: var(--color-accent);
+  background: linear-gradient(180deg, #a52736, var(--color-accent));
   color: #ffffff;
-  border-color: var(--color-accent);
+  border-color: transparent;
+  box-shadow: 0 3px 10px rgba(140, 29, 43, 0.28);
 }
 /* Anchored sections clear the sticky nav when jumped to. */
 .admin-section { scroll-margin-top: 72px; }
@@ -4788,29 +4806,40 @@ body[data-recipient] #sign-out {
 /* Section card */
 .admin-section {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 26px 28px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 18px;
+  padding: 28px 30px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: var(--admin-shadow-sm);
+  box-shadow: var(--admin-card-shadow);
 }
 .admin-section-head { display: flex; flex-direction: column; gap: 4px; }
 .admin-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-accent);
   font-weight: 700;
-  margin: 0 0 6px;
+  margin: 0 0 7px;
+}
+.admin-eyebrow::before {
+  content: '';
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent), rgba(140, 29, 43, 0.25));
+  flex: none;
 }
 .admin-section-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
 }
 .admin-section-sub {
@@ -4845,10 +4874,11 @@ body[data-recipient] #sign-out {
 /* Scenarios panel — sits above the recipient row, selections stay sticky
    across multiple sends so the admin can fan one set out to many people. */
 .admin-scenarios-panel {
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 16px 18px 18px;
-  background: var(--color-surface-elevated);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 14px;
+  padding: 18px 20px 20px;
+  background: linear-gradient(180deg, #fbfcfd, var(--color-surface-elevated));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -5563,10 +5593,16 @@ body[data-precall] #app-root {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  padding: 12px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
+  padding: 13px 15px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
   background: var(--color-surface);
+  box-shadow: var(--admin-shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-rubric-item:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--admin-shadow-md);
 }
 .admin-rubric-item.is-off { opacity: 0.5; }
 .admin-rubric-toggle { flex: none; padding-top: 1px; cursor: pointer; }
