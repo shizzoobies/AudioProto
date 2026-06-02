@@ -3452,6 +3452,14 @@ body[data-demo] .report {
   overflow: hidden;
   box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.12);
 }
+/* The author `display: flex` above overrides the browser's built-in
+   `[hidden] { display: none }`, so the hidden attribute alone won't hide these.
+   Restore it explicitly: hideDock hides the whole dock on demo calls, and
+   hideCaptions hides just the live transcript on phone calls. */
+.call-dock[hidden],
+.call-dock-convo[hidden] {
+  display: none !important;
+}
 /* In the preview's "Print all" view, let each call state keep its dock
    inline so they don't all stack at the viewport bottom. */
 body.print-all .call-dock {
