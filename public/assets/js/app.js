@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-4 origin-branches+demo-scroll';
+const BUILD_ID = '20260602-5 location-screen-rebuild';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1738,13 +1738,32 @@ function renderCall(scenario, opts = {}) {
   // In-town: base is the 24-hour (per-day) rate, charged per day plus per_mile
   // mileage. One-way: ow_base + distance * ow_mile is a single bundled rate that
   // already includes the days and miles the route needs.
+  // In-town base/per_mile unchanged. One-way (ow_base + dist*ow_mile) is
+  // calibrated so the demo route (~1340 mi Cincinnati->Austin) lands on the
+  // real-system reference prices: 10'≈$1,756, 15'≈$1,848, 20'≈$2,310, 26'≈$2,771.
   const TRUCK_SIZES = [
-    { size: 10, label: "10' Moving Truck", base: 19.95, per_mile: 0.79, ow_base: 180, ow_mile: 1.60 },
-    { size: 15, label: "15' Moving Truck", base: 29.95, per_mile: 0.89, ow_base: 200, ow_mile: 1.90 },
-    { size: 20, label: "20' Moving Truck", base: 39.95, per_mile: 1.19, ow_base: 215, ow_mile: 2.20 },
-    { size: 26, label: "26' Moving Truck", base: 49.95, per_mile: 1.29, ow_base: 229, ow_mile: 2.50 },
+    { size: 10, label: "10' Moving Truck", base: 19.95, per_mile: 0.79, ow_base: 282, ow_mile: 1.10 },
+    { size: 15, label: "15' Moving Truck", base: 29.95, per_mile: 0.89, ow_base: 294, ow_mile: 1.16 },
+    { size: 20, label: "20' Moving Truck", base: 39.95, per_mile: 1.19, ow_base: 367, ow_mile: 1.45 },
+    { size: 26, label: "26' Moving Truck", base: 49.95, per_mile: 1.29, ow_base: 439, ow_mile: 1.74 },
   ];
   const TRUCK_BY_SIZE = Object.fromEntries(TRUCK_SIZES.map((t) => [t.size, t]));
+
+  // Add-on equipment for the Location-step MODEL/PRICE table. Flat one-way
+  // prices (these don't scale meaningfully with distance). category drives the
+  // Trucks/Trailers/Towing filter checkboxes; available:false renders the row
+  // greyed with the "* not available at current location" footnote. Toggling a
+  // row adds/removes it from the cart as a flat line item.
+  const EQUIPMENT_ADDONS = [
+    { key: 'tr_5x8_cargo', label: "5' x 8' Cargo Trailer", category: 'trailer', price: 494, available: true },
+    { key: 'tr_4x8_cargo', label: "4' x 8' Cargo Trailer", category: 'trailer', price: 372, available: true },
+    { key: 'tr_5x9_util', label: "5' x 9' Utility Trailer with Ramp", category: 'trailer', price: 494, available: true },
+    { key: 'tr_6x12_cargo', label: "6' x 12' Cargo Trailer", category: 'trailer', price: 866, available: false },
+    { key: 'tow_auto', label: 'Auto Transport', category: 'towing', price: 695, available: true },
+    { key: 'tow_dolly', label: 'Tow Dolly', category: 'towing', price: 350, available: true },
+    { key: 'tow_toyhauler', label: 'Toy Hauler', category: 'towing', price: 426, available: false },
+  ];
+  const ADDON_BY_KEY = Object.fromEntries(EQUIPMENT_ADDONS.map((a) => [a.key, a]));
 
   const LOAD_SIZES = [
     { value: 'home_improvement', label: 'Home Improvement / Small Loads', truck: 10 },
@@ -2051,18 +2070,36 @@ function renderCall(scenario, opts = {}) {
                 <div class="csf-script">
                   <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">The closest pickup spot to you is the location below. Does that work?</p></div>
                 </div>
-                <p class="csf-loc-note">Based on the selections, rates may have been updated for this quote. If rates were updated, make sure to inform the customer of any changes before proceeding.</p>
                 <p class="pos-hint" id="pos-loc-hint">Pick the location nearest where the customer is loading. Sorted by distance.</p>
                 <div class="csf-loc-controls">
-                  <span class="csf-loc-sort">Sort by: <a class="csf-link">Distance to Customer &#9662;</a></span>
+                  <span class="csf-loc-sort">Sort by: Distance to Customer</span>
+                  <div class="csf-loc-filters">
+                    <label class="pos-check"><input type="checkbox" data-equip-filter="truck" checked> Trucks</label>
+                    <label class="pos-check"><input type="checkbox" data-equip-filter="trailer"> Trailers</label>
+                    <label class="pos-check"><input type="checkbox" data-equip-filter="towing"> Towing</label>
+                  </div>
                   <div class="csf-loc-legend">
                     <span><i class="csf-legend-sq" style="background:#16a34a;"></i> Available</span>
                     <span><i class="csf-legend-sq" style="background:#ea7a1d;"></i> Alternate Models</span>
                     <span><i class="csf-legend-sq" style="background:#dc2626;"></i> No Availability</span>
                   </div>
                 </div>
-                <div class="pos-loc-map" id="pos-loc-map" hidden></div>
-                <div class="pos-loc-list" id="pos-loc-list"></div>
+                <div class="csf-loc-split">
+                  <div class="csf-loc-col-left">
+                    <div class="pos-loc-map" id="pos-loc-map" hidden></div>
+                    <div class="csf-loc-avail-head">Available and Closest</div>
+                    <div class="pos-loc-list" id="pos-loc-list"></div>
+                    <a class="csf-loc-more">View More Locations&hellip;</a>
+                  </div>
+                  <div class="csf-loc-col-right">
+                    <div class="csf-equip-avail-name" id="pos-equip-avail-name">Available Equipment</div>
+                    <table class="csf-equip-table pos-equip-table">
+                      <thead><tr><th>Model</th><th>Price</th></tr></thead>
+                      <tbody id="pos-equip-table-body"></tbody>
+                    </table>
+                    <p class="csf-equip-foot" id="pos-equip-foot" hidden>* Selection not available at current location.</p>
+                  </div>
+                </div>
               </section>
 
               <section class="pos-step" data-step="4" hidden>
@@ -2848,6 +2885,9 @@ function renderCall(scenario, opts = {}) {
   const posEquipRate = document.getElementById('pos-equip-rate');
   const posEquipHint = document.getElementById('pos-equip-hint');
   const posLocList = document.getElementById('pos-loc-list');
+  const posEquipTableBody = document.getElementById('pos-equip-table-body');
+  const posEquipAvailName = document.getElementById('pos-equip-avail-name');
+  const posEquipFoot = document.getElementById('pos-equip-foot');
   const posSchedTruck = document.getElementById('pos-sched-truck');
   const posSchedLoc = document.getElementById('pos-sched-loc');
   const posVerified = document.getElementById('pos-verified');
@@ -2884,6 +2924,13 @@ function renderCall(scenario, opts = {}) {
   let truckOverride = null;
   let selectedLocation = null;
   let selectedRecord = null;
+  // Add-on equipment keys (from EQUIPMENT_ADDONS) the agent has toggled on in the
+  // Location-step MODEL/PRICE table. These flow into computeQuote()/renderCart()
+  // as flat one-way line items.
+  const selectedAddons = new Set();
+  // Active category filters for the Location-step equipment table (Trucks /
+  // Trailers / Towing). Trucks on by default to match the reference screen.
+  const equipFilters = { truck: true, trailer: false, towing: false };
   let storageAsked = false;
   // Geocoded origin/destination for distance-ranked branches and one-way
   // mileage. Seeded from the scenario's known origin (so the demo's pickup
@@ -2974,6 +3021,15 @@ function renderCall(scenario, opts = {}) {
     if (waiverCost > 0) { subtotal += waiverCost; lines.push({ label: `${waiver.label}${days > 1 ? ' x ' + days + ' days' : ''}`, amount: waiverCost }); }
     if (padsChecked) { subtotal += 10; lines.push({ label: 'Furniture pads', amount: 10 }); }
     if (dollyChecked) { const c = 7 * days; subtotal += c; lines.push({ label: `Utility dolly${days > 1 ? ' x ' + days + ' days' : ''}`, amount: c }); }
+
+    // Add-on equipment (trailers / towing) chosen on the Location step. Flat
+    // one-way prices, so they go straight in as single line items.
+    for (const key of selectedAddons) {
+      const a = ADDON_BY_KEY[key];
+      if (!a) continue;
+      subtotal += a.price;
+      lines.push({ label: a.label, amount: a.price });
+    }
 
     const tax = subtotal * TAX_RATE;
     const total = subtotal + tax;
@@ -3158,25 +3214,98 @@ function renderCall(scenario, opts = {}) {
       }
     }
 
+    // Pick the row to auto-expand: the chosen branch if any, else the nearest.
+    let openIdx = items.findIndex((it) => it.loc.name === selectedLocation);
+    if (openIdx < 0) openIdx = 0;
+
     posLocList.innerHTML = items.map((item, i) => {
       const loc = item.loc;
       const recommended = i === 0;
       const distText = item.mi != null ? item.mi.toFixed(1) : loc.distance;
-      const sel = loc.name === selectedLocation ? ' selected' : '';
+      const open = i === openIdx;
+      const sel = loc.name === selectedLocation;
       return `
-      <button type="button" class="pos-loc${recommended ? ' recommended' : ''}${sel}" data-location="${escapeAttr(loc.name)}">
-        <div class="pos-loc-rank">${i + 1}</div>
-        <div class="pos-loc-main">
-          <div class="pos-loc-name">Meridian Moving &amp; Storage of ${escapeHtml(loc.name)}${recommended ? ' <span class="pos-loc-badge">Recommended</span>' : ''}</div>
-          <div class="pos-loc-addr mono">${escapeHtml(loc.address)}</div>
-          <div class="pos-loc-meta">${escapeHtml(distText)} mi away &middot; ${escapeHtml(loc.hours)}</div>
-          <div class="pos-loc-equip">
-            ${TRUCK_SIZES.map((t) => `<span class="pos-loc-chip${loc.available_sizes.includes(t.size) ? '' : ' out'}">${t.size}' ${loc.available_sizes.includes(t.size) ? '$' + t.base.toFixed(2) : 'N/A'}</span>`).join('')}
+      <div class="pos-loc-card${open ? ' open' : ''}${sel ? ' selected' : ''}" data-location="${escapeAttr(loc.name)}">
+        <button type="button" class="pos-loc-card-head" data-loc-toggle aria-expanded="${open ? 'true' : 'false'}">
+          <span class="pos-loc-num">${i + 1}</span>
+          <span class="pos-loc-card-name">Meridian Moving &amp; Storage of ${escapeHtml(loc.name)}${recommended ? ' <span class="pos-loc-rec">Recommended</span>' : ''}</span>
+          <span class="pos-loc-toggle">${open ? '&minus;' : '+'}</span>
+        </button>
+        <div class="pos-loc-card-body"${open ? '' : ' hidden'}>
+          <div class="pos-loc-card-addr mono">${escapeHtml(loc.address)}</div>
+          <div class="pos-loc-card-dist">${escapeHtml(distText)} mile(s)</div>
+          <div class="pos-loc-card-hours">${escapeHtml(loc.hours)}</div>
+          <div class="pos-loc-card-links">
+            <a class="csf-link">&#9678; Directions</a>
+            <a class="csf-link">Cross Contact (${escapeHtml(loc.entity)})</a>
+            <a class="csf-link">View ESL</a>
           </div>
+          <button type="button" class="pos-loc-choose${sel ? ' chosen' : ''}" data-loc-choose>${sel ? '&#10003; Selected for pickup' : 'Use this location'}</button>
         </div>
-      </button>
+      </div>
     `;
     }).join('');
+  }
+
+  // Location-step MODEL/PRICE table. Lists every truck (one-way bundled price, or
+  // in-town per-day + per-mile) followed by the trailer/towing add-ons. Selecting
+  // a truck row drives truckOverride (same path as the step-2 tiles) so the cart
+  // and recommendation stay consistent; toggling an add-on flows into the cart.
+  // Trucks/Trailers/Towing filter checkboxes show/hide categories. Rows that the
+  // chosen branch can't supply (truck size missing from available_sizes, or an
+  // add-on flagged available:false) render greyed with the asterisk footnote.
+  function renderEquipTable() {
+    if (!posEquipTableBody) return;
+    const oneWay = getRsv('move_type') === 'one_way';
+    const miles = Number(getRsv('miles') || 0);
+    const activeSize = recommendedSize();
+    const branch = LOC_BY_NAME[selectedLocation] || null;
+    let anyUnavailable = false;
+
+    const rows = [];
+
+    if (equipFilters.truck) {
+      for (const t of TRUCK_SIZES) {
+        const branchHas = !branch || branch.available_sizes.includes(t.size);
+        if (!branchHas) anyUnavailable = true;
+        const selected = Number(activeSize) === t.size;
+        let priceHtml;
+        if (oneWay) {
+          priceHtml = miles > 0
+            ? `<span class="pos-eq-price-avail">${fmtMoney(oneWayQuote(t, miles).amount)}</span>`
+            : `<span class="pos-eq-price-muted">enter miles</span>`;
+        } else {
+          priceHtml = `<span class="pos-eq-price-avail">${fmtMoney(t.base)}</span> <span class="csf-eq-permile">+ ${fmtMoney(t.per_mile)}/mi</span>`;
+        }
+        rows.push(`
+          <tr class="pos-eq-row${selected ? ' selected' : ''}${branchHas ? '' : ' unavailable'}" data-eq-truck="${t.size}">
+            <td><span class="csf-eq-cell"><input type="radio" name="pos-eq-truck"${selected ? ' checked' : ''}${branchHas ? '' : ' disabled'}> ${escapeHtml(t.label)}${branchHas ? '' : ' *'}</span></td>
+            <td>${priceHtml}</td>
+          </tr>
+        `);
+      }
+    }
+
+    for (const a of EQUIPMENT_ADDONS) {
+      const cat = a.category === 'towing' ? 'towing' : 'trailer';
+      if (!equipFilters[cat]) continue;
+      if (!a.available) anyUnavailable = true;
+      const checked = selectedAddons.has(a.key);
+      rows.push(`
+        <tr class="pos-eq-row${checked ? ' selected' : ''}${a.available ? '' : ' unavailable'}" data-eq-addon="${escapeAttr(a.key)}">
+          <td><span class="csf-eq-cell"><input type="checkbox"${checked ? ' checked' : ''}${a.available ? '' : ' disabled'}> ${escapeHtml(a.label)}${a.available ? '' : ' *'}</span></td>
+          <td><span class="pos-eq-price-avail">${fmtMoney(a.price)}</span></td>
+        </tr>
+      `);
+    }
+
+    posEquipTableBody.innerHTML = rows.join('') || '<tr><td colspan="2" class="pos-eq-empty">No equipment matches the current filters.</td></tr>';
+    if (posEquipAvailName) {
+      posEquipAvailName.textContent = branch
+        ? `Available Equipment — Meridian Moving & Storage of ${branch.name}`
+        : 'Available Equipment';
+    }
+    if (posEquipFoot) posEquipFoot.hidden = !anyUnavailable;
   }
 
   // "San Antonio, TX" for the Location-step suggestion copy.
@@ -3635,6 +3764,7 @@ function renderCall(scenario, opts = {}) {
     if (posTopStepsWrap) posTopStepsWrap.hidden = posStep === 1;
     if (posTopBackBtn) posTopBackBtn.disabled = posStep === 1;
     if (posStep === 2) renderEquip();
+    if (posStep === 3) { renderLocations(); renderEquipTable(); }
     if (posStep === 4) renderSched();
     if (posStep === 5) updateCardStatus();
     const stage = posForm.closest('.pos-stage');
@@ -3666,6 +3796,7 @@ function renderCall(scenario, opts = {}) {
     renderCart();
     renderLeftRail();
     if (posStep === 2) renderEquip();
+    if (posStep === 3) renderEquipTable();
     if (posStep === 4) renderSched();
   }
   posForm.addEventListener('input', onPosChange);
@@ -3674,6 +3805,7 @@ function renderCall(scenario, opts = {}) {
   pos.querySelector('[data-rsv="load_size"]')?.addEventListener('change', () => {
     truckOverride = null;
     renderEquip();
+    renderEquipTable();
     renderCart();
   });
 
@@ -3687,14 +3819,71 @@ function renderCall(scenario, opts = {}) {
   });
 
   posLocList.addEventListener('click', (e) => {
-    const card = e.target.closest('.pos-loc');
+    const card = e.target.closest('.pos-loc-card');
     if (!card) return;
-    selectedLocation = card.dataset.location;
-    pos.querySelectorAll('.pos-loc').forEach((c) => c.classList.toggle('selected', c === card));
-    renderEntity();
-    renderSched();
-    renderLeftRail();
+    // "Use this location" choose button: select the branch (drives entity card,
+    // scheduling, left rail, and the equipment table's location-availability).
+    if (e.target.closest('[data-loc-choose]')) {
+      selectedLocation = card.dataset.location;
+      renderLocations();
+      renderEntity();
+      renderSched();
+      renderLeftRail();
+      renderEquipTable();
+      return;
+    }
+    // Accordion header toggle: expand/collapse this item; collapse the others so
+    // only one branch is open at a time (matches the reference screen).
+    if (e.target.closest('[data-loc-toggle]')) {
+      const willOpen = !card.classList.contains('open');
+      pos.querySelectorAll('.pos-loc-card').forEach((c) => {
+        const isThis = c === card;
+        c.classList.toggle('open', isThis && willOpen);
+        const body = c.querySelector('.pos-loc-card-body');
+        const tog = c.querySelector('.pos-loc-toggle');
+        const head = c.querySelector('.pos-loc-card-head');
+        if (body) body.hidden = !(isThis && willOpen);
+        if (tog) tog.innerHTML = (isThis && willOpen) ? '&minus;' : '+';
+        if (head) head.setAttribute('aria-expanded', String(isThis && willOpen));
+      });
+    }
   });
+
+  // Filter checkboxes (Trucks / Trailers / Towing) show/hide categories in the
+  // equipment table.
+  pos.querySelectorAll('[data-equip-filter]').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      equipFilters[cb.dataset.equipFilter] = cb.checked;
+      renderEquipTable();
+    });
+  });
+
+  // Equipment table selection. Truck rows behave like the step-2 tiles (set the
+  // active truck via truckOverride); add-on rows toggle into the cart. Rows the
+  // chosen branch can't supply are disabled. Everything re-renders the table,
+  // cart, equipment recommendation, and scheduling so the screens stay in sync.
+  if (posEquipTableBody) {
+    posEquipTableBody.addEventListener('click', (e) => {
+      const truckRow = e.target.closest('[data-eq-truck]');
+      if (truckRow && !truckRow.classList.contains('unavailable')) {
+        truckOverride = Number(truckRow.dataset.eqTruck);
+        renderEquipTable();
+        renderEquip();
+        renderCart();
+        renderSched();
+        renderLeftRail();
+        return;
+      }
+      const addonRow = e.target.closest('[data-eq-addon]');
+      if (addonRow && !addonRow.classList.contains('unavailable')) {
+        const key = addonRow.dataset.eqAddon;
+        if (selectedAddons.has(key)) selectedAddons.delete(key);
+        else selectedAddons.add(key);
+        renderEquipTable();
+        renderCart();
+      }
+    });
+  }
 
   // City typeahead on the move addresses. Picking a place stores its
   // coordinates, which drive the branch ranking on the Location step and the
@@ -3702,6 +3891,7 @@ function renderCall(scenario, opts = {}) {
   attachCityAutocomplete(pos.querySelector('[data-rsv="moving_from"]'), (place) => {
     originGeo = place ? { lat: place.lat, lng: place.lng, city: place.city, state: place.state, postcode: place.postcode } : null;
     renderLocations();
+    renderEquipTable();
     renderLeftRail();
     autoFillOneWayMiles();
   });
@@ -3871,6 +4061,13 @@ function renderCall(scenario, opts = {}) {
       storageAsked = false;
       originGeo = null;
       destGeo = null;
+      selectedAddons.clear();
+      equipFilters.truck = true;
+      equipFilters.trailer = false;
+      equipFilters.towing = false;
+      pos.querySelectorAll('[data-equip-filter]').forEach((cb) => {
+        cb.checked = !!equipFilters[cb.dataset.equipFilter];
+      });
       posEntityCard.hidden = true;
       updateCardChip();
       setRsv('pickup_date', new Date().toISOString().slice(0, 10));
@@ -3878,6 +4075,7 @@ function renderCall(scenario, opts = {}) {
       renderLeftRail();
       renderSched();
       renderLocations();
+      renderEquipTable();
       showStep(1);
     });
   }
@@ -3958,6 +4156,7 @@ function renderCall(scenario, opts = {}) {
   renderEquip();
   renderSched();
   renderLocations();
+  renderEquipTable();
   updateCardChip();
   showStep(1);
 
