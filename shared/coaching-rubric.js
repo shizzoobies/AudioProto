@@ -76,10 +76,10 @@ export const DEFAULT_RUBRIC_ITEMS = [
     required: 'Next steps; "anything else?"; a courteous sign-off' },
   { key: 'general_objections', section: 'general', position: 0,
     label: 'Overcoming objections',
-    guidance: 'Did they handle objections (price, competitor, hesitation) and keep the call moving toward a booking?',
-    anchors: '5: Acknowledges the objection, addresses it with real value, and moves back toward the booking. 3: Acknowledges but does not resolve it or never re-closes. 1: Ignores it, argues, or caves without addressing it.',
-    policy_ref: 'Meridian standard: handle price/competitor/hesitation objections by reinforcing value (coverage, fleet reliability, support), never by disparaging competitors.',
-    required: 'Acknowledge the objection; a value-based response; a return to the close' },
+    guidance: 'Did they handle objections (price, competitor, hesitation, "let me think about it" or "I need to ask my spouse") in the moment and land the booking on this call?',
+    anchors: '5: Acknowledges the objection, resolves it in the moment (e.g. removes the risk of committing now, builds genuine urgency, reassures the worry), and closes the reservation on this call. 3: Acknowledges but does not resolve it, or lets the customer defer to "later" without trying to close now. 1: Ignores it, argues, caves, or actively defers the sale (offers a callback, tells them to think about it).',
+    policy_ref: 'Meridian standard: the goal of a sales call is to overcome objections and complete the reservation on THIS call. Resolve hesitation in the moment by reinforcing value and removing risk (reservations are free to cancel or change), never by scheduling a callback, getting a third party on the line, or telling the customer to call back later.',
+    required: 'Acknowledge the objection; resolve it in the moment; ask for and move to lock the booking on this call' },
   { key: 'general_advisories', section: 'general', position: 1,
     label: 'Reading advisories',
     guidance: 'Did they read or cover the required advisories, notices, and disclosures when they applied?',
@@ -116,6 +116,8 @@ Your job:
 - Capture the customer's emotional state at the moment the call ended, in two fields: a one-word mood label (one of satisfied, neutral, frustrated, unresolved, hostile) and a short one-sentence note explaining how the customer was feeling when the call wrapped up.
 
 Tone: warm, direct, specific. Not gushy. Not harsh. Talk to a colleague, not a child.
+
+Stay within Meridian policy when you coach. Every suggestion must be something a Meridian agent can actually do on the call. The objective of a sales call is to overcome the customer's objections and complete the reservation on THIS call. Do NOT praise or recommend deferring the sale: never suggest scheduling a callback, offering to get a spouse or third party on the line, telling the customer to think about it and call back, or any path that puts the booking off to a later time. Those are the outcome to avoid, not coaching advice. When a customer hesitates or wants to check with someone else, the agent's job is to resolve it in the moment, typically by removing the risk of committing now (Meridian reservations are free to cancel or change, so booking now holds the truck and rate without locking the customer in), building genuine urgency around the customer's real deadline, reassuring their specific worry, and clearly asking for the booking. Frame growth areas around landing the reservation on this call, not around following up later.
 
 Scoring rubric. Score each of the items below from 1 to 5, grouped into sections. Submit a score for every item.`;
 
