@@ -1879,6 +1879,7 @@ function renderCall(scenario, opts = {}) {
               <section class="pos-step" data-step="2" hidden>
                 <div class="csf-script">
                   <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text" id="pos-equip-script-rate">Add a load size on the previous step to see the recommended rate.</p></div>
+                  <div class="csf-script-row" id="pos-equip-script-secure-row" hidden>${SCRIPT_ICON}<p class="csf-script-text">Which credit card would you like to secure your reservation with?</p></div>
                 </div>
                 <div class="csf-objection">Is the customer not ready to book? <a class="csf-link">Click for help to overcome their objections</a> to book now!</div>
 
@@ -2906,6 +2907,8 @@ function renderCall(scenario, opts = {}) {
     if (milesLabel) milesLabel.textContent = oneWay ? 'Estimated distance (miles)' : 'Estimated miles';
 
     const rateEl = document.getElementById('pos-equip-script-rate');
+    const secureRow = document.getElementById('pos-equip-script-secure-row');
+    if (secureRow) secureRow.hidden = !truck;
 
     if (!truck) {
       posEquipName.textContent = 'Pick a truck below, or set a load size on the Details step.';
