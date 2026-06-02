@@ -1,13 +1,20 @@
-import { getScenario } from '../../shared/scenarios.js';
+import { getScenario, DEMO_SCENARIO_IDS } from '../../shared/scenarios.js';
 import { verifyToken, getMagicScope, getInviteScope } from '../../shared/auth.js';
 import { recordUsage } from '../../shared/usage.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const STANDARD_MODEL = 'claude-sonnet-4-6';
 const PREMIUM_MODEL = 'claude-opus-4-7';
+// The open demo scenarios run on the fastest model (Haiku) for snappy, low-
+// latency replies — responsiveness sells the demo more than extra nuance. The id
+// is overridable via the DEMO_MODEL env var (retarget without a deploy), and the
+// request falls back to the standard model if the fast model is unavailable, so
+// the demo can never break. The trainee app is unaffected.
+const DEFAULT_DEMO_MODEL = 'claude-haiku-4-5';
 const SHOWCASE_PERSONA_PREFIX = 'showcase_';
 const MAX_TOKENS = 512;
 const PREMIUM_MAX_TOKENS = 768;
+const DEMO_SCENARIO_SET = new Set(DEMO_SCENARIO_IDS);
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -58,43 +65,53 @@ export async function onRequestPost(context) {
   ]);
   // Premium personas (scenario.premium) always run on the premium model, no
   // demo cookie required. The showcase persona still needs the demo unlock.
+  // The open demo scenarios run on the fast model (Haiku) regardless.
   const usePremium = !!scenario.premium || (isShowcase && demoUnlocked);
-  const modelId = usePremium ? PREMIUM_MODEL : STANDARD_MODEL;
+  const isDemo = DEMO_SCENARIO_SET.has(body?.scenario_id);
+  let modelId = isDemo
+    ? (env.DEMO_MODEL || DEFAULT_DEMO_MODEL)
+    : (usePremium ? PREMIUM_MODEL : STANDARD_MODEL);
   const maxTokens = usePremium ? PREMIUM_MAX_TOKENS : MAX_TOKENS;
+
+  // System blocks are split into a CACHED static prefix (persona prompt +
+  // premium voice direction) and an UNCACHED dynamic tail (date/weather/opening
+  // line). The static prefix is the biggest chunk and is identical for every
+  // call of the same persona, so caching cuts that portion of the input bill to
+  // 10% on every turn after the first within the 5-minute TTL window.
+  const systemBlocks = buildSystemBlocks({
+    scenarioPrompt: scenario.system_prompt,
+    weatherBlock,
+    usePremium,
+    isShowcase,
+    openingLine: body?.opening_line,
+  });
+
+  const callModel = (m) => fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model: m, max_tokens: maxTokens, system: systemBlocks, messages, stream: true }),
+  });
 
   let upstream;
   try {
-    upstream = await fetch(ANTHROPIC_URL, {
-      method: 'POST',
-      headers: {
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        max_tokens: maxTokens,
-        // System blocks are split into a CACHED static prefix (persona prompt
-        // + premium voice direction) and an UNCACHED dynamic tail
-        // (date/weather/opening line). The static prefix is the biggest
-        // chunk (2-5k tokens for the persona prompt) and is identical for
-        // every call of the same persona, so caching it cuts that portion
-        // of the input bill to 10% on every turn after the first within the
-        // 5-minute TTL window. Date/weather/opening change per-call so
-        // caching them would just churn the cache without saving anything.
-        system: buildSystemBlocks({
-          scenarioPrompt: scenario.system_prompt,
-          weatherBlock,
-          usePremium,
-          isShowcase,
-          openingLine: body?.opening_line,
-        }),
-        messages,
-        stream: true,
-      }),
-    });
+    upstream = await callModel(modelId);
   } catch (err) {
     return jsonError('upstream_unreachable', 502);
+  }
+
+  // Demo fast-model safety net: if the fast model is unavailable or errors,
+  // retry once on the standard model so the demo always works.
+  if ((!upstream.ok || !upstream.body) && isDemo && modelId !== STANDARD_MODEL) {
+    modelId = STANDARD_MODEL;
+    try {
+      upstream = await callModel(modelId);
+    } catch (err) {
+      return jsonError('upstream_unreachable', 502);
+    }
   }
 
   if (!upstream.ok || !upstream.body) {
