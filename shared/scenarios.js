@@ -2182,6 +2182,7 @@ export function listScenarioTypesForDisplay() {
         premium: !!p.premium,
         opening_lines: p.opening_lines,
         customer_record: p.customer_record,
+        phone: p.phone || null,
       };
     }),
   }));

@@ -31,6 +31,7 @@ export async function onRequestGet({ request, env }) {
       tagline: p?.tagline || '',
       premium: !!p?.premium,
       points: Array.isArray(p?.points) ? p.points : [],
+      phone: p?.phone || '',
     });
   }
 
