@@ -9,6 +9,7 @@
 // no-password entry point for the scoped review editor.
 
 import { signToken, sha256Hex, REVIEW_RECIPIENT_EMAIL } from '../../shared/auth.js';
+import { logRubricEvent } from '../../shared/rubric-audit.js';
 
 const COOKIE_TTL_SECONDS = 8 * 60 * 60;
 
@@ -40,6 +41,9 @@ export async function onRequest({ request, env, params }) {
   } catch {
     // ignore
   }
+
+  // Activity log: a reviewer opened the editor via the shared link.
+  await logRubricEvent(env, { actor: 'Review link', actor_kind: 'reviewer', action: 'opened', item_key: null, detail: 'Opened the review editor' });
 
   const exp = now + COOKIE_TTL_SECONDS;
   const cookie = await signToken(

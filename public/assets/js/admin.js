@@ -324,7 +324,7 @@ function paintDashboard() {
 
     ${renderPreviewSection()}
 
-    ${renderRubricSection()}
+    ${renderRubricSection({ audit: true })}
 
     ${renderReviewLinkSection()}
 
@@ -426,7 +426,7 @@ function attachAdminNav() {
 // tool schema and hidden on the report). Add custom items per section; default
 // items can be disabled but not deleted.
 
-function renderRubricSection() {
+function renderRubricSection(opts = {}) {
   return `
     <section class="admin-section" id="sec-rubric">
       <header class="admin-section-head" style="flex-direction:row;align-items:flex-start;justify-content:space-between;gap:16px;">
@@ -438,6 +438,11 @@ function renderRubricSection() {
         <button type="button" class="primary-button" id="admin-rubric-preview" style="flex-shrink:0;margin-top:2px;">Preview review</button>
       </header>
       <div id="admin-rubric-wrap">${renderRubricBody(state.rubric)}</div>
+      ${opts.audit ? `
+      <details class="admin-rubric-audit" id="admin-rubric-audit">
+        <summary class="admin-rubric-auditbtn">Recent activity</summary>
+        <div class="admin-rubric-audit-body" id="admin-rubric-audit-body"><div class="admin-empty">Open to load activity…</div></div>
+      </details>` : ''}
     </section>
   `;
 }
@@ -541,6 +546,13 @@ function attachRubricHandlers() {
     previewBtn.addEventListener('click', openReviewPreview);
   }
 
+  // Activity log (admin view only): load it the first time it's expanded.
+  const auditEl = document.getElementById('admin-rubric-audit');
+  if (auditEl && auditEl.dataset.wired !== '1') {
+    auditEl.dataset.wired = '1';
+    auditEl.addEventListener('toggle', () => { if (auditEl.open) loadRubricAudit(); });
+  }
+
   const wrap = document.getElementById('admin-rubric-wrap');
   if (!wrap || wrap.dataset.wired === '1') return;
   wrap.dataset.wired = '1'; // the wrap element persists across body re-renders
@@ -618,6 +630,9 @@ async function rubricOp(payload) {
     return;
   }
   await refreshRubricBody();
+  // Keep the activity log fresh if it's open.
+  const auditEl = document.getElementById('admin-rubric-audit');
+  if (auditEl && auditEl.open) loadRubricAudit();
 }
 
 async function refreshRubricBody() {
@@ -629,6 +644,60 @@ async function refreshRubricBody() {
   }
   const wrap = document.getElementById('admin-rubric-wrap');
   if (wrap) wrap.innerHTML = renderRubricBody(state.rubric);
+}
+
+async function loadRubricAudit() {
+  const body = document.getElementById('admin-rubric-audit-body');
+  if (!body) return;
+  body.innerHTML = '<div class="admin-empty">Loading activity…</div>';
+  try {
+    const r = await fetch('/api/admin/rubric-audit', { credentials: 'same-origin' });
+    const d = await r.json().catch(() => null);
+    body.innerHTML = renderAuditList((d && d.events) || []);
+  } catch {
+    body.innerHTML = '<div class="admin-empty">Could not load activity.</div>';
+  }
+}
+
+function renderAuditList(events) {
+  if (!events.length) return '<div class="admin-empty">No activity yet.</div>';
+  return `<ul class="admin-audit-list">${events.map((e) => {
+    const who = e.actor_kind === 'reviewer' ? 'Review link' : escapeHtml(e.actor || 'admin');
+    const action = describeAuditAction(e);
+    const itemLabel = e.item_key ? auditItemLabel(e.item_key) : '';
+    return `<li class="admin-audit-row">
+      <span class="admin-audit-dot" data-kind="${escapeAttr(e.actor_kind || '')}" aria-hidden="true"></span>
+      <span class="admin-audit-text"><strong>${who}</strong> ${escapeHtml(action)}${itemLabel ? ` <span class="admin-audit-item">${escapeHtml(itemLabel)}</span>` : ''}</span>
+      <span class="admin-audit-when">${escapeHtml(formatAuditTime(e.ts))}</span>
+    </li>`;
+  }).join('')}</ul>`;
+}
+
+function describeAuditAction(e) {
+  switch (e.action) {
+    case 'opened': return 'opened the editor';
+    case 'enable': return 'turned on';
+    case 'disable': return 'turned off';
+    case 'add': return 'added';
+    case 'edit': return 'edited';
+    case 'delete': return 'deleted';
+    default: return e.action || 'changed';
+  }
+}
+
+function auditItemLabel(key) {
+  const it = (state.rubric?.items || []).find((i) => i.key === key);
+  return it ? it.label : key;
+}
+
+function formatAuditTime(ts) {
+  const n = Number(ts);
+  if (!Number.isFinite(n)) return '';
+  try {
+    return new Date(n * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
 
 // Build a mock coaching report from the CURRENTLY ENABLED rubric, with sample

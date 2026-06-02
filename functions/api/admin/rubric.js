@@ -13,8 +13,19 @@
 
 import { RUBRIC_SECTIONS, DEFAULT_RUBRIC_ITEMS } from '../../../shared/coaching-rubric.js';
 import { getRubricItems } from '../../../shared/rubric-store.js';
+import { getAdminScope, getReviewScope } from '../../../shared/auth.js';
+import { logRubricEvent } from '../../../shared/rubric-audit.js';
 
 const SECTION_KEYS = new Set(RUBRIC_SECTIONS.map((s) => s.key));
+
+// Who is making this change — a named admin/owner, or the scoped review link.
+async function resolveActor(request, env) {
+  const admin = await getAdminScope(request, env);
+  if (admin) return { actor: admin.email || (admin.is_owner ? 'Owner' : admin.admin_id || 'admin'), kind: 'admin' };
+  const review = await getReviewScope(request, env);
+  if (review) return { actor: 'Review link', kind: 'reviewer' };
+  return { actor: 'unknown', kind: 'unknown' };
+}
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
@@ -40,10 +51,11 @@ export async function onRequestPost({ request, env }) {
   }
   try {
     await ensureSeeded(env);
+    const actor = await resolveActor(request, env);
     switch (body?.op) {
-      case 'toggle': return await toggleItem(env, body);
-      case 'upsert': return await upsertItem(env, body);
-      case 'delete': return await deleteItem(env, body);
+      case 'toggle': return await toggleItem(env, body, actor);
+      case 'upsert': return await upsertItem(env, body, actor);
+      case 'delete': return await deleteItem(env, body, actor);
       default: return jsonError('unknown_op', 400);
     }
   } catch (e) {
@@ -51,7 +63,7 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-async function toggleItem(env, body) {
+async function toggleItem(env, body, actor) {
   const key = String(body?.key || '').trim();
   if (!key) return jsonError('missing_key', 400);
   const enabled = body?.enabled ? 1 : 0;
@@ -60,10 +72,11 @@ async function toggleItem(env, body) {
     .prepare(`UPDATE rubric_items SET enabled = ?, updated_at = ? WHERE key = ?`)
     .bind(enabled, now, key)
     .run();
+  await logRubricEvent(env, { actor: actor?.actor, actor_kind: actor?.kind, action: enabled ? 'enable' : 'disable', item_key: key, detail: enabled ? 'Turned on' : 'Turned off' });
   return json({ ok: true, changed: res?.meta?.changes || 0 });
 }
 
-async function upsertItem(env, body) {
+async function upsertItem(env, body, actor) {
   const it = body?.item || {};
   const section = String(it.section || '').trim();
   if (!SECTION_KEYS.has(section)) return jsonError('bad_section', 400);
@@ -83,6 +96,7 @@ async function upsertItem(env, body) {
       .prepare(`UPDATE rubric_items SET section = ?, label = ?, guidance = ?, anchors = ?, policy_ref = ?, required = ?, enabled = ?, updated_at = ? WHERE key = ?`)
       .bind(section, label, guidance, anchors, policy_ref, required, enabled, now, key)
       .run();
+    await logRubricEvent(env, { actor: actor?.actor, actor_kind: actor?.kind, action: 'edit', item_key: key, detail: `Edited "${label}"` });
     return json({ ok: true, key });
   }
 
@@ -98,16 +112,18 @@ async function upsertItem(env, body) {
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`)
     .bind(key, section, label, guidance, anchors, policy_ref, required, position, enabled, now, now)
     .run();
+  await logRubricEvent(env, { actor: actor?.actor, actor_kind: actor?.kind, action: 'add', item_key: key, detail: `Added "${label}"` });
   return json({ ok: true, key }, 201);
 }
 
-async function deleteItem(env, body) {
+async function deleteItem(env, body, actor) {
   const key = String(body?.key || '').trim();
   if (!key) return jsonError('missing_key', 400);
-  const row = await env.DB.prepare(`SELECT is_custom FROM rubric_items WHERE key = ?`).bind(key).first();
+  const row = await env.DB.prepare(`SELECT is_custom, label FROM rubric_items WHERE key = ?`).bind(key).first();
   if (!row) return jsonError('not_found', 404);
   if (!Number(row.is_custom)) return jsonError('cannot_delete_default', 400);
   await env.DB.prepare(`DELETE FROM rubric_items WHERE key = ?`).bind(key).run();
+  await logRubricEvent(env, { actor: actor?.actor, actor_kind: actor?.kind, action: 'delete', item_key: key, detail: `Deleted "${row.label || key}"` });
   return json({ ok: true });
 }
 
