@@ -1610,6 +1610,12 @@ function renderCall(scenario, opts = {}) {
   // wouldn't show them. The transcript element stays in the DOM (coaching reads
   // it) but is not displayed. Text-mode chats keep their conversation visible.
   const hideCaptions = isPhone;
+  // Demo (voice-agent) phone calls hide the entire call dock — the floating,
+  // chat-style panel — so the trainee just sees the POS, like a real rep on a
+  // live call. The status/transcript elements stay in the DOM (JS still updates
+  // them; coaching still reads the transcript) but the panel is not shown. The
+  // call header keeps the timer, Pause, and End call controls.
+  const hideDock = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id);
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
   // Premium voice (eleven_v3) performs square-bracket delivery tags. When
   // active we keep those tags in the text we send to TTS but strip them
@@ -2091,7 +2097,7 @@ function renderCall(scenario, opts = {}) {
           </aside>
         </div>
 
-        <div class="call-dock" id="call-dock" data-mode="${isPhone ? 'phone' : 'chat'}" data-collapsed="false">
+        <div class="call-dock" id="call-dock" data-mode="${isPhone ? 'phone' : 'chat'}" data-collapsed="false"${hideDock ? ' hidden' : ''}>
           <button type="button" class="call-dock-head" id="call-dock-head" aria-expanded="true">
             <span class="call-dock-dot" id="call-dock-dot"></span>
             <span class="call-dock-title">${escapeHtml(displayName)}</span>
