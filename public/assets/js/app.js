@@ -1606,6 +1606,10 @@ function renderCall(scenario, opts = {}) {
     : 'Type your response...';
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
   const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
+  // Demo phone calls hide the live transcript ("captions") — a real phone call
+  // wouldn't show them. The transcript element stays in the DOM (coaching reads
+  // it) but is not displayed.
+  const hideCaptions = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id);
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
   // Premium voice (eleven_v3) performs square-bracket delivery tags. When
   // active we keep those tags in the text we send to TTS but strip them
@@ -2095,7 +2099,7 @@ function renderCall(scenario, opts = {}) {
             <span class="call-dock-chevron" aria-hidden="true">&#9662;</span>
           </button>
           <div class="call-dock-body" id="call-dock-body">
-            <div class="call-dock-convo">
+            <div class="call-dock-convo"${hideCaptions ? ' hidden' : ''}>
               <ol class="transcript" id="transcript" aria-live="polite"></ol>
             </div>
             <div class="call-dock-aside">
