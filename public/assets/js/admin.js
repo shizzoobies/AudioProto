@@ -8,6 +8,10 @@
 // generated invite is shown above the list with a Copy button — we don't
 // store plaintext tokens, so it's only available at generation time.
 
+// Reuse the real coaching-report renderer so the rubric preview is pixel-identical
+// to what a trainee sees after a call.
+import { renderReportHtml } from './coach.js';
+
 const root = document.getElementById('admin-root');
 const logoutBtn = document.getElementById('admin-logout');
 const body = document.body;
@@ -389,10 +393,13 @@ function attachAdminNav() {
 function renderRubricSection() {
   return `
     <section class="admin-section" id="sec-rubric">
-      <header class="admin-section-head">
-        <p class="admin-eyebrow">Call Review</p>
-        <h2 class="admin-section-title">Scorecard rubric</h2>
-        <p class="admin-section-sub">Choose what the AI scores and what appears on each call's Call Review. Uncheck an item to turn it off everywhere; add your own items to any section. Changes apply to the next call scored.</p>
+      <header class="admin-section-head" style="flex-direction:row;align-items:flex-start;justify-content:space-between;gap:16px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <p class="admin-eyebrow">Call Review</p>
+          <h2 class="admin-section-title">Scorecard rubric</h2>
+          <p class="admin-section-sub">Choose what the AI scores and what appears on each call's Call Review. Uncheck an item to turn it off everywhere; add your own items to any section. Changes apply to the next call scored.</p>
+        </div>
+        <button type="button" class="primary-button" id="admin-rubric-preview" style="flex-shrink:0;margin-top:2px;">Preview review</button>
       </header>
       <div id="admin-rubric-wrap">${renderRubricBody(state.rubric)}</div>
     </section>
@@ -461,6 +468,13 @@ function renderRubricItem(it) {
 }
 
 function attachRubricHandlers() {
+  // Preview button lives in the section header (outside the re-rendered wrap).
+  const previewBtn = document.getElementById('admin-rubric-preview');
+  if (previewBtn && previewBtn.dataset.wired !== '1') {
+    previewBtn.dataset.wired = '1';
+    previewBtn.addEventListener('click', openReviewPreview);
+  }
+
   const wrap = document.getElementById('admin-rubric-wrap');
   if (!wrap || wrap.dataset.wired === '1') return;
   wrap.dataset.wired = '1'; // the wrap element persists across body re-renders
@@ -541,6 +555,92 @@ async function refreshRubricBody() {
   }
   const wrap = document.getElementById('admin-rubric-wrap');
   if (wrap) wrap.innerHTML = renderRubricBody(state.rubric);
+}
+
+// Build a mock coaching report from the CURRENTLY ENABLED rubric, with sample
+// scores/evidence, so the admin can preview exactly what a trainee's Call Review
+// will look like with their current selection.
+function buildReviewPreview(rubric) {
+  const sections = Array.isArray(rubric?.sections) ? rubric.sections : [];
+  const enabled = (rubric?.items || []).filter((it) => it.enabled);
+
+  // Display structure: enabled items grouped by section, in order.
+  const display = sections
+    .map((sec) => ({
+      label: sec.label,
+      items: enabled
+        .filter((it) => it.section === sec.key)
+        .sort((a, b) => (a.position || 0) - (b.position || 0))
+        .map((it) => ({ key: it.key, label: it.label })),
+    }))
+    .filter((s) => s.items.length);
+
+  // Sample scores — varied so the cards don't all look identical.
+  const cycle = [4, 5, 3, 4, 5, 4, 3, 5];
+  const scores = {};
+  enabled.forEach((it, i) => {
+    scores[it.key] = {
+      score: cycle[i % cycle.length],
+      evidence: `Sample evidence for "${it.label}" — a short quote from the call would appear here.`,
+      suggestion: 'Sample suggestion — one concrete thing to try next time would appear here.',
+    };
+  });
+  const vals = Object.values(scores).map((s) => s.score);
+  const overall = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+
+  return {
+    overall_score: Math.round(overall * 10) / 10,
+    scores,
+    rubric: display,
+    strengths: ['Sample strength — a real one from the call would appear here.', 'Sample strength — clear, confident close.'],
+    growth_areas: ['Sample growth area — something to tighten next time.', 'Sample growth area — confirm details back more often.'],
+    one_thing_to_try_next_time: 'This is sample coaching text. The single most impactful thing to try next time would appear here.',
+    final_mood: 'satisfied',
+    final_mood_note: 'Sample note — how the customer felt at the end of the call.',
+  };
+}
+
+function openReviewPreview() {
+  if (!state.rubric) { alert('Rubric is still loading — try again in a moment.'); return; }
+  const report = buildReviewPreview(state.rubric);
+  const scenario = { title: 'Call Review preview', customer_name: 'Sample Customer' };
+  const node = renderReportHtml(scenario, report, { onNewCall: closeReviewPreview, onRetry: closeReviewPreview });
+
+  let overlay = document.getElementById('admin-review-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'admin-review-modal';
+    overlay.className = 'admin-modal';
+    overlay.dataset.open = 'false';
+    overlay.innerHTML = `
+      <div class="admin-modal-backdrop" data-close></div>
+      <div class="admin-modal-card" role="dialog" aria-modal="true" aria-label="Call Review preview">
+        <div class="admin-modal-head">
+          <span class="admin-modal-title">Call Review preview <span class="admin-modal-badge">Sample data</span></span>
+          <button type="button" class="admin-modal-x" data-close aria-label="Close">&times;</button>
+        </div>
+        <div class="admin-modal-body" id="admin-review-body"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeReviewPreview(); });
+    document.addEventListener('keydown', reviewEscHandler);
+  }
+  const bodyEl = overlay.querySelector('#admin-review-body');
+  bodyEl.innerHTML = '';
+  bodyEl.appendChild(node);
+  bodyEl.scrollTop = 0;
+  overlay.dataset.open = 'true';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeReviewPreview() {
+  const overlay = document.getElementById('admin-review-modal');
+  if (overlay) overlay.dataset.open = 'false';
+  document.body.style.overflow = '';
+}
+
+function reviewEscHandler(e) {
+  if (e.key === 'Escape') closeReviewPreview();
 }
 
 // One scenario type rendered as a <details>. Description is shown on expand,
