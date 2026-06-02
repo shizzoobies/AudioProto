@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-3 dock-hide-css-fix';
+const BUILD_ID = '20260602-4 origin-branches+demo-scroll';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -90,6 +90,100 @@ const BRANCHES = [
     lng: -98.4690,
   },
 ];
+
+// Cincinnati-area branches for the demo (Robert's one-way is FROM Cincinnati).
+const CINCINNATI_BRANCHES = [
+  {
+    name: 'Downtown',
+    area: 'Central',
+    address: '1208 Central Pkwy, Cincinnati, OH 45202',
+    hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
+    serves: 'Downtown, Over-the-Rhine, Pendleton, West End',
+    lat: 39.1095,
+    lng: -84.5170,
+  },
+  {
+    name: 'Oakley',
+    area: 'Northeast',
+    address: '3025 Madison Rd, Cincinnati, OH 45209',
+    hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
+    serves: 'Oakley, Hyde Park, Norwood, Pleasant Ridge',
+    lat: 39.1556,
+    lng: -84.4270,
+  },
+  {
+    name: 'Western Hills',
+    area: 'West',
+    address: '5400 Glenway Ave, Cincinnati, OH 45238',
+    hours: 'Mon-Sat 7a-6p, Sun closed',
+    serves: 'Western Hills, Westwood, Price Hill, Cheviot',
+    lat: 39.1140,
+    lng: -84.6090,
+  },
+  {
+    name: 'Blue Ash',
+    area: 'North',
+    address: '9920 Kenwood Rd, Blue Ash, OH 45242',
+    hours: 'Mon-Sat 7a-7p, Sun 9a-5p',
+    serves: 'Blue Ash, Montgomery, Kenwood, Sycamore',
+    lat: 39.2320,
+    lng: -84.3783,
+  },
+  {
+    name: 'Florence',
+    area: 'South / Northern KY',
+    address: '7585 Mall Rd, Florence, KY 41042',
+    hours: 'Daily 7a-8p',
+    serves: 'Florence, Covington, Newport, Northern Kentucky',
+    lat: 38.9989,
+    lng: -84.6266,
+  },
+];
+
+// Branch sets by metro, chosen by the scenario's origin so pickup locations
+// match where the customer is actually loading. Each metro carries its own
+// phone list (correct area codes). The first entry is the default fallback
+// when a scenario has no origin location.
+const METROS = [
+  {
+    center: { lat: 29.4241, lng: -98.4936 },
+    branches: BRANCHES,
+    phones: ['(210) 555-3120', '(210) 555-4786', '(210) 555-2941', '(210) 555-6075', '(210) 555-8312'],
+  },
+  {
+    center: { lat: 39.1031, lng: -84.5120 },
+    branches: CINCINNATI_BRANCHES,
+    phones: ['(513) 555-3120', '(513) 555-4786', '(513) 555-2941', '(513) 555-6075', '(859) 555-8312'],
+  },
+];
+
+// Rough great-circle miles between two {lat,lng} points (module scope so branch
+// selection can run before renderCall's local helper is in scope).
+function milesBetween(a, b) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 3958.8;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+// Pick the metro whose center is nearest the scenario's origin; default to the
+// first metro (San Antonio) when the scenario has no location. scenario.location
+// may use `lon` or `lng`.
+function metroForLocation(loc) {
+  const lat = loc && Number.isFinite(loc.lat) ? loc.lat : null;
+  const lng = loc ? (Number.isFinite(loc.lng) ? loc.lng : loc.lon) : null;
+  if (lat == null || !Number.isFinite(lng)) return METROS[0];
+  let best = METROS[0];
+  let bestMi = Infinity;
+  for (const m of METROS) {
+    const mi = milesBetween({ lat, lng }, m.center);
+    if (mi < bestMi) { bestMi = mi; best = m; }
+  }
+  return best;
+}
 
 // Call states during which the call clock accrues time. Everything else
 // (connecting, processing, thinking, paused) is treated as simulator latency
@@ -447,6 +541,7 @@ function renderKioskSplash(scenarioId) {
 // disclaimer is right here on the page).
 function renderRecipientHome() {
   state.view = 'recipient_home';
+  document.body.dataset.view = 'home';
   state.activeScenario = null;
   setDocumentTitle('');
   if (state.conversation) {
@@ -521,6 +616,7 @@ function renderRecipientHome() {
 // returns null or throws, we keep the static poster, and never start a loop.
 function renderDemoHome() {
   state.view = 'recipient_home';
+  document.body.dataset.view = 'home';
   state.activeScenario = null;
   setDocumentTitle('');
   if (state.conversation) {
@@ -1600,6 +1696,9 @@ function renderCall(scenario, opts = {}) {
   // only spin up when the trainee Answers and renderCall runs for real.
   const preview = !!opts.preview;
   state.view = 'call';
+  // Mark the call view so the demo's home-only page lock releases and the POS
+  // can scroll. Skip in preview (the blurred backdrop behind the precall modal).
+  if (!preview) document.body.dataset.view = 'call';
   setDocumentTitle(scenario.blind ? 'Live call' : `Call: ${scenario.customer_name}`);
   teardownAudio();
 
@@ -1668,11 +1767,14 @@ function renderCall(scenario, opts = {}) {
   ];
   const RENTAL_BY_VALUE = Object.fromEntries(RENTAL_LENGTHS.map((r) => [r.value, r]));
 
-  const POS_LOCATIONS = BRANCHES.map((b, i) => ({
+  // Pickup branches for the metro the customer is moving FROM (Cincinnati for
+  // the demo), so the location step shows locations that make sense.
+  const originMetro = metroForLocation(scenario.location);
+  const POS_LOCATIONS = originMetro.branches.map((b, i) => ({
     ...b,
     entity: String(833071 - i * 412),
     distance: (1.6 + i * 2.4).toFixed(1),
-    phone: ['(210) 555-3120', '(210) 555-4786', '(210) 555-2941', '(210) 555-6075', '(210) 555-8312'][i] || '(210) 555-7058',
+    phone: originMetro.phones[i] || originMetro.phones[0],
     available_sizes: i === 2 ? [10, 15, 20] : [10, 15, 20, 26],
   }));
   const LOC_BY_NAME = Object.fromEntries(POS_LOCATIONS.map((l) => [l.name, l]));
@@ -2784,8 +2886,17 @@ function renderCall(scenario, opts = {}) {
   let selectedRecord = null;
   let storageAsked = false;
   // Geocoded origin/destination for distance-ranked branches and one-way
-  // mileage. Null until the agent picks a place from the city typeahead.
-  let originGeo = null;
+  // mileage. Seeded from the scenario's known origin (so the demo's pickup
+  // locations rank against Cincinnati out of the gate); otherwise null until
+  // the agent picks a place from the city typeahead.
+  let originGeo = (() => {
+    const l = scenario.location;
+    if (!l || !Number.isFinite(l.lat)) return null;
+    const lng = Number.isFinite(l.lng) ? l.lng : l.lon;
+    if (!Number.isFinite(lng)) return null;
+    const parts = String(l.label || '').split(',');
+    return { lat: l.lat, lng, city: (parts[0] || '').trim(), state: (parts[1] || '').trim() };
+  })();
   let destGeo = null;
 
   function fmtMoney(n) { return '$' + Number(n || 0).toFixed(2); }
@@ -3892,6 +4003,7 @@ function renderAnalyzing(scenario) {
 
 function renderReport(scenario, report) {
   state.view = 'report';
+  document.body.dataset.view = 'report';
   setDocumentTitle(`Report: ${scenario.customer_name}`);
   // Kiosk visitors have nowhere to go but back into the same scenario - even
   // if the "Back to scenarios" button shows for any reason, it just retries.
@@ -3910,6 +4022,7 @@ function renderReport(scenario, report) {
 
 function renderShortCall(scenario) {
   state.view = 'ended';
+  document.body.dataset.view = 'report';
   dom.root.innerHTML = `
     <section class="ended">
       <h1 class="ended-title">Call ended early.</h1>
@@ -3929,6 +4042,7 @@ function renderShortCall(scenario) {
 
 function renderCoachingError(scenario, messages, err) {
   state.view = 'coaching_error';
+  document.body.dataset.view = 'report';
   dom.root.innerHTML = `
     <section class="ended">
       <h1 class="ended-title">We could not finish the report.</h1>

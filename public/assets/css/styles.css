@@ -258,10 +258,17 @@ body[data-demo] .app-main {
      dark footer, so no strip of page background shows under it on scroll. */
   padding-bottom: 0;
 }
-/* The demo is a single, non-scrolling screen — lock the page so it can't scroll
-   past the footer. */
-body[data-demo] {
+/* The demo HOME is a single, non-scrolling screen — lock the page so it can't
+   scroll past the footer. Only the home is locked; the in-call POS and the
+   coaching report can be taller than the viewport and must scroll normally.
+   renderCall/renderReport set body[data-view] accordingly. */
+body[data-demo][data-view="home"] {
   overflow: hidden;
+}
+/* Demo in-call / report views get their page padding back (the home zeroes it). */
+body[data-demo][data-view="call"] .app-main,
+body[data-demo][data-view="report"] .app-main {
+  padding: var(--space-5) var(--space-5);
 }
 
 /* Buttons
@@ -986,6 +993,12 @@ body[data-demo] {
 }
 .call-body:has(.call-dock[data-collapsed="true"]) {
   padding-bottom: 64px;
+}
+/* When the dock is hidden entirely (demo calls), there's nothing pinned at the
+   bottom to clear — drop the reserved space so the POS isn't pushed down into a
+   dead, unscrollable gap. */
+.call-body:has(.call-dock[hidden]) {
+  padding-bottom: var(--space-4);
 }
 
 .call-header {
@@ -1743,15 +1756,10 @@ body[data-demo] {
   animation: report-fade-in 0.35s ease;
 }
 
-/* The demo locks page scroll for its single-screen home (body[data-demo] sets
-   overflow: hidden), but the coaching report can run taller than the viewport.
-   Without this, a long report is clipped and can't be scrolled. Give the report
-   its own scroll region so it stays fully reachable inside that lock. The
-   trainee app (no data-demo) scrolls the page normally and is unaffected. */
+/* The demo's page lock now applies only to the home view (body[data-view="home"]),
+   so the report view scrolls the page normally — no separate scroll region
+   needed here. A little bottom breathing room on the demo report. */
 body[data-demo] .report {
-  max-height: 100vh;
-  max-height: 100dvh;
-  overflow-y: auto;
   padding-bottom: var(--space-6);
 }
 
