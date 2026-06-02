@@ -54,17 +54,18 @@ export async function onRequestPost({ request, env }) {
   const signedUrl = signed?.signed_url;
   if (!signedUrl) return jsonError('no_signed_url', 502);
 
-  // The customer opens the call with their characteristic line (first_message).
-  const openingLines = Array.isArray(scenario.opening_lines) && scenario.opening_lines.length
-    ? scenario.opening_lines
-    : [scenario.opening_line || ''];
-  const firstMessage = openingLines[Math.floor(Math.random() * openingLines.length)] || '';
+  // Voice-call turn-taking: the trainee (CS agent) answers the phone and greets
+  // FIRST, so the customer (the agent) must NOT speak first. An empty
+  // first_message makes the ElevenLabs agent wait for the trainee, and we append
+  // an explicit directive that overrides the persona prompt's "you already
+  // greeted" note (written for the old turn-based flow).
+  const turnTaking = '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
 
   return json({
     signed_url: signedUrl,
     overrides: {
-      prompt: scenario.system_prompt || '',
-      first_message: firstMessage,
+      prompt: (scenario.system_prompt || '') + turnTaking,
+      first_message: '',
       language: 'en',
       voice_id: scenario.voice_id || null,
     },
