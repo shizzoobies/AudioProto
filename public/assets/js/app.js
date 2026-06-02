@@ -2,6 +2,12 @@ import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
+import { createVoiceAgent } from './voice-agent.js';
+
+// Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
+// Flip VOICE_AGENT_ENABLED to false to fall back to the turn-based pipeline.
+const VOICE_AGENT_ENABLED = true;
+const VOICE_AGENT_SCENARIOS = new Set(['demo_sales', 'demo_service']);
 
 const state = {
   scenarioTypes: [],
@@ -140,6 +146,10 @@ function teardownAudio() {
   if (state.continuousRecorder) {
     state.continuousRecorder.cancel();
     state.continuousRecorder = null;
+  }
+  if (state.voiceAgent) {
+    try { state.voiceAgent.stop(); } catch {}
+    state.voiceAgent = null;
   }
   if (state.sttController) {
     try { state.sttController.abort(); } catch {}
@@ -2419,15 +2429,17 @@ function renderCall(scenario, opts = {}) {
 
   // ---- Mode-specific wiring ----
 
+  const useVoiceAgent = isPhone && VOICE_AGENT_ENABLED && VOICE_AGENT_SCENARIOS.has(scenario.id);
+
   if (isPhone) {
     setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');
-    // Agent-first: the trainee greets first. For the showcase persona Elena
-    // opens (her opening-line audio plays, and audioPlayer.onEnd hands the
-    // turn back), so we don't start listening here. For every normal scenario
-    // there's no customer audio to wait on — open the mic now so the trainee
-    // can greet. The Answer click was the user gesture, so startListening's
-    // getUserMedia call has a valid gesture chain.
-    if (!isShowcaseCall) {
+    // Demo scenarios use the real-time ElevenLabs agent (full-duplex, streaming).
+    // Everything else uses the agent-first turn loop: the trainee greets first,
+    // so we open the mic now (the Answer click is the gesture). Elena (showcase)
+    // opens herself, so we don't start listening for her.
+    if (useVoiceAgent) {
+      startAgentSession();
+    } else if (!isShowcaseCall) {
       setPhoneState('your_turn', 'Your turn — greet the caller.', 'They just picked up. Say hello and introduce yourself.');
       startListening();
     }
@@ -2456,6 +2468,40 @@ function renderCall(scenario, opts = {}) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         composer.requestSubmit();
+      }
+    });
+  }
+
+  // Real-time ElevenLabs voice agent session (demo phone calls). Full-duplex:
+  // the agent client owns the mic + playback; we just mirror its transcript into
+  // the call UI and keep the call timer in a live state. If it fails to start
+  // for any reason, we fall back to the turn-based pipeline so the demo never
+  // breaks.
+  function startAgentSession() {
+    const agent = createVoiceAgent({
+      scenarioId: scenario.id,
+      onStatus: (s) => {
+        if (state.view !== 'call') return;
+        if (s === 'connecting') setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');
+        else if (s === 'live') setPhoneState('your_turn', 'On the line — just talk.', 'The line is open. Speak naturally and pause when you finish.');
+        else if (s === 'mic_denied') setPhoneState('error', 'Mic access denied', 'Reload the page and allow the mic, or switch to Chat mode.');
+      },
+      onUserText: (t) => { if (state.view === 'call') appendMessage(transcript, 'agent', 'You', t); },
+      onAgentText: (t) => {
+        if (state.view !== 'call') return;
+        appendMessage(transcript, 'customer', customerLabel, t);
+        setPhoneState('customer_talking', `${customerLabel} is talking...`, 'Listen until they finish.');
+      },
+      onError: (e) => { console.warn('voice agent error', e); },
+      onEnd: () => {},
+    });
+    state.voiceAgent = agent;
+    agent.start().catch((err) => {
+      console.warn('voice agent failed; falling back to turn-based', err);
+      if (state.voiceAgent === agent) state.voiceAgent = null;
+      if (state.view === 'call' && !state.callPaused) {
+        setPhoneState('your_turn', 'Your turn — greet the caller.', 'They just picked up. Say hello and introduce yourself.');
+        startListening();
       }
     });
   }
@@ -2527,7 +2573,9 @@ function renderCall(scenario, opts = {}) {
   }
 
   endCallBtn.addEventListener('click', () => {
-    const messages = conversation.getMessages();
+    // Voice-agent calls carry their transcript on the agent; turn-based calls on
+    // the conversation. teardownAudio() stops the agent.
+    const messages = state.voiceAgent ? state.voiceAgent.getTranscript() : conversation.getMessages();
     conversation.cancel();
     teardownAudio();
     if (messages.length < 2) {

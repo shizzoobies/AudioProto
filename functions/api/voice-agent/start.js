@@ -1,0 +1,93 @@
+// Mints a short-lived signed WebSocket URL for the ElevenLabs voice agent and
+// returns the per-conversation overrides (system prompt, first message, voice)
+// drawn from the chosen demo persona. The API key stays server-side; the browser
+// only ever sees the one-time signed URL.
+//
+// Demo-only and behind the same cookie gate as /api/chat (the middleware already
+// requires a valid session/invite cookie; we further restrict to demo scenarios
+// and the visitor's scope).
+
+import { getScenario, DEMO_SCENARIO_IDS } from '../../../shared/scenarios.js';
+import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
+
+const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
+const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
+const DEMO_SET = new Set(DEMO_SCENARIO_IDS);
+
+export async function onRequestPost({ request, env }) {
+  if (!env.ELEVENLABS_API_KEY) return jsonError('elevenlabs_key_missing', 500);
+  const agentId = env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError('invalid_request', 400);
+  }
+
+  const scenarioId = body?.scenario_id;
+  const scenario = getScenario(scenarioId);
+  if (!scenario) return jsonError('unknown_scenario', 400);
+  if (!DEMO_SET.has(scenarioId)) return jsonError('not_a_demo_scenario', 403);
+
+  // Same scope checks as /api/chat: magic-link + invite recipients are limited to
+  // their assigned scenarios. (Agent/owner sessions pass through.)
+  const lockedScenario = await getMagicScope(request, env);
+  if (lockedScenario && lockedScenario !== scenarioId) return jsonError('forbidden_scenario', 403);
+  const inviteScope = await getInviteScope(request, env);
+  if (inviteScope && !inviteScope.scenarios.has(scenarioId)) return jsonError('forbidden_scenario', 403);
+
+  // Mint the signed wss URL with the API key (never exposed to the browser).
+  let signed;
+  try {
+    const r = await fetch(`${SIGNED_URL_ENDPOINT}?agent_id=${encodeURIComponent(agentId)}`, {
+      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY },
+    });
+    if (!r.ok) {
+      const t = await safeText(r);
+      return jsonError('signed_url_failed', 502, `${r.status} ${t.slice(0, 200)}`);
+    }
+    signed = await r.json();
+  } catch (e) {
+    return jsonError('upstream_unreachable', 502, String(e?.message || e));
+  }
+  const signedUrl = signed?.signed_url;
+  if (!signedUrl) return jsonError('no_signed_url', 502);
+
+  // The customer opens the call with their characteristic line (first_message).
+  const openingLines = Array.isArray(scenario.opening_lines) && scenario.opening_lines.length
+    ? scenario.opening_lines
+    : [scenario.opening_line || ''];
+  const firstMessage = openingLines[Math.floor(Math.random() * openingLines.length)] || '';
+
+  return json({
+    signed_url: signedUrl,
+    overrides: {
+      prompt: scenario.system_prompt || '',
+      first_message: firstMessage,
+      language: 'en',
+      voice_id: scenario.voice_id || null,
+    },
+    scenario: {
+      id: scenarioId,
+      customer_name: scenario.customer_name || '',
+    },
+  });
+}
+
+async function safeText(res) {
+  try { return await res.text(); } catch { return ''; }
+}
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+function jsonError(code, status, detail) {
+  const payload = detail ? { error: code, detail } : { error: code };
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
