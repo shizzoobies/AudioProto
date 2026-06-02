@@ -70,6 +70,9 @@ async function upsertItem(env, body) {
   const label = String(it.label || '').trim();
   const guidance = String(it.guidance || '').trim();
   if (!label || !guidance) return jsonError('missing_fields', 400);
+  const anchors = String(it.anchors || '').trim();
+  const policy_ref = String(it.policy_ref || '').trim();
+  const required = String(it.required || '').trim();
   const enabled = (it.enabled === false || it.enabled === 0) ? 0 : 1;
   const now = Math.floor(Date.now() / 1000);
   let key = String(it.key || '').trim();
@@ -77,8 +80,8 @@ async function upsertItem(env, body) {
   if (key) {
     // Edit existing item. Don't touch is_custom / created_at.
     await env.DB
-      .prepare(`UPDATE rubric_items SET section = ?, label = ?, guidance = ?, enabled = ?, updated_at = ? WHERE key = ?`)
-      .bind(section, label, guidance, enabled, now, key)
+      .prepare(`UPDATE rubric_items SET section = ?, label = ?, guidance = ?, anchors = ?, policy_ref = ?, required = ?, enabled = ?, updated_at = ? WHERE key = ?`)
+      .bind(section, label, guidance, anchors, policy_ref, required, enabled, now, key)
       .run();
     return json({ ok: true, key });
   }
@@ -91,9 +94,9 @@ async function upsertItem(env, body) {
     .first();
   const position = Number(posRow?.p) || 0;
   await env.DB
-    .prepare(`INSERT INTO rubric_items (key, section, label, guidance, position, enabled, is_custom, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`)
-    .bind(key, section, label, guidance, position, enabled, now, now)
+    .prepare(`INSERT INTO rubric_items (key, section, label, guidance, anchors, policy_ref, required, position, enabled, is_custom, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`)
+    .bind(key, section, label, guidance, anchors, policy_ref, required, position, enabled, now, now)
     .run();
   return json({ ok: true, key }, 201);
 }
@@ -135,6 +138,9 @@ async function ensureSeeded(env) {
        section TEXT NOT NULL,
        label TEXT NOT NULL,
        guidance TEXT NOT NULL,
+       anchors TEXT NOT NULL DEFAULT '',
+       policy_ref TEXT NOT NULL DEFAULT '',
+       required TEXT NOT NULL DEFAULT '',
        position INTEGER NOT NULL DEFAULT 0,
        enabled INTEGER NOT NULL DEFAULT 1,
        is_custom INTEGER NOT NULL DEFAULT 0,
@@ -142,16 +148,51 @@ async function ensureSeeded(env) {
        updated_at INTEGER NOT NULL
      )`
   ).run();
-  const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM rubric_items`).first();
-  if (countRow && Number(countRow.n) > 0) return;
+  // Add the policy-guidance columns to tables created before this feature.
+  // ADD COLUMN errors if the column already exists, so swallow that.
+  for (const col of ['anchors', 'policy_ref', 'required']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE rubric_items ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`).run();
+    } catch {
+      // column already present
+    }
+  }
+
   const now = Math.floor(Date.now() / 1000);
-  const stmts = DEFAULT_RUBRIC_ITEMS.map((d) =>
-    env.DB
-      .prepare(`INSERT OR IGNORE INTO rubric_items (key, section, label, guidance, position, enabled, is_custom, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)`)
-      .bind(d.key, d.section, d.label, d.guidance, d.position || 0, now, now)
-  );
-  if (stmts.length) await env.DB.batch(stmts);
+  const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM rubric_items`).first();
+  if (!countRow || Number(countRow.n) === 0) {
+    const stmts = DEFAULT_RUBRIC_ITEMS.map((d) =>
+      env.DB
+        .prepare(`INSERT OR IGNORE INTO rubric_items (key, section, label, guidance, anchors, policy_ref, required, position, enabled, is_custom, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)`)
+        .bind(d.key, d.section, d.label, d.guidance, d.anchors || '', d.policy_ref || '', d.required || '', d.position || 0, now, now)
+    );
+    if (stmts.length) await env.DB.batch(stmts);
+    return;
+  }
+
+  // Backfill the default policy guidance onto seeded default rows whose new
+  // fields are still empty (e.g. rows created before this feature). Only fills
+  // blanks, so admin edits are never clobbered.
+  const need = await env.DB
+    .prepare(`SELECT COUNT(*) AS n FROM rubric_items
+              WHERE is_custom = 0 AND ((anchors = '' OR anchors IS NULL)
+                 OR (policy_ref = '' OR policy_ref IS NULL)
+                 OR (required = '' OR required IS NULL))`)
+    .first();
+  if (need && Number(need.n) > 0) {
+    const stmts = DEFAULT_RUBRIC_ITEMS.map((d) =>
+      env.DB
+        .prepare(`UPDATE rubric_items SET
+                    anchors = CASE WHEN (anchors = '' OR anchors IS NULL) THEN ? ELSE anchors END,
+                    policy_ref = CASE WHEN (policy_ref = '' OR policy_ref IS NULL) THEN ? ELSE policy_ref END,
+                    required = CASE WHEN (required = '' OR required IS NULL) THEN ? ELSE required END,
+                    updated_at = ?
+                  WHERE key = ? AND is_custom = 0`)
+        .bind(d.anchors || '', d.policy_ref || '', d.required || '', now, d.key)
+    );
+    if (stmts.length) await env.DB.batch(stmts);
+  }
 }
 
 function json(obj, status = 200) {

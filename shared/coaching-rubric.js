@@ -19,45 +19,85 @@ export const RUBRIC_SECTIONS = [
 
 const SECTION_LABEL = Object.fromEntries(RUBRIC_SECTIONS.map((s) => [s.key, s.label]));
 
-// The default rubric items (also the D1 seed). `guidance` is the scoring
-// instruction the model reads; `label` is the short card label in the report.
+// The default rubric items (also the D1 seed). Per item:
+//   guidance   - what the model looks for (the core instruction)
+//   anchors    - what a 1, 3, and 5 look like (drives consistent scoring)
+//   policy_ref - the company standard the agent is held to (criteria grounding)
+//   required   - must-say / must-do elements the model verifies
+// anchors/policy_ref/required are optional; the model ignores empty ones.
 export const DEFAULT_RUBRIC_ITEMS = [
   { key: 'beginning_greeting', section: 'beginning', position: 0,
     label: 'Branded greeting & self-intro',
-    guidance: 'Did they open with a proper branded greeting and give their name? For example, "Thank you for calling Meridian Moving and Storage, this is ___."' },
+    guidance: 'Did they open with a proper branded greeting and give their name? For example, "Thank you for calling Meridian Moving and Storage, this is ___."',
+    anchors: '5: Opens with the full branded greeting and their name right away. 3: Greets warmly but misses either the company name or their own name. 1: No greeting, or jumps in without identifying the company or themselves.',
+    policy_ref: 'Meridian standard: every inbound call opens with "Thank you for calling Meridian Moving and Storage, this is [name]."',
+    required: 'Company name "Meridian Moving and Storage"; the agent\'s own name' },
   { key: 'beginning_offer', section: 'beginning', position: 1,
     label: 'Offer to help & set the tone',
-    guidance: 'Did they ask how they can help and set a warm, professional tone from the first moment?' },
+    guidance: 'Did they ask how they can help and set a warm, professional tone from the first moment?',
+    anchors: '5: Warmly invites the customer to share what they need and sets a confident, friendly tone. 3: Offers to help but flatly or transactionally. 1: No offer to help; cold or rushed open.',
+    policy_ref: 'Meridian standard: after the greeting, invite the customer to explain what they need before launching into questions.',
+    required: 'An open invitation to help (e.g. "How can I help you today?")' },
   { key: 'gathering_details', section: 'gathering', position: 0,
     label: 'Move details',
-    guidance: 'Did they collect the move details the reservation needs - where from and to, the date, the load size - by asking good questions and confirming understanding?' },
+    guidance: 'Did they collect the move details the reservation needs - where from and to, the date, the load size - by asking good questions and confirming understanding?',
+    anchors: '5: Collects and confirms all core details (origin, destination, date, load size) with good questions. 3: Gets most details but leaves a gap or never confirms. 1: Quotes or books without establishing the basic move details.',
+    policy_ref: 'Meridian standard: a reservation requires origin, destination, pickup date, and load/home size before a quote.',
+    required: 'Origin; destination; pickup date; load or home size' },
   { key: 'gathering_equipment', section: 'gathering', position: 1,
     label: 'Equipment match',
-    guidance: 'Did they recommend the right truck size for the move and present the rate and options clearly?' },
+    guidance: 'Did they recommend the right truck size for the move and present the rate and options clearly?',
+    anchors: '5: Recommends the right truck for the load and presents the rate and options clearly. 3: Suggests a truck vaguely or without tying it to the load. 1: Wrong-size recommendation, or no clear rate given.',
+    policy_ref: 'Meridian standard: match truck size to the home/load size and present the rate before asking to book. Fleet: 10\', 15\', 20\', 26\'.',
+    required: 'A specific truck size; the rate' },
   { key: 'scheduling_location', section: 'scheduling', position: 0,
     label: 'Pickup location',
-    guidance: 'Did they select or confirm the right pickup branch for the customer?' },
+    guidance: 'Did they select or confirm the right pickup branch for the customer?',
+    anchors: '5: Confirms a specific pickup branch the customer can reach. 3: Mentions a location but does not confirm it works for them. 1: No pickup location established.',
+    policy_ref: 'Meridian standard: confirm a real pickup branch and that the customer can get to it.',
+    required: 'A named pickup location' },
   { key: 'scheduling_time', section: 'scheduling', position: 1,
     label: 'Pickup time',
-    guidance: 'Did they lock in a firm pickup date and time?' },
+    guidance: 'Did they lock in a firm pickup date and time?',
+    anchors: '5: Locks a firm pickup date AND time. 3: Gets a date but leaves the time loose. 1: No firm pickup time.',
+    policy_ref: 'Meridian standard: every reservation carries a firm pickup date and time.',
+    required: 'A firm date; a firm time' },
   { key: 'wrap_readback', section: 'wrap', position: 0,
     label: 'Read-back & confirmation',
-    guidance: 'Did they read back and confirm the reservation details, including the confirmation number?' },
+    guidance: 'Did they read back and confirm the reservation details, including the confirmation number?',
+    anchors: '5: Reads back the full reservation (truck, dates, location, total) and gives the confirmation number. 3: Confirms some details but skips the read-back or the confirmation number. 1: Ends without confirming the reservation.',
+    policy_ref: 'Meridian standard: always read back the reservation and provide the confirmation number before closing.',
+    required: 'Read-back of the details; the confirmation number' },
   { key: 'wrap_close', section: 'wrap', position: 1,
     label: 'Professional close',
-    guidance: 'Did they cover next steps, ask if there is anything else, and close the call courteously?' },
+    guidance: 'Did they cover next steps, ask if there is anything else, and close the call courteously?',
+    anchors: '5: Covers next steps, asks "anything else," and closes courteously. 3: Closes politely but skips next steps or the "anything else." 1: Abrupt or no real close.',
+    policy_ref: 'Meridian standard: close by confirming next steps, asking if there is anything else, and thanking the customer.',
+    required: 'Next steps; "anything else?"; a courteous sign-off' },
   { key: 'general_objections', section: 'general', position: 0,
     label: 'Overcoming objections',
-    guidance: 'Did they handle objections (price, competitor, hesitation) and keep the call moving toward a booking?' },
+    guidance: 'Did they handle objections (price, competitor, hesitation) and keep the call moving toward a booking?',
+    anchors: '5: Acknowledges the objection, addresses it with real value, and moves back toward the booking. 3: Acknowledges but does not resolve it or never re-closes. 1: Ignores it, argues, or caves without addressing it.',
+    policy_ref: 'Meridian standard: handle price/competitor/hesitation objections by reinforcing value (coverage, fleet reliability, support), never by disparaging competitors.',
+    required: 'Acknowledge the objection; a value-based response; a return to the close' },
   { key: 'general_advisories', section: 'general', position: 1,
     label: 'Reading advisories',
-    guidance: 'Did they read or cover the required advisories, notices, and disclosures when they applied?' },
+    guidance: 'Did they read or cover the required advisories, notices, and disclosures when they applied?',
+    anchors: '5: Reads or covers every required advisory/disclosure that applied. 3: Covers some but misses one that applied. 1: Skips required advisories entirely.',
+    policy_ref: 'Meridian standard: required advisories/disclosures (coverage options, mileage and fuel policy, age/license requirements) must be covered when applicable.',
+    required: 'Coverage/insurance advisory; mileage & fuel policy; any disclosure the scenario calls for' },
   { key: 'general_upsell', section: 'general', position: 2,
     label: 'Upsell opportunities',
-    guidance: 'Did they catch upsell opportunities (storage, furniture pads, a dolly, coverage) when the moment came up?' },
+    guidance: 'Did they catch upsell opportunities (storage, furniture pads, a dolly, coverage) when the moment came up?',
+    anchors: '5: Surfaces a genuinely relevant add-on at the right moment. 3: Mentions an add-on but mistimed or generic. 1: Misses obvious upsell moments, or pushes irrelevant add-ons.',
+    policy_ref: 'Meridian standard: offer add-ons that fit the move (furniture pads, dolly, storage, coverage); never pressure or oversell.',
+    required: 'At least one relevant, well-timed add-on offer' },
   { key: 'general_policy', section: 'general', position: 3,
     label: 'Policy & accuracy',
-    guidance: "Did they stay accurate to Meridian's stated policies and avoid promising things outside them?" },
+    guidance: "Did they stay accurate to Meridian's stated policies and avoid promising things outside them?",
+    anchors: '5: Everything stated is accurate to Meridian policy with no out-of-policy promises. 3: Mostly accurate with a minor misstatement. 1: Promises or states something outside Meridian policy.',
+    policy_ref: 'Meridian standard: never promise rates, availability, or terms outside published policy; when unsure, say you will confirm rather than guess.',
+    required: 'Accurate rates/terms; no out-of-policy promises' },
 ];
 
 const PROMPT_HEAD = `You are a calm, encouraging customer service coach. You evaluate a single simulated call between a customer service agent and a roleplayed customer.
@@ -138,12 +178,19 @@ export function buildCoaching(rawItems) {
     if (!bySection.has(it.section)) bySection.set(it.section, []);
     bySection.get(it.section).push(it);
   }
+  const oneLine = (v) => String(v == null ? '' : v).replace(/\s*\n\s*/g, '; ').trim();
+  const itemBlock = (it) => {
+    const lines = [`- ${it.key} (${it.label}): ${oneLine(it.guidance)}`];
+    if (oneLine(it.anchors)) lines.push(`    Score guide: ${oneLine(it.anchors)}`);
+    if (oneLine(it.required)) lines.push(`    Required (note any missing in the evidence): ${oneLine(it.required)}`);
+    if (oneLine(it.policy_ref)) lines.push(`    Company policy to hold them to: ${oneLine(it.policy_ref)}`);
+    return lines.join('\n');
+  };
   const blocks = [];
   for (const s of RUBRIC_SECTIONS) {
     const list = bySection.get(s.key);
     if (!list || !list.length) continue;
-    const lines = list.map((it) => `- ${it.key} (${it.label}): ${it.guidance}`).join('\n');
-    blocks.push(`${s.label}:\n${lines}`);
+    blocks.push(`${s.label}:\n${list.map(itemBlock).join('\n')}`);
   }
   const systemPrompt = `${PROMPT_HEAD}\n\n${blocks.join('\n\n')}\n\n${PROMPT_TAIL}`;
 

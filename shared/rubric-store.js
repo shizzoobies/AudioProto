@@ -12,7 +12,7 @@ export async function getRubricItems(env) {
   if (!env?.DB) return null;
   try {
     const res = await env.DB
-      .prepare(`SELECT key, section, label, guidance, position, enabled, is_custom
+      .prepare(`SELECT key, section, label, guidance, anchors, policy_ref, required, position, enabled, is_custom
                 FROM rubric_items`)
       .all();
     const rows = res?.results || [];
@@ -21,6 +21,9 @@ export async function getRubricItems(env) {
       section: r.section,
       label: r.label,
       guidance: r.guidance,
+      anchors: r.anchors || '',
+      policy_ref: r.policy_ref || '',
+      required: r.required || '',
       position: Number(r.position) || 0,
       enabled: Number(r.enabled) ? 1 : 0,
       is_custom: Number(r.is_custom) ? 1 : 0,

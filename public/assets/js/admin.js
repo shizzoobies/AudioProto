@@ -429,8 +429,7 @@ function renderRubricBody(rubric) {
         <details class="admin-rubric-add">
           <summary class="admin-rubric-addbtn">+ Add item</summary>
           <div class="admin-rubric-editform" data-add-section="${escapeAttr(sec.key)}">
-            <input class="admin-input" data-field="label" placeholder="Item label (e.g. Active listening)">
-            <textarea class="admin-input admin-rubric-guidance" data-field="guidance" rows="2" placeholder="What should the AI look for? (the scoring guidance it reads)"></textarea>
+            ${rubricFieldsHtml({})}
             <button type="button" class="primary-button" data-add>Add item</button>
           </div>
         </details>
@@ -449,11 +448,11 @@ function renderRubricItem(it) {
       <div class="admin-rubric-main">
         <div class="admin-rubric-label">${escapeHtml(it.label)}${custom ? ' <span class="admin-pill">custom</span>' : ''}</div>
         <div class="admin-rubric-guide">${escapeHtml(it.guidance)}</div>
+        ${rubricMetaHtml(it)}
         <details class="admin-rubric-edit">
           <summary class="admin-rubric-editbtn">Edit</summary>
           <div class="admin-rubric-editform">
-            <input class="admin-input" data-field="label" value="${escapeAttr(it.label)}">
-            <textarea class="admin-input admin-rubric-guidance" data-field="guidance" rows="3">${escapeHtml(it.guidance)}</textarea>
+            ${rubricFieldsHtml(it)}
             <div class="admin-rubric-editactions">
               <button type="button" class="primary-button" data-save>Save changes</button>
               ${custom
@@ -465,6 +464,37 @@ function renderRubricItem(it) {
       </div>
     </div>
   `;
+}
+
+// The editable fields for a rubric item, shared by the edit and add forms. The
+// label/guidance are core; the score guide, policy reference, and required list
+// are the policy-grounding fields injected into the AI prompt for this item.
+function rubricFieldsHtml(it = {}) {
+  return `
+    <label class="admin-rubric-fl">Label</label>
+    <input class="admin-input" data-field="label" value="${escapeAttr(it.label || '')}" placeholder="Item label (e.g. Active listening)">
+    <label class="admin-rubric-fl">What to look for</label>
+    <textarea class="admin-input admin-rubric-guidance" data-field="guidance" rows="2" placeholder="The core instruction the AI scores against">${escapeHtml(it.guidance || '')}</textarea>
+    <label class="admin-rubric-fl">Score guide <span class="admin-rubric-fl-hint">what a 1, 3, 5 look like</span></label>
+    <textarea class="admin-input admin-rubric-guidance" data-field="anchors" rows="3" placeholder="5: ...&#10;3: ...&#10;1: ...">${escapeHtml(it.anchors || '')}</textarea>
+    <label class="admin-rubric-fl">Policy / criteria <span class="admin-rubric-fl-hint">the company standard to hold them to</span></label>
+    <textarea class="admin-input admin-rubric-guidance" data-field="policy" rows="2" placeholder="The Meridian standard, figures, rules, or disclosures for this item">${escapeHtml(it.policy_ref || '')}</textarea>
+    <label class="admin-rubric-fl">Required / must-say <span class="admin-rubric-fl-hint">flagged if missing</span></label>
+    <textarea class="admin-input admin-rubric-guidance" data-field="required" rows="2" placeholder="Things the agent must say or do (e.g. company name; confirmation number)">${escapeHtml(it.required || '')}</textarea>
+  `;
+}
+
+// Small chips on the item row showing which policy-guidance fields are filled in.
+function rubricMetaHtml(it) {
+  const chips = [
+    ['Score guide', it.anchors],
+    ['Policy', it.policy_ref],
+    ['Required', it.required],
+  ]
+    .filter(([, v]) => v && String(v).trim())
+    .map(([label]) => `<span class="admin-rubric-metachip">${label}</span>`)
+    .join('');
+  return chips ? `<div class="admin-rubric-meta">${chips}</div>` : '';
 }
 
 function attachRubricHandlers() {
@@ -495,13 +525,17 @@ function attachRubricHandlers() {
       const row = saveBtn.closest('[data-key]');
       const key = row?.dataset.key;
       const form = saveBtn.closest('.admin-rubric-editform');
-      const label = form.querySelector('[data-field="label"]').value.trim();
-      const guidance = form.querySelector('[data-field="guidance"]').value.trim();
+      const fv = (f) => (form.querySelector(`[data-field="${f}"]`)?.value || '').trim();
+      const label = fv('label');
+      const guidance = fv('guidance');
       const item = (state.rubric?.items || []).find((i) => i.key === key);
       const section = item?.section;
       const enabled = row.querySelector('input[data-toggle]')?.checked ? 1 : 0;
       if (!key || !section || !label || !guidance) return;
-      rubricOp({ op: 'upsert', item: { key, section, label, guidance, enabled } });
+      rubricOp({ op: 'upsert', item: {
+        key, section, label, guidance, enabled,
+        anchors: fv('anchors'), policy_ref: fv('policy'), required: fv('required'),
+      } });
       return;
     }
     if (delBtn) {
@@ -514,13 +548,17 @@ function attachRubricHandlers() {
     if (addBtn) {
       const form = addBtn.closest('[data-add-section]');
       const section = form?.dataset.addSection;
-      const label = form.querySelector('[data-field="label"]').value.trim();
-      const guidance = form.querySelector('[data-field="guidance"]').value.trim();
+      const fv = (f) => (form.querySelector(`[data-field="${f}"]`)?.value || '').trim();
+      const label = fv('label');
+      const guidance = fv('guidance');
       if (!section || !label || !guidance) {
-        alert('Add a label and the scoring guidance first.');
+        alert('Add a label and what to look for first.');
         return;
       }
-      rubricOp({ op: 'upsert', item: { section, label, guidance, enabled: 1 } });
+      rubricOp({ op: 'upsert', item: {
+        section, label, guidance, enabled: 1,
+        anchors: fv('anchors'), policy_ref: fv('policy'), required: fv('required'),
+      } });
     }
   });
 }
