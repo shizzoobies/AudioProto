@@ -1482,6 +1482,7 @@ function beginRinging(scenario) {
 
   const displayName = scenario.blind ? 'Caller' : (scenario.customer_name || 'Caller');
   const typeTitle = scenario.blind ? 'Incoming call' : (scenario.type_title || scenario.title || 'Incoming call');
+  const callerNumber = scenario.phone ? formatPhoneDisplay(scenario.phone) : '';
 
   const overlay = document.createElement('div');
   overlay.className = 'precall-overlay precall-ringing';
@@ -1497,6 +1498,7 @@ function beginRinging(scenario) {
         </span>
       </div>
       <div class="ring-name" id="ring-name">${escapeHtml(displayName)}</div>
+      ${callerNumber ? `<div class="ring-number mono">${escapeHtml(callerNumber)}</div>` : ''}
       <div class="ring-sub">${escapeHtml(typeTitle)}</div>
       <div class="ring-actions">
         <button type="button" class="ring-btn ring-decline" id="ring-decline" aria-label="Decline call">
@@ -1617,6 +1619,9 @@ function renderCall(scenario, opts = {}) {
   // call header keeps the timer, Pause, and End call controls.
   const hideDock = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id);
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
+  // Caller ID for the header (phone calls only) — mirrors a real CSF that shows
+  // the inbound number next to the call duration.
+  const callerNumber = isPhone && scenario.phone ? formatPhoneDisplay(scenario.phone) : '';
   // Premium voice (eleven_v3) performs square-bracket delivery tags. When
   // active we keep those tags in the text we send to TTS but strip them
   // from the transcript. Standard tier strips them everywhere.
@@ -1731,6 +1736,7 @@ function renderCall(scenario, opts = {}) {
           <div class="call-scenario-title">${escapeHtml(displayTitle)} <span class="call-mode-pill">${escapeHtml(modeBadge)}</span>${premiumBadge}</div>
         </div>
         <div class="call-actions">
+          ${callerNumber ? `<span class="call-number mono" title="Caller ID"><span class="call-number-dot" aria-hidden="true"></span>${escapeHtml(callerNumber)}</span>` : ''}
           <span class="call-timer" id="call-timer" role="timer" aria-label="Call duration" title="Call duration">00:00</span>
           <button class="ghost-button call-pause" id="call-pause" type="button" aria-pressed="false">Pause</button>
           <button class="danger-button" id="end-call" type="button">End call</button>
@@ -3969,6 +3975,16 @@ function escapeHtml(s) {
 
 function escapeAttr(s) {
   return escapeHtml(s);
+}
+
+// Normalize a stored persona phone (e.g. "513-555-2840" or "(513) 555-2840")
+// into a consistent caller-ID display "(513) 555-2840". Non-10-digit values
+// (or empty) are returned as-is so nothing breaks.
+function formatPhoneDisplay(raw) {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d[0] === '1') return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return String(raw || '');
 }
 
 function capitalize(s) {

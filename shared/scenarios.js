@@ -1304,6 +1304,9 @@ const PERSONA_DEFS = {
     // talk to), with the Sales context in the subtitle.
     customer_name: 'Robert',
     customer_short: 'Sales · pricing a one-way move',
+    // Caller ID shown on the incoming-call screen and the call header. Matches
+    // the cell Robert reads aloud when asked (five one three, five five five...).
+    phone: '(513) 555-2840',
     // Male voice for the real-time agent (also the agent's default, so it's
     // already registered and the per-call override resolves cleanly).
     voice_id: 'cjVigY5qzO86Huf0OWal',

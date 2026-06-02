@@ -1020,6 +1020,28 @@ body[data-demo] {
   text-align: center;
 }
 
+/* Caller ID next to the duration, like a real CSF call bar. */
+.call-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary, #6b7280);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.04));
+  white-space: nowrap;
+}
+.call-number-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
 .call[data-paused="true"] .call-timer {
   color: var(--color-text-soft, #6b7280);
 }
@@ -5537,6 +5559,14 @@ body[data-precall] #app-root {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.ring-number {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(248, 250, 252, 0.82);
 }
 
 .ring-sub {
