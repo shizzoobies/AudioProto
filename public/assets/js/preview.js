@@ -1539,7 +1539,7 @@ function renderReportShown() {
         <p class="report-pullquote-text">${esc(r.one_thing_to_try_next_time)}</p>
       </blockquote>
 
-      <h2 class="report-section-title">Scorecard</h2>
+      <h2 class="report-section-title">Call Review</h2>
       <div class="report-scorecard">
         ${RUBRIC.map((section) => scoreSection(section)).join('')}
       </div>

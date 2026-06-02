@@ -100,7 +100,7 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
       <p class="report-pullquote-text">${escapeHtml(report.one_thing_to_try_next_time || '')}</p>
     </blockquote>
 
-    <h2 class="report-section-title">Scorecard</h2>
+    <h2 class="report-section-title">Call Review</h2>
     <div class="report-scorecard">
       ${RUBRIC_DISPLAY.map((section) => renderScoreSection(section, report.scores)).join('')}
     </div>
