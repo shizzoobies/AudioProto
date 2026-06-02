@@ -74,7 +74,8 @@ phone calls for a fictional U-Haul-style mover, **"Meridian Moving & Storage"**.
   43, relocating Cincinnati→Austin, one-way **26-foot** truck, ~1,050 mi. Scenario
   design: moderate, NOT price-shopping — win = build genuine urgency on his fixed
   deadline + **ask for the business**. Full backstory/email in `shared/scenarios.js`
-  `demo_sales`. The tile reads "Robert". `voice_id: ''` (see voice agent below).
+  `demo_sales`. The tile reads "Robert". `voice_id: 'cjVigY5qzO86Huf0OWal'`
+  (ElevenLabs "Eric"; see voice agent below).
 - **Demo Customer Service persona = `demo_service`** is still a placeholder.
 
 ## ElevenLabs real-time voice agent (the active frontier)
@@ -109,14 +110,19 @@ the old pipeline.
 - **`[voice-agent]` console logs** at each step for debugging.
 
 ### OPEN ITEMS for the voice agent (pick up here)
-1. **Robert needs a male voice.** Currently `demo_sales.voice_id = ''` → the agent uses
-   its **default voice** (the male one the user said "sounded ok"). To lock it in: pick
-   a male voice, **register it on the agent** (like Maya), set `voice_id` on `demo_sales`
-   in `shared/scenarios.js`. User was going to send a voice ID.
-2. **Voice still sounds a bit robotic** — likely the agent's **TTS model** (real-time
-   defaults to fast Flash). User was advised to set **TTS model → Turbo v2.5** and the
-   **TTS output format → PCM 24000 (NOT μ-law)**. Confirm they did, and judge naturalness.
-   `eleven_v3` (expressive tags) is NOT available for real-time agents.
+1. **Robert's male voice — DONE.** `demo_sales.voice_id = 'cjVigY5qzO86Huf0OWal'`
+   (ElevenLabs **"Eric – Smooth, Trustworthy"**, also the agent's default, so it's
+   already registered and the per-call override resolves cleanly).
+2. **Robotic voice — addressed via v3.** The agent's **TTS model family is now
+   "V3 Conversational (Alpha)"** with **Expressive mode ON** (v3 IS available for
+   real-time/conversational agents now — this supersedes the old "eleven_v3 not
+   available for real-time" note). Expressive mode exposes inline audio tags
+   (`[warmly]`, `[chuckles]`, `[sighs]`, …) that render if the agent's text emits
+   them. **Caveat:** under v3, **per-voice settings (Stability/Speed/Similarity) are
+   NOT customizable** — so Robert's `voice_settings` block in `shared/scenarios.js`
+   is inert for the live demo agent (kept only for the turn-based fallback path).
+   Still worth a live call to confirm v3 is genuinely streaming (not silently
+   falling back) and latency feels right.
 3. **demo_service persona** is still a placeholder; if it becomes a real demo persona
    with its own voice, register that voice on the agent too and set its `voice_id`.
 4. The capture path uses a **deprecated ScriptProcessorNode** (works; warns). Could
@@ -157,7 +163,8 @@ the old pipeline.
 - Co-author trailer on commits: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
 ## Immediate next step
-Get the **male voice ID for Robert** from the user, register it on the agent, set
-`demo_sales.voice_id`, and confirm the **TTS model/format** changes landed so he
-sounds natural (not robotic). Then a full live run of Robert's call end-to-end
-(connect → greet → converse → quote in the POS → secure card → end → coaching).
+Robert's voice (Eric, `cjVigY5qzO86Huf0OWal`) and the **V3 Conversational** TTS
+family + Expressive mode are now set on the agent. Do a **full live run of Robert's
+call end-to-end** (connect → greet → converse → quote in the POS → secure card →
+end → coaching) to confirm v3 is genuinely streaming (not falling back) and the
+voice sounds natural with good latency. Then move on to the **demo_service** persona.
