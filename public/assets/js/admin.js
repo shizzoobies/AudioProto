@@ -224,7 +224,9 @@ function paintDashboard() {
   root.innerHTML = `
     ${renderSignedInBar()}
 
-    <section class="admin-section">
+    ${renderAdminNav()}
+
+    <section class="admin-section" id="sec-invite">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Invite recipients</p>
         <h1 class="admin-section-title">Send a simulation invite</h1>
@@ -271,7 +273,7 @@ function paintDashboard() {
       <div id="admin-generated" class="admin-generated"></div>
     </section>
 
-    <section class="admin-section">
+    <section class="admin-section" id="sec-invites">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Members</p>
         <h2 class="admin-section-title">Active invites</h2>
@@ -290,7 +292,7 @@ function paintDashboard() {
 
     ${renderTeamSection()}
 
-    <section class="admin-section">
+    <section class="admin-section" id="sec-usage">
       <header class="admin-section-head" style="flex-direction:row;align-items:flex-start;justify-content:space-between;gap:12px;">
         <div style="display:flex;flex-direction:column;gap:4px;">
           <p class="admin-eyebrow">Observability</p>
@@ -314,6 +316,7 @@ function paintDashboard() {
     });
   }
   updateSelectionCount();
+  attachAdminNav();
   attachInviteListHandlers();
   attachDemoHandlers();
   attachChartsHandlers();
@@ -327,6 +330,56 @@ function paintDashboard() {
   if (refreshBtn) refreshBtn.addEventListener('click', loadUsage);
 }
 
+// ---- Section navigation ---------------------------------------------------
+// A sticky chip bar that jumps between dashboard sections, with scroll-spy
+// highlighting whichever section is currently in view.
+const ADMIN_NAV_ITEMS = [
+  { id: 'sec-invite', label: 'Send invite' },
+  { id: 'sec-invites', label: 'Active invites' },
+  { id: 'sec-demo', label: 'Demo link' },
+  { id: 'sec-charts', label: 'Charts link' },
+  { id: 'sec-preview', label: 'Preview link' },
+  { id: 'sec-rubric', label: 'Call Review' },
+  { id: 'sec-team', label: 'Team', ownerOnly: true },
+  { id: 'sec-usage', label: 'Usage' },
+];
+
+function renderAdminNav() {
+  const items = ADMIN_NAV_ITEMS.filter((it) => !it.ownerOnly || state.admin?.is_owner);
+  return `
+    <nav class="admin-nav" id="admin-nav" aria-label="Dashboard sections">
+      ${items.map((it, i) => `<a class="admin-nav-link${i === 0 ? ' is-active' : ''}" href="#${escapeAttr(it.id)}" data-nav="${escapeAttr(it.id)}">${escapeHtml(it.label)}</a>`).join('')}
+    </nav>
+  `;
+}
+
+function attachAdminNav() {
+  const nav = document.getElementById('admin-nav');
+  if (!nav) return;
+  const links = Array.from(nav.querySelectorAll('.admin-nav-link'));
+  const setActive = (id) => links.forEach((a) => a.classList.toggle('is-active', a.dataset.nav === id));
+
+  nav.addEventListener('click', (e) => {
+    const a = e.target.closest('.admin-nav-link');
+    if (!a) return;
+    e.preventDefault();
+    const target = document.getElementById(a.dataset.nav);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActive(a.dataset.nav);
+  });
+
+  // Scroll-spy: highlight the topmost section currently in the upper viewport.
+  const sections = links.map((a) => document.getElementById(a.dataset.nav)).filter(Boolean);
+  if (!('IntersectionObserver' in window) || !sections.length) return;
+  const io = new IntersectionObserver((entries) => {
+    const vis = entries
+      .filter((en) => en.isIntersecting)
+      .sort((a, b) => a.target.offsetTop - b.target.offsetTop);
+    if (vis.length) setActive(vis[0].target.id);
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach((s) => io.observe(s));
+}
+
 // ---- Call Review rubric ---------------------------------------------------
 // Admin control over what the AI scores and what shows on each call's Call
 // Review. Unchecking turns an item OFF everywhere (dropped from the AI prompt +
@@ -335,7 +388,7 @@ function paintDashboard() {
 
 function renderRubricSection() {
   return `
-    <section class="admin-section">
+    <section class="admin-section" id="sec-rubric">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Call Review</p>
         <h2 class="admin-section-title">Scorecard rubric</h2>
@@ -705,7 +758,7 @@ function renderDemoSection() {
     : `<span class="admin-muted">No demo link yet</span>${scenarioNames ? ` <span class="admin-muted">· ${scenarioNames}</span>` : ''}`;
 
   return `
-    <section class="admin-section">
+    <section class="admin-section" id="sec-demo">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Demo</p>
         <h2 class="admin-section-title">Demo link</h2>
@@ -837,7 +890,7 @@ function renderChartsSection() {
     : '<span class="admin-muted">No charts link yet</span>';
 
   return `
-    <section class="admin-section">
+    <section class="admin-section" id="sec-charts">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Charts</p>
         <h2 class="admin-section-title">Charts link</h2>
@@ -968,7 +1021,7 @@ function renderPreviewSection() {
     : '<span class="admin-muted">No preview link yet</span>';
 
   return `
-    <section class="admin-section">
+    <section class="admin-section" id="sec-preview">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Preview</p>
         <h2 class="admin-section-title">Full library link</h2>
@@ -1410,7 +1463,7 @@ function renderSignedInBar() {
 function renderTeamSection() {
   if (!state.admin?.is_owner) return '';
   return `
-    <section class="admin-section">
+    <section class="admin-section" id="sec-team">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Team</p>
         <h2 class="admin-section-title">Admins</h2>

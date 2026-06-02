@@ -4748,6 +4748,43 @@ body[data-recipient] #sign-out {
   gap: 28px;
 }
 
+/* Sticky section nav: chips that jump to each dashboard section. */
+.admin-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+.admin-nav-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.admin-nav-link:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-tertiary);
+}
+.admin-nav-link.is-active {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+}
+/* Anchored sections clear the sticky nav when jumped to. */
+.admin-section { scroll-margin-top: 72px; }
+
 /* Section card */
 .admin-section {
   background: var(--color-surface);
