@@ -3151,6 +3151,7 @@ function renderCall(scenario, opts = {}) {
 
   function renderCustomerCard(r) {
     posVerified.hidden = false;
+    posVerified.textContent = r.is_new ? 'New Customer' : 'Verified Customer';
     // CSF post-lookup profile: the card head flips to "Customer" and the body
     // shows the name/phone/email + Verified + Past Rentals, driven by the live
     // lookup record. This replaces the pre-lookup script + lookup field.
@@ -3164,7 +3165,7 @@ function renderCall(scenario, opts = {}) {
       ${r.email ? `<div class="csf-cust-line">${escapeHtml(r.email)}</div>` : ''}
       ${r.account_id ? `<div class="csf-cust-line">Account ${escapeHtml(r.account_id)}</div>` : ''}
       ${r.member_since ? `<div class="csf-cust-line">Member since ${escapeHtml(String(r.member_since))}</div>` : ''}
-      <div class="csf-verified">${checkSvg} Verified Customer</div>
+      <div class="csf-verified">${checkSvg} ${r.is_new ? 'New Customer' : 'Verified Customer'}</div>
       ${hasHistory ? `<button type="button" class="csf-pastrentals" id="pos-history-link">${clockSvg} Past Rentals/Reservations</button>` : ''}
     `;
     if (r.notes) posCustomerNotes.textContent = r.notes;
@@ -3200,21 +3201,134 @@ function renderCall(scenario, opts = {}) {
     if (!q) return;
     const record = scenario.customer_record;
     if (matchCustomerRecord(record, q)) {
-      selectedRecord = record;
-      renderCustomerCard(record);
-      renderLookupResult('found', record);
-      setRsv('receipt_email', record.email || '');
-      setRsv('receipt_phone', record.phone || '');
-      renderLeftRail();
-    } else if (record && record.found === false) {
-      selectedRecord = null;
-      posVerified.hidden = true;
-      renderLookupResult('prospect', record);
+      // Repeat customer — pop the verify modal pre-filled with their details.
+      openCustomerModal({ mode: 'found', record, query: q });
     } else {
-      selectedRecord = null;
-      posVerified.hidden = true;
-      renderLookupResult('notfound', null);
+      // No match — pop the modal to add a new customer.
+      const prospect = !!(record && record.found === false);
+      openCustomerModal({ mode: 'new', query: q, prospect });
     }
+  }
+
+  function splitName(full) {
+    const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { first: '', last: '' };
+    if (parts.length === 1) return { first: parts[0], last: '' };
+    return { first: parts[0], last: parts.slice(1).join(' ') };
+  }
+
+  // Load a customer (matched or newly created) into the panel: flips the card to
+  // the profile, copies contact info into the receipt fields, refreshes the rail.
+  function loadCustomer(rec) {
+    selectedRecord = rec;
+    renderCustomerCard(rec);
+    setRsv('receipt_email', rec.email || '');
+    setRsv('receipt_phone', rec.phone || '');
+    renderLeftRail();
+  }
+
+  // Verify-a-repeat / add-a-new customer modal, opened from a phone/email lookup.
+  function openCustomerModal({ mode, record, query, prospect }) {
+    const found = mode === 'found';
+    let first = '', last = '', phone = '', email = '';
+    if (found && record) {
+      const n = splitName(record.full_name);
+      first = n.first; last = n.last;
+      phone = record.phone || '';
+      email = record.email || '';
+    } else {
+      const q = String(query || '').trim();
+      if (q.includes('@')) email = q;
+      else if (/\d/.test(q)) phone = q;
+    }
+
+    const chatIcon = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    const field = (key, label, val) => `<div class="pos-field"><label class="pos-field-label">${label}</label><input class="pos-input" data-cf="${key}" value="${escapeAttr(val)}" autocomplete="off"></div>`;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'pos-modal';
+    overlay.innerHTML = `
+      <div class="pos-modal-inner pos-modal-customer" role="dialog" aria-modal="true" aria-labelledby="pos-cust-title">
+        <div class="pos-modal-head">
+          <h3 class="pos-modal-title" id="pos-cust-title">${found ? 'Repeat Customer Found' : 'New Customer'}</h3>
+          <button type="button" class="pos-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <p class="pos-modal-sub">${found ? 'Please verify all contact information.' : 'No match found. Add the customer\'s contact information.'}</p>
+        <div class="pos-cust-script">${chatIcon}<span>May I ask who I am speaking with?</span></div>
+        <div class="pos-cust-grid">
+          ${field('first', 'First Name', first)}
+          ${field('phone', 'Phone Number', phone)}
+          ${field('last', 'Last Name', last)}
+          ${field('email', 'Email Address', email)}
+        </div>
+        <p class="pos-cust-error" id="pos-cust-error" hidden></p>
+        <div class="pos-modal-actions">
+          <button type="button" class="ghost-button" data-cust-action="${found ? 'create' : 'cancel'}">${found ? 'Create New Customer' : 'Cancel'}</button>
+          <button type="button" class="primary-button" data-cust-action="${found ? 'continue' : 'create'}">${found ? 'Continue' : 'Create New Customer'}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    setTimeout(() => { try { overlay.querySelector('[data-cf="first"]')?.focus(); } catch {} }, 30);
+
+    let settled = false;
+    const fv = (k) => (overlay.querySelector(`[data-cf="${k}"]`)?.value || '').trim();
+    function close() {
+      if (settled) return;
+      settled = true;
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    }
+    function doContinue() {
+      // Verified the matched record (carry any edits the agent made).
+      close();
+      loadCustomer({ ...record, full_name: `${fv('first')} ${fv('last')}`.trim(), phone: fv('phone'), email: fv('email') });
+    }
+    function doCreate() {
+      if (!fv('first') || (!fv('phone') && !fv('email'))) {
+        const el = overlay.querySelector('#pos-cust-error');
+        if (el) { el.textContent = 'Enter at least a first name and a phone number or email.'; el.hidden = false; }
+        return;
+      }
+      close();
+      loadCustomer({
+        found: true,
+        is_new: true,
+        full_name: `${fv('first')} ${fv('last')}`.trim(),
+        phone: fv('phone'),
+        email: fv('email'),
+        account_id: null,
+        member_since: null,
+        past_rentals: [],
+        active_reservations: [],
+        claims_cases: [],
+        notes: '',
+      });
+    }
+    function cancel() {
+      close();
+      if (!found) {
+        selectedRecord = null;
+        posVerified.hidden = true;
+        renderLookupResult(prospect ? 'prospect' : 'notfound', scenario.customer_record);
+      }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') cancel();
+      else if (e.key === 'Enter') { e.preventDefault(); if (found) doContinue(); else doCreate(); }
+    }
+    overlay.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-cust-action]');
+      if (btn) {
+        const a = btn.dataset.custAction;
+        if (a === 'continue') doContinue();
+        else if (a === 'create') doCreate();
+        else cancel();
+        return;
+      }
+      if (e.target.closest('.pos-modal-close') || e.target === overlay) cancel();
+    });
+    document.addEventListener('keydown', onKey);
   }
 
   function detectBrand(num) {

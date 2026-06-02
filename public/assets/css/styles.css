@@ -3367,6 +3367,31 @@ body[data-demo] {
 .pos-modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .pos-modal-close { background: none; border: none; color: var(--color-text-tertiary); font-size: 22px; cursor: pointer; line-height: 1; }
 .pos-modal-close:hover { color: var(--color-text-primary); }
+
+/* Repeat-customer / new-customer verify modal (opened from a phone/email lookup) */
+.pos-modal-inner.pos-modal-customer { max-width: 540px; }
+.pos-modal-customer .pos-modal-title { text-transform: uppercase; letter-spacing: 0.02em; font-size: 16px; }
+.pos-cust-script {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+.pos-cust-script svg { flex: none; color: var(--color-accent); }
+.pos-cust-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+.pos-cust-error { margin: 12px 0 0; font-size: 12px; color: var(--color-danger); }
+.pos-cust-error[hidden] { display: none; }
+.pos-modal-customer .pos-modal-actions { margin-top: 18px; }
+@media (max-width: 560px) {
+  .pos-cust-grid { grid-template-columns: 1fr; }
+}
 .pos-hist-group { margin-bottom: 12px; }
 .pos-hist-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-tertiary); margin-bottom: 4px; }
 .pos-hist-row { font-size: 12px; color: var(--color-text-secondary); padding: 4px 0; border-bottom: 1px solid var(--color-border); }
