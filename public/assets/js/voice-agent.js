@@ -36,6 +36,8 @@ export function createVoiceAgent(opts = {}) {
   const transcript = [];
 
   const setStatus = (s) => { try { onStatus(s); } catch {} };
+  const log = (...a) => { try { console.log('[voice-agent]', ...a); } catch {} };
+  let gotAudio = false;
 
   // ---- playback (decode base64 PCM16 -> scheduled gapless playout) --------
   function playPcm16(base64) {
@@ -88,6 +90,20 @@ export function createVoiceAgent(opts = {}) {
   // ---- lifecycle ----------------------------------------------------------
   async function start() {
     setStatus('connecting');
+    // Create + resume the AudioContext SYNCHRONOUSLY, within the user gesture
+    // (the Answer click), BEFORE any await. If we create it after an await the
+    // browser keeps it suspended and NO audio is captured or played — which
+    // looks exactly like "she doesn't talk back at all." We re-resume after the
+    // awaits as a belt-and-suspenders.
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      if (audioCtx.resume) audioCtx.resume();
+      playHead = audioCtx.currentTime;
+    } catch (e) {
+      log('audioContext create failed', e);
+    }
+
     let data;
     try {
       const r = await fetch('/api/voice-agent/start', {
@@ -100,25 +116,29 @@ export function createVoiceAgent(opts = {}) {
       if (!r.ok || !data?.signed_url) {
         throw new Error((data && (data.detail || data.error)) || `http_${r.status}`);
       }
+      log('signed url ok');
     } catch (e) {
-      setStatus('error'); try { onError(e); } catch {} throw e;
+      log('signed-url fetch failed', e);
+      teardown(); setStatus('error'); try { onError(e); } catch {} throw e;
     }
 
     try {
       micStream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
+      log('mic granted');
     } catch (e) {
-      setStatus('mic_denied'); try { onError(e); } catch {} throw e;
+      log('mic denied', e);
+      teardown(); setStatus('mic_denied'); try { onError(e); } catch {} throw e;
     }
 
-    const AC = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AC();
     try { await audioCtx.resume(); } catch {}
     playHead = audioCtx.currentTime;
+    log('audioContext state', audioCtx && audioCtx.state, 'rate', audioCtx && audioCtx.sampleRate);
 
     ws = new WebSocket(data.signed_url);
     ws.onopen = () => {
+      log('ws open');
       setStatus('live');
       const ov = data.overrides || {};
       const agentOverride = {
@@ -131,12 +151,12 @@ export function createVoiceAgent(opts = {}) {
         conversation_config_override: { agent: agentOverride },
       };
       if (ov.voice_id) init.conversation_config_override.tts = { voice_id: ov.voice_id };
-      try { ws.send(JSON.stringify(init)); } catch {}
+      try { ws.send(JSON.stringify(init)); log('init sent', { voice: ov.voice_id, first: (ov.first_message || '').slice(0, 40) }); } catch (e) { log('init send failed', e); }
       startMic();
     };
     ws.onmessage = (ev) => handleMessage(ev.data);
-    ws.onerror = (e) => { try { onError(e); } catch {} };
-    ws.onclose = () => { if (!stopped) finish(); };
+    ws.onerror = (e) => { log('ws error', e); try { onError(e); } catch {} };
+    ws.onclose = (e) => { log('ws close', e && e.code, e && e.reason); if (!stopped) finish(); };
   }
 
   function handleMessage(raw) {
@@ -149,21 +169,25 @@ export function createVoiceAgent(opts = {}) {
         const fmt = ev.agent_output_audio_format || '';
         const m = /(\d{4,6})/.exec(fmt);
         if (m) outRate = Number(m[1]) || DEFAULT_OUT_RATE;
+        log('metadata', { conversationId, outFmt: fmt, outRate, inFmt: ev.user_input_audio_format });
         break;
       }
       case 'audio': {
         const b64 = msg.audio_event?.audio_base_64;
-        if (b64) playPcm16(b64);
+        if (b64) {
+          if (!gotAudio) { gotAudio = true; log('first audio received'); }
+          playPcm16(b64);
+        }
         break;
       }
       case 'user_transcript': {
         const t = msg.user_transcription_event?.user_transcript;
-        if (t) { transcript.push({ role: 'user', content: t }); try { onUserText(t); } catch {} }
+        if (t) { log('user:', t.slice(0, 60)); transcript.push({ role: 'user', content: t }); try { onUserText(t); } catch {} }
         break;
       }
       case 'agent_response': {
         const t = msg.agent_response_event?.agent_response;
-        if (t) { transcript.push({ role: 'assistant', content: t }); try { onAgentText(t); } catch {} }
+        if (t) { log('agent:', t.slice(0, 60)); transcript.push({ role: 'assistant', content: t }); try { onAgentText(t); } catch {} }
         break;
       }
       case 'interruption':
@@ -175,6 +199,7 @@ export function createVoiceAgent(opts = {}) {
         break;
       }
       default:
+        log('msg', msg.type);
         break;
     }
   }
