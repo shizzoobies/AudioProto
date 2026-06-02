@@ -32,6 +32,7 @@ export async function onRequestGet({ request, env }) {
       premium: !!p?.premium,
       points: Array.isArray(p?.points) ? p.points : [],
       phone: p?.phone || '',
+      location: p?.location || null,
     });
   }
 
