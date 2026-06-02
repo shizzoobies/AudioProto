@@ -1301,9 +1301,9 @@ const PERSONA_DEFS = {
     // actually talk to), with the Sales context in the subtitle.
     customer_name: 'Robert',
     customer_short: 'Sales · pricing a one-way move',
-    // Empty = use the agent's default (male) voice for the real-time agent until
-    // a specific male voice is registered on the agent and its id is set here.
-    voice_id: '',
+    // Male voice for the real-time agent (also the agent's default, so it's
+    // already registered and the per-call override resolves cleanly).
+    voice_id: 'cjVigY5qzO86Huf0OWal',
     voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true },
     location: { label: 'Cincinnati, OH', lat: 39.1031, lon: -84.5120 },
     tagline: 'Relocating to Austin and still on the fence. Give him a reason to lock it in today.',
