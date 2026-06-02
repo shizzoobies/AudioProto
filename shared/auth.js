@@ -25,6 +25,13 @@ export const CHARTS_RECIPIENT_EMAIL = '__charts__@simulation.local';
 // recipient list (see /api/me/status -> is_preview).
 export const PREVIEW_RECIPIENT_EMAIL = '__preview__@simulation.local';
 
+// Sentinel recipient_email for the scoped "review editor" link. One invites row
+// whose recipient_email is this constant; its cs_review cookie grants access to
+// ONLY the Call Review rubric endpoints (not the rest of the admin panel), so a
+// reviewer can tune scoring without full admin access. See getReviewScope, the
+// /review-pass/[token] entry, and the /api middleware allow-list.
+export const REVIEW_RECIPIENT_EMAIL = '__review__@simulation.local';
+
 function bytesToBase64Url(bytes) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) {
@@ -275,6 +282,40 @@ export async function getChartsScope(request, env) {
     .first();
   if (!row) return null;
   if (row.recipient_email !== CHARTS_RECIPIENT_EMAIL) return null;
+  if (row.token_hash !== payload.h) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (row.expires_at && row.expires_at < now) return null;
+
+  return { invite_id: row.id, expires_at: row.expires_at };
+}
+
+// Validate a cs_review cookie against the review sentinel invites row. Returns
+// { invite_id, expires_at } when the cookie is present, signed, scoped to
+// 'review', and still matches a non-revoked, non-expired review row whose
+// token_hash equals the cookie's. Re-reads D1 every call so revoke/regenerate is
+// instant. Grants access to ONLY the Call Review rubric endpoints.
+export async function getReviewScope(request, env) {
+  if (!env?.SESSION_SECRET || !env?.DB) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  const t = cookies.cs_review;
+  if (!t) return null;
+  let payload;
+  try {
+    payload = await verifyToken(t, env.SESSION_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.scope !== 'review' || !payload?.invite_id || !payload?.h) return null;
+
+  const row = await env.DB
+    .prepare(
+      `SELECT id, recipient_email, expires_at, token_hash
+       FROM invites WHERE id = ? AND revoked = 0 LIMIT 1`
+    )
+    .bind(payload.invite_id)
+    .first();
+  if (!row) return null;
+  if (row.recipient_email !== REVIEW_RECIPIENT_EMAIL) return null;
   if (row.token_hash !== payload.h) return null;
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return null;

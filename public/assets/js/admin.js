@@ -30,6 +30,9 @@ const state = {
   preview: null,       // { active, created_at, last_click_at, scenario_count }
   lastPreviewUrl: null,// last generated full-library preview URL (shown once)
   rubric: null,        // { sections:[{key,label}], items:[{key,section,label,guidance,enabled,is_custom,position}] }
+  review: null,        // { active, created_at, last_click_at } — the scoped review-editor share link
+  lastReviewUrl: null, // last generated review-editor URL (shown once with a Copy button)
+  reviewer: false,     // true when signed in via a scoped review link (rubric-only view)
 };
 
 init();
@@ -41,9 +44,21 @@ async function init() {
     const data = await sessionRes.json().catch(() => null);
     state.admin = data?.admin || null;
     await renderDashboard();
-  } else {
-    renderLogin();
+    return;
   }
+  // Not a full admin — maybe a scoped review-editor link (cs_review).
+  try {
+    const rev = await fetch('/api/admin/review-session', { credentials: 'same-origin' });
+    if (rev.ok) {
+      const d = await rev.json().catch(() => null);
+      if (d?.reviewer) {
+        state.reviewer = true;
+        await renderReviewerDashboard();
+        return;
+      }
+    }
+  } catch {}
+  renderLogin();
 }
 
 // ---- Login ----------------------------------------------------------------
@@ -93,8 +108,16 @@ function renderLogin(errorMsg) {
 
 async function logout() {
   try {
-    await fetch('/api/admin/login', { method: 'DELETE', credentials: 'same-origin' });
+    if (state.reviewer) {
+      await fetch('/api/admin/review-session', { method: 'DELETE', credentials: 'same-origin' });
+    } else {
+      await fetch('/api/admin/login', { method: 'DELETE', credentials: 'same-origin' });
+    }
   } catch {}
+  state.reviewer = false;
+  state.rubric = null;
+  state.review = null;
+  state.lastReviewUrl = null;
   state.scenarioTypes = [];
   state.invites = [];
   state.lastGenerated = [];
@@ -204,6 +227,15 @@ async function loadData() {
     console.warn('rubric load failed', e);
   }
 
+  try {
+    const r = await fetch('/api/admin/review', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.review = await r.json();
+    }
+  } catch (e) {
+    console.warn('review link load failed', e);
+  }
+
   // Team roster is owner-only; non-owners get a 403 we simply skip.
   if (state.admin?.is_owner) {
     try {
@@ -294,6 +326,8 @@ function paintDashboard() {
 
     ${renderRubricSection()}
 
+    ${renderReviewLinkSection()}
+
     ${renderTeamSection()}
 
     <section class="admin-section" id="sec-usage">
@@ -326,6 +360,7 @@ function paintDashboard() {
   attachChartsHandlers();
   attachPreviewHandlers();
   attachRubricHandlers();
+  attachReviewLinkHandlers();
   attachTeamHandlers();
 
   // Load usage section and wire refresh button.
@@ -344,6 +379,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-charts', label: 'Charts link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
+  { id: 'sec-reviewlink', label: 'Review access' },
   { id: 'sec-team', label: 'Team', ownerOnly: true },
   { id: 'sec-usage', label: 'Usage' },
 ];
@@ -679,6 +715,151 @@ function closeReviewPreview() {
 
 function reviewEscHandler(e) {
   if (e.key === 'Escape') closeReviewPreview();
+}
+
+// ---- Review access (scoped share link) ------------------------------------
+// A no-password link that opens ONLY the Call Review rubric editor. Backed by
+// the invites sentinel pattern (like the demo/charts links): generate rotates
+// the token, revoke kills it instantly.
+
+function renderReviewLinkSection() {
+  const r = state.review;
+  const active = !!r?.active;
+  const statusHtml = active
+    ? '<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">Opens the Call Review editor only</span>'
+    : '<span class="admin-muted">No review link yet</span>';
+  return `
+    <section class="admin-section" id="sec-reviewlink">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Review access</p>
+        <h2 class="admin-section-title">Share the Call Review editor</h2>
+        <p class="admin-section-sub">A no-password link that opens ONLY the Call Review rubric editor, not the rest of the admin panel. Share it with someone who should tune scoring without full admin access. Revoke any time.</p>
+      </header>
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">${statusHtml}</div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="button" class="primary-button" id="admin-review-generate-btn">${active ? 'Regenerate review link' : 'Generate review link'}</button>
+          ${active ? '<button type="button" class="ghost-button" id="admin-review-revoke-btn">Revoke</button>' : ''}
+        </div>
+        <div id="admin-review-generated" class="admin-generated"></div>
+      </div>
+    </section>
+  `;
+}
+
+function attachReviewLinkHandlers() {
+  const genBtn = document.getElementById('admin-review-generate-btn');
+  if (genBtn) genBtn.addEventListener('click', onGenerateReviewLink);
+  const revokeBtn = document.getElementById('admin-review-revoke-btn');
+  if (revokeBtn) revokeBtn.addEventListener('click', onRevokeReviewLink);
+  paintReviewGenerated();
+}
+
+async function onGenerateReviewLink() {
+  const btn = document.getElementById('admin-review-generate-btn');
+  const out = document.getElementById('admin-review-generated');
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  try {
+    const res = await fetch('/api/admin/review', { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastReviewUrl = data.url;
+    await loadData();
+    refreshReviewLinkSection();
+    paintReviewGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+async function onRevokeReviewLink() {
+  if (!confirm('Revoke the review link? Anyone holding it will lose access immediately.')) return;
+  const btn = document.getElementById('admin-review-revoke-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
+  try {
+    const res = await fetch('/api/admin/review', { method: 'DELETE', credentials: 'same-origin' });
+    if (res.ok) {
+      state.lastReviewUrl = null;
+      await loadData();
+      refreshReviewLinkSection();
+    } else {
+      alert('Revoke failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    }
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+  }
+}
+
+function refreshReviewLinkSection() {
+  const sections = root.querySelectorAll('.admin-section');
+  for (const sec of sections) {
+    const eyebrow = sec.querySelector('.admin-eyebrow');
+    if (eyebrow && eyebrow.textContent.trim() === 'Review access') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderReviewLinkSection();
+      sec.replaceWith(tmp.firstElementChild);
+      break;
+    }
+  }
+  attachReviewLinkHandlers();
+}
+
+function paintReviewGenerated() {
+  const out = document.getElementById('admin-review-generated');
+  if (!out) return;
+  if (!state.lastReviewUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Review link ready.</strong> It opens only the Call Review editor — no password, no other admin access.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastReviewUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastReviewUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
+// The rubric-only view shown to someone who arrived via a scoped review link.
+// Reuses the exact rubric editor + preview; no other admin endpoints are loaded.
+async function renderReviewerDashboard() {
+  logoutBtn.hidden = false;
+  try {
+    const r = await fetch('/api/admin/rubric', { credentials: 'same-origin' });
+    if (r.ok) state.rubric = await r.json();
+  } catch (e) {
+    console.warn('rubric load failed', e);
+  }
+  root.innerHTML = `
+    <div class="admin-reviewer-head">
+      <p class="admin-eyebrow">Call Review</p>
+      <h1 class="admin-reviewer-title">Review editor</h1>
+      <p class="admin-section-sub">Adjust what the AI scores and what appears on each call's Call Review. Changes apply to the next call scored.</p>
+    </div>
+    ${renderRubricSection()}
+  `;
+  attachRubricHandlers();
 }
 
 // One scenario type rendered as a <details>. Description is shown on expand,

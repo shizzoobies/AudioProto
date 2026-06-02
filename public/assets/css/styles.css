@@ -4803,6 +4803,16 @@ body[data-recipient] #sign-out {
 /* Anchored sections clear the sticky nav when jumped to. */
 .admin-section { scroll-margin-top: 72px; }
 
+/* Scoped reviewer view header (rubric-only access via a review link). */
+.admin-reviewer-head { margin-bottom: 4px; }
+.admin-reviewer-title {
+  margin: 2px 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
 /* Section card */
 .admin-section {
   background: var(--color-surface);

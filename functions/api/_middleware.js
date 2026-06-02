@@ -3,7 +3,16 @@ import {
   tokenFingerprint,
   getAdminScope,
   getInviteScope,
+  getReviewScope,
 } from '../../shared/auth.js';
+
+// Scoped review-editor links (cs_review) may reach ONLY these admin endpoints —
+// the rubric itself and the identity probe. Everything else under /api/admin/*
+// stays cs_admin-only.
+const REVIEW_ALLOWED_PATHS = new Set([
+  '/api/admin/rubric',
+  '/api/admin/review-session',
+]);
 
 // Public paths skip auth entirely.
 //   /api/auth          - agent login (you can't be authed before you log in)
@@ -29,10 +38,15 @@ export async function onRequest(context) {
     return next();
   }
 
-  // Admin routes: strict cs_admin gate, no other cookie type permitted.
+  // Admin routes: strict cs_admin gate. The ONLY exception is a scoped review
+  // editor (cs_review), which may reach the rubric + review-session endpoints.
   if (url.pathname.startsWith(ADMIN_API_PREFIX)) {
     const admin = await getAdminScope(request, env);
     if (admin) return next();
+    if (REVIEW_ALLOWED_PATHS.has(url.pathname)) {
+      const review = await getReviewScope(request, env);
+      if (review) return next();
+    }
     return jsonError('unauthorized', 401);
   }
 
