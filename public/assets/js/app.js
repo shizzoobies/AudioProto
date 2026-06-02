@@ -267,6 +267,14 @@ async function init() {
     // admin assigned them. Same phone default. The pitch-demo recipient gets
     // the bespoke bright-editorial landing instead.
     setCallMode('phone');
+    // startCall() resolves a persona from personaById. Normal recipients'
+    // scenarios are already there (they're part of the library that
+    // /api/scenarios builds), but the demo placeholders (demo_sales /
+    // demo_service) live in no scenario TYPE, so they were never added — merge
+    // the recipient's scenarios in so "Take the call" actually starts them.
+    for (const s of (state.recipient.scenarios || [])) {
+      if (s && s.id && !state.personaById.has(s.id)) state.personaById.set(s.id, { ...s });
+    }
     if (state.recipient.is_demo) renderDemoHome();
     else renderRecipientHome();
   } else {
