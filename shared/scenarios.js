@@ -38,7 +38,7 @@ How to say numbers, emails, and names out loud (this is a voice call - the text 
 - Dates and times: natural, not digit-by-digit. "May fourth, two thousand twenty-six" or "around nine in the morning."
 - Dollar amounts: natural ("four hundred eighty-seven dollars" or "four eighty-seven"), not digit-by-digit.
 - Volunteer your identifiers in pieces, not all at once. If the agent asks "what's your phone number," say the phone. Do not immediately follow with account number, email, and address unless asked.
-- Credit card: when the agent asks for payment, hand over the card details one piece at a time, in the order the agent asks, the way a real person reads a card aloud. Lead with the long card number in four-digit groups (for example "four one one one, one one one one, one one one one, one one one one"). Only give the expiration date, then the security code, then the billing ZIP as the agent asks for each. Do NOT recite the whole card in one breath, and do NOT start with the expiration date. If the agent just says "can I get your card," give the number first and wait for them to ask for the rest.
+- Credit card: when the agent asks for payment, hand over the card details one piece at a time, in the order the agent asks, the way a real person reads a card aloud. Lead with the long card number in four-digit groups (for example "four five three nine, one four eight eight, oh three four three, six four six seven"). Only give the expiration date, then the security code, then the billing ZIP as the agent asks for each. Do NOT recite the whole card in one breath, and do NOT start with the expiration date. If the agent just says "can I get your card," give the number first and wait for them to ask for the rest.
 
 Universal triggers (react in character; do not announce that you are reacting):
 - If the agent uses your name in their reply, you soften a small amount on the next turn.
@@ -1343,6 +1343,8 @@ const PERSONA_DEFS = {
       'Money is fine but not loose: you are carrying two mortgages for a few weeks during the move, so you watch costs, but you will not nickel-and-dime a one-way truck.',
       'You have never driven anything bigger than your pickup, and a 26-foot truck across the country quietly makes you nervous. A reassuring agent can put you at ease.',
       'You have been meaning to book the truck for two weeks and keep getting pulled into other move tasks: the house closing, the kids\' school transfers, utilities. Your email is robert.keller@gmail.com.',
+      'When the agent needs to reach you, your cell is five one three, five five five, two eight four oh. You are still in Cincinnati, so your billing ZIP is four five two oh nine.',
+      'If the agent takes payment to lock the reservation, you put it on your Visa: four five three nine, one four eight eight, oh three four three, six four six seven, expiration oh eight, two seven, security code four one nine. Read it the way the rules say: the long number first in four-digit groups, then the expiration, code, and ZIP only as each is asked.',
     ],
     mannerisms: [
       'Talk in an easygoing, practical way with a bit of dry humor: "yeah, I am a little behind on this, clearly."',
@@ -1642,7 +1644,7 @@ const CUSTOMER_RECORDS = {
   sales_daniela: {
     found: true,
     full_name: 'Daniela Okonkwo',
-    phone: '210-555-0162',
+    phone: '210-555-2841',
     email: 'dani@kestrelandco.com',
     account_id: 'MER-731204',
     member_since: 2021,
@@ -1656,14 +1658,14 @@ const CUSTOMER_RECORDS = {
   sales_walter: {
     found: false,
     full_name: 'Walter Brennan',
-    phone: '830-555-0143',
+    phone: '830-555-3607',
     email: 'wbrennan.history@gmail.com',
     notes: 'No record on file. New prospect, downsizing New Braunfels to Austin. Gathering information; not ready to commit. Treat warmly and unhurried.',
   },
   sales_sloane: {
     found: true,
     full_name: 'Sloane Whitaker',
-    phone: '210-555-0199',
+    phone: '210-555-4720',
     email: 'sloane@whitakerhomes.com',
     account_id: 'MER-668120',
     member_since: 2022,
@@ -1679,7 +1681,7 @@ const CUSTOMER_RECORDS = {
   sales_hank: {
     found: true,
     full_name: 'Hank Delgado',
-    phone: '210-555-0176',
+    phone: '210-555-6189',
     email: 'hank.delgado.air@gmail.com',
     account_id: 'MER-330571',
     member_since: 2018,
@@ -1694,7 +1696,7 @@ const CUSTOMER_RECORDS = {
   sales_vivian: {
     found: false,
     full_name: 'Vivian Ashford',
-    phone: '210-555-0124',
+    phone: '210-555-3052',
     email: 'vivian@ashforddesign.com',
     notes: 'No record on file. New prospect, high-value four-bedroom move with art and antiques. Quality and careful handling matter more than price.',
   },
@@ -1731,7 +1733,7 @@ const CUSTOMER_RECORDS = {
   lost_reservation_robert: {
     found: true,
     full_name: 'Robert Hensley',
-    phone: '703-555-0148',
+    phone: '703-555-2916',
     email: 'r.hensley.usaf@gmail.com',
     account_id: 'MER-006219',
     member_since: 2014,
@@ -1774,7 +1776,7 @@ const CUSTOMER_RECORDS = {
   price_shopper_diane: {
     found: false,
     full_name: 'Diane Pritchett',
-    phone: '480-555-0117',
+    phone: '480-555-4863',
     email: 'diane.pritchett.az@gmail.com',
     notes: 'No customer record. Treat as new prospect; collect lead details if she reserves.',
   },
@@ -1795,14 +1797,14 @@ const CUSTOMER_RECORDS = {
   price_shopper_linda: {
     found: false,
     full_name: 'Linda Harper',
-    phone: '480-555-0142',
+    phone: '480-555-7204',
     email: 'linda.k.harper@gmail.com',
     notes: 'No customer record. New prospect downsizing into a smaller place.',
   },
   price_shopper_marcusw: {
     found: false,
     full_name: 'Marcus Whitfield',
-    phone: '425-555-0288',
+    phone: '425-555-3941',
     email: 'marcus.whitfield29@gmail.com',
     notes: 'No customer record. First-time homebuyer researching options.',
   },
@@ -1824,35 +1826,35 @@ const CUSTOMER_RECORDS = {
   first_time_mover_jordan: {
     found: false,
     full_name: 'Jordan Boyer',
-    phone: '512-555-0307',
+    phone: '512-555-8160',
     email: 'jordan.boyer.atx@gmail.com',
     notes: 'No customer record. New customer; first move.',
   },
   first_time_mover_riya: {
     found: false,
     full_name: 'Riya Singh',
-    phone: '408-555-0419',
+    phone: '408-555-2573',
     email: 'riya.singh07@gmail.com',
     notes: 'No customer record. College student; mother is in the room with her on the call.',
   },
   first_time_mover_tomas: {
     found: false,
     full_name: 'Tomas Benitez',
-    phone: '305-555-0521',
+    phone: '305-555-6498',
     email: 'tomas.benitez.dev@gmail.com',
     notes: 'No customer record. New customer; recent immigrant, second-language English speaker.',
   },
   first_time_mover_maddie: {
     found: false,
     full_name: 'Madison Castle',
-    phone: '615-555-0633',
+    phone: '615-555-1827',
     email: 'm.castle.nash@gmail.com',
     notes: 'No customer record. New customer; sensitive personal context (recent divorce).',
   },
   first_time_mover_brandon: {
     found: false,
     full_name: 'Brandon Currie',
-    phone: '614-555-0744',
+    phone: '614-555-3069',
     email: 'bcurrie21@gmail.com',
     notes: 'No customer record. New customer; out of his depth on logistics.',
   },
@@ -2027,7 +2029,7 @@ const CUSTOMER_RECORDS = {
   showcase_elena: {
     found: true,
     full_name: 'Elena Vasquez',
-    phone: '210-555-0428',
+    phone: '210-555-5316',
     email: 'elena.vasquez.rn@gmail.com',
     account_id: 'MER-180344',
     member_since: 2012,

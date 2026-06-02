@@ -102,8 +102,8 @@ the old pipeline.
 - **Turn-taking:** the trainee greets first; the agent waits (empty `first_message` +
   an appended directive in the prompt that overrides the persona's "you already
   greeted" note).
-- **Captions hidden** on demo phone calls (`hideCaptions` in renderCall) — a real
-  phone call wouldn't show subtitles. Transcript element stays in the DOM (coaching
+- **Captions hidden** on ALL phone calls (`hideCaptions = isPhone` in renderCall) —
+  a real phone call wouldn't show subtitles. Transcript element stays in the DOM (coaching
   reads it).
 - **Audio gotcha (fixed):** the AudioContext must be created+resumed SYNCHRONOUSLY in
   the Answer-click gesture, before any await, or it stays suspended (no audio in/out).
@@ -143,8 +143,13 @@ the old pipeline.
     upsell pitch lines were removed** (not wired up). Functional add-on checkboxes stay.
   - **Left-rail reservation details** show **Days + Miles** for one-way moves (bundled),
     matching the reference; in-town unchanged.
-  - Possible next steps the user mentioned: make the "+ Show all moving equipment" grid
-    show one-way rates; add Auto Transport / U-Box cards from the reference.
+  - **"+ Show all moving equipment" grid** now reflects the move type too: one-way
+    shows the flat bundled rate per tile, in-town shows per-day + per-mile (synced in
+    `renderEquip`). Possible next step: add Auto Transport / U-Box cards from the reference.
+  - **Identifiers are real-sounding:** persona + POS-location phones keep the `555`
+    exchange but use realistic last-4s (no leading-zero "movie number" look). Personas
+    read a realistic Visa (not the all-1s test card) when taking payment; Robert has a
+    fixed cell (513-555-2840) + Visa (4539 1488 0343 6467) for a consistent demo run.
 
 ## The coaching report ("Call Review")
 - `/api/coach` (Claude, tool-use, prompt-cached). Reads the live D1 rubric.

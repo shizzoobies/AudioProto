@@ -1606,10 +1606,10 @@ function renderCall(scenario, opts = {}) {
     : 'Type your response...';
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
   const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
-  // Demo phone calls hide the live transcript ("captions") — a real phone call
+  // Phone calls hide the live transcript ("captions") — a real phone call
   // wouldn't show them. The transcript element stays in the DOM (coaching reads
-  // it) but is not displayed.
-  const hideCaptions = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id);
+  // it) but is not displayed. Text-mode chats keep their conversation visible.
+  const hideCaptions = isPhone;
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
   // Premium voice (eleven_v3) performs square-bracket delivery tags. When
   // active we keep those tags in the text we send to TTS but strip them
@@ -1656,7 +1656,7 @@ function renderCall(scenario, opts = {}) {
     ...b,
     entity: String(833071 - i * 412),
     distance: (1.6 + i * 2.4).toFixed(1),
-    phone: ['(210) 555-0142', '(210) 555-0188', '(210) 555-0203', '(210) 555-0119', '(210) 555-0177'][i] || '(210) 555-0100',
+    phone: ['(210) 555-3120', '(210) 555-4786', '(210) 555-2941', '(210) 555-6075', '(210) 555-8312'][i] || '(210) 555-7058',
     available_sizes: i === 2 ? [10, 15, 20] : [10, 15, 20, 26],
   }));
   const LOC_BY_NAME = Object.fromEntries(POS_LOCATIONS.map((l) => [l.name, l]));
@@ -2066,7 +2066,7 @@ function renderCall(scenario, opts = {}) {
               <div class="pos-card-body pos-cc">
                 <label class="pos-field">
                   <span class="pos-field-label">Card Number</span>
-                  <input class="pos-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4111 1111 1111 1111" maxlength="23">
+                  <input class="pos-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4539 1488 0343 6467" maxlength="23">
                 </label>
                 <div class="pos-grid-2">
                   <label class="pos-field">
@@ -2930,7 +2930,22 @@ function renderCall(scenario, opts = {}) {
         if (rateEl) rateEl.textContent = `The ${truck.label} is $${truck.base.toFixed(2)} a day plus $${truck.per_mile.toFixed(2)} a mile, plus a ${fmtMoney(ENV_FEE)} environmental fee and a ${fmtMoney(VLRF)} Vehicle License Recovery Fee, plus local taxes.`;
       }
     }
-    pos.querySelectorAll('.pos-equip-opt').forEach((b) => b.classList.toggle('selected', Number(b.dataset.truck) === size));
+    // Keep every tile's rate in sync with the move type: one-way shows the flat
+    // bundled rate (per the entered distance), in-town shows per-day + per-mile.
+    const milesNow = Number(getRsv('miles') || 0);
+    pos.querySelectorAll('.pos-equip-opt').forEach((b) => {
+      b.classList.toggle('selected', Number(b.dataset.truck) === size);
+      const t = TRUCK_BY_SIZE[Number(b.dataset.truck)];
+      const rateSpan = b.querySelector('.pos-equip-opt-rate');
+      if (!t || !rateSpan) return;
+      if (oneWay) {
+        rateSpan.textContent = milesNow > 0
+          ? `${fmtMoney(oneWayQuote(t, milesNow).amount)} one-way`
+          : 'one-way (enter miles)';
+      } else {
+        rateSpan.textContent = `$${t.base.toFixed(2)}/day + $${t.per_mile.toFixed(2)}/mi`;
+      }
+    });
   }
 
   function renderEntity() {
