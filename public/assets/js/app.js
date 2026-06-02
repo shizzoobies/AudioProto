@@ -1879,8 +1879,6 @@ function renderCall(scenario, opts = {}) {
               <section class="pos-step" data-step="2" hidden>
                 <div class="csf-script">
                   <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text" id="pos-equip-script-rate">Add a load size on the previous step to see the recommended rate.</p></div>
-                  <div class="csf-script-row" id="pos-equip-script-upsell-row">${SCRIPT_ICON}<p class="csf-script-text" id="pos-equip-script-upsell"></p></div>
-                  <div class="csf-script-row" id="pos-equip-script-discount-row"><span class="csf-script-tag" aria-hidden="true">&#127991;</span><p class="csf-script-text" id="pos-equip-script-discount"></p></div>
                 </div>
                 <div class="csf-objection">Is the customer not ready to book? <a class="csf-link">Click for help to overcome their objections</a> to book now!</div>
 
@@ -2908,18 +2906,11 @@ function renderCall(scenario, opts = {}) {
     if (milesLabel) milesLabel.textContent = oneWay ? 'Estimated distance (miles)' : 'Estimated miles';
 
     const rateEl = document.getElementById('pos-equip-script-rate');
-    const upsellEl = document.getElementById('pos-equip-script-upsell');
-    const upsellRow = document.getElementById('pos-equip-script-upsell-row');
-    const discountEl = document.getElementById('pos-equip-script-discount');
-    const discountRow = document.getElementById('pos-equip-script-discount-row');
-    const firstName = (selectedRecord?.full_name || (scenario.blind ? '' : scenario.customer_name) || '').split(/\s+/)[0] || '';
 
     if (!truck) {
       posEquipName.textContent = 'Pick a truck below, or set a load size on the Details step.';
       posEquipRate.textContent = '';
       if (rateEl) rateEl.textContent = 'Add a load size on the previous step to see the recommended rate.';
-      if (upsellRow) upsellRow.hidden = true;
-      if (discountRow) discountRow.hidden = true;
     } else {
       const miles = Number(getRsv('miles') || 0);
       posEquipName.textContent = truck.label;
@@ -2931,15 +2922,10 @@ function renderCall(scenario, opts = {}) {
         if (rateEl) rateEl.textContent = miles > 0
           ? `The rate for the ${truck.label} I recommend is ${fmtMoney(ow.amount)} plus a ${fmtMoney(ENV_FEE)} environmental fee and a ${fmtMoney(VLRF)} Vehicle License Recovery Fee, plus local taxes.`
           : `For a one-way ${truck.label}, the rate is based on the distance and already includes the days and miles you'll need. About how far is the move?`;
-        if (discountEl) discountEl.textContent = `This rental is eligible for discounts up to ${fmtMoney(Math.max(50, Math.round(ow.amount * 0.13)))}, would you like to hear more? (Special Rates)`;
-        if (discountRow) discountRow.hidden = !(miles > 0);
       } else {
         posEquipRate.textContent = `$${truck.base.toFixed(2)}/day + $${truck.per_mile.toFixed(2)}/mile`;
         if (rateEl) rateEl.textContent = `The ${truck.label} is $${truck.base.toFixed(2)} a day plus $${truck.per_mile.toFixed(2)} a mile, plus a ${fmtMoney(ENV_FEE)} environmental fee and a ${fmtMoney(VLRF)} Vehicle License Recovery Fee, plus local taxes.`;
-        if (discountRow) discountRow.hidden = true;
       }
-      if (upsellEl) upsellEl.textContent = `${firstName ? firstName + ', families' : 'Families'} who rent a ${truck.label} find adding an Appliance Dolly and a dozen Furniture Pads make their move easier. Can I add this to your rental for $27.00?`;
-      if (upsellRow) upsellRow.hidden = false;
     }
     pos.querySelectorAll('.pos-equip-opt').forEach((b) => b.classList.toggle('selected', Number(b.dataset.truck) === size));
   }
