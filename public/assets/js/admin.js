@@ -281,7 +281,7 @@ function paintDashboard() {
           </label>
           <label class="admin-all-scenarios">
             <input type="checkbox" id="admin-mode-coaching">
-            <span class="admin-all-scenarios-text"><strong>Coaching test page</strong> — this invite opens a sealed single-scenario page that ends in the coaching report. Pick exactly one scenario below.</span>
+            <span class="admin-all-scenarios-text"><strong>Coaching test page</strong> — this invite opens the dedicated coaching practice page (the coachee agent). No scenario pick needed; just add a name and email and send.</span>
           </label>
           <div class="admin-types-list">${typesHtml}</div>
         </div>
@@ -351,6 +351,19 @@ function paintDashboard() {
   const form = document.getElementById('admin-create-form');
   form.addEventListener('submit', onGenerate);
   form.addEventListener('change', updateSelectionCount);
+  // Coaching-test invites use the dedicated coaching scenario, so turning the
+  // checkbox on clears any library picks (and enables Send via updateSelectionCount).
+  const coachingBox = document.getElementById('admin-mode-coaching');
+  if (coachingBox) {
+    coachingBox.addEventListener('change', () => {
+      if (coachingBox.checked) {
+        form.querySelectorAll('input[name="scenario_id"]').forEach((cb) => { cb.checked = false; });
+        const ab = document.getElementById('admin-all-scenarios');
+        if (ab) { ab.checked = false; ab.indeterminate = false; }
+      }
+      updateSelectionCount();
+    });
+  }
   const allBox = document.getElementById('admin-all-scenarios');
   if (allBox) {
     allBox.addEventListener('change', () => {
@@ -992,12 +1005,14 @@ function updateSelectionCount() {
     badge.textContent = total === 1 ? '1 selected' : `${total} selected`;
   }
 
+  const coaching = !!document.getElementById('admin-mode-coaching')?.checked;
   const btn = document.getElementById('admin-generate-btn');
-  if (btn) btn.disabled = total === 0;
+  if (btn) btn.disabled = !coaching && total === 0;
 
-  // Tell the admin why Send is disabled (no scenario picked yet).
+  // Tell the admin why Send is disabled (no scenario picked yet). Coaching-test
+  // invites auto-use the dedicated coaching scenario, so no pick is needed.
   const sendHint = document.getElementById('admin-send-hint');
-  if (sendHint) sendHint.hidden = total !== 0;
+  if (sendHint) sendHint.hidden = coaching || total !== 0;
 
   document.querySelectorAll('[data-type-count]').forEach((el) => {
     const tid = el.dataset.typeCount;
@@ -1542,8 +1557,16 @@ async function onGenerate(e) {
   const out = document.getElementById('admin-generated');
   out.innerHTML = '';
 
-  const scenarioIds = [...form.querySelectorAll('input[name="scenario_id"]:checked')].map((el) => el.value);
-  if (!scenarioIds.length) {
+  const modeEl = document.getElementById('admin-mode-coaching');
+  const mode = modeEl && modeEl.checked ? 'coaching' : 'standard';
+
+  // Coaching-test invites always target the dedicated coaching_practice scenario
+  // (the server enforces this too); no library pick needed. Standard invites use
+  // the picked scenarios.
+  const scenarioIds = mode === 'coaching'
+    ? ['coaching_practice']
+    : [...form.querySelectorAll('input[name="scenario_id"]:checked')].map((el) => el.value);
+  if (mode !== 'coaching' && !scenarioIds.length) {
     out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one scenario.</div>';
     return;
   }
@@ -1557,8 +1580,6 @@ async function onGenerate(e) {
 
   const expiryVal = document.getElementById('admin-expiry').value;
   const expires_days = expiryVal === 'never' ? 'never' : parseInt(expiryVal, 10);
-  const modeEl = document.getElementById('admin-mode-coaching');
-  const mode = modeEl && modeEl.checked ? 'coaching' : 'standard';
 
   btn.disabled = true;
   btn.textContent = 'Sending...';

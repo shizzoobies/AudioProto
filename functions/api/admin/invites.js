@@ -8,7 +8,7 @@
 //        with a working link), and INSERT OR IGNORE the scenario assignments.
 //        Usage history carries over - same invite, refreshed URL.
 
-import { getScenario, listScenarioTypesForDisplay } from '../../../shared/scenarios.js';
+import { getScenario, listScenarioTypesForDisplay, COACHING_SCENARIO_ID } from '../../../shared/scenarios.js';
 import { sha256Hex, randomId, randomToken, getAdminScope, DEMO_RECIPIENT_EMAIL, CHARTS_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL } from '../../../shared/auth.js';
 import { sendInviteEmail } from '../../../shared/email.js';
 
@@ -126,12 +126,21 @@ async function createInvites(request, env) {
   // behavior unchanged.
   const mode = body?.mode === 'coaching' ? 'coaching' : null;
 
-  // Validate scenario_ids
-  const rawScenarios = Array.isArray(body?.scenario_ids) ? body.scenario_ids.filter((s) => typeof s === 'string') : [];
-  if (!rawScenarios.length) return jsonError('scenario_ids_required', 400);
-  const scenarios = [...new Set(rawScenarios)];
-  for (const sid of scenarios) {
-    if (!getScenario(sid)) return jsonError(`unknown_scenario:${sid}`, 400);
+  // Scenario assignment. Coaching-test invites ALWAYS target the single
+  // dedicated coaching_practice scenario (the coaching page auto-loads it), so
+  // the admin never needs to pick a library scenario - we force it here
+  // regardless of what the client sent. Standard invites use the picked library
+  // scenarios as before.
+  let scenarios;
+  if (mode === 'coaching') {
+    scenarios = [COACHING_SCENARIO_ID];
+  } else {
+    const rawScenarios = Array.isArray(body?.scenario_ids) ? body.scenario_ids.filter((s) => typeof s === 'string') : [];
+    if (!rawScenarios.length) return jsonError('scenario_ids_required', 400);
+    scenarios = [...new Set(rawScenarios)];
+    for (const sid of scenarios) {
+      if (!getScenario(sid)) return jsonError(`unknown_scenario:${sid}`, 400);
+    }
   }
 
   // Validate recipients
