@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-9 equipment-truck-card';
+const BUILD_ID = '20260602-10 debrand-ubox';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1841,7 +1841,7 @@ function renderCall(scenario, opts = {}) {
     4: 'Scheduling',
     5: 'Checkout',
   };
-  const CSF_TABS = ['U-Move', 'U-Box', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
+  const CSF_TABS = ['U-Move', 'Moving Container', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
   const SCRIPT_ICON = `<svg class="csf-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   const EDIT_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
   const TRUCK_SVG = `<svg viewBox="0 0 72 40" fill="none" aria-hidden="true"><rect x="2" y="9" width="40" height="21" rx="2" stroke="currentColor" stroke-width="2"/><path d="M42 15h11l9 9v6H42z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M44 24h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="32" r="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/><circle cx="52" cy="32" r="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/></svg>`;
