@@ -5,7 +5,7 @@
 // display name (if any), expiry, and their assigned scenarios hydrated with
 // persona display data so the frontend can render cards in one round trip.
 
-import { getInviteScope, DEMO_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL } from '../../../shared/auth.js';
+import { getInviteScope, DEMO_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL, COACHING_RECIPIENT_EMAIL } from '../../../shared/auth.js';
 import { listScenarioTypesForDisplay, getScenario } from '../../../shared/scenarios.js';
 
 export async function onRequestGet({ request, env }) {
@@ -48,6 +48,10 @@ export async function onRequestGet({ request, env }) {
   const coversLibrary = fullLib.length > 0 && fullLib.every((id) => scope.scenarios.has(id));
   const isPreview = scope.recipient_email === PREVIEW_RECIPIENT_EMAIL || coversLibrary;
 
+  // The open coaching link uses a sentinel recipient_email just like demo/preview;
+  // don't leak that internal address to the client either.
+  const isCoachingSentinel = scope.recipient_email === COACHING_RECIPIENT_EMAIL;
+
   // Coaching-test invite? Read the invite's `mode` column directly. Queried
   // defensively (its own try/catch) so a DB that predates the column — i.e. no
   // coaching invite has ever been created — is treated as not-coaching instead
@@ -69,8 +73,8 @@ export async function onRequestGet({ request, env }) {
     is_preview: isPreview,
     is_coaching: isCoaching,
     // Don't surface the internal sentinel address to the client.
-    recipient_name: (isDemo || isPreview) ? null : (scope.recipient_name || null),
-    recipient_email: (isDemo || isPreview) ? null : scope.recipient_email,
+    recipient_name: (isDemo || isPreview || isCoachingSentinel) ? null : (scope.recipient_name || null),
+    recipient_email: (isDemo || isPreview || isCoachingSentinel) ? null : scope.recipient_email,
     expires_at: scope.expires_at,
     scenarios,
   });

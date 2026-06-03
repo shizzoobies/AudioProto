@@ -32,6 +32,15 @@ export const PREVIEW_RECIPIENT_EMAIL = '__preview__@simulation.local';
 // /review-pass/[token] entry, and the /api middleware allow-list.
 export const REVIEW_RECIPIENT_EMAIL = '__review__@simulation.local';
 
+// Sentinel recipient_email marking the single open "coaching" link — the
+// open-link sibling of the per-email coaching invites. Like the demo, it reuses
+// the invites table: one row whose recipient_email is this constant, with
+// mode='coaching' and the coaching_practice scenario assigned, so its cs_me
+// cookie opens the cinematic Coaching Test page. Defined once here and imported
+// by the admin coaching endpoint and the /coaching/[token] landing so the value
+// can never drift.
+export const COACHING_RECIPIENT_EMAIL = '__coaching__@simulation.local';
+
 function bytesToBase64Url(bytes) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) {

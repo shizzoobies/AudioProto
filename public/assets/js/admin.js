@@ -25,6 +25,8 @@ const state = {
   lastAdminInvite: null, // { id, email, name, url, email_sent, email_error?, reused }
   demo: null,          // { active, scenarios:[{id,customer_name,tagline}], created_at }
   lastDemoUrl: null,   // last generated demo URL (shown once with a Copy button)
+  coaching: null,      // { active, created_at } — the open coaching-test share link
+  lastCoachingUrl: null, // last generated coaching URL (shown once with a Copy button)
   charts: null,        // { active, created_at, last_click_at }
   lastChartsUrl: null, // last generated charts URL (shown once with a Copy button)
   preview: null,       // { active, created_at, last_click_at, scenario_count }
@@ -126,6 +128,8 @@ async function logout() {
   state.lastAdminInvite = null;
   state.demo = null;
   state.lastDemoUrl = null;
+  state.coaching = null;
+  state.lastCoachingUrl = null;
   state.charts = null;
   state.lastChartsUrl = null;
   state.preview = null;
@@ -198,6 +202,15 @@ async function loadData() {
     }
   } catch (e) {
     console.warn('demo load failed', e);
+  }
+
+  try {
+    const r = await fetch('/api/admin/coaching', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.coaching = await r.json();
+    }
+  } catch (e) {
+    console.warn('coaching load failed', e);
   }
 
   try {
@@ -325,6 +338,8 @@ function paintDashboard() {
 
     ${renderDemoSection()}
 
+    ${renderCoachingSection()}
+
     ${renderChartsSection()}
 
     ${renderPreviewSection()}
@@ -375,6 +390,7 @@ function paintDashboard() {
   attachAdminNav();
   attachInviteListHandlers();
   attachDemoHandlers();
+  attachCoachingHandlers();
   attachChartsHandlers();
   attachPreviewHandlers();
   attachRubricHandlers();
@@ -394,6 +410,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invite', label: 'Send invite' },
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
+  { id: 'sec-coaching', label: 'Coaching link' },
   { id: 'sec-charts', label: 'Charts link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
@@ -1270,6 +1287,140 @@ function paintDemoGenerated() {
         <div class="admin-generated-url-row">
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastDemoUrl)}">
           <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastDemoUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
+// ---- Coaching link --------------------------------------------------------
+
+// One shareable, no-password link to the cinematic Coaching Test page (the
+// coaching_practice scenario) — the open-link sibling of the per-email coaching
+// invites. Backed by the invites system (sentinel recipient_email + mode), so
+// generate rotates the token and revoke kills the link immediately. Mirrors the
+// demo link's generate / copy / revoke flow.
+function renderCoachingSection() {
+  const coaching = state.coaching;
+  const active = !!coaching?.active;
+
+  const statusHtml = active
+    ? '<span class="admin-pill admin-pill-active">Active</span>'
+    : '<span class="admin-muted">No coaching link yet</span>';
+
+  return `
+    <section class="admin-section" id="sec-coaching">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Coaching link</h2>
+        <p class="admin-section-sub">One shareable link to the live coaching test. No password — anyone with the link can practice.</p>
+      </header>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+          ${statusHtml}
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="button" class="primary-button" id="admin-coaching-generate-btn">${active ? 'Regenerate coaching link' : 'Generate coaching link'}</button>
+          ${active ? '<button type="button" class="ghost-button" id="admin-coaching-revoke-btn">Revoke</button>' : ''}
+        </div>
+        <div id="admin-coaching-generated" class="admin-generated"></div>
+      </div>
+    </section>
+  `;
+}
+
+function attachCoachingHandlers() {
+  const genBtn = document.getElementById('admin-coaching-generate-btn');
+  if (genBtn) genBtn.addEventListener('click', onGenerateCoaching);
+  const revokeBtn = document.getElementById('admin-coaching-revoke-btn');
+  if (revokeBtn) revokeBtn.addEventListener('click', onRevokeCoaching);
+  // Re-render the last generated URL (if any) so a paintDashboard re-run keeps it.
+  paintCoachingGenerated();
+}
+
+async function onGenerateCoaching() {
+  const btn = document.getElementById('admin-coaching-generate-btn');
+  const out = document.getElementById('admin-coaching-generated');
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  try {
+    const res = await fetch('/api/admin/coaching', { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastCoachingUrl = data.url;
+    await loadData();
+    refreshCoachingSection();
+    paintCoachingGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+async function onRevokeCoaching() {
+  if (!confirm('Revoke the coaching link? Anyone holding it will lose access immediately.')) return;
+  const btn = document.getElementById('admin-coaching-revoke-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
+  try {
+    const res = await fetch('/api/admin/coaching', { method: 'DELETE', credentials: 'same-origin' });
+    if (res.ok) {
+      state.lastCoachingUrl = null;
+      await loadData();
+      refreshCoachingSection();
+    } else {
+      alert('Revoke failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    }
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+  }
+}
+
+// Swap just the Coaching section's DOM in place and re-wire its handlers, so the
+// rest of the dashboard (and the generated URL state) is left untouched.
+function refreshCoachingSection() {
+  const sections = root.querySelectorAll('.admin-section');
+  for (const sec of sections) {
+    const eyebrow = sec.querySelector('.admin-eyebrow');
+    if (eyebrow && eyebrow.textContent.trim() === 'Coaching') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderCoachingSection();
+      sec.replaceWith(tmp.firstElementChild);
+      break;
+    }
+  }
+  attachCoachingHandlers();
+}
+
+function paintCoachingGenerated() {
+  const out = document.getElementById('admin-coaching-generated');
+  if (!out) return;
+  if (!state.lastCoachingUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Coaching link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastCoachingUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastCoachingUrl)}">Copy</button>
         </div>
       </div>
     </div>`;
