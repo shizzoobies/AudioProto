@@ -3741,6 +3741,61 @@ body[data-recipient] #sign-out {
    ========================================================================= */
 /* Sealed coaching page: drop the global header chrome so it's just the card. */
 body[data-coaching] .app-header { display: none; }
+
+/* ---- Coaching call: a clean, centered voice-practice stage ----------------
+   The coaching call reuses the exact live-call wiring (Taylor connects on Start,
+   End call -> coaching report) but it is NOT an inbound customer call, so we hide
+   the reservation POS and the phone chrome and lift the conversation dock out of
+   its fixed bottom bar into a centered panel. */
+.call[data-coaching] .csf-topbar,
+.call[data-coaching] .pos-rail,
+.call[data-coaching] .pos-stage,
+.call[data-coaching] .call-back,
+.call[data-coaching] .call-mode-pill,
+.call[data-coaching] .call-number,
+.call[data-coaching] .call-dock-chevron,
+.call[data-coaching] .call-dock-sub {
+  display: none !important;
+}
+/* No pinned bottom dock here, so reclaim the reserved space and center content. */
+.call[data-coaching] .call-body {
+  padding-bottom: var(--space-4);
+  justify-content: center;
+  align-items: center;
+}
+.call[data-coaching] .pos {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
+}
+/* Lift the dock into a static, centered card. */
+.call[data-coaching] .call-dock {
+  position: static;
+  transform: none;
+  left: auto;
+  bottom: auto;
+  width: min(620px, 100% - 32px);
+  height: auto;
+  max-height: min(72vh, 640px);
+  margin: 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
+}
+/* The head is a static title bar (not a collapse toggle) on this stage:
+   pointer-events off so a stray click can't collapse the panel. */
+.call[data-coaching] .call-dock-head {
+  cursor: default;
+  pointer-events: none;
+  justify-content: center;
+  text-align: center;
+}
+/* Stack the live status / visualizer above the transcript like a focused call. */
+.call[data-coaching] .call-dock-body { flex-direction: column; gap: 14px; }
+.call[data-coaching] .call-dock-aside { width: 100%; order: -1; }
+.call[data-coaching] .call-dock-convo { min-height: 140px; }
 .coaching-test {
   min-height: 80vh;
   display: flex;

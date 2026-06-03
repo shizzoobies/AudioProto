@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-11 coaching-voice-agent';
+const BUILD_ID = '20260603-12 coaching-voice-stage';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1556,6 +1556,14 @@ async function startCall(typeOrPersonaId) {
   // fragment keeps its wired listeners) so Cancel/Decline restores it intact;
   // recipient/demo homes are re-rendered on return so their WebGL orb re-inits.
   state.precallStash = null;
+  // Coaching is a voice-practice session, not an inbound call: skip the pre-call
+  // modal and the incoming-call ring entirely and connect straight away. The
+  // "Start the call" click is the user gesture renderCall relies on to unlock the
+  // microphone and audio, so we go live directly.
+  if (persona.coaching || personaId === 'coaching_practice') {
+    renderCall(state.activeScenario);
+    return;
+  }
   if (!state.recipient) {
     const frag = document.createDocumentFragment();
     while (dom.root.firstChild) frag.appendChild(dom.root.firstChild);
@@ -1808,16 +1816,24 @@ function renderCall(scenario, opts = {}) {
     : 'Type your response...';
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
   const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
+  // Coaching practice is a voice-only soft-skills session (manager coaching the
+  // team member Taylor), NOT an inbound customer call — so it drops the
+  // reservation POS and the phone chrome and shows a clean centered voice stage.
+  const isCoaching = scenario.id === 'coaching_practice';
   // Phone calls hide the live transcript ("captions") — a real phone call
   // wouldn't show them. The transcript element stays in the DOM (coaching reads
   // it) but is not displayed. Text-mode chats keep their conversation visible.
-  const hideCaptions = isPhone;
+  // Coaching shows its transcript (you want to see what Taylor said); demo phone
+  // calls hide captions like a real call.
+  const hideCaptions = isPhone && !isCoaching;
   // Demo (voice-agent) phone calls hide the entire call dock — the floating,
   // chat-style panel — so the trainee just sees the POS, like a real rep on a
   // live call. The status/transcript elements stay in the DOM (JS still updates
   // them; coaching still reads the transcript) but the panel is not shown. The
   // call header keeps the timer, Pause, and End call controls.
-  const hideDock = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id);
+  // Coaching keeps the dock visible (it IS the voice stage); demo phone calls
+  // hide it so the trainee sees only the POS.
+  const hideDock = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id) && !isCoaching;
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
   // Caller ID for the header (phone calls only) — mirrors a real CSF that shows
   // the inbound number next to the call duration.
@@ -1951,7 +1967,7 @@ function renderCall(scenario, opts = {}) {
   ).join('');
 
   dom.root.innerHTML = `
-    <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${useOrb ? ' data-orb-mode="meta"' : ''}${isShowcaseCall ? ' data-showcase-stage="meet"' : ''}>
+    <section class="call" data-call-mode="${escapeAttr(state.callMode)}"${isCoaching ? ' data-coaching="true"' : ''}${useOrb ? ' data-orb-mode="meta"' : ''}${isShowcaseCall ? ' data-showcase-stage="meet"' : ''}>
       <header class="call-header">
         <button class="ghost-button call-back" id="call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
