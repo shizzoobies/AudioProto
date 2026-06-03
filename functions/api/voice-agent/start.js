@@ -11,12 +11,17 @@ import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../../sha
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
 
 const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
+// Scenarios that run on their OWN dedicated ElevenLabs agent (otherwise the
+// default demo agent is used). The coaching scenario has its own agent.
+const AGENT_BY_SCENARIO = {
+  coaching_practice: 'agent_2501kt72x065ff4r9f308xq1fsha',
+};
 const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
-const DEMO_SET = new Set(DEMO_SCENARIO_IDS);
+// Scenarios allowed on the real-time voice agent: the demo personas + coaching.
+const VOICE_AGENT_SCENARIOS = new Set([...DEMO_SCENARIO_IDS, 'coaching_practice']);
 
 export async function onRequestPost({ request, env }) {
   if (!env.ELEVENLABS_API_KEY) return jsonError('elevenlabs_key_missing', 500);
-  const agentId = env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID;
 
   let body;
   try {
@@ -28,7 +33,11 @@ export async function onRequestPost({ request, env }) {
   const scenarioId = body?.scenario_id;
   const scenario = getScenario(scenarioId);
   if (!scenario) return jsonError('unknown_scenario', 400);
-  if (!DEMO_SET.has(scenarioId)) return jsonError('not_a_demo_scenario', 403);
+  if (!VOICE_AGENT_SCENARIOS.has(scenarioId)) return jsonError('not_a_voice_agent_scenario', 403);
+
+  // Pick this scenario's dedicated agent (coaching) if it has one, else the
+  // default demo agent (an env override still wins for the default).
+  const agentId = AGENT_BY_SCENARIO[scenarioId] || env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID;
 
   // Same scope checks as /api/chat: magic-link + invite recipients are limited to
   // their assigned scenarios. (Agent/owner sessions pass through.)
@@ -59,7 +68,9 @@ export async function onRequestPost({ request, env }) {
   // first_message makes the ElevenLabs agent wait for the trainee, and we append
   // an explicit directive that overrides the persona prompt's "you already
   // greeted" note (written for the old turn-based flow).
-  const turnTaking = '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
+  const turnTaking = scenarioId === 'coaching_practice'
+    ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are the team member, Tyler. Your MANAGER called you into this one-on-one and they speak FIRST. Stay silent until your manager has spoken. As soon as they start, respond in character (guarded, a little defensive).'
+    : '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
 
   // Robert's move date stays current (about two weekends out), computed now.
   const dateBlock = scenarioId === 'demo_sales' ? '\n\n' + demoSalesDateBlock(new Date()) : '';

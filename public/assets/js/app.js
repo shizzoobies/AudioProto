@@ -6,13 +6,13 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-10 coaching-minimal';
+const BUILD_ID = '20260603-11 coaching-voice-agent';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
 // Flip VOICE_AGENT_ENABLED to false to fall back to the turn-based pipeline.
 const VOICE_AGENT_ENABLED = true;
-const VOICE_AGENT_SCENARIOS = new Set(['demo_sales', 'demo_service']);
+const VOICE_AGENT_SCENARIOS = new Set(['demo_sales', 'demo_service', 'coaching_practice']);
 
 const state = {
   scenarioTypes: [],
