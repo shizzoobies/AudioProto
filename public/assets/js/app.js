@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-8 truck-sizing+editable-customer';
+const BUILD_ID = '20260602-9 equipment-truck-card';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1844,6 +1844,7 @@ function renderCall(scenario, opts = {}) {
   const CSF_TABS = ['U-Move', 'U-Box', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
   const SCRIPT_ICON = `<svg class="csf-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   const EDIT_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+  const TRUCK_SVG = `<svg viewBox="0 0 72 40" fill="none" aria-hidden="true"><rect x="2" y="9" width="40" height="21" rx="2" stroke="currentColor" stroke-width="2"/><path d="M42 15h11l9 9v6H42z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M44 24h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="32" r="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/><circle cx="52" cy="32" r="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/></svg>`;
   const BACK_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M9 5 L6 8 L9 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const NEXT_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 5 L10 8 L7 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const CLOSE_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
@@ -2025,8 +2026,10 @@ function renderCall(scenario, opts = {}) {
                 <div class="pos-equip-rec" id="pos-equip-rec" data-size="?">
                   <div class="pos-equip-badge">Recommended</div>
                   <div class="pos-equip-body">
+                    <div class="pos-equip-photo" aria-hidden="true">${TRUCK_SVG}</div>
                     <div class="pos-equip-name" id="pos-equip-name">Add a load size on the previous step to see a fit.</div>
                     <div class="pos-equip-rate mono" id="pos-equip-rate"></div>
+                    <p class="pos-equip-includes" id="pos-equip-includes"></p>
                     <div class="pos-grid-2 pos-field-inline">
                       <label class="pos-field" id="pos-field-rental">
                         <span class="pos-field-label">Rental Length (24-hr periods)</span>
@@ -2037,22 +2040,9 @@ function renderCall(scenario, opts = {}) {
                         <input class="pos-input" data-rsv="miles" type="number" min="0" step="1" placeholder="e.g. 25" value="0">
                       </label>
                     </div>
+                    <a class="csf-link pos-equip-dims">&#9776; Dimensions</a>
                   </div>
                 </div>
-
-                <div class="pos-upsell">
-                  <label class="pos-check"><input type="checkbox" data-rsv-equipment="pads"> Furniture pads ($10/pack)</label>
-                  <label class="pos-check"><input type="checkbox" data-rsv-equipment="dolly"> Utility dolly ($7/day)</label>
-                </div>
-
-                <fieldset class="pos-fieldset">
-                  <legend>Damage waiver</legend>
-                  <select class="pos-input" data-rsv="waiver">
-                    <option value="none">Decline coverage</option>
-                    <option value="basic">Basic ($15/day, up to $5k)</option>
-                    <option value="premium">Premium ($25/day, up to $25k)</option>
-                  </select>
-                </fieldset>
 
                 <details class="pos-equip-all">
                   <summary>+ Show all moving equipment</summary>
@@ -3135,6 +3125,18 @@ function renderCall(scenario, opts = {}) {
       } else {
         posEquipRate.textContent = `$${truck.base.toFixed(2)}/day + $${truck.per_mile.toFixed(2)}/mile`;
         if (rateEl) rateEl.textContent = `The ${truck.label} is $${truck.base.toFixed(2)} a day plus $${truck.per_mile.toFixed(2)} a mile, plus a ${fmtMoney(ENV_FEE)} environmental fee and a ${fmtMoney(VLRF)} Vehicle License Recovery Fee, plus local taxes.`;
+      }
+    }
+    // Recommended-card "Rate includes ... dropped off in [dest]" line (one-way).
+    const includesEl = document.getElementById('pos-equip-includes');
+    if (includesEl) {
+      const milesIn = Number(getRsv('miles') || 0);
+      if (truck && oneWay && milesIn > 0) {
+        const owInc = oneWayQuote(truck, milesIn);
+        const dest = (getRsv('moving_to') || '').split(',')[0].trim();
+        includesEl.textContent = `Rate includes ${owInc.days} days of use and ${owInc.miles} miles.${dest ? ' Equipment should be dropped off in ' + dest.toUpperCase() + '.' : ''}`;
+      } else {
+        includesEl.textContent = '';
       }
     }
     // Keep every tile's rate in sync with the move type: one-way shows the flat
