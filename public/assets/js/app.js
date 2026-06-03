@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-10 debrand-ubox';
+const BUILD_ID = '20260602-11 debrand-umove';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1832,7 +1832,7 @@ function renderCall(scenario, opts = {}) {
 
   // ---- CSF chrome (matches preview.js) ----
   // Per-step display title for the topbar + charcoal panel head. Step 1 shows
-  // "U-Move" in the panel head (it's the equipment category) but "Reservation
+  // "Moving Truck" in the panel head (it's the equipment category) but "Reservation
   // Details" in the topbar title.
   const STEP_TITLES = {
     1: 'Reservation Details',
@@ -1841,7 +1841,7 @@ function renderCall(scenario, opts = {}) {
     4: 'Scheduling',
     5: 'Checkout',
   };
-  const CSF_TABS = ['U-Move', 'Moving Container', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
+  const CSF_TABS = ['Moving Truck', 'Moving Container', 'Storage', 'Hitch', 'Moving Help', 'Ready-To-Go Box', 'Hookup'];
   const SCRIPT_ICON = `<svg class="csf-script-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   const EDIT_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M9.5 3 L13 6.5 L6 13.5 L2.5 13.5 L2.5 10 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
   const TRUCK_SVG = `<svg viewBox="0 0 72 40" fill="none" aria-hidden="true"><rect x="2" y="9" width="40" height="21" rx="2" stroke="currentColor" stroke-width="2"/><path d="M42 15h11l9 9v6H42z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M44 24h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="32" r="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/><circle cx="52" cy="32" r="4.5" fill="#fff" stroke="currentColor" stroke-width="2"/></svg>`;
@@ -1926,7 +1926,7 @@ function renderCall(scenario, opts = {}) {
             <section class="pos-card">
               <div class="pos-card-head"><span class="pos-card-title">Checklist</span></div>
               <div class="pos-card-body">
-                <div class="pos-check-item">U-Move</div>
+                <div class="pos-check-item">Moving Truck</div>
               </div>
             </section>
 
@@ -1965,7 +1965,7 @@ function renderCall(scenario, opts = {}) {
             <div class="csf-tabs" id="pos-tabs">${csfTabsHtml}</div>
 
             <div class="csf-panel" id="pos-panel">
-              <div class="csf-panel-head" id="pos-panel-head"><span id="pos-panel-head-text">U-Move</span>${INFO_ICON}</div>
+              <div class="csf-panel-head" id="pos-panel-head"><span id="pos-panel-head-text">Moving Truck</span>${INFO_ICON}</div>
               <div class="csf-panel-body">
             <form class="pos-form" id="pos-form" autocomplete="off" novalidate>
               <section class="pos-step" data-step="1">
@@ -3055,7 +3055,7 @@ function renderCall(scenario, opts = {}) {
       posCartBody.innerHTML = '<p class="pos-card-empty">Add equipment to start the cart.</p>';
       return;
     }
-    // CSF itemized cart: a U-Move sub-row, the quote line items, a U-Move
+    // CSF itemized cart: a Moving Truck sub-row, the quote line items, a Moving Truck
     // subtotal, the total, and the action links. The Show Taxes toggle keeps
     // the tax line behind a click like the preview's link affordance.
     const lineHtml = q.lines.map((l) => `
@@ -3065,9 +3065,9 @@ function renderCall(scenario, opts = {}) {
       </div>
     `).join('');
     posCartBody.innerHTML = `
-      <div class="csf-cart-sub"><span>U-Move</span><span style="cursor:pointer;">${TRASH_ICON}</span></div>
+      <div class="csf-cart-sub"><span>Moving Truck</span><span style="cursor:pointer;">${TRASH_ICON}</span></div>
       ${lineHtml}
-      <div class="csf-cart-subtotal"><span>U-Move Total:</span><span>${fmtMoney(q.subtotal)}</span></div>
+      <div class="csf-cart-subtotal"><span>Moving Truck Total:</span><span>${fmtMoney(q.subtotal)}</span></div>
       <details class="pos-cart-taxes"><summary>Show Taxes</summary>
         <div class="csf-cart-line csf-cart-line-muted"><div class="csf-cart-line-label">Estimated tax (8.25%)</div><div class="csf-cart-line-amt">${fmtMoney(q.tax)}</div></div>
       </details>
@@ -3863,11 +3863,11 @@ function renderCall(scenario, opts = {}) {
     posBackBtn.hidden = posStep === 1;
     posErrorEl.hidden = true;
     posNextBtn.textContent = posStep === TOTAL_STEPS ? 'Reserve Now' : 'Continue';
-    // CSF chrome per step: topbar title, panel head ("U-Move" on step 1, else
+    // CSF chrome per step: topbar title, panel head ("Moving Truck" on step 1, else
     // the step title), category tabs (step 1 only), panel standalone border
     // (steps 2-5), and the topbar action group (New Reservation vs Back/Next).
     if (posTopbarTitle) posTopbarTitle.textContent = STEP_TITLES[posStep] || '';
-    if (posPanelHeadText) posPanelHeadText.textContent = posStep === 1 ? 'U-Move' : (STEP_TITLES[posStep] || '');
+    if (posPanelHeadText) posPanelHeadText.textContent = posStep === 1 ? 'Moving Truck' : (STEP_TITLES[posStep] || '');
     if (posTabs) posTabs.hidden = posStep !== 1;
     if (posPanel) posPanel.dataset.standalone = posStep === 1 ? 'false' : 'true';
     if (posTopNewBtn) posTopNewBtn.hidden = posStep !== 1;
