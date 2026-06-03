@@ -28,6 +28,15 @@ const PLACE_VALUES = new Set([
   'municipality', 'county', 'state', 'administrative', 'region', 'district', 'quarter',
 ]);
 
+// Google Places `types` we accept: cities, states, and other administrative
+// areas / ZIPs only. Anything else (businesses, POIs, landmarks, street
+// addresses) is dropped so the typeahead only ever suggests places, not stuff.
+const GOOGLE_PLACE_TYPES = new Set([
+  'locality', 'postal_town', 'sublocality', 'sublocality_level_1', 'colloquial_area',
+  'administrative_area_level_1', 'administrative_area_level_2', 'administrative_area_level_3',
+  'postal_code', 'neighborhood',
+]);
+
 const STATE_ABBR = {
   alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
   colorado: 'CO', connecticut: 'CT', delaware: 'DE', 'district of columbia': 'DC',
@@ -120,6 +129,11 @@ function googleToResult(place, wasZip) {
   const lat = Number(loc.latitude);
   const lng = Number(loc.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  // Cities/states/admin areas (and ZIPs) only — drop businesses, POIs,
+  // landmarks, and street addresses the Text Search also matches.
+  const placeTypes = Array.isArray(place.types) ? place.types : [];
+  if (!placeTypes.some((t) => GOOGLE_PLACE_TYPES.has(t))) return null;
 
   const comps = Array.isArray(place.addressComponents) ? place.addressComponents : [];
   const find = (type) => comps.find((c) => Array.isArray(c.types) && c.types.includes(type));

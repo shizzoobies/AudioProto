@@ -3090,6 +3090,13 @@ body[data-demo] .report {
   font-size: 13px;
   font-family: inherit;
 }
+/* A step can't advance until this field is filled — highlight it in red. Works
+   on inputs and on block targets (location list / equipment card) alike. */
+.pos-input-error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.30) !important;
+  border-radius: var(--radius-sm);
+}
 .pos-input:focus {
   outline: none;
   border-color: var(--color-accent);

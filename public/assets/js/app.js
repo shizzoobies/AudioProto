@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-5 hold-button';
+const BUILD_ID = '20260603-6 city-lookup+step-validation';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2047,11 +2047,11 @@ function renderCall(scenario, opts = {}) {
                 <div class="pos-grid-3">
                   <label class="pos-field">
                     <span class="pos-field-label">Moving From</span>
-                    <input class="pos-input" data-rsv="moving_from" type="text" placeholder="Zip, city, or landmark">
+                    <input class="pos-input" data-rsv="moving_from" type="text" placeholder="City, state">
                   </label>
                   <label class="pos-field">
                     <span class="pos-field-label">Moving To (Optional)</span>
-                    <input class="pos-input" data-rsv="moving_to" type="text" placeholder="Zip, city, or landmark">
+                    <input class="pos-input" data-rsv="moving_to" type="text" placeholder="City, state">
                   </label>
                   <div class="pos-field">
                     <span class="pos-field-label">Move Type</span>
@@ -3918,20 +3918,61 @@ function renderCall(scenario, opts = {}) {
     posErrorEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  // Gates live only where they are the natural action of the step, so the
-  // agent is never dead-ended on an unrelated field. The Details and Time
-  // steps never block; you choose a truck on Equipment, a branch on Location,
-  // and enter the card on Checkout.
+  // Highlight the specific field a step is waiting on and float a guidance
+  // tooltip next to it (reuses the field-tip element). The highlight clears as
+  // soon as the agent edits that field. Falls back to the top error banner if
+  // the field is not on screen.
+  function showFieldError(selector, message) {
+    const el = selector ? pos.querySelector(selector) : null;
+    if (!el) { showErr(message); return; }
+    pos.querySelectorAll('.pos-input-error').forEach((x) => x.classList.remove('pos-input-error'));
+    el.classList.add('pos-input-error');
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+    const place = () => {
+      const tip = state.fieldTip;
+      if (!tip) return;
+      const txt = tip.querySelector('.pos-fieldtip-text');
+      if (txt) txt.textContent = message;
+      tip.hidden = false;
+      const r = el.getBoundingClientRect();
+      const th = tip.offsetHeight;
+      let top = r.top - th - 8;
+      if (top < 8) top = r.bottom + 8;
+      tip.style.top = `${Math.round(top)}px`;
+      tip.style.left = `${Math.round(r.left)}px`;
+    };
+    window.setTimeout(place, 240);
+    const clear = () => {
+      el.classList.remove('pos-input-error');
+      if (state.fieldTip) state.fieldTip.hidden = true;
+      el.removeEventListener('input', clear);
+      el.removeEventListener('change', clear);
+    };
+    el.addEventListener('input', clear);
+    el.addEventListener('change', clear);
+  }
+
+  // Returns null when the step is complete, or { message, selector } naming the
+  // field that still needs attention so the caller can highlight it and float a
+  // guidance tooltip. Each step gates on the info it is responsible for
+  // gathering, so the agent cannot advance with a half-built reservation.
   function validateStep(n) {
-    if (n === 2) {
-      if (!recommendedSize()) return 'Pick a truck below under "Show all moving equipment", or set a load size on the Details step.';
-      if (getRsv('move_type') === 'one_way' && Number(getRsv('miles') || 0) <= 0) return 'Enter the estimated distance for the one-way move.';
+    const err = (message, selector) => ({ message, selector });
+    if (n === 1) {
+      if (!selectedRecord) return err('Look up the customer first: enter their phone or email, hit search, then verify or add their info.', '#pos-lookup-input');
+      if (!getRsv('moving_from').trim()) return err('Enter where the customer is moving from (city and state).', '[data-rsv="moving_from"]');
+      if (!getRsv('moving_to').trim()) return err('Enter where the customer is moving to (city and state).', '[data-rsv="moving_to"]');
+      if (!getRsv('load_size')) return err('Pick the home or load size so we can recommend the right truck.', '[data-rsv="load_size"]');
+      if (!getRsv('pickup_date')) return err('Set the rental date.', '[data-rsv="pickup_date"]');
+    } else if (n === 2) {
+      if (!recommendedSize()) return err('Pick a truck: set a home/load size on the Details step, or choose one under "Show all moving equipment".', '#pos-equip-rec');
+      if (getRsv('move_type') === 'one_way' && Number(getRsv('miles') || 0) <= 0) return err('Enter the estimated distance for the one-way move.', '[data-rsv="miles"]');
     } else if (n === 3) {
-      if (!selectedLocation) return 'Select a pickup location.';
+      if (!selectedLocation) return err('Select a pickup location with the "Use this location" button on a branch.', '#pos-loc-list');
     } else if (n === 5) {
-      if (getRsv('card_number').replace(/\D/g, '').length < 13) return 'Enter the card number in the Credit Card panel.';
-      if (!getRsv('card_exp_month') || !getRsv('card_exp_year')) return 'Set the card expiration in the Credit Card panel.';
-      if (!/^\d{5}$/.test(getRsv('card_zip'))) return 'Enter a 5-digit billing ZIP in the Credit Card panel.';
+      if (getRsv('card_number').replace(/\D/g, '').length < 13) return err('Enter the card number in the Credit Card panel.', '[data-rsv="card_number"]');
+      if (!getRsv('card_exp_month') || !getRsv('card_exp_year')) return err('Set the card expiration in the Credit Card panel.', '[data-rsv="card_exp_month"]');
+      if (!/^\d{5}$/.test(getRsv('card_zip'))) return err('Enter a 5-digit billing ZIP in the Credit Card panel.', '[data-rsv="card_zip"]');
     }
     return null;
   }
@@ -3976,7 +4017,7 @@ function renderCall(scenario, opts = {}) {
   posForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const err = validateStep(posStep);
-    if (err) { showErr(err); return; }
+    if (err) { showFieldError(err.selector, err.message); return; }
     if (posStep === 1 && !storageAsked) {
       storageAsked = true;
       openStorageModal(() => showStep(2));
