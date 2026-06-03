@@ -4322,6 +4322,24 @@ body[data-recipient] #sign-out {
   );
   pointer-events: none;
 }
+/* Coaching test: ONE centered line instead of the demo's two. Collapse to a
+   single column, cap the width so the lone entry reads as the centerpiece, and
+   drop the between-columns hairline (there's nothing to divide). */
+.demo-entries-single {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.demo-entries-single::after { display: none; }
+.demo-entries-single .demo-entry { width: 100%; }
+/* The no-scenario placeholder line: same atmospheric entry, but inert. */
+.demo-entry-empty { cursor: default; }
+.demo-entry-empty .demo-entry-aura {
+  background: radial-gradient(ellipse at 50% 50%, rgba(242, 101, 34, 0.18), transparent 70%);
+  opacity: 0.55;
+}
 .demo-entry {
   position: relative;
   isolation: isolate;
@@ -4385,6 +4403,11 @@ body[data-recipient] #sign-out {
 }
 .demo-entry-demo_service .demo-entry-aura {
   background: radial-gradient(ellipse at 50% 50%, rgba(27, 31, 42, 0.24), transparent 70%);
+}
+/* Coaching entry id isn't demo_sales/demo_service, so give the single line a
+   default warm aura that blooms on hover/focus like the demo entries do. */
+.demo-entries-single .demo-entry-aura {
+  background: radial-gradient(ellipse at 50% 50%, rgba(242, 101, 34, 0.22), transparent 70%);
 }
 
 /* Hover / focus: ENLARGE + flip to the detail face, aura blooms. The lift +
