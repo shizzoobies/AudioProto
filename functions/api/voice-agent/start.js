@@ -68,8 +68,9 @@ export async function onRequestPost({ request, env }) {
   // first_message makes the ElevenLabs agent wait for the trainee, and we append
   // an explicit directive that overrides the persona prompt's "you already
   // greeted" note (written for the old turn-based flow).
-  const turnTaking = scenarioId === 'coaching_practice'
-    ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are the team member, Taylor. Your MANAGER called you into this one-on-one and they speak FIRST. Stay silent until your manager has spoken. As soon as they start, respond in character (guarded, a little defensive).'
+  const isCoaching = scenarioId === 'coaching_practice';
+  const turnTaking = isCoaching
+    ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are Taylor, just called into a one-on-one with your manager. You speak FIRST with a short, guarded greeting (your first message), then let your manager talk. Respond in character to whatever feedback they give - guarded and a little defensive. Keep replies short; do not give speeches.'
     : '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
 
   // Robert's move date stays current (about two weekends out), computed now.
@@ -79,7 +80,9 @@ export async function onRequestPost({ request, env }) {
     signed_url: signedUrl,
     overrides: {
       prompt: (scenario.system_prompt || '') + dateBlock + turnTaking,
-      first_message: '',
+      // Coaching: Taylor opens (you hear her immediately). Demo: empty so the
+      // trainee greets first.
+      first_message: isCoaching ? 'Hey... you wanted to see me?' : '',
       language: 'en',
       // Coaching uses its own dedicated agent — let that agent's configured voice
       // play (no override). Demo personas still override to their persona voice.
