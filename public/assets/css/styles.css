@@ -5207,7 +5207,7 @@ body[data-recipient] #sign-out {
 /* Inline recipient row (Name | Email | Expiry | Send invite) */
 .admin-invite-form {
   display: grid;
-  grid-template-columns: 1.05fr 1.35fr minmax(120px, auto) minmax(150px, auto) auto;
+  grid-template-columns: 1.05fr 1.35fr minmax(120px, auto) auto;
   gap: 14px;
   align-items: end;
 }

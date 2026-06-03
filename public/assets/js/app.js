@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-1 coaching-test-page';
+const BUILD_ID = '20260603-2 coaching-invite-checkbox';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).

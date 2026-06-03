@@ -279,6 +279,10 @@ function paintDashboard() {
             <input type="checkbox" id="admin-all-scenarios">
             <span class="admin-all-scenarios-text"><strong>Entire library</strong> — give this person every scenario. Set an expiry below to keep it temporary.</span>
           </label>
+          <label class="admin-all-scenarios">
+            <input type="checkbox" id="admin-mode-coaching">
+            <span class="admin-all-scenarios-text"><strong>Coaching test page</strong> — this invite opens a sealed single-scenario page that ends in the coaching report. Pick exactly one scenario below.</span>
+          </label>
           <div class="admin-types-list">${typesHtml}</div>
         </div>
 
@@ -298,13 +302,6 @@ function paintDashboard() {
               <option value="30">30 days</option>
               <option value="90">90 days</option>
               <option value="never">Never</option>
-            </select>
-          </div>
-          <div class="admin-field">
-            <label class="admin-field-label" for="admin-mode">Page</label>
-            <select id="admin-mode" class="admin-select">
-              <option value="standard" selected>Recipient library</option>
-              <option value="coaching">Coaching test page</option>
             </select>
           </div>
           <div class="admin-send-cell">
@@ -1555,8 +1552,8 @@ async function onGenerate(e) {
 
   const expiryVal = document.getElementById('admin-expiry').value;
   const expires_days = expiryVal === 'never' ? 'never' : parseInt(expiryVal, 10);
-  const modeEl = document.getElementById('admin-mode');
-  const mode = modeEl && modeEl.value === 'coaching' ? 'coaching' : 'standard';
+  const modeEl = document.getElementById('admin-mode-coaching');
+  const mode = modeEl && modeEl.checked ? 'coaching' : 'standard';
 
   btn.disabled = true;
   btn.textContent = 'Sending...';
