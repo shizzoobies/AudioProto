@@ -2,11 +2,11 @@ import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
-import { createVoiceAgent } from './voice-agent.js?v=20260603-5';
+import { createVoiceAgent } from './voice-agent.js?v=20260603-6';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-13 coaching-voice-diag';
+const BUILD_ID = '20260603-14 coaching-fresh-vs-followup';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -926,17 +926,62 @@ function renderCoachingTest() {
   }
 
   const title = scenario.title || scenario.card_title || scenario.customer_name || 'Coaching Practice';
+  const person = scenario.customer_name || 'them';
+  const hasPrior = hasSavedCoaching(scenario.id);
   dom.root.innerHTML = `
     <section class="coaching-test">
       <div class="coaching-test-card">
         <h1 class="coaching-test-title">${escapeHtml(title)}</h1>
         ${scenario.tagline ? `<p class="coaching-test-sub">${escapeHtml(scenario.tagline)}</p>` : ''}
-        <button class="primary-button coaching-test-start" data-persona-id="${escapeAttr(scenario.id)}" type="button">Start the call <span aria-hidden="true">&rsaquo;</span></button>
+        <div class="coaching-test-options">
+          <button class="primary-button coaching-test-start" data-mode="fresh" data-persona-id="${escapeAttr(scenario.id)}" type="button">
+            <span class="coaching-opt-label">Start fresh call</span>
+            <span class="coaching-opt-hint">A brand-new conversation — ${escapeHtml(person)} has no memory of any past call.</span>
+          </button>
+          <button class="ghost-button coaching-test-followup" data-mode="followup" data-persona-id="${escapeAttr(scenario.id)}" type="button"${hasPrior ? '' : ' disabled'}>
+            <span class="coaching-opt-label">Follow-up call</span>
+            <span class="coaching-opt-hint">${hasPrior
+              ? `Pick up where you left off — ${escapeHtml(person)} remembers your last conversation.`
+              : 'Available after you finish a call — then ' + escapeHtml(person) + ' will remember it.'}</span>
+          </button>
+        </div>
       </div>
     </section>
   `;
-  const startBtn = dom.root.querySelector('.coaching-test-start');
-  if (startBtn) startBtn.addEventListener('click', () => startCall(startBtn.dataset.personaId));
+  dom.root.querySelectorAll('.coaching-test-start, .coaching-test-followup').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      startCall(btn.dataset.personaId, { mode: btn.dataset.mode });
+    });
+  });
+}
+
+// ---- Coaching transcript memory (for follow-up calls) ---------------------
+// Stored locally so a "Follow-up call" can replay the last one-on-one into
+// Taylor's prompt. Keyed per scenario; survives reloads, scoped to this browser.
+function coachingKey(scenarioId) { return `coaching:last:${scenarioId}`; }
+
+function saveCoachingTranscript(scenarioId, messages) {
+  try {
+    const slim = (messages || [])
+      .filter((m) => m && m.content)
+      .map((m) => ({ role: m.role === 'assistant' || m.role === 'customer' ? 'assistant' : 'user', content: String(m.content) }));
+    if (slim.length < 2) return;
+    localStorage.setItem(coachingKey(scenarioId), JSON.stringify({ messages: slim }));
+  } catch {}
+}
+
+function loadCoachingTranscript(scenarioId) {
+  try {
+    const raw = localStorage.getItem(coachingKey(scenarioId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.messages) ? parsed.messages : [];
+  } catch { return []; }
+}
+
+function hasSavedCoaching(scenarioId) {
+  return loadCoachingTranscript(scenarioId).length >= 2;
 }
 
 // "The Living Voice" — a cinematic, sealed landing for the pitch demo recipient
@@ -1512,7 +1557,7 @@ function renderPicker() {
   });
 }
 
-async function startCall(typeOrPersonaId) {
+async function startCall(typeOrPersonaId, opts = {}) {
   let blind = false;
   let personaId = null;
 
@@ -1543,11 +1588,17 @@ async function startCall(typeOrPersonaId) {
     ? persona.opening_lines
     : [persona.opening_line || ''];
   const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
+  // Coaching mode ('fresh' | 'followup'): a follow-up carries the prior call's
+  // transcript so Taylor remembers the last one-on-one.
+  const coachingMode = opts.mode === 'followup' ? 'followup' : 'fresh';
+  const priorTranscript = coachingMode === 'followup' ? loadCoachingTranscript(personaId) : [];
   state.activeScenario = {
     ...persona,
     title: persona.type_title || persona.title || '',
     opening_line: chosen,
     blind,
+    coachingMode,
+    priorTranscript,
   };
   // New start sequence: the pre-call modal opens over the FULL scenario shell,
   // blurred — so the trainee sees the call they're about to take, not the
@@ -2769,25 +2820,10 @@ function renderCall(scenario, opts = {}) {
   // for any reason, we fall back to the turn-based pipeline so the demo never
   // breaks.
   function startAgentSession() {
-    // Coaching practice (a brand-new agent that's still being configured) gets an
-    // on-screen diagnostic readout so the user can SEE the [voice-agent] signals
-    // (ws open/close codes, the agent's output audio format, whether any audio
-    // arrived) without opening the console — and screenshot it if it's silent.
-    let diagEl = null;
-    if (isCoaching) {
-      diagEl = document.createElement('pre');
-      diagEl.className = 'coaching-diag';
-      diagEl.setAttribute('aria-hidden', 'true');
-      (document.querySelector('.call[data-coaching]') || document.body).appendChild(diagEl);
-    }
-    const appendDiag = (line) => {
-      if (!diagEl) return;
-      diagEl.textContent += line + '\n';
-      diagEl.scrollTop = diagEl.scrollHeight;
-    };
     const agent = createVoiceAgent({
       scenarioId: scenario.id,
-      onLog: appendDiag,
+      mode: scenario.coachingMode || 'fresh',
+      priorTranscript: Array.isArray(scenario.priorTranscript) ? scenario.priorTranscript : [],
       onStatus: (s) => {
         if (state.view !== 'call') return;
         if (s === 'connecting') setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');
@@ -2886,6 +2922,14 @@ function renderCall(scenario, opts = {}) {
     const messages = state.voiceAgent ? state.voiceAgent.getTranscript() : conversation.getMessages();
     conversation.cancel();
     teardownAudio();
+    // Coaching practice has NO scored report — it's an open soft-skills rehearsal.
+    // Instead we save the transcript so the user can run a FOLLOW-UP call where
+    // Taylor remembers it, then return to the coaching page.
+    if (isCoaching) {
+      if (messages.length >= 2) saveCoachingTranscript(scenario.id, messages);
+      renderCoachingTest();
+      return;
+    }
     if (messages.length < 2) {
       renderShortCall(scenario);
       return;

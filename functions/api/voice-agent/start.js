@@ -69,6 +69,14 @@ export async function onRequestPost({ request, env }) {
   // an explicit directive that overrides the persona prompt's "you already
   // greeted" note (written for the old turn-based flow).
   const isCoaching = scenarioId === 'coaching_practice';
+  // Coaching supports a follow-up mode: the client sends the prior call's
+  // transcript so Taylor "remembers" the last one-on-one and continues in
+  // character. A fresh call sends none.
+  const mode = body?.mode === 'followup' ? 'followup' : 'fresh';
+  const priorTranscript = Array.isArray(body?.prior_transcript) ? body.prior_transcript : [];
+  const isFollowup = isCoaching && mode === 'followup' && priorTranscript.length >= 2;
+  const priorBlock = isFollowup ? buildPriorBlock(priorTranscript) : '';
+
   const turnTaking = isCoaching
     ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are Taylor, just called into a one-on-one with your manager. You speak FIRST with a short, guarded greeting (your first message), then let your manager talk. Respond in character to whatever feedback they give - guarded and a little defensive. Keep replies short; do not give speeches.'
     : '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
@@ -79,10 +87,12 @@ export async function onRequestPost({ request, env }) {
   return json({
     signed_url: signedUrl,
     overrides: {
-      prompt: (scenario.system_prompt || '') + dateBlock + turnTaking,
-      // Coaching: Taylor opens (you hear her immediately). Demo: empty so the
-      // trainee greets first.
-      first_message: isCoaching ? 'Hey... you wanted to see me?' : '',
+      prompt: (scenario.system_prompt || '') + dateBlock + turnTaking + priorBlock,
+      // Coaching: Taylor opens (you hear her immediately). A follow-up opens by
+      // acknowledging the earlier conversation. Demo: empty so the trainee greets.
+      first_message: isCoaching
+        ? (isFollowup ? 'Hey... you wanted to talk again?' : 'Hey... you wanted to see me?')
+        : '',
       language: 'en',
       // Coaching uses its own dedicated agent — let that agent's configured voice
       // play (no override). Demo personas still override to their persona voice.
@@ -93,6 +103,23 @@ export async function onRequestPost({ request, env }) {
       customer_name: scenario.customer_name || '',
     },
   });
+}
+
+// Builds the "you remember last time" block for a coaching follow-up call from
+// the prior transcript ({role:'user'|'assistant', content}). Capped to the last
+// ~40 turns so the prompt stays bounded.
+function buildPriorBlock(messages) {
+  const lines = messages
+    .slice(-40)
+    .map((m) => {
+      const who = m && m.role === 'assistant' ? 'You (Taylor)' : 'Your manager';
+      const text = String((m && m.content) || '').replace(/\s+/g, ' ').trim();
+      return text ? `${who}: ${text}` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+  if (!lines) return '';
+  return '\n\nPREVIOUS ONE-ON-ONE — you remember this earlier conversation with your manager; it actually happened. THIS CALL IS A FOLLOW-UP. Do not restart or re-introduce yourself; pick up as if some time has passed since then. React based on how it went: if your manager coached you well last time you can be a little less guarded now; if it went poorly you may still be irritated or skeptical. Reference specifics from last time when it is natural. Stay in character as Taylor.\nTRANSCRIPT OF LAST TIME:\n' + lines;
 }
 
 async function safeText(res) {

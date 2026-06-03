@@ -14,6 +14,8 @@ const SAMPLE_RATE_IN = 16000;   // rate we send mic audio at
 export function createVoiceAgent(opts = {}) {
   const {
     scenarioId,
+    mode = 'fresh',
+    priorTranscript = [],
     onStatus = () => {},
     onUserText = () => {},
     onAgentText = () => {},
@@ -115,7 +117,7 @@ export function createVoiceAgent(opts = {}) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario_id: scenarioId }),
+        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript }),
       });
       data = await r.json().catch(() => null);
       if (!r.ok || !data?.signed_url) {
