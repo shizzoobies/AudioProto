@@ -6,7 +6,9 @@ import { recordUsage } from '../../shared/usage.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-opus-4-7';
-const MAX_TOKENS = 2000;
+// Big enough for a long custom rubric: every item needs score+evidence+suggestion,
+// so a 20+ item rubric can blow past 2000 and truncate the scores object.
+const MAX_TOKENS = 5000;
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -113,9 +115,24 @@ export async function onRequestPost(context) {
     output_tokens: payload.usage?.output_tokens || 0,
   });
 
+  // Temporary diagnostic: compare what the model scored against the rubric the
+  // report renders, so an all-"No score" report is unambiguous (truncation vs
+  // empty scores vs key mismatch). Surfaced to the client console.
+  const _scoreKeys = Object.keys(toolBlock.input?.scores || {});
+  const _rubricKeys = display.flatMap((s) => (s.items || []).map((i) => i.key));
+  const _diag = {
+    stop: payload?.stop_reason || null,
+    overall: toolBlock.input?.overall_score ?? null,
+    scoreKeys: _scoreKeys.length,
+    rubricKeys: _rubricKeys.length,
+    missing: _rubricKeys.filter((k) => !(toolBlock.input?.scores || {})[k]).length,
+    sampleScoreKey: _scoreKeys[0] || null,
+    sampleRubricKey: _rubricKeys[0] || null,
+  };
+
   // Attach the rubric display structure so the client renders exactly the
   // enabled items (and we no longer hand-sync a rubric copy in the browser).
-  return new Response(JSON.stringify({ ...toolBlock.input, rubric: display }), {
+  return new Response(JSON.stringify({ ...toolBlock.input, rubric: display, _diag }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });

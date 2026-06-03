@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-7 geocode-origin-bias';
+const BUILD_ID = '20260603-8 coach-maxtokens+diag';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -4448,6 +4448,8 @@ function renderAnalyzing(scenario) {
 function renderReport(scenario, report) {
   state.view = 'report';
   document.body.dataset.view = 'report';
+  // Temporary diagnostic for the "No score / No evidence" report bug.
+  try { console.warn('[coach diag]', report && report._diag, 'scoreKeys:', Object.keys(report?.scores || {}).slice(0, 3)); } catch {}
   setDocumentTitle(`Report: ${scenario.customer_name}`);
   // Kiosk visitors have nowhere to go but back into the same scenario - even
   // if the "Back to scenarios" button shows for any reason, it just retries.
