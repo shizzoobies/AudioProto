@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-4 voice-agent-pause';
+const BUILD_ID = '20260603-5 hold-button';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1940,7 +1940,7 @@ function renderCall(scenario, opts = {}) {
         <div class="call-actions">
           ${callerNumber ? `<span class="call-number mono" title="Caller ID"><span class="call-number-dot" aria-hidden="true"></span>${escapeHtml(callerNumber)}</span>` : ''}
           <span class="call-timer" id="call-timer" role="timer" aria-label="Call duration" title="Call duration">00:00</span>
-          <button class="ghost-button call-pause" id="call-pause" type="button" aria-pressed="false">Pause</button>
+          <button class="ghost-button call-pause" id="call-pause" type="button" aria-pressed="false" title="Ask the caller's permission before placing them on a brief hold">Hold</button>
           <button class="danger-button" id="end-call" type="button">End call</button>
         </div>
       </header>
@@ -2930,7 +2930,7 @@ function renderCall(scenario, opts = {}) {
         state.sttController = null;
       }
       state.audioPlayer?.cancel();
-      if (isPhone) setPhoneState('paused', 'Call paused', 'Resume when you are ready.');
+      if (isPhone) setPhoneState('paused', 'On hold', 'The caller is on hold. Be sure you asked first, then take them off hold when you are ready.');
       else setComposerEnabled(false);
     } else {
       if (usingAgent) {
@@ -2950,7 +2950,7 @@ function renderCall(scenario, opts = {}) {
     // already did this for phone; this covers chat and the pause-on path).
     updateCallClock();
     if (callPauseBtn) {
-      callPauseBtn.textContent = paused ? 'Resume' : 'Pause';
+      callPauseBtn.textContent = paused ? 'Take off hold' : 'Hold';
       callPauseBtn.setAttribute('aria-pressed', String(paused));
       callPauseBtn.classList.toggle('is-paused', paused);
     }
