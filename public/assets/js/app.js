@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-7 oneway-scheduling';
+const BUILD_ID = '20260602-8 truck-sizing+editable-customer';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1902,6 +1902,7 @@ function renderCall(scenario, opts = {}) {
               <div class="pos-card-head">
                 <span class="pos-card-title" id="pos-customer-title">Customer Contact Information</span>
                 <span class="pos-verified" id="pos-verified" hidden>Verified Customer</span>
+                <button type="button" class="pos-card-edit" id="pos-customer-edit" hidden aria-label="Edit customer information" title="Edit customer information">${EDIT_ICON}</button>
               </div>
               <div class="pos-card-body" id="pos-customer-body">
                 <div class="pos-script">
@@ -2930,6 +2931,8 @@ function renderCall(scenario, opts = {}) {
   const posPanel = document.getElementById('pos-panel');
   const posPanelHeadText = document.getElementById('pos-panel-head-text');
   const posCustomerTitle = document.getElementById('pos-customer-title');
+  const posCustomerEdit = document.getElementById('pos-customer-edit');
+  posCustomerEdit?.addEventListener('click', openCustomerEditModal);
 
   const WAIVER_INFO = {
     none: { label: 'Waiver declined', daily: 0 },
@@ -3553,6 +3556,7 @@ function renderCall(scenario, opts = {}) {
     // shows the name/phone/email + Verified + Past Rentals, driven by the live
     // lookup record. This replaces the pre-lookup script + lookup field.
     if (posCustomerTitle) posCustomerTitle.textContent = 'Customer';
+    if (posCustomerEdit) posCustomerEdit.hidden = false;
     const hasHistory = (r.past_rentals || []).length || (r.active_reservations || []).length || (r.claims_cases || []).length;
     const checkSvg = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.3 8 L7 9.7 L10.7 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     const clockSvg = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5 V8 L10.5 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -3724,6 +3728,69 @@ function renderCall(scenario, opts = {}) {
         return;
       }
       if (e.target.closest('.pos-modal-close') || e.target === overlay) cancel();
+    });
+    document.addEventListener('keydown', onKey);
+  }
+
+  // Edit-on-the-fly modal for the loaded customer: lets the agent correct the
+  // name, phone, or email mid-call from the left rail without redoing lookup.
+  function openCustomerEditModal() {
+    const rec = selectedRecord;
+    if (!rec) return;
+    const n = splitName(rec.full_name || '');
+    const chatIcon = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-4 3v-3H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    const field = (key, label, val) => `<div class="pos-field"><label class="pos-field-label">${label}</label><input class="pos-input" data-cf="${key}" value="${escapeAttr(val)}" autocomplete="off"></div>`;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'pos-modal';
+    overlay.innerHTML = `
+      <div class="pos-modal-inner pos-modal-customer" role="dialog" aria-modal="true" aria-labelledby="pos-edit-title">
+        <div class="pos-modal-head">
+          <h3 class="pos-modal-title" id="pos-edit-title">Edit Customer Information</h3>
+          <button type="button" class="pos-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <p class="pos-modal-sub">Update the customer's contact details on the fly.</p>
+        <div class="pos-cust-script">${chatIcon}<span>Let me update that for you.</span></div>
+        <div class="pos-cust-grid">
+          ${field('first', 'First Name', n.first)}
+          ${field('phone', 'Phone Number', rec.phone || '')}
+          ${field('last', 'Last Name', n.last)}
+          ${field('email', 'Email Address', rec.email || '')}
+        </div>
+        <p class="pos-cust-error" id="pos-edit-error" hidden></p>
+        <div class="pos-modal-actions">
+          <button type="button" class="ghost-button" data-edit-action="cancel">Cancel</button>
+          <button type="button" class="primary-button" data-edit-action="save">Save Changes</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    setTimeout(() => { try { overlay.querySelector('[data-cf="first"]')?.focus(); } catch {} }, 30);
+
+    let settled = false;
+    const fv = (k) => (overlay.querySelector(`[data-cf="${k}"]`)?.value || '').trim();
+    function close() {
+      if (settled) return;
+      settled = true;
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    }
+    function save() {
+      if (!fv('first') || (!fv('phone') && !fv('email'))) {
+        const el = overlay.querySelector('#pos-edit-error');
+        if (el) { el.textContent = 'Keep at least a first name and a phone number or email.'; el.hidden = false; }
+        return;
+      }
+      close();
+      loadCustomer({ ...selectedRecord, full_name: `${fv('first')} ${fv('last')}`.trim(), phone: fv('phone'), email: fv('email') });
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'Enter') { e.preventDefault(); save(); }
+    }
+    overlay.addEventListener('click', (e) => {
+      if (e.target.closest('[data-edit-action="save"]')) save();
+      else if (e.target.closest('[data-edit-action="cancel"]') || e.target.closest('.pos-modal-close') || e.target === overlay) close();
     });
     document.addEventListener('keydown', onKey);
   }

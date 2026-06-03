@@ -2326,6 +2326,23 @@ body[data-demo] .report {
 .pos-card-head-accent {
   background: var(--color-accent);   /* the cart panel stands out in maroon */
 }
+/* Title fills the head so badges/edit actions group on the right. */
+.pos-card-title { flex: 1 1 auto; }
+/* Clickable edit affordance in a card head (e.g. edit customer info on the fly). */
+.pos-card-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 2px 5px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+  border-radius: 4px;
+}
+.pos-card-edit:hover { opacity: 1; background: rgba(255, 255, 255, 0.14); }
 
 .pos-card-title {
   font-size: 11px;
