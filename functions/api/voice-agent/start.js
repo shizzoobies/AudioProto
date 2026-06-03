@@ -81,7 +81,9 @@ export async function onRequestPost({ request, env }) {
       prompt: (scenario.system_prompt || '') + dateBlock + turnTaking,
       first_message: '',
       language: 'en',
-      voice_id: scenario.voice_id || null,
+      // Coaching uses its own dedicated agent — let that agent's configured voice
+      // play (no override). Demo personas still override to their persona voice.
+      voice_id: scenarioId === 'coaching_practice' ? null : (scenario.voice_id || null),
     },
     scenario: {
       id: scenarioId,
