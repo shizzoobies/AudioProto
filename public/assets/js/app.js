@@ -2,11 +2,11 @@ import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
-import { createVoiceAgent } from './voice-agent.js';
+import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-2 coaching-invite-checkbox';
+const BUILD_ID = '20260603-4 voice-agent-pause';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2912,6 +2912,11 @@ function renderCall(scenario, opts = {}) {
   function setCallPaused(paused) {
     if (paused === state.callPaused) return;
     state.callPaused = paused;
+    // Real-time voice agent (demo phone calls): it owns its own mic + playback,
+    // so pause/resume it directly. The turn-based teardown below is a no-op for
+    // it, and on resume we must NOT start the turn-based recorder.
+    const usingAgent = !!state.voiceAgent;
+    if (usingAgent) { try { state.voiceAgent.setPaused(paused); } catch {} }
     if (paused) {
       // Stop everything that would advance the conversation: silence timeout,
       // the live mic, any in-flight transcription, and the customer's voice.
@@ -2928,7 +2933,10 @@ function renderCall(scenario, opts = {}) {
       if (isPhone) setPhoneState('paused', 'Call paused', 'Resume when you are ready.');
       else setComposerEnabled(false);
     } else {
-      if (isPhone) {
+      if (usingAgent) {
+        // The agent kept the WebSocket open; just restore the live status.
+        if (isPhone) setPhoneState('your_turn', 'On the line — just talk.', 'The line is open. Speak naturally and pause when you finish.');
+      } else if (isPhone) {
         if (!conversation.isStreaming()) {
           setPhoneState('your_turn', 'Your turn.', 'Just start talking. The line auto-detects your pause.');
           startListening();

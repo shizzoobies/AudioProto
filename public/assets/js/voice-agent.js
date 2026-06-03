@@ -28,6 +28,7 @@ export function createVoiceAgent(opts = {}) {
   let processor = null;
   let sink = null;
   let stopped = false;
+  let paused = false;
   let finished = false;
   let conversationId = null;
   let outRate = DEFAULT_OUT_RATE;
@@ -41,7 +42,7 @@ export function createVoiceAgent(opts = {}) {
 
   // ---- playback (decode base64 PCM16 -> scheduled gapless playout) --------
   function playPcm16(base64) {
-    if (!audioCtx || stopped) return;
+    if (!audioCtx || stopped || paused) return;
     const bytes = b64ToBytes(base64);
     const usable = bytes.byteLength - (bytes.byteLength % 2);
     const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, usable / 2);
@@ -72,7 +73,7 @@ export function createVoiceAgent(opts = {}) {
     sourceNode = audioCtx.createMediaStreamSource(micStream);
     processor = audioCtx.createScriptProcessor(4096, 1, 1);
     processor.onaudioprocess = (e) => {
-      if (stopped || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (stopped || paused || !ws || ws.readyState !== WebSocket.OPEN) return;
       const input = e.inputBuffer.getChannelData(0);
       const down = downsample(input, audioCtx.sampleRate, SAMPLE_RATE_IN);
       const b64 = floatToPcm16Base64(down);
@@ -225,9 +226,19 @@ export function createVoiceAgent(opts = {}) {
     try { onEnd({ transcript, conversationId }); } catch {}
   }
 
+  // Pause/resume without tearing down the connection: while paused we stop
+  // streaming the mic up AND stop playing the customer's audio down (and cut any
+  // in-progress playback). On resume, both flow again.
+  function setPaused(p) {
+    paused = !!p;
+    if (paused) stopPlayback();
+  }
+
   return {
     start,
     stop: finish,
+    setPaused,
+    isPaused: () => paused,
     getTranscript: () => transcript.slice(),
     getConversationId: () => conversationId,
   };
