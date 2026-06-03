@@ -2,11 +2,11 @@ import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
-import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
+import { createVoiceAgent } from './voice-agent.js?v=20260603-5';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-12 coaching-voice-stage';
+const BUILD_ID = '20260603-13 coaching-voice-diag';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2769,8 +2769,25 @@ function renderCall(scenario, opts = {}) {
   // for any reason, we fall back to the turn-based pipeline so the demo never
   // breaks.
   function startAgentSession() {
+    // Coaching practice (a brand-new agent that's still being configured) gets an
+    // on-screen diagnostic readout so the user can SEE the [voice-agent] signals
+    // (ws open/close codes, the agent's output audio format, whether any audio
+    // arrived) without opening the console — and screenshot it if it's silent.
+    let diagEl = null;
+    if (isCoaching) {
+      diagEl = document.createElement('pre');
+      diagEl.className = 'coaching-diag';
+      diagEl.setAttribute('aria-hidden', 'true');
+      (document.querySelector('.call[data-coaching]') || document.body).appendChild(diagEl);
+    }
+    const appendDiag = (line) => {
+      if (!diagEl) return;
+      diagEl.textContent += line + '\n';
+      diagEl.scrollTop = diagEl.scrollHeight;
+    };
     const agent = createVoiceAgent({
       scenarioId: scenario.id,
+      onLog: appendDiag,
       onStatus: (s) => {
         if (state.view !== 'call') return;
         if (s === 'connecting') setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');

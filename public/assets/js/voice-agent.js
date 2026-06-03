@@ -19,6 +19,7 @@ export function createVoiceAgent(opts = {}) {
     onAgentText = () => {},
     onEnd = () => {},
     onError = () => {},
+    onLog = () => {},
   } = opts;
 
   let ws = null;
@@ -37,7 +38,10 @@ export function createVoiceAgent(opts = {}) {
   const transcript = [];
 
   const setStatus = (s) => { try { onStatus(s); } catch {} };
-  const log = (...a) => { try { console.log('[voice-agent]', ...a); } catch {} };
+  const log = (...a) => {
+    try { console.log('[voice-agent]', ...a); } catch {}
+    try { onLog(a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')); } catch {}
+  };
   let gotAudio = false;
 
   // ---- playback (decode base64 PCM16 -> scheduled gapless playout) --------

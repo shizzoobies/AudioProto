@@ -3796,6 +3796,31 @@ body[data-coaching] .app-header { display: none; }
 .call[data-coaching] .call-dock-body { flex-direction: column; gap: 14px; }
 .call[data-coaching] .call-dock-aside { width: 100%; order: -1; }
 .call[data-coaching] .call-dock-convo { min-height: 140px; }
+/* On-screen [voice-agent] diagnostic for the coaching agent (temporary, while
+   the new agent is being configured): a small monospace log pinned bottom-left
+   so a silent call can be screenshotted and diagnosed without the console. */
+.coaching-diag {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 400;
+  max-width: min(440px, 46vw);
+  max-height: 38vh;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #d1fae5;
+  background: rgba(2, 6, 23, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
 .coaching-test {
   min-height: 80vh;
   display: flex;
