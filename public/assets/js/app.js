@@ -2,11 +2,11 @@ import { Conversation } from './conversation.js';
 import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
-import { createVoiceAgent } from './voice-agent.js?v=20260603-6';
+import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-14 coaching-fresh-vs-followup';
+const BUILD_ID = '20260603-15 coaching-recording-attribution';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -928,11 +928,17 @@ function renderCoachingTest() {
   const title = scenario.title || scenario.card_title || scenario.customer_name || 'Coaching Practice';
   const person = scenario.customer_name || 'them';
   const hasPrior = hasSavedCoaching(scenario.id);
+  const savedName = loadCoachingParticipant();
   dom.root.innerHTML = `
     <section class="coaching-test">
       <div class="coaching-test-card">
         <h1 class="coaching-test-title">${escapeHtml(title)}</h1>
         ${scenario.tagline ? `<p class="coaching-test-sub">${escapeHtml(scenario.tagline)}</p>` : ''}
+        <label class="coaching-test-name">
+          <span class="coaching-test-name-label">Your name</span>
+          <input class="coaching-test-name-input" id="coaching-name" type="text" autocomplete="name"
+            placeholder="So this session can be reviewed later" value="${escapeAttr(savedName)}" maxlength="60">
+        </label>
         <div class="coaching-test-options">
           <button class="primary-button coaching-test-start" data-mode="fresh" data-persona-id="${escapeAttr(scenario.id)}" type="button">
             <span class="coaching-opt-label">Start fresh call</span>
@@ -948,12 +954,27 @@ function renderCoachingTest() {
       </div>
     </section>
   `;
+  const nameInput = dom.root.querySelector('#coaching-name');
   dom.root.querySelectorAll('.coaching-test-start, .coaching-test-followup').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
-      startCall(btn.dataset.personaId, { mode: btn.dataset.mode });
+      const participant = nameInput ? nameInput.value.trim() : '';
+      saveCoachingParticipant(participant);
+      startCall(btn.dataset.personaId, { mode: btn.dataset.mode, participant });
     });
   });
+}
+
+// The participant's name (optional) — labels their ElevenLabs recording so the
+// manager can tell whose practice session is whose. Per-browser.
+function loadCoachingParticipant() {
+  try { return localStorage.getItem('coaching:participant') || ''; } catch { return ''; }
+}
+function saveCoachingParticipant(name) {
+  try {
+    if (name) localStorage.setItem('coaching:participant', name);
+    else localStorage.removeItem('coaching:participant');
+  } catch {}
 }
 
 // ---- Coaching transcript memory (for follow-up calls) ---------------------
@@ -1599,6 +1620,7 @@ async function startCall(typeOrPersonaId, opts = {}) {
     blind,
     coachingMode,
     priorTranscript,
+    participant: typeof opts.participant === 'string' ? opts.participant : '',
   };
   // New start sequence: the pre-call modal opens over the FULL scenario shell,
   // blurred — so the trainee sees the call they're about to take, not the
@@ -2824,6 +2846,7 @@ function renderCall(scenario, opts = {}) {
       scenarioId: scenario.id,
       mode: scenario.coachingMode || 'fresh',
       priorTranscript: Array.isArray(scenario.priorTranscript) ? scenario.priorTranscript : [],
+      participant: scenario.participant || '',
       onStatus: (s) => {
         if (state.view !== 'call') return;
         if (s === 'connecting') setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');

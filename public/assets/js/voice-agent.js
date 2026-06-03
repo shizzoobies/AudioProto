@@ -16,6 +16,7 @@ export function createVoiceAgent(opts = {}) {
     scenarioId,
     mode = 'fresh',
     priorTranscript = [],
+    participant = '',
     onStatus = () => {},
     onUserText = () => {},
     onAgentText = () => {},
@@ -117,7 +118,7 @@ export function createVoiceAgent(opts = {}) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript }),
+        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript, participant }),
       });
       data = await r.json().catch(() => null);
       if (!r.ok || !data?.signed_url) {
@@ -158,7 +159,11 @@ export function createVoiceAgent(opts = {}) {
         conversation_config_override: { agent: agentOverride },
       };
       if (ov.voice_id) init.conversation_config_override.tts = { voice_id: ov.voice_id };
-      try { ws.send(JSON.stringify(init)); log('init sent', { voice: ov.voice_id, first: (ov.first_message || '').slice(0, 40) }); } catch (e) { log('init send failed', e); }
+      // Attribution: tag the ElevenLabs recording with who made the call so the
+      // dashboard "Conversations" list is identifiable per user. The server
+      // decides the final id (invite identity + the name they entered).
+      if (data.user_id) init.user_id = data.user_id;
+      try { ws.send(JSON.stringify(init)); log('init sent', { voice: ov.voice_id, first: (ov.first_message || '').slice(0, 40), user: data.user_id || '' }); } catch (e) { log('init send failed', e); }
       startMic();
     };
     ws.onmessage = (ev) => handleMessage(ev.data);

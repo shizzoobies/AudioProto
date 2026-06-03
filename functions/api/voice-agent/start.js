@@ -77,6 +77,15 @@ export async function onRequestPost({ request, env }) {
   const isFollowup = isCoaching && mode === 'followup' && priorTranscript.length >= 2;
   const priorBlock = isFollowup ? buildPriorBlock(priorTranscript) : '';
 
+  // Attribution for the ElevenLabs recording: tag the conversation with WHO made
+  // it so the dashboard "Conversations" list is identifiable per user. Prefer the
+  // name the participant typed (the only signal that distinguishes individuals on
+  // the shared coaching link); fall back to the invite identity. ElevenLabs
+  // records audio + transcript automatically — this only labels them.
+  const participantName = typeof body?.participant === 'string' ? body.participant.trim().slice(0, 60) : '';
+  const inviteWho = inviteScope ? (inviteScope.recipient_name || inviteScope.recipient_email || '') : '';
+  const userId = (participantName || inviteWho || 'guest').replace(/\s+/g, ' ').slice(0, 120);
+
   const turnTaking = isCoaching
     ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are Taylor, just called into a one-on-one with your manager. You speak FIRST with a short, guarded greeting (your first message), then let your manager talk. Respond in character to whatever feedback they give - guarded and a little defensive. Keep replies short; do not give speeches.'
     : '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
@@ -86,6 +95,7 @@ export async function onRequestPost({ request, env }) {
 
   return json({
     signed_url: signedUrl,
+    user_id: userId,
     overrides: {
       prompt: (scenario.system_prompt || '') + dateBlock + turnTaking + priorBlock,
       // Coaching: Taylor opens (you hear her immediately). A follow-up opens by
