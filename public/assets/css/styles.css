@@ -2809,6 +2809,25 @@ body[data-demo] .report {
 .csf-sched-truck-rate { font-size: 13px; font-weight: 700; color: var(--color-text-primary); margin-top: 3px; }
 .csf-sched-truck-rate span { font-weight: 500; color: var(--color-text-secondary); }
 .csf-sched-addlinks { display: flex; flex-direction: column; gap: 9px; margin-bottom: 16px; }
+/* Scheduling right column: one block per move type (toggled in renderSched). */
+.csf-sched-block { display: flex; flex-direction: column; gap: 12px; }
+/* One-way "rep will call to finalize" advisory, read to the customer. */
+.csf-sched-advisory {
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent, #8c1d2b);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted, rgba(140, 29, 43, 0.04));
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.csf-sched-advisory-head {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--color-accent, #8c1d2b);
+}
 .csf-sched-loc-title { font-size: 13px; font-weight: 700; color: var(--color-text-primary); }
 .csf-sched-loc-name { font-size: 13px; font-style: italic; color: var(--color-text-secondary); margin: 2px 0 7px; }
 .csf-sched-loc-addr { font-size: 12.5px; color: var(--color-text-secondary); line-height: 1.55; }

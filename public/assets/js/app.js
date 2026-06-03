@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-6 masked-card-input';
+const BUILD_ID = '20260602-7 oneway-scheduling';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2114,20 +2114,40 @@ function renderCall(scenario, opts = {}) {
                     <div class="pos-sched-loc" id="pos-sched-loc"></div>
                   </div>
                   <div class="csf-sched-right">
-                    <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">What time would you like to pick up?</p></div>
-                    <label class="pos-field">
-                      <span class="pos-field-label">Available Times</span>
-                      <select class="pos-input" data-rsv="pickup_time">${timeSlotsHtml}</select>
-                    </label>
-                    <div class="pos-field">
-                      <span class="pos-field-label">Pickup Method</span>
-                      <div class="pos-radio-row">
-                        <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="in_store" checked> In Store</label>
-                        <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="truckshare"> TruckShare</label>
+                    <!-- One-way: pick AM/PM, then a local rep calls to finalize
+                         location/time/equipment (matches the real CSF). -->
+                    <div class="csf-sched-block" id="sched-oneway" hidden>
+                      <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">Would you prefer to pick up in the AM or PM?</p></div>
+                      <div class="pos-field">
+                        <div class="pos-radio-row">
+                          <label class="pos-radio"><input type="radio" name="pickup_window" data-rsv="pickup_window" value="A.M."> A.M.</label>
+                          <label class="pos-radio"><input type="radio" name="pickup_window" data-rsv="pickup_window" value="P.M." checked> P.M.</label>
+                        </div>
+                      </div>
+                      <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic" checked> Send to Traffic</label>
+                      <div class="csf-sched-advisory">
+                        <div class="csf-sched-advisory-head">IMPORTANT &mdash; READ TO CUSTOMER!</div>
+                        <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">A local Meridian representative will call you by 6:00 PM on <span id="sched-advisory-date">the day before your pickup</span> to get your agreement on and schedule available location, time, and equipment.</p></div>
+                        <label class="pos-check"><input type="checkbox" data-rsv-flag="advisory_read"> I have READ the above advisories to the customer</label>
                       </div>
                     </div>
-                    <a class="csf-link" style="display:inline-block;margin-bottom:12px;">Check Other Locations</a>
-                    <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic"> Send to Traffic</label>
+                    <!-- In-town: schedule a specific pickup time, as before. -->
+                    <div class="csf-sched-block" id="sched-intown" hidden>
+                      <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">What time would you like to pick up?</p></div>
+                      <label class="pos-field">
+                        <span class="pos-field-label">Available Times</span>
+                        <select class="pos-input" data-rsv="pickup_time">${timeSlotsHtml}</select>
+                      </label>
+                      <div class="pos-field">
+                        <span class="pos-field-label">Pickup Method</span>
+                        <div class="pos-radio-row">
+                          <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="in_store" checked> In Store</label>
+                          <label class="pos-radio"><input type="radio" name="pickup_method" data-rsv="pickup_method" value="truckshare"> TruckShare</label>
+                        </div>
+                      </div>
+                      <a class="csf-link" style="display:inline-block;margin-bottom:12px;">Check Other Locations</a>
+                      <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic"> Send to Traffic</label>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -3478,6 +3498,27 @@ function renderCall(scenario, opts = {}) {
     } else {
       posSchedLoc.innerHTML = '<p class="pos-card-empty">Select a pickup location on the previous step.</p>';
     }
+
+    // One-way moves use the AM/PM window + the rep-callback advisory (matching
+    // the real CSF); in-town keeps the specific-time scheduler. Toggle blocks.
+    const oneWay = getRsv('move_type') === 'one_way';
+    const owBlock = document.getElementById('sched-oneway');
+    const itBlock = document.getElementById('sched-intown');
+    if (owBlock) owBlock.hidden = !oneWay;
+    if (itBlock) itBlock.hidden = oneWay;
+    // Advisory date: a local rep calls by 6 PM the day before the pickup date.
+    const advEl = document.getElementById('sched-advisory-date');
+    if (advEl) {
+      const pd = getRsv('pickup_date'); // YYYY-MM-DD
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pd || '');
+      if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        d.setDate(d.getDate() - 1);
+        advEl.textContent = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+      } else {
+        advEl.textContent = 'the day before your pickup';
+      }
+    }
   }
 
   function renderLeftRail() {
@@ -4007,7 +4048,7 @@ function renderCall(scenario, opts = {}) {
                 <div class="csf-complete-model">${escapeHtml(q.truck ? q.truck.label.toUpperCase() : 'TRUCK')}</div>
                 <dl class="csf-complete-facts">
                   <div><dt>Pick Up Date:</dt><dd>${escapeHtml(getRsv('pickup_date') || 'TBD')}</dd></div>
-                  <div><dt>Pick Up Time:</dt><dd>${escapeHtml(getRsv('pickup_time') || 'TBD')}</dd></div>
+                  <div><dt>Pick Up Time:</dt><dd>${escapeHtml(q.oneWay ? `${getRsv('pickup_window') || 'P.M.'} (rep confirms exact time)` : (getRsv('pickup_time') || 'TBD'))}</dd></div>
                   <div><dt>Rental Length:</dt><dd>${escapeHtml(q.oneWay ? `${q.ow ? q.ow.days : 1} days (one-way)` : (rl ? rl.label : '1 day'))}</dd></div>
                   <div><dt>Rental Type:</dt><dd>${q.oneWay ? 'One Way' : 'In Town'}</dd></div>
                   ${ls ? `<div><dt>Move:</dt><dd>${escapeHtml(ls.label)}</dd></div>` : ''}
@@ -4037,7 +4078,7 @@ function renderCall(scenario, opts = {}) {
             </div>
             <div class="pos-receipt-readback" style="margin-top:16px;">
               <div class="pos-receipt-readback-title">Read back to the caller</div>
-              <p>"Your confirmation number is <strong class="mono">${escapeHtml(conf)}</strong>. We're holding a ${escapeHtml(q.truck ? q.truck.label : 'truck')} for you at the ${escapeHtml(loc.name || 'pickup')} location on ${escapeHtml(getRsv('pickup_date'))} at ${escapeHtml(getRsv('pickup_time') || 'your selected time')}. Your total comes to ${escapeHtml(fmtMoney(q.total))} on the card ending in ${escapeHtml(last4)}. Is there anything else I can help you with?"</p>
+              <p>"Your confirmation number is <strong class="mono">${escapeHtml(conf)}</strong>. We're holding a ${escapeHtml(q.truck ? q.truck.label : 'truck')} for you at the ${escapeHtml(loc.name || 'pickup')} location on ${escapeHtml(getRsv('pickup_date'))} ${q.oneWay ? `in the ${escapeHtml(getRsv('pickup_window') || 'P.M.')}, and a local Meridian representative will call you the day before to lock in the exact time and equipment` : `at ${escapeHtml(getRsv('pickup_time') || 'your selected time')}`}. Your total comes to ${escapeHtml(fmtMoney(q.total))} on the card ending in ${escapeHtml(last4)}. Is there anything else I can help you with?"</p>
             </div>
           </div>
         </div>
