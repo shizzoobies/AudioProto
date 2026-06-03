@@ -69,7 +69,7 @@ export async function onRequestPost({ request, env }) {
   // an explicit directive that overrides the persona prompt's "you already
   // greeted" note (written for the old turn-based flow).
   const turnTaking = scenarioId === 'coaching_practice'
-    ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are the team member, Tyler. Your MANAGER called you into this one-on-one and they speak FIRST. Stay silent until your manager has spoken. As soon as they start, respond in character (guarded, a little defensive).'
+    ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are the team member, Taylor. Your MANAGER called you into this one-on-one and they speak FIRST. Stay silent until your manager has spoken. As soon as they start, respond in character (guarded, a little defensive).'
     : '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
 
   // Robert's move date stays current (about two weekends out), computed now.
