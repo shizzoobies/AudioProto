@@ -3739,8 +3739,10 @@ body[data-recipient] #sign-out {
    sub-page reached by a coaching-mode invite. Reuses the recipient palette and
    the shared .primary-button; just a centered card with one Start button.
    ========================================================================= */
+/* Sealed coaching page: drop the global header chrome so it's just the card. */
+body[data-coaching] .app-header { display: none; }
 .coaching-test {
-  min-height: 70vh;
+  min-height: 80vh;
   display: flex;
   align-items: center;
   justify-content: center;

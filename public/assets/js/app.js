@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-9 coaching-living-voice';
+const BUILD_ID = '20260603-10 coaching-minimal';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -895,115 +895,48 @@ function wireLivingVoiceShell() {
 // conversation cancel, teardownAudio, title) and reuses startCall(personaId).
 function renderCoachingTest() {
   state.view = 'recipient_home';
-  // Borrow the demo's CSS surface (full-bleed app-main, single-screen overflow
-  // lock, orange/black theme) by flipping body[data-demo] on. This is purely a
-  // styling hook — state.recipient.is_demo stays false, so the demo-vs-coaching
-  // routing/return-path branches are unaffected. It gets overwritten on the next
-  // view; the report-scroll fix (body[data-demo][data-view="report"]) still
-  // applies because renderReport sets data-view='report'.
-  document.body.dataset.demo = 'true';
+  // Minimal coaching page: no demo shell/orb/splash/logo — just a centered title
+  // and a Start button. Keep the demo theme hook OFF so it's a clean screen.
+  delete document.body.dataset.demo;
+  document.body.dataset.coaching = 'true';
   document.body.dataset.view = 'home';
   state.activeScenario = null;
-  setDocumentTitle('');
+  setDocumentTitle('Coaching Practice');
   if (state.conversation) {
     state.conversation.cancel();
     state.conversation = null;
   }
-  // teardownAudio() also disposes any prior demoOrb (cancels its rAF), so we
-  // never stack two shader loops when re-entering this page.
   teardownAudio();
 
   const r = state.recipient || {};
   const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
-  // Auto-load: the FIRST assigned scenario is the one the tester runs. The
-  // recipient merge in init() already put it in personaById, so startCall can
-  // resolve it.
+  // Auto-load the first assigned scenario (already merged into personaById by init()).
   const scenario = scenarios[0] || null;
 
-  // No scenario assigned yet — keep the same cinematic shell, but the single
-  // line becomes a clean "nothing here" note instead of an actionable entry.
   if (!scenario) {
-    const emptyHtml = `
-      <li class="demo-entry demo-entry-empty" aria-disabled="true">
-        <span class="demo-entry-aura" aria-hidden="true"></span>
-        <div class="demo-entry-flip">
-          <div class="demo-entry-face demo-entry-front">
-            <div class="demo-entry-head">
-              <span class="demo-entry-status" aria-hidden="true">No line yet</span>
-            </div>
-            <div class="demo-entry-body">
-              <h2 class="demo-entry-name">No scenario assigned yet</h2>
-              <p class="demo-entry-tagline">This coaching link has no scenario yet. Please contact the person who sent it.</p>
-            </div>
-          </div>
+    dom.root.innerHTML = `
+      <section class="coaching-test">
+        <div class="coaching-test-card">
+          <h1 class="coaching-test-title">No scenario assigned yet</h1>
+          <p class="coaching-test-sub">This coaching link has no scenario yet. Please contact whoever sent it.</p>
         </div>
-      </li>
+      </section>
     `;
-    dom.root.innerHTML = renderLivingVoiceShell({
-      entriesHtml: emptyHtml,
-      linesLabel: 'Coaching line',
-      entriesModifier: 'demo-entries-single',
-    });
-    wireLivingVoiceShell();
     return;
   }
 
-  // The one coaching line: built exactly like a demo entry (same classes, same
-  // signal dot + waveform mark + flip), just centered as the single actionable
-  // element. Clicking it (or pressing Enter/Space) runs startCall(scenario.id),
-  // which flows into the coaching report exactly as the demo does.
-  const name = scenario.card_title || scenario.customer_name || scenario.title || 'Your coaching call';
-  const pointsHtml = (Array.isArray(scenario.points) ? scenario.points : [])
-    .map((pt) => `<li>${escapeHtml(pt)}</li>`).join('');
-  const wave = `<svg class="demo-entry-wave" viewBox="0 0 64 24" fill="none" aria-hidden="true">
-      <path d="M2 12 L10 12 L14 7 L18 17 L22 9 L26 15 L30 11 L34 13 L38 8 L42 16 L46 11 L50 12 L62 12"
-        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
-
-  const entryHtml = `
-    <li class="demo-entry demo-entry-${escapeAttr(scenario.id)}" data-persona-id="${escapeAttr(scenario.id)}" tabindex="0" role="button" style="--demo-entry-index:0" aria-label="Take the call: ${escapeAttr(name)}">
-      <span class="demo-entry-aura" aria-hidden="true"></span>
-      <div class="demo-entry-flip">
-        <div class="demo-entry-face demo-entry-front">
-          <div class="demo-entry-head">
-            <span class="demo-entry-signal" aria-hidden="true"><span class="demo-entry-dot"></span></span>
-            <span class="demo-entry-status" aria-hidden="true">Line open</span>
-          </div>
-          <div class="demo-entry-body">
-            <h2 class="demo-entry-name">${escapeHtml(name)}</h2>
-            <p class="demo-entry-customer">${escapeHtml(scenario.customer_short || '')}</p>
-            <p class="demo-entry-tagline">${escapeHtml(scenario.tagline || '')}</p>
-          </div>
-          <div class="demo-entry-foot">
-            <span class="demo-entry-cta">Take the call <span class="demo-entry-arrow" aria-hidden="true">→</span></span>
-            <span class="demo-entry-wave-wrap" aria-hidden="true">${wave}</span>
-          </div>
-        </div>
-        <div class="demo-entry-face demo-entry-back" aria-hidden="true">
-          <p class="demo-entry-back-label">In this call</p>
-          <ul class="demo-entry-points">${pointsHtml}</ul>
-          <span class="demo-entry-cta">Take the call <span class="demo-entry-arrow" aria-hidden="true">→</span></span>
-        </div>
+  const title = scenario.title || scenario.card_title || scenario.customer_name || 'Coaching Practice';
+  dom.root.innerHTML = `
+    <section class="coaching-test">
+      <div class="coaching-test-card">
+        <h1 class="coaching-test-title">${escapeHtml(title)}</h1>
+        ${scenario.tagline ? `<p class="coaching-test-sub">${escapeHtml(scenario.tagline)}</p>` : ''}
+        <button class="primary-button coaching-test-start" data-persona-id="${escapeAttr(scenario.id)}" type="button">Start the call <span aria-hidden="true">&rsaquo;</span></button>
       </div>
-    </li>
+    </section>
   `;
-
-  dom.root.innerHTML = renderLivingVoiceShell({
-    entriesHtml: entryHtml,
-    linesLabel: 'Your coaching line',
-    entriesModifier: 'demo-entries-single',
-  });
-
-  wireLivingVoiceShell();
-
-  // Same click + keydown → startCall wiring as the demo's entries.
-  dom.root.querySelectorAll('.demo-entry[data-persona-id]').forEach((card) => {
-    const go = () => startCall(card.dataset.personaId);
-    card.addEventListener('click', go);
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
-    });
-  });
+  const startBtn = dom.root.querySelector('.coaching-test-start');
+  if (startBtn) startBtn.addEventListener('click', () => startCall(startBtn.dataset.personaId));
 }
 
 // "The Living Voice" — a cinematic, sealed landing for the pitch demo recipient
