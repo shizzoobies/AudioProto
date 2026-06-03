@@ -66,14 +66,21 @@ export async function onRequestPost({ request, env }) {
 
   const wasZip = /^\d{5}$/.test(query);
 
+  // Bias the typeahead to where the customer is calling from (the client passes
+  // the scenario's origin), so "Cin" surfaces Cincinnati, OH instead of a San
+  // Antonio match. Defaults to the SA metro when no bias is provided. The cache
+  // is keyed by region so different biases never collide.
+  const center = parseBias(body?.bias);
+  const region = `${center.lat.toFixed(1)},${center.lng.toFixed(1)}`;
+
   // Primary: Google Places (only when a key is configured).
   if (env && env.GOOGLE_PLACES_API_KEY) {
-    const cached = await readCache('google', query);
+    const cached = await readCache('google', query, region);
     if (cached) return json({ results: cached }, 200, 'google-cache');
     try {
-      const results = await googleSearch(query, wasZip, env.GOOGLE_PLACES_API_KEY);
+      const results = await googleSearch(query, wasZip, env.GOOGLE_PLACES_API_KEY, center);
       if (results.length) {
-        await writeCache('google', query, results);
+        await writeCache('google', query, region, results);
         return json({ results }, 200, 'google');
       }
       // No matches: fall through to Photon rather than returning empty.
@@ -83,23 +90,33 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Fallback: Photon.
-  const cachedP = await readCache('photon', query);
+  const cachedP = await readCache('photon', query, region);
   if (cachedP) return json({ results: cachedP }, 200, 'photon-cache');
   let results;
   try {
-    results = await photonSearch(query, wasZip);
+    results = await photonSearch(query, wasZip, center);
   } catch {
     return jsonError('upstream_unreachable', 502);
   }
-  await writeCache('photon', query, results);
+  await writeCache('photon', query, region, results);
   return json({ results }, 200, 'photon');
+}
+
+// Validate a client-supplied {lat,lng} bias; fall back to the SA metro center.
+function parseBias(bias) {
+  const lat = bias ? Number(bias.lat) : NaN;
+  const lng = bias ? Number(bias.lng) : NaN;
+  if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+    return { lat, lng };
+  }
+  return { lat: SA_LAT, lng: SA_LON };
 }
 
 // --- Google Places Text Search (New) ---------------------------------------
 // Text Search returns full place objects (location + address components), so a
 // single call yields coordinates and we keep the same result contract as
 // Photon - no separate Place Details round-trip on selection.
-async function googleSearch(query, wasZip, key) {
+async function googleSearch(query, wasZip, key, center = { lat: SA_LAT, lng: SA_LON }) {
   const res = await fetch(GOOGLE_TEXT_SEARCH, {
     method: 'POST',
     headers: {
@@ -114,7 +131,7 @@ async function googleSearch(query, wasZip, key) {
       maxResultCount: 5,
       languageCode: 'en',
       locationBias: {
-        circle: { center: { latitude: SA_LAT, longitude: SA_LON }, radius: 50000 },
+        circle: { center: { latitude: center.lat, longitude: center.lng }, radius: 50000 },
       },
     }),
   });
@@ -154,13 +171,13 @@ function googleToResult(place, wasZip) {
 }
 
 // --- Komoot Photon (keyless OSM type-ahead) --------------------------------
-async function photonSearch(query, wasZip) {
+async function photonSearch(query, wasZip, center = { lat: SA_LAT, lng: SA_LON }) {
   const params = new URLSearchParams({
     q: query,
     limit: '8',
     lang: 'en',
-    lat: String(SA_LAT),
-    lon: String(SA_LON),
+    lat: String(center.lat),
+    lon: String(center.lng),
   });
   const upstreamUrl = `${PHOTON_SEARCH}?${params.toString()}`;
   const res = await fetch(upstreamUrl, {
@@ -221,13 +238,13 @@ function dedupe(rawResults) {
   return out;
 }
 
-function cacheKey(provider, query) {
-  return new Request(`https://geocode.cache/${provider}?q=${encodeURIComponent(query.toLowerCase())}`);
+function cacheKey(provider, query, region) {
+  return new Request(`https://geocode.cache/${provider}?q=${encodeURIComponent(query.toLowerCase())}&r=${encodeURIComponent(region || '')}`);
 }
 
-async function readCache(provider, query) {
+async function readCache(provider, query, region) {
   try {
-    const hit = await caches.default.match(cacheKey(provider, query));
+    const hit = await caches.default.match(cacheKey(provider, query, region));
     if (hit) return await hit.json();
   } catch {
     // Cache misses are non-fatal.
@@ -235,10 +252,10 @@ async function readCache(provider, query) {
   return null;
 }
 
-async function writeCache(provider, query, results) {
+async function writeCache(provider, query, region, results) {
   try {
     await caches.default.put(
-      cacheKey(provider, query),
+      cacheKey(provider, query, region),
       new Response(JSON.stringify(results), {
         headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${CACHE_TTL_SECONDS}` },
       })

@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-4';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-6 city-lookup+step-validation';
+const BUILD_ID = '20260603-7 geocode-origin-bias';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -3423,6 +3423,16 @@ function renderCall(scenario, opts = {}) {
     return geo.state ? `${geo.city}, ${geo.state}` : geo.city;
   }
 
+  // Bias the city typeahead toward where this customer is calling from (the
+  // scenario's origin), so "Cin" surfaces Cincinnati, not a San Antonio match.
+  // scenario.location may use `lon` or `lng`; null falls back to the SA default.
+  const geocodeBias = (() => {
+    const l = scenario.location;
+    if (!l || !Number.isFinite(l.lat)) return null;
+    const lng = Number.isFinite(l.lng) ? l.lng : l.lon;
+    return Number.isFinite(lng) ? { lat: l.lat, lng } : null;
+  })();
+
   // Look up candidate places for the city typeahead.
   async function geocodeSearch(query) {
     const q = (query || '').trim();
@@ -3432,7 +3442,7 @@ function renderCall(scenario, opts = {}) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: q, bias: geocodeBias }),
       });
       if (!res.ok) return [];
       const data = await res.json();
