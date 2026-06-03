@@ -17,6 +17,19 @@ const MAX_EXPIRY_DAYS = 365;
 const DEFAULT_EXPIRY_DAYS = 7;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Self-bootstrap the nullable `mode` column on invites. NULL/'standard' = the
+// normal recipient library page; 'coaching' = the dedicated coaching-test page.
+// This project can't run D1 migrations, so we add the column on demand and
+// swallow the "duplicate column" error if it already exists (mirrors
+// rubric.js ensureSeeded). Cheap to call before any invites read/write.
+async function ensureInviteModeColumn(env) {
+  try {
+    await env.DB.prepare(`ALTER TABLE invites ADD COLUMN mode TEXT`).run();
+  } catch {
+    // column already present
+  }
+}
+
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
   try {
@@ -27,10 +40,11 @@ export async function onRequestGet({ env }) {
 }
 
 async function listInvites(env) {
+  await ensureInviteModeColumn(env);
   const invitesRes = await env.DB.prepare(
     `SELECT id, recipient_email, recipient_name, created_at, expires_at,
             revoked, revoked_at, last_click_at, last_call_at, total_calls,
-            created_by
+            created_by, mode
      FROM invites
      ORDER BY revoked ASC, created_at DESC`
   ).all();
@@ -85,6 +99,7 @@ async function listInvites(env) {
       last_call_at: inv.last_call_at,
       total_calls: inv.total_calls,
       created_by: inv.created_by,
+      mode: inv.mode || null,
       scenarios: byInvite.get(inv.id) || [],
     })),
   });
@@ -102,6 +117,14 @@ export async function onRequestPost({ request, env }) {
 async function createInvites(request, env) {
   let body;
   try { body = await request.json(); } catch { return jsonError('invalid_request', 400); }
+
+  await ensureInviteModeColumn(env);
+
+  // Page mode for the recipient: 'coaching' renders the dedicated coaching-test
+  // sub-page (auto-loads one scenario, ends in the report). Anything else is a
+  // normal recipient library invite — stored as NULL to keep existing rows /
+  // behavior unchanged.
+  const mode = body?.mode === 'coaching' ? 'coaching' : null;
 
   // Validate scenario_ids
   const rawScenarios = Array.isArray(body?.scenario_ids) ? body.scenario_ids.filter((s) => typeof s === 'string') : [];
@@ -167,9 +190,10 @@ async function createInvites(request, env) {
         .prepare(`UPDATE invites
                   SET token_hash = ?, expires_at = ?,
                       recipient_name = COALESCE(?, recipient_name),
-                      created_by = COALESCE(?, created_by)
+                      created_by = COALESCE(?, created_by),
+                      mode = ?
                   WHERE id = ?`)
-        .bind(tokenHash, expiresAt, rec.name, createdBy, inviteId)
+        .bind(tokenHash, expiresAt, rec.name, createdBy, mode, inviteId)
         .run();
       const row = await env.DB
         .prepare(`SELECT created_at FROM invites WHERE id = ?`)
@@ -180,9 +204,9 @@ async function createInvites(request, env) {
       inviteId = randomId();
       await env.DB
         .prepare(`INSERT INTO invites
-                  (id, token_hash, recipient_email, recipient_name, created_at, expires_at, created_by)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`)
-        .bind(inviteId, tokenHash, rec.email, rec.name, now, expiresAt, createdBy)
+                  (id, token_hash, recipient_email, recipient_name, created_at, expires_at, created_by, mode)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(inviteId, tokenHash, rec.email, rec.name, now, expiresAt, createdBy, mode)
         .run();
     }
 
@@ -212,6 +236,7 @@ async function createInvites(request, env) {
       expires_at: expiresAt,
       created_at: createdAt,
       created_by: createdBy,
+      mode,
       reused,
       email_sent: emailResult.ok,
     };

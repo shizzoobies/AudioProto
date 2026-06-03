@@ -47,10 +47,27 @@ export async function onRequestGet({ request, env }) {
   }
   const coversLibrary = fullLib.length > 0 && fullLib.every((id) => scope.scenarios.has(id));
   const isPreview = scope.recipient_email === PREVIEW_RECIPIENT_EMAIL || coversLibrary;
+
+  // Coaching-test invite? Read the invite's `mode` column directly. Queried
+  // defensively (its own try/catch) so a DB that predates the column — i.e. no
+  // coaching invite has ever been created — is treated as not-coaching instead
+  // of throwing. getInviteScope's SELECT intentionally does NOT touch `mode`.
+  let isCoaching = false;
+  try {
+    const row = await env.DB
+      .prepare(`SELECT mode FROM invites WHERE id = ? LIMIT 1`)
+      .bind(scope.invite_id)
+      .first();
+    isCoaching = row?.mode === 'coaching';
+  } catch {
+    isCoaching = false;
+  }
+
   return json({
     active: true,
     is_demo: isDemo,
     is_preview: isPreview,
+    is_coaching: isCoaching,
     // Don't surface the internal sentinel address to the client.
     recipient_name: (isDemo || isPreview) ? null : (scope.recipient_name || null),
     recipient_email: (isDemo || isPreview) ? null : scope.recipient_email,

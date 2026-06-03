@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-11 debrand-umove';
+const BUILD_ID = '20260603-1 coaching-test-page';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -302,6 +302,12 @@ async function init() {
         state.recipient = me;
         // The demo is a sealed pitch surface: drop the global app header chrome.
         if (me.is_demo) document.body.dataset.demo = 'true';
+        // Coaching-test invite: a sealed single-scenario sub-page (auto-loads
+        // one scenario, ends in the report). Treated like the demo for chrome.
+        if (me.is_coaching) {
+          state.coachingTest = true;
+          document.body.dataset.coaching = 'true';
+        }
       }
     } else {
       // No scoped cookie - require a normal trainee session, else bounce to login.
@@ -374,7 +380,8 @@ async function init() {
     for (const s of (state.recipient.scenarios || [])) {
       if (s && s.id && !state.personaById.has(s.id)) state.personaById.set(s.id, { ...s });
     }
-    if (state.recipient.is_demo) renderDemoHome();
+    if (state.coachingTest) renderCoachingTest();
+    else if (state.recipient.is_demo) renderDemoHome();
     else renderRecipientHome();
   } else {
     renderHome();
@@ -599,6 +606,73 @@ function renderRecipientHome() {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
     });
   });
+}
+
+// Coaching-test page (is_coaching invite). A sealed, minimal sub-page: it
+// auto-loads the FIRST assigned scenario into a single centered card and
+// offers one Start button that runs the normal call (which flows into the
+// coaching report). No scenario list, no library nav — its own little page.
+// The post-report "New call" path returns here (see renderReport). Mirrors
+// renderRecipientHome's pre-amble (view/scenario reset, conversation cancel,
+// teardownAudio, title) and reuses the same startCall(personaId) wiring.
+function renderCoachingTest() {
+  state.view = 'recipient_home';
+  document.body.dataset.view = 'home';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  const r = state.recipient || {};
+  const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
+  // Auto-load: the FIRST assigned scenario is the one the tester runs. The
+  // recipient merge in init() already put it in personaById, so startCall can
+  // resolve it.
+  const scenario = scenarios[0] || null;
+  const name = typeof r.recipient_name === 'string' && r.recipient_name.trim()
+    ? r.recipient_name.trim()
+    : '';
+
+  if (!scenario) {
+    dom.root.innerHTML = `
+      <section class="coaching-test">
+        <div class="coaching-test-card">
+          <div class="coaching-test-eyebrow">Coaching test</div>
+          <h1 class="coaching-test-title">No scenario assigned</h1>
+          <p class="coaching-test-sub">This coaching test link has no scenario yet. Please contact the person who sent it.</p>
+        </div>
+      </section>
+    `;
+    return;
+  }
+
+  const heading = scenario.customer_name || scenario.title || 'Your coaching test';
+
+  dom.root.innerHTML = `
+    <section class="coaching-test">
+      <div class="coaching-test-card">
+        <div class="coaching-test-eyebrow">Coaching test</div>
+        <h1 class="coaching-test-title">${escapeHtml(heading)}</h1>
+        ${scenario.customer_short ? `<p class="coaching-test-customer">${escapeHtml(scenario.customer_short)}</p>` : ''}
+        ${scenario.tagline ? `<p class="coaching-test-sub">${escapeHtml(scenario.tagline)}</p>` : ''}
+        <div class="coaching-test-disclaimer" role="note">
+          <strong>This is a voice call.</strong> When prompted, please allow microphone access so the customer can hear you. At the end you will get a coaching report.
+        </div>
+        <button class="primary-button coaching-test-start" data-persona-id="${escapeAttr(scenario.id)}" type="button">
+          Start the call <span aria-hidden="true">›</span>
+        </button>
+        ${name ? `<p class="coaching-test-foot">Signed in as ${escapeHtml(name)}</p>` : ''}
+      </div>
+    </section>
+  `;
+
+  const startBtn = dom.root.querySelector('.coaching-test-start');
+  if (startBtn) {
+    startBtn.addEventListener('click', () => startCall(startBtn.dataset.personaId));
+  }
 }
 
 // "The Living Voice" — a cinematic, sealed landing for the pitch demo recipient
@@ -1524,7 +1598,8 @@ function returnFromPreCall() {
     // Re-render so the sealed home (and its WebGL orb) rebuilds cleanly; the
     // stashed backdrop, if any, is discarded.
     state.precallStash = null;
-    if (state.recipient.is_demo) renderDemoHome();
+    if (state.coachingTest) renderCoachingTest();
+    else if (state.recipient.is_demo) renderDemoHome();
     else renderRecipientHome();
     return;
   }
@@ -2768,7 +2843,8 @@ function renderCall(scenario, opts = {}) {
     conversation.cancel();
     teardownAudio();
     if (state.recipient) {
-      if (state.recipient.is_demo) renderDemoHome();
+      if (state.coachingTest) renderCoachingTest();
+      else if (state.recipient.is_demo) renderDemoHome();
       else renderRecipientHome();
     } else renderPicker();
   });
@@ -4320,7 +4396,7 @@ function renderReport(scenario, report) {
   const onNewCall = state.kiosk
     ? () => startCall(scenario.id)
     : state.recipient
-      ? (state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
+      ? (state.coachingTest ? renderCoachingTest : state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
       : renderPicker;
   const node = renderReportHtml(scenario, report, {
     onNewCall,
@@ -4344,7 +4420,7 @@ function renderShortCall(scenario) {
   `;
   document.getElementById('ended-back').addEventListener('click',
     state.kiosk ? () => startCall(scenario.id)
-    : state.recipient ? (state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
+    : state.recipient ? (state.coachingTest ? renderCoachingTest : state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
     : renderPicker);
   document.getElementById('ended-retry').addEventListener('click', () => startCall(scenario.id));
 }
@@ -4364,7 +4440,7 @@ function renderCoachingError(scenario, messages, err) {
   `;
   document.getElementById('error-back').addEventListener('click',
     state.kiosk ? () => startCall(scenario.id)
-    : state.recipient ? (state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
+    : state.recipient ? (state.coachingTest ? renderCoachingTest : state.recipient.is_demo ? renderDemoHome : renderRecipientHome)
     : renderPicker);
   document.getElementById('error-retry').addEventListener('click', () => runCoaching(scenario, messages));
 }

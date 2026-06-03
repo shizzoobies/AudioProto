@@ -300,6 +300,13 @@ function paintDashboard() {
               <option value="never">Never</option>
             </select>
           </div>
+          <div class="admin-field">
+            <label class="admin-field-label" for="admin-mode">Page</label>
+            <select id="admin-mode" class="admin-select">
+              <option value="standard" selected>Recipient library</option>
+              <option value="coaching">Coaching test page</option>
+            </select>
+          </div>
           <div class="admin-send-cell">
             <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Send invite</button>
           </div>
@@ -1023,7 +1030,7 @@ function renderInviteList(invites) {
     return `
       <div class="admin-invite-card ${status.cls}" data-id="${escapeAttr(inv.id)}">
         <div class="admin-invite-recipient">
-          <div class="admin-invite-name">${escapeHtml(inv.recipient_name || inv.recipient_email)}</div>
+          <div class="admin-invite-name">${escapeHtml(inv.recipient_name || inv.recipient_email)}${inv.mode === 'coaching' ? ' <span class="admin-mode-badge">Coaching</span>' : ''}</div>
           ${inv.recipient_name ? `<div class="admin-invite-email">${escapeHtml(inv.recipient_email)}</div>` : ''}
         </div>
         <div class="admin-invite-scenarios">${chips}</div>
@@ -1548,6 +1555,8 @@ async function onGenerate(e) {
 
   const expiryVal = document.getElementById('admin-expiry').value;
   const expires_days = expiryVal === 'never' ? 'never' : parseInt(expiryVal, 10);
+  const modeEl = document.getElementById('admin-mode');
+  const mode = modeEl && modeEl.value === 'coaching' ? 'coaching' : 'standard';
 
   btn.disabled = true;
   btn.textContent = 'Sending...';
@@ -1556,7 +1565,7 @@ async function onGenerate(e) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ scenario_ids: scenarioIds, recipients: [{ email, name }], expires_days }),
+      body: JSON.stringify({ scenario_ids: scenarioIds, recipients: [{ email, name }], expires_days, mode }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
