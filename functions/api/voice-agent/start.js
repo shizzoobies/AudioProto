@@ -7,7 +7,7 @@
 // requires a valid session/invite cookie; we further restrict to demo scenarios
 // and the visitor's scope).
 
-import { getScenario, DEMO_SCENARIO_IDS } from '../../../shared/scenarios.js';
+import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
 
 const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
@@ -61,10 +61,13 @@ export async function onRequestPost({ request, env }) {
   // greeted" note (written for the old turn-based flow).
   const turnTaking = '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
 
+  // Robert's move date stays current (about two weekends out), computed now.
+  const dateBlock = scenarioId === 'demo_sales' ? '\n\n' + demoSalesDateBlock(new Date()) : '';
+
   return json({
     signed_url: signedUrl,
     overrides: {
-      prompt: (scenario.system_prompt || '') + turnTaking,
+      prompt: (scenario.system_prompt || '') + dateBlock + turnTaking,
       first_message: '',
       language: 'en',
       voice_id: scenario.voice_id || null,

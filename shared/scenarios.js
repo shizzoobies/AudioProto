@@ -1324,7 +1324,7 @@ const PERSONA_DEFS = {
     // title for the report header, a situation summary, and the success criteria
     // the rubric scores against - tuned to this call's goals (urgency + close).
     title: 'One-Way Reservation',
-    description: 'Robert Keller is relocating his family from Cincinnati, Ohio to Austin, Texas in about two and a half weeks and called Meridian to price a one-way truck for his three-bedroom move (a 26-foot one-way). He has not booked anything yet, keeps planning to "do it this weekend," and is in no rush to commit on this call. He is not price-shopping; what holds him back is committing in the moment, and he will not be led into a yes. He raises real objections - wanting to run a decision this size past his wife Beth, nerves about driving a 26-foot truck cross-country, and his habit of putting it off - and a generic or pushy agent loses him to "let me think about it." His timeline has no slack: the closing on the Cincinnati house is set and his new-job start date is a fixed Monday he cannot miss. The agent should understand the move, recommend and price the one-way truck, build genuine urgency around that real deadline (limited one-way inventory on his route and weekend, and the rate holding if he books now) without fake pressure, work through his real hesitations (often by making the reservation feel low-risk and reversible so committing now does not feel like going around Beth), and actually ask for the business and lock the reservation before the call ends. This is a hard call with a real chance he does not book.',
+    description: 'Robert Keller is relocating his family from Cincinnati, Ohio to Austin, Texas in a couple of weekends and called Meridian to price a one-way truck for his three-bedroom move (a 26-foot one-way). He has not booked anything yet, keeps planning to "do it this weekend," and is in no rush to commit on this call. He is not price-shopping; what holds him back is committing in the moment, and he will not be led into a yes. He raises real objections - wanting to run a decision this size past his wife Beth, nerves about driving a 26-foot truck cross-country, and his habit of putting it off - and a generic or pushy agent loses him to "let me think about it." His timeline has no slack: the closing on the Cincinnati house is set and his new-job start date is a fixed Monday he cannot miss. The agent should understand the move, recommend and price the one-way truck, build genuine urgency around that real deadline (limited one-way inventory on his route and weekend, and the rate holding if he books now) without fake pressure, work through his real hesitations (often by making the reservation feel low-risk and reversible so committing now does not feel like going around Beth), and actually ask for the business and lock the reservation before the call ends. This is a hard call with a real chance he does not book.',
     success_criteria: [
       "Open with a warm, branded greeting and understand Robert's move before pitching: one-way, Cincinnati to Austin (about 1,050 miles), three-bedroom house.",
       'Recommend the right equipment (a 26-foot one-way truck) and present the one-way rate clearly and confidently, without haggling or apologizing for the price.',
@@ -1336,7 +1336,7 @@ const PERSONA_DEFS = {
     identity: 'a 43-year-old operations manager relocating his family from Cincinnati, Ohio to Austin, Texas, calling Meridian Moving & Storage to price a one-way truck',
     emotional_state: 'warm and easygoing, with dry humor, but genuinely hesitant to commit today. You came to "just get a number" and your instinct is to keep one foot out the door ("let me run it by my wife," "I will sort it out this weekend"). You are not prickly or hostile - you are friendly the whole way through - you just need real reasons before you will lock something in. When an agent actually earns it, you are glad to book.',
     situation: [
-      'You are pricing a one-way truck for a move from Cincinnati, OH to Austin, TX, about 1,050 miles, roughly two and a half weeks out. Your three-bedroom house needs a 26-foot one-way truck.',
+      'You are pricing a one-way truck for a move from Cincinnati, OH to Austin, TX, about 1,050 miles, a couple of weekends out (see YOUR MOVE TIMELINE for the exact date). Your three-bedroom house needs a 26-foot one-way truck.',
       'You have not booked anything yet. You called to "just get a ballpark," and in your head you keep meaning to actually book "this weekend" when you can sit down and sort it out.',
       'Respond to what the agent actually says, like a real person on a call: friendly, practical, a little harried, with some dry humor about how behind you are.',
       'Your timeline has zero slack: the closing on your Cincinnati house is set and your new-job start date is a fixed Monday you cannot miss, so you want to drive out the weekend before. Your brother Dave already arranged time off to co-drive around that date.',
@@ -2210,6 +2210,32 @@ export function getScenarioType(id) {
 // SCENARIOS (so getScenario resolves them) but in no SCENARIO_TYPE (so they
 // never surface in listScenarioTypesForDisplay / the picker / the admin list).
 export const DEMO_SCENARIO_IDS = ['demo_sales', 'demo_service'];
+
+// Robert's (demo_sales) move-out day must stay current: it is always about two
+// weekends from "now". Computed at request time from the server clock and
+// injected into his prompt (voice agent start.js + turn-based fallback chat.js)
+// so the demo never quotes a stale date. `now` is a Date. Returns a prompt block.
+export function demoSalesDateBlock(now) {
+  const tz = 'America/New_York'; // Robert is in Cincinnati (Eastern)
+  const dayMs = 86400000;
+  const shortWd = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(now);
+  const idx = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[shortWd] ?? 0;
+  // Anchor on "this weekend's" Saturday: upcoming Sat for Mon-Fri, today if Sat,
+  // and yesterday's Sat if it's Sunday (Sunday is still part of this weekend).
+  const daysToSaturday = idx === 0 ? -1 : (6 - idx + 7) % 7;
+  const moveOffset = daysToSaturday + 14;     // about two weekends out
+  const fmtFull = (d) => new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(d);
+  const fmtDay = (d) => new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric' }).format(d);
+  const move = new Date(now.getTime() + moveOffset * dayMs);
+  const start = new Date(now.getTime() + (moveOffset + 2) * dayMs); // the Monday after the move Saturday
+  return [
+    'YOUR MOVE TIMELINE (anchored to the real calendar - these dates are authoritative, use them):',
+    `- Today is ${fmtFull(now)}.`,
+    `- Your planned move-out day is ${fmtDay(move)} - about two weekends from now. You pick up the truck that Saturday morning and drive out that weekend with your brother Dave co-driving.`,
+    `- Your new job in Austin starts ${fmtDay(start)} (the Monday right after you drive out). That start date and your Cincinnati house closing are fixed and cannot move - that is the real, hard deadline behind this whole call.`,
+    '- When the agent asks when you are moving or when you need the truck, give that Saturday naturally ("the weekend of the [day]" or "that Saturday"). Speak dates in words, not digits.',
+  ].join('\n');
+}
 
 // Lightweight display tuples for the demo landing and the admin demo status,
 // resolved straight from SCENARIOS so they work even though the ids are not in

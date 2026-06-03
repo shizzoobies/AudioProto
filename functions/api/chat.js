@@ -1,4 +1,4 @@
-import { getScenario, DEMO_SCENARIO_IDS } from '../../shared/scenarios.js';
+import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../shared/scenarios.js';
 import { verifyToken, getMagicScope, getInviteScope } from '../../shared/auth.js';
 import { recordUsage } from '../../shared/usage.js';
 
@@ -84,6 +84,7 @@ export async function onRequestPost(context) {
     usePremium,
     isShowcase,
     openingLine: body?.opening_line,
+    demoDateBlock: body?.scenario_id === 'demo_sales' ? demoSalesDateBlock(new Date()) : '',
   });
 
   const callModel = (m) => fetch(ANTHROPIC_URL, {
@@ -146,7 +147,7 @@ export async function onRequestPost(context) {
 // `cache_control: ephemeral` to the static prefix. Anthropic caches every
 // block up to AND INCLUDING the marked one, so we mark the LAST static
 // block. The dynamic block goes after — never cached.
-function buildSystemBlocks({ scenarioPrompt, weatherBlock, usePremium, isShowcase, openingLine }) {
+function buildSystemBlocks({ scenarioPrompt, weatherBlock, usePremium, isShowcase, openingLine, demoDateBlock }) {
   const staticBlocks = [
     { type: 'text', text: scenarioPrompt },
   ];
@@ -162,6 +163,7 @@ function buildSystemBlocks({ scenarioPrompt, weatherBlock, usePremium, isShowcas
 
   const dynamicText = [
     currentDateBlock(),
+    demoDateBlock,
     weatherBlock,
     openingContinuationBlock(openingLine),
   ].filter(Boolean).join('\n\n');
