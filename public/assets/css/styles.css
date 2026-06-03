@@ -5211,6 +5211,12 @@ body[data-recipient] #sign-out {
   gap: 14px;
   align-items: end;
 }
+.admin-send-hint {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--color-accent, #8c1d2b);
+}
+.admin-send-hint[hidden] { display: none; }
 .admin-field {
   display: flex;
   flex-direction: column;

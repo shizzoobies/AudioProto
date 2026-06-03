@@ -308,6 +308,7 @@ function paintDashboard() {
             <button type="submit" class="primary-button" id="admin-generate-btn" disabled>Send invite</button>
           </div>
         </div>
+        <p class="admin-send-hint" id="admin-send-hint">Pick at least one scenario above to send. Open a track with the arrow on the right, then check a scenario. (For a coaching test page, pick exactly one.)</p>
       </form>
 
       <div id="admin-generated" class="admin-generated"></div>
@@ -993,6 +994,10 @@ function updateSelectionCount() {
 
   const btn = document.getElementById('admin-generate-btn');
   if (btn) btn.disabled = total === 0;
+
+  // Tell the admin why Send is disabled (no scenario picked yet).
+  const sendHint = document.getElementById('admin-send-hint');
+  if (sendHint) sendHint.hidden = total !== 0;
 
   document.querySelectorAll('[data-type-count]').forEach((el) => {
     const tid = el.dataset.typeCount;
