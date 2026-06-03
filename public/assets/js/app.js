@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260602-5 location-screen-rebuild';
+const BUILD_ID = '20260602-6 masked-card-input';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2222,7 +2222,7 @@ function renderCall(scenario, opts = {}) {
               <div class="pos-card-body pos-cc">
                 <label class="pos-field">
                   <span class="pos-field-label">Card Number</span>
-                  <input class="pos-input" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="4539 1488 0343 6467" maxlength="23">
+                  <input class="pos-input pos-cc-num" data-rsv="card_number" type="text" inputmode="numeric" autocomplete="off" placeholder="" maxlength="23" aria-label="Card number (masked as you type)">
                 </label>
                 <div class="pos-grid-2">
                   <label class="pos-field">

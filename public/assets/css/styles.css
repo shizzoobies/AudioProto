@@ -3379,6 +3379,15 @@ body[data-demo] .report {
 
 /* Credit card panel */
 .pos-cc { gap: 10px; }
+/* Card number is tokenized: the live digits are masked as the agent types so
+   the full number is never shown on screen (mirrors a real POS). The real value
+   stays in the input for validation; the BRAND + last-4 chip confirms entry. */
+.pos-cc-num {
+  -webkit-text-security: disc;
+  text-security: disc;
+  letter-spacing: 0.22em;
+  font-family: var(--font-mono, monospace);
+}
 .pos-cc-chip {
   display: inline-flex;
   align-items: center;
