@@ -354,7 +354,7 @@ function paintDashboard() {
           </label>
           <label class="admin-all-scenarios">
             <input type="checkbox" id="admin-mode-coaching">
-            <span class="admin-all-scenarios-text"><strong>Coaching practice page</strong> — this invite opens the coaching home with the agents you grant below.</span>
+            <span class="admin-all-scenarios-text"><strong>Coaching practice page</strong> — this invite opens the coaching home with the scenarios you grant below.</span>
           </label>
           <div class="admin-coaching-picker" id="admin-coaching-picker" hidden>
             ${renderCoachingAgentPicker(state.coachingAgents)}
@@ -1114,7 +1114,7 @@ function renderCoachingAgentPicker(agents) {
   return `
     <label class="admin-coaching-agent-opt admin-coaching-agent-all">
       <input type="checkbox" id="admin-coaching-all" name="coaching_agent_id" value="__all_coaching__">
-      <span class="admin-coaching-agent-text"><strong>All coaching agents</strong> — grant every active agent, including ones authored later.</span>
+      <span class="admin-coaching-agent-text"><strong>All scenarios</strong> — grant every active scenario, including ones added later.</span>
     </label>
     <div class="admin-coaching-agent-rows">${rows}</div>`;
 }
@@ -1171,7 +1171,7 @@ function updateSelectionCount() {
 // sentinel as "All coaching agents". Normal scenarios keep their display name.
 function coachingScenarioLabel(s) {
   const id = s && s.id;
-  if (id === '__all_coaching__') return 'All coaching agents';
+  if (id === '__all_coaching__') return 'All scenarios';
   if (typeof id === 'string' && id.startsWith('ca_')) {
     const agent = (state.coachingAgents || []).find((a) => a && a.id === id);
     return (agent && ((agent.scenario_name && agent.scenario_name.trim()) || agent.name)) || id;
@@ -1588,7 +1588,7 @@ function renderCoachingVoicesSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Voices</h2>
-        <p class="admin-section-sub">The voices your agents can use. The easiest way: add voices (with labels) to the shared ElevenLabs agent, then click <strong>Import from ElevenLabs</strong> below to pull them in by name — no voice IDs to copy. You can also add one manually.</p>
+        <p class="admin-section-sub">The voices your scenarios can use. The easiest way: add voices (with labels) to the shared ElevenLabs agent, then click <strong>Import from ElevenLabs</strong> below to pull them in by name — no voice IDs to copy. You can also add one manually.</p>
       </header>
 
       <div class="admin-cv-toolbar">
@@ -1970,7 +1970,7 @@ function renderCoachingAgentsSection() {
         </div>
 
         <div class="admin-field admin-ca-wide admin-ca-actions">
-          <button type="submit" class="primary-button" id="ca-save-btn">Save agent</button>
+          <button type="submit" class="primary-button" id="ca-save-btn">Save scenario</button>
           <button type="button" class="ghost-button" id="ca-clear-btn">Clear / new</button>
         </div>
       </form>
@@ -1982,7 +1982,7 @@ function renderCoachingAgentsSection() {
 
 function renderCoachingAgentsList(agents) {
   if (!Array.isArray(agents) || !agents.length) {
-    return '<div class="admin-empty">No coaching agents yet. Author one above.</div>';
+    return '<div class="admin-empty">No scenarios yet. Create one above.</div>';
   }
   return agents.map((a) => {
     const modes = [
@@ -2100,7 +2100,7 @@ async function onSaveCoachingAgent(e) {
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
       showCoachingAgentError(parts.length ? parts.join(' — ') : (res.statusText || 'Save failed'));
-      if (btn) { btn.disabled = false; btn.textContent = 'Save agent'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Save scenario'; }
       return;
     }
     state.editingCoachingAgentId = null;
@@ -2108,7 +2108,7 @@ async function onSaveCoachingAgent(e) {
     refreshCoachingAgentsSection();
   } catch (err) {
     showCoachingAgentError('Network error: ' + (err?.message || String(err)));
-    if (btn) { btn.disabled = false; btn.textContent = 'Save agent'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Save scenario'; }
   }
 }
 
@@ -2169,11 +2169,11 @@ function clearCoachingAgentForm() {
   check('ca-active', true);
   showCoachingAgentError('');
   const btn = document.getElementById('ca-save-btn');
-  if (btn) { btn.disabled = false; btn.textContent = 'Save agent'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Save scenario'; }
 }
 
 async function deleteCoachingAgent(id) {
-  if (!confirm('Delete this coaching agent? This cannot be undone.')) return;
+  if (!confirm('Delete this scenario? This cannot be undone.')) return;
   showCoachingAgentError('');
   try {
     const res = await fetch('/api/admin/coaching-agents?id=' + encodeURIComponent(id), {
@@ -2494,7 +2494,7 @@ async function onGenerate(e) {
       const hasAuthoredAgents = Array.isArray(state.coachingAgents) && state.coachingAgents.length > 0;
       if (!picked.length) {
         if (hasAuthoredAgents) {
-          out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one coaching agent (or "All coaching agents").</div>';
+          out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one scenario (or "All scenarios").</div>';
           return;
         }
         scenarioIds = ['coaching_practice'];
