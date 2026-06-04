@@ -6248,6 +6248,14 @@ body[data-precall] #app-root {
 .admin-modal .report { max-width: none; }
 
 /* ---- Admin: Coaching agents (authoring) ---------------------------------- */
+.admin-back { margin: 0 0 16px; }
+.admin-back-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.admin-back-link:hover { color: var(--color-text-primary); text-decoration: underline; }
 .admin-req { color: var(--color-accent); }
 .admin-field-hint {
   display: block;

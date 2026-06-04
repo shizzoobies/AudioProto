@@ -41,13 +41,23 @@ const state = {
 
 init();
 
+// This SPA serves two pages off the same bundle: the main admin dashboard and a
+// dedicated Coaching-agents page (public/admin-coaching.html sets
+// data-admin-page="coaching"). After auth we route to the right one.
+const ADMIN_PAGE = body.dataset.adminPage || 'dashboard';
+
+async function renderAfterAuth() {
+  if (ADMIN_PAGE === 'coaching') return renderCoachingPage();
+  return renderDashboard();
+}
+
 async function init() {
   body.dataset.appState = 'ready';
   const sessionRes = await fetch('/api/admin/session', { credentials: 'same-origin' });
   if (sessionRes.ok) {
     const data = await sessionRes.json().catch(() => null);
     state.admin = data?.admin || null;
-    await renderDashboard();
+    await renderAfterAuth();
     return;
   }
   // Not a full admin — maybe a scoped review-editor link (cs_review).
@@ -100,7 +110,7 @@ function renderLogin(errorMsg) {
         body: JSON.stringify({ password: pw }),
       });
       if (res.ok) {
-        await renderDashboard();
+        await renderAfterAuth();
       } else {
         renderLogin('Wrong password.');
       }
@@ -149,6 +159,34 @@ async function renderDashboard() {
   logoutBtn.hidden = false;
   await loadData();
   paintDashboard();
+}
+
+// ---- Dedicated Coaching-agents page (admin-coaching.html) ------------------
+// Its own page so the busy main dashboard stays clean. Reuses the shared
+// session/helpers and the same renderCoachingAgentsSection()/handlers; loads
+// only what this page needs instead of the full dashboard payload.
+async function renderCoachingPage() {
+  logoutBtn.hidden = false;
+  if (!state.admin) {
+    try {
+      const s = await fetch('/api/admin/session', { credentials: 'same-origin' });
+      if (s.ok) { const d = await s.json(); state.admin = d.admin || null; }
+    } catch (e) { console.warn('session load failed', e); }
+  }
+  try {
+    const r = await fetch('/api/admin/coaching-agents', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.coachingAgents = d.agents || []; }
+  } catch (e) { console.warn('coaching agents load failed', e); }
+  paintCoachingPage();
+}
+
+function paintCoachingPage() {
+  root.innerHTML = `
+    ${renderSignedInBar()}
+    <p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>
+    ${renderCoachingAgentsSection()}
+  `;
+  attachCoachingAgentsHandlers();
 }
 
 async function loadData() {
@@ -354,7 +392,7 @@ function paintDashboard() {
 
     ${renderCoachingSection()}
 
-    ${renderCoachingAgentsSection()}
+    ${renderCoachingAgentsLinkCard()}
 
     ${renderChartsSection()}
 
@@ -407,7 +445,6 @@ function paintDashboard() {
   attachInviteListHandlers();
   attachDemoHandlers();
   attachCoachingHandlers();
-  attachCoachingAgentsHandlers();
   attachChartsHandlers();
   attachPreviewHandlers();
   attachRubricHandlers();
@@ -428,7 +465,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
   { id: 'sec-coaching', label: 'Coaching link' },
-  { id: 'sec-coaching-agents', label: 'Coaching agents' },
+  { id: 'sec-coaching-agents-link', label: 'Coaching agents' },
   { id: 'sec-charts', label: 'Charts link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
@@ -1477,6 +1514,26 @@ function levelOptions(selected) {
   return ['low', 'medium', 'high']
     .map((lv) => `<option value="${lv}"${lv === selected ? ' selected' : ''}>${lv[0].toUpperCase() + lv.slice(1)}</option>`)
     .join('');
+}
+
+// Dashboard pointer card — the full Coaching-agents editor lives on its own page
+// (admin-coaching.html) to keep the dashboard uncluttered.
+function renderCoachingAgentsLinkCard() {
+  const n = Array.isArray(state.coachingAgents) ? state.coachingAgents.length : 0;
+  const countLabel = n === 0 ? 'No agents yet' : `${n} agent${n === 1 ? '' : 's'}`;
+  return `
+    <section class="admin-section" id="sec-coaching-agents-link">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Coaching agents</h2>
+        <p class="admin-section-sub">The library of coachable AI employees managers practice on. Authored and managed on their own page.</p>
+      </header>
+      <div class="admin-invite-card is-active" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span class="admin-muted">${escapeHtml(countLabel)}</span>
+        <a class="primary-button" href="/admin-coaching">Open coaching agents &rarr;</a>
+      </div>
+    </section>
+  `;
 }
 
 function renderCoachingAgentsSection() {
