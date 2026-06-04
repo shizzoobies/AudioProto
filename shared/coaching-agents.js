@@ -12,6 +12,15 @@ import { COACHING_RULES } from './scenarios.js';
 // The three conversation framings a profile can be run in.
 export const COACHING_AGENT_MODES = ['assessment', 'coaching', 'followup'];
 
+// The shared ElevenLabs agent that hosts every coachable employee — the
+// hardcoded coaching_practice (Taylor) AND every admin-authored ca_ agent run on
+// it; per-conversation prompt/voice overrides differentiate them. The named-voice
+// import also reads its supported voices. SINGLE SOURCE OF TRUTH — change it here
+// (or override per-deploy with the COACHING_AGENT_ID env var). The agent must
+// have overrides enabled (System prompt, First message, Voice, Language),
+// Authentication ON, and PCM output, or calls go silent.
+export const SHARED_COACHING_AGENT_ID = 'agent_7001kt9ky2afftqr5mbcp6jh0qxq';
+
 // Build the full system-prompt string for one coachable agent.
 //   profile : a row from coaching_agents (as returned by the admin API)
 //   opts    : { mode, priorTranscript }

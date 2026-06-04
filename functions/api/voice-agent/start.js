@@ -9,18 +9,9 @@
 
 import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
-import { buildCoachingAgentPrompt, COACHING_AGENT_MODES } from '../../../shared/coaching-agents.js';
+import { buildCoachingAgentPrompt, COACHING_AGENT_MODES, SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
 
 const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
-// The shared ElevenLabs agent that hosts every coachable employee — both the
-// hardcoded coaching_practice (Taylor) and any admin-authored ca_ agent. The
-// per-conversation prompt/voice overrides differentiate them.
-const SHARED_COACHING_AGENT_ID = 'agent_2501kt72x065ff4r9f308xq1fsha';
-// Scenarios that run on their OWN dedicated ElevenLabs agent (otherwise the
-// default demo agent is used). The coaching scenario has its own agent.
-const AGENT_BY_SCENARIO = {
-  coaching_practice: SHARED_COACHING_AGENT_ID,
-};
 const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
 // Scenarios allowed on the real-time voice agent: the demo personas + coaching.
 const VOICE_AGENT_SCENARIOS = new Set([...DEMO_SCENARIO_IDS, 'coaching_practice']);
@@ -63,12 +54,13 @@ export async function onRequestPost({ request, env }) {
     return jsonError('not_a_voice_agent_scenario', 403);
   }
 
-  // Pick the agent: authored agents + coaching_practice share one coaching
-  // agent; demo personas use their mapped or the default agent (env override
-  // still wins for the default).
-  const agentId = isCoachingAgent
-    ? SHARED_COACHING_AGENT_ID
-    : (AGENT_BY_SCENARIO[scenarioId] || env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID);
+  // Pick the agent: coaching_practice (Taylor) + every authored ca_ agent run on
+  // the shared coaching agent (env override wins); demo personas use the default
+  // demo agent.
+  const isAnyCoaching = isCoachingAgent || scenarioId === 'coaching_practice';
+  const agentId = isAnyCoaching
+    ? (env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID)
+    : (env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID);
 
   // Same scope checks as /api/chat: magic-link + invite recipients are limited to
   // their assigned scenarios. (Agent/owner sessions pass through.) getInviteScope

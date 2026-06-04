@@ -10,13 +10,15 @@
 // GET - { voices: [ { label, voice_id } ] }
 // Middleware (functions/api/_middleware.js) enforces the cs_admin cookie.
 
-const SHARED_COACHING_AGENT_ID = 'agent_2501kt72x065ff4r9f308xq1fsha';
+import { SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
+
 const AGENT_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/agents/';
 
 export async function onRequestGet({ env }) {
   if (!env.ELEVENLABS_API_KEY) return jsonError('elevenlabs_key_missing', 500);
   try {
-    const r = await fetch(`${AGENT_ENDPOINT}${SHARED_COACHING_AGENT_ID}`, {
+    const agentId = env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID;
+    const r = await fetch(`${AGENT_ENDPOINT}${agentId}`, {
       headers: { 'xi-api-key': env.ELEVENLABS_API_KEY },
     });
     if (!r.ok) {
