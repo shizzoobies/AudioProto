@@ -6431,6 +6431,9 @@ body[data-precall] #app-root {
   margin-bottom: 16px;
 }
 .admin-cv-form .admin-field { margin-bottom: 0; }
+.admin-voice-row { display: flex; gap: 8px; align-items: center; }
+.admin-voice-row .admin-select { flex: 1; min-width: 0; }
+.admin-voice-row .ghost-button { flex: none; white-space: nowrap; }
 .admin-cv-voice-id {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11.5px;

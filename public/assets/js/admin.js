@@ -1626,6 +1626,7 @@ function renderCoachingVoicesList(voices) {
         </div>
       </div>
       <div class="admin-ca-row-actions">
+        <button type="button" class="ghost-button" data-cv-preview="${escapeAttr(v.voice_id)}">&#9654; Preview</button>
         <button type="button" class="ghost-button" data-cv-delete="${escapeAttr(v.id)}">Delete</button>
       </div>
     </div>
@@ -1669,6 +1670,40 @@ function attachCoachingVoicesHandlers() {
   document.querySelectorAll('[data-cv-delete]').forEach((btn) => {
     btn.addEventListener('click', () => deleteCoachingVoice(btn.dataset.cvDelete));
   });
+  document.querySelectorAll('[data-cv-preview]').forEach((btn) => {
+    btn.addEventListener('click', () => playVoicePreview(btn.dataset.cvPreview, btn));
+  });
+}
+
+// ---- Voice preview (shared single player) ---------------------------------
+// Streams a voice sample from /api/admin/voice-preview (same-origin, CSP-safe).
+// One Audio at a time; clicking the playing button stops it.
+let voicePreviewAudio = null;
+let voicePreviewBtn = null;
+function stopVoicePreview() {
+  if (voicePreviewAudio) { try { voicePreviewAudio.pause(); } catch {} voicePreviewAudio = null; }
+  if (voicePreviewBtn) { voicePreviewBtn.innerHTML = voicePreviewBtn.dataset.label || '&#9654; Preview'; voicePreviewBtn = null; }
+}
+function playVoicePreview(voiceId, btn) {
+  if (!voiceId) {
+    if (btn) { const orig = btn.innerHTML; btn.textContent = 'Pick a voice first'; setTimeout(() => { btn.innerHTML = orig; }, 1400); }
+    return;
+  }
+  const wasThis = voicePreviewBtn === btn;
+  stopVoicePreview();
+  if (wasThis) return; // second click on the same button = stop
+  const audio = new Audio('/api/admin/voice-preview?voice_id=' + encodeURIComponent(voiceId));
+  voicePreviewAudio = audio;
+  voicePreviewBtn = btn;
+  if (btn) { btn.dataset.label = btn.innerHTML; btn.textContent = 'Loading…'; }
+  audio.addEventListener('playing', () => { if (voicePreviewBtn === btn && btn) btn.innerHTML = '&#9632; Stop'; });
+  audio.addEventListener('ended', () => { if (voicePreviewBtn === btn) stopVoicePreview(); });
+  audio.addEventListener('error', () => {
+    if (btn) { btn.textContent = 'No preview'; }
+    if (voicePreviewBtn === btn) { voicePreviewAudio = null; }
+    setTimeout(() => { if (btn && btn.textContent === 'No preview') { btn.innerHTML = btn.dataset.label || '&#9654; Preview'; if (voicePreviewBtn === btn) voicePreviewBtn = null; } }, 1600);
+  });
+  audio.play().catch(() => { if (btn) btn.textContent = 'No preview'; });
 }
 
 // Pull the labeled voices already configured on the shared ElevenLabs agent and
@@ -1787,11 +1822,15 @@ async function reloadCoachingVoices() {
     const r = await fetch('/api/admin/coaching-voices', { credentials: 'same-origin' });
     if (r.ok) { const d = await r.json(); state.coachingVoices = d.voices || []; }
   } catch (e) { console.warn('coaching voices reload failed', e); }
+  stopVoicePreview();
   const listEl = document.getElementById('admin-cv-list');
   if (listEl) listEl.innerHTML = renderCoachingVoicesList(state.coachingVoices);
-  // Re-wire delete buttons on the freshly rendered list
+  // Re-wire delete + preview buttons on the freshly rendered list
   document.querySelectorAll('[data-cv-delete]').forEach((btn) => {
     btn.addEventListener('click', () => deleteCoachingVoice(btn.dataset.cvDelete));
+  });
+  document.querySelectorAll('[data-cv-preview]').forEach((btn) => {
+    btn.addEventListener('click', () => playVoicePreview(btn.dataset.cvPreview, btn));
   });
   refreshVoiceSelect();
 }
@@ -1866,7 +1905,10 @@ function renderCoachingAgentsSection() {
         </div>
         <div class="admin-field">
           <label class="admin-field-label" for="ca-voice">Voice</label>
-          <select id="ca-voice" class="admin-select">${renderVoiceOptions('')}</select>
+          <div class="admin-voice-row">
+            <select id="ca-voice" class="admin-select">${renderVoiceOptions('')}</select>
+            <button type="button" class="ghost-button" id="ca-voice-preview">&#9654; Preview</button>
+          </div>
           <span class="admin-field-hint">Pick a named voice. Add voices in the Voices panel above. Enable each on the shared ElevenLabs agent.</span>
         </div>
 
@@ -1968,6 +2010,13 @@ function attachCoachingAgentsHandlers() {
   if (form) form.addEventListener('submit', onSaveCoachingAgent);
   const clearBtn = document.getElementById('ca-clear-btn');
   if (clearBtn) clearBtn.addEventListener('click', clearCoachingAgentForm);
+  const voicePreviewBtnEl = document.getElementById('ca-voice-preview');
+  if (voicePreviewBtnEl) {
+    voicePreviewBtnEl.addEventListener('click', () => {
+      const sel = document.getElementById('ca-voice');
+      playVoicePreview(sel ? sel.value : '', voicePreviewBtnEl);
+    });
+  }
 
   document.querySelectorAll('[data-ca-edit]').forEach((btn) => {
     btn.addEventListener('click', () => editCoachingAgent(btn.dataset.caEdit));
