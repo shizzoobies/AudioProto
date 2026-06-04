@@ -29,6 +29,7 @@ const state = {
   lastCoachingUrl: null, // last generated coaching URL (shown once with a Copy button)
   coachingAgents: [],  // [{id, name, role_title, attitude, resistance, receptiveness, ...}] — authored coachable agents
   editingCoachingAgentId: null, // id of the coaching agent currently loaded into the form, or null
+  coachingVoices: [],  // [{id, name, voice_id, created_at}] — named EL voice catalogue
   charts: null,        // { active, created_at, last_click_at }
   lastChartsUrl: null, // last generated charts URL (shown once with a Copy button)
   preview: null,       // { active, created_at, last_click_at, scenario_count }
@@ -144,6 +145,7 @@ async function logout() {
   state.lastCoachingUrl = null;
   state.coachingAgents = [];
   state.editingCoachingAgentId = null;
+  state.coachingVoices = [];
   state.charts = null;
   state.lastChartsUrl = null;
   state.preview = null;
@@ -177,6 +179,10 @@ async function renderCoachingPage() {
     const r = await fetch('/api/admin/coaching-agents', { credentials: 'same-origin' });
     if (r.ok) { const d = await r.json(); state.coachingAgents = d.agents || []; }
   } catch (e) { console.warn('coaching agents load failed', e); }
+  try {
+    const r = await fetch('/api/admin/coaching-voices', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.coachingVoices = d.voices || []; }
+  } catch (e) { console.warn('coaching voices load failed', e); }
   paintCoachingPage();
 }
 
@@ -184,8 +190,10 @@ function paintCoachingPage() {
   root.innerHTML = `
     ${renderSignedInBar()}
     <p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>
+    ${renderCoachingVoicesSection()}
     ${renderCoachingAgentsSection()}
   `;
+  attachCoachingVoicesHandlers();
   attachCoachingAgentsHandlers();
 }
 
@@ -1566,6 +1574,171 @@ function paintCoachingGenerated() {
   });
 }
 
+// ---- Coaching voices (named EL voice catalogue) ----------------------------
+// Admins add voices once (friendly name + raw EL voice id). Agent authors then
+// pick by name from a dropdown rather than pasting raw ids. The raw voice_id is
+// still stored on each coaching_agent row — this is purely a catalogue.
+
+function renderCoachingVoicesSection() {
+  return `
+    <section class="admin-section" id="sec-coaching-voices">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Voices</h2>
+        <p class="admin-section-sub">Add the ElevenLabs voices your agents can use. Give each a friendly name; whoever builds an agent just picks the name. Enable each voice on the shared ElevenLabs agent.</p>
+      </header>
+
+      <form id="admin-cv-form" class="admin-cv-form" autocomplete="off">
+        <div class="admin-field">
+          <label class="admin-field-label" for="cv-name">Name</label>
+          <input type="text" id="cv-name" class="admin-input" placeholder="e.g. Taylor (US Female)" required>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="cv-voice-id">Voice ID</label>
+          <input type="text" id="cv-voice-id" class="admin-input" placeholder="ElevenLabs voice id" required>
+        </div>
+        <div class="admin-field admin-cv-submit-field">
+          <label class="admin-field-label" style="visibility:hidden">Add</label>
+          <button type="submit" class="primary-button">Add voice</button>
+        </div>
+      </form>
+      <div id="admin-cv-alert"></div>
+      <div id="admin-cv-list">${renderCoachingVoicesList(state.coachingVoices)}</div>
+    </section>
+  `;
+}
+
+function renderCoachingVoicesList(voices) {
+  if (!Array.isArray(voices) || voices.length === 0) {
+    return '<div class="admin-empty">No voices yet.</div>';
+  }
+  return voices.map((v) => `
+    <div class="admin-ca-row" data-cv-id="${escapeAttr(v.id)}">
+      <div class="admin-ca-row-main">
+        <div class="admin-ca-row-name">${escapeHtml(v.name)}</div>
+        <div class="admin-ca-row-meta">
+          <span class="admin-cv-voice-id">${escapeHtml(v.voice_id)}</span>
+        </div>
+      </div>
+      <div class="admin-ca-row-actions">
+        <button type="button" class="ghost-button" data-cv-delete="${escapeAttr(v.id)}">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Render <option> elements for the #ca-voice select. If selectedVoiceId is
+// set but not present in state.coachingVoices, prepend a "Custom (id)" option
+// so the legacy/custom value is never silently dropped.
+function renderVoiceOptions(selectedVoiceId) {
+  const id = selectedVoiceId || '';
+  const voices = state.coachingVoices || [];
+  const found = id === '' || voices.some((v) => v.voice_id === id);
+  let opts = `<option value="">No voice (use agent default)</option>`;
+  if (id && !found) {
+    opts += `<option value="${escapeAttr(id)}" selected>Custom (${escapeHtml(id)})</option>`;
+  }
+  opts += voices.map((v) => {
+    const sel = v.voice_id === id ? ' selected' : '';
+    return `<option value="${escapeAttr(v.voice_id)}"${sel}>${escapeHtml(v.name)}</option>`;
+  }).join('');
+  return opts;
+}
+
+// Rebuild #ca-voice innerHTML, preserving the current selection.
+function refreshVoiceSelect() {
+  const sel = document.getElementById('ca-voice');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = renderVoiceOptions(current);
+  sel.value = current;
+}
+
+function attachCoachingVoicesHandlers() {
+  const form = document.getElementById('admin-cv-form');
+  if (form) form.addEventListener('submit', onAddCoachingVoice);
+
+  document.querySelectorAll('[data-cv-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteCoachingVoice(btn.dataset.cvDelete));
+  });
+}
+
+async function onAddCoachingVoice(e) {
+  e.preventDefault();
+  const alertEl = document.getElementById('admin-cv-alert');
+  if (alertEl) alertEl.innerHTML = '';
+
+  const name = (document.getElementById('cv-name')?.value || '').trim();
+  const voice_id = (document.getElementById('cv-voice-id')?.value || '').trim();
+  if (!name || !voice_id) {
+    if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">Name and Voice ID are both required.</div>`;
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
+  try {
+    const res = await fetch('/api/admin/coaching-voices', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, voice_id }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">${escapeHtml(parts.length ? parts.join(' — ') : (res.statusText || 'Add failed'))}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Add voice'; }
+      return;
+    }
+    // Clear inputs
+    const nameEl = document.getElementById('cv-name');
+    const vidEl = document.getElementById('cv-voice-id');
+    if (nameEl) nameEl.value = '';
+    if (vidEl) vidEl.value = '';
+    if (btn) { btn.disabled = false; btn.textContent = 'Add voice'; }
+    await reloadCoachingVoices();
+  } catch (err) {
+    if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Add voice'; }
+  }
+}
+
+async function deleteCoachingVoice(id) {
+  if (!confirm('Delete this voice? Agents already using its voice_id will keep working, but it will no longer appear in the dropdown.')) return;
+  try {
+    const res = await fetch('/api/admin/coaching-voices?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      alert('Delete failed: ' + (parts.length ? parts.join(' — ') : res.statusText));
+      return;
+    }
+    await reloadCoachingVoices();
+  } catch (err) {
+    alert('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+// Re-fetch voices, update state, re-render the list and refresh the agent
+// form select in place (preserving the current selection).
+async function reloadCoachingVoices() {
+  try {
+    const r = await fetch('/api/admin/coaching-voices', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.coachingVoices = d.voices || []; }
+  } catch (e) { console.warn('coaching voices reload failed', e); }
+  const listEl = document.getElementById('admin-cv-list');
+  if (listEl) listEl.innerHTML = renderCoachingVoicesList(state.coachingVoices);
+  // Re-wire delete buttons on the freshly rendered list
+  document.querySelectorAll('[data-cv-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteCoachingVoice(btn.dataset.cvDelete));
+  });
+  refreshVoiceSelect();
+}
+
 // ---- Coaching agents (authoring) ------------------------------------------
 // Admin authoring of the coachable AI "employees" managers practice on. Phase 1:
 // create / edit / list / delete profiles. These are NOT yet wired into the live
@@ -1635,9 +1808,9 @@ function renderCoachingAgentsSection() {
           <input type="text" id="ca-role" class="admin-input" placeholder="e.g. Reservations agent">
         </div>
         <div class="admin-field">
-          <label class="admin-field-label" for="ca-voice">Voice ID</label>
-          <input type="text" id="ca-voice" class="admin-input" placeholder="ElevenLabs voice id">
-          <span class="admin-field-hint">Enable this voice on the shared ElevenLabs agent.</span>
+          <label class="admin-field-label" for="ca-voice">Voice</label>
+          <select id="ca-voice" class="admin-select">${renderVoiceOptions('')}</select>
+          <span class="admin-field-hint">Pick a named voice. Add voices in the Voices panel above. Enable each on the shared ElevenLabs agent.</span>
         </div>
 
         <div class="admin-field">
@@ -1836,7 +2009,11 @@ function populateCoachingAgentForm(agent) {
   set('ca-name', agent.name);
   set('ca-age', agent.age ?? '');
   set('ca-role', agent.role_title);
-  set('ca-voice', agent.voice_id);
+  const voiceSel = document.getElementById('ca-voice');
+  if (voiceSel) {
+    voiceSel.innerHTML = renderVoiceOptions(agent.voice_id || '');
+    voiceSel.value = agent.voice_id || '';
+  }
   set('ca-attitude', agent.attitude || COACHING_ATTITUDES[0]);
   set('ca-resistance', agent.resistance || 'medium');
   set('ca-receptiveness', agent.receptiveness || 'medium');
@@ -1861,6 +2038,9 @@ function clearCoachingAgentForm() {
   if (form) form.reset();
   const idEl = document.getElementById('ca-id');
   if (idEl) idEl.value = '';
+  // Rebuild the voice select so form.reset() doesn't land on a stale value.
+  const voiceSel = document.getElementById('ca-voice');
+  if (voiceSel) { voiceSel.innerHTML = renderVoiceOptions(''); voiceSel.value = ''; }
   // form.reset() restores checkbox defaults from the HTML, but be explicit:
   const check = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
   check('ca-mode-coaching', true);
