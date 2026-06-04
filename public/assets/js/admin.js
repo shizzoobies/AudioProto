@@ -1585,8 +1585,13 @@ function renderCoachingVoicesSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Voices</h2>
-        <p class="admin-section-sub">Add the ElevenLabs voices your agents can use. Give each a friendly name; whoever builds an agent just picks the name. Enable each voice on the shared ElevenLabs agent.</p>
+        <p class="admin-section-sub">The voices your agents can use. The easiest way: add voices (with labels) to the shared ElevenLabs agent, then click <strong>Import from ElevenLabs</strong> below to pull them in by name — no voice IDs to copy. You can also add one manually.</p>
       </header>
+
+      <div class="admin-cv-toolbar">
+        <button type="button" class="primary-button" id="admin-cv-import">Import from ElevenLabs</button>
+        <span class="admin-field-hint">Pulls the labeled voices already on your shared coaching agent.</span>
+      </div>
 
       <form id="admin-cv-form" class="admin-cv-form" autocomplete="off">
         <div class="admin-field">
@@ -1658,9 +1663,60 @@ function attachCoachingVoicesHandlers() {
   const form = document.getElementById('admin-cv-form');
   if (form) form.addEventListener('submit', onAddCoachingVoice);
 
+  const importBtn = document.getElementById('admin-cv-import');
+  if (importBtn) importBtn.addEventListener('click', onImportElevenLabsVoices);
+
   document.querySelectorAll('[data-cv-delete]').forEach((btn) => {
     btn.addEventListener('click', () => deleteCoachingVoice(btn.dataset.cvDelete));
   });
+}
+
+// Pull the labeled voices already configured on the shared ElevenLabs agent and
+// add any that aren't in the catalogue yet (deduped by voice_id). The admin
+// never has to copy a raw voice id — they just label voices in ElevenLabs.
+async function onImportElevenLabsVoices() {
+  const alertEl = document.getElementById('admin-cv-alert');
+  const btn = document.getElementById('admin-cv-import');
+  if (alertEl) alertEl.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Importing...'; }
+  try {
+    const r = await fetch('/api/admin/elevenlabs-voices', { credentials: 'same-origin' });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) {
+      const parts = [d?.error, d?.detail].filter(Boolean);
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">Couldn't reach ElevenLabs: ${escapeHtml(parts.length ? parts.join(' — ') : (r.statusText || 'failed'))}</div>`;
+      return;
+    }
+    const incoming = Array.isArray(d?.voices) ? d.voices : [];
+    if (!incoming.length) {
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert">No voices found on the ElevenLabs agent. Add voices (with labels) to the agent first, then import.</div>`;
+      return;
+    }
+    const existing = new Set((state.coachingVoices || []).map((v) => v.voice_id));
+    const toAdd = incoming.filter((v) => v && v.voice_id && !existing.has(v.voice_id));
+    if (!toAdd.length) {
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-success">All ${incoming.length} voice(s) are already imported.</div>`;
+      return;
+    }
+    let added = 0;
+    for (const v of toAdd) {
+      try {
+        const res = await fetch('/api/admin/coaching-voices', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: v.label || 'Unnamed voice', voice_id: v.voice_id }),
+        });
+        if (res.ok) added++;
+      } catch {}
+    }
+    await reloadCoachingVoices();
+    if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-success">Imported ${added} voice(s) from ElevenLabs.</div>`;
+  } catch (err) {
+    if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Import from ElevenLabs'; }
+  }
 }
 
 async function onAddCoachingVoice(e) {

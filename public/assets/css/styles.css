@@ -6416,6 +6416,13 @@ body[data-precall] #app-root {
 }
 
 /* ---- Coaching voices ---------------------------------------------------- */
+.admin-cv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
 .admin-cv-form {
   display: flex;
   gap: 10px;
