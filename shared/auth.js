@@ -255,6 +255,17 @@ export async function getInviteScope(request, env) {
     .all();
   const scenarios = new Set((sceneRes?.results || []).map((r) => r.scenario_id));
 
+  // Expand the "all coaching agents" sentinel into concrete ca_ ids so the
+  // downstream access checks (voice-agent/start, me/status) see real agent ids
+  // rather than the sentinel. Keep the sentinel in the set too (harmless). Must
+  // never throw — if the coaching_agents table doesn't exist yet, just skip.
+  if (scenarios.has('__all_coaching__')) {
+    try {
+      const r = await env.DB.prepare('SELECT id FROM coaching_agents WHERE active = 1').all();
+      for (const row of r?.results || []) scenarios.add(row.id);
+    } catch {}
+  }
+
   return {
     invite_id: row.id,
     recipient_email: row.recipient_email,

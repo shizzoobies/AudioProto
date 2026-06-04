@@ -346,8 +346,11 @@ function paintDashboard() {
           </label>
           <label class="admin-all-scenarios">
             <input type="checkbox" id="admin-mode-coaching">
-            <span class="admin-all-scenarios-text"><strong>Coaching test page</strong> — this invite opens the dedicated coaching practice page (the coachee agent). No scenario pick needed; just add a name and email and send.</span>
+            <span class="admin-all-scenarios-text"><strong>Coaching practice page</strong> — this invite opens the coaching home with the agents you grant below.</span>
           </label>
+          <div class="admin-coaching-picker" id="admin-coaching-picker" hidden>
+            ${renderCoachingAgentPicker(state.coachingAgents)}
+          </div>
           <div class="admin-types-list">${typesHtml}</div>
         </div>
 
@@ -423,6 +426,7 @@ function paintDashboard() {
   // Coaching-test invites use the dedicated coaching scenario, so turning the
   // checkbox on clears any library picks (and enables Send via updateSelectionCount).
   const coachingBox = document.getElementById('admin-mode-coaching');
+  const coachingPicker = document.getElementById('admin-coaching-picker');
   if (coachingBox) {
     coachingBox.addEventListener('change', () => {
       if (coachingBox.checked) {
@@ -430,9 +434,29 @@ function paintDashboard() {
         const ab = document.getElementById('admin-all-scenarios');
         if (ab) { ab.checked = false; ab.indeterminate = false; }
       }
+      // Reveal the coaching-agent picker only while in coaching mode.
+      if (coachingPicker) coachingPicker.hidden = !coachingBox.checked;
       updateSelectionCount();
     });
   }
+  // "All coaching agents" overrides the individual agent checkboxes: when it's
+  // on, disable + ignore the per-agent picks.
+  const coachingAll = document.getElementById('admin-coaching-all');
+  if (coachingAll) {
+    const syncAll = () => {
+      form.querySelectorAll('input[name="coaching_agent_id"]').forEach((cb) => {
+        if (cb === coachingAll) return;
+        cb.disabled = coachingAll.checked;
+      });
+      updateSelectionCount();
+    };
+    coachingAll.addEventListener('change', syncAll);
+    syncAll();
+  }
+  form.querySelectorAll('input[name="coaching_agent_id"]').forEach((cb) => {
+    if (cb.id === 'admin-coaching-all') return;
+    cb.addEventListener('change', updateSelectionCount);
+  });
   const allBox = document.getElementById('admin-all-scenarios');
   if (allBox) {
     allBox.addEventListener('change', () => {
@@ -1057,6 +1081,33 @@ function renderType(t) {
   `;
 }
 
+// Coaching-agent picker shown when the invite is in coaching mode. Lists the
+// authored agents (checkboxes, value = ca_ id) PLUS an "All coaching agents"
+// checkbox (value = '__all_coaching__'). When there are zero authored agents we
+// fall back to the legacy coaching_practice so the feature still works, plus a
+// hint linking to /admin-coaching to author agents.
+function renderCoachingAgentPicker(agents) {
+  const list = Array.isArray(agents) ? agents.filter((a) => a && a.id) : [];
+  if (!list.length) {
+    return `
+      <div class="admin-coaching-picker-empty">
+        <p class="admin-muted">No coaching agents authored yet — this invite will use the built-in coaching practice (Taylor).</p>
+        <p class="admin-muted"><a href="/admin-coaching" target="_blank" rel="noopener">Create coaching agents →</a></p>
+      </div>`;
+  }
+  const rows = list.map((a) => `
+    <label class="admin-coaching-agent-opt">
+      <input type="checkbox" name="coaching_agent_id" value="${escapeAttr(a.id)}">
+      <span class="admin-coaching-agent-text">${escapeHtml(a.name || a.id)}${a.role_title ? ` <span class="admin-muted">· ${escapeHtml(a.role_title)}</span>` : ''}</span>
+    </label>`).join('');
+  return `
+    <label class="admin-coaching-agent-opt admin-coaching-agent-all">
+      <input type="checkbox" id="admin-coaching-all" name="coaching_agent_id" value="__all_coaching__">
+      <span class="admin-coaching-agent-text"><strong>All coaching agents</strong> — grant every active agent, including ones authored later.</span>
+    </label>
+    <div class="admin-coaching-agent-rows">${rows}</div>`;
+}
+
 function updateSelectionCount() {
   const form = document.getElementById('admin-create-form');
   if (!form) return;
@@ -1078,13 +1129,21 @@ function updateSelectionCount() {
   }
 
   const coaching = !!document.getElementById('admin-mode-coaching')?.checked;
-  const btn = document.getElementById('admin-generate-btn');
-  if (btn) btn.disabled = !coaching && total === 0;
+  // Whether the coaching picker has a usable selection. When there are NO
+  // authored agents the picker shows only the legacy fallback, so coaching mode
+  // is valid on its own. When agents exist, the admin must pick at least one
+  // (or "All coaching agents").
+  const hasAuthoredAgents = Array.isArray(state.coachingAgents) && state.coachingAgents.length > 0;
+  const coachingAllChecked = !!document.getElementById('admin-coaching-all')?.checked;
+  const coachingPicked = form.querySelectorAll('input[name="coaching_agent_id"]:checked').length;
+  const coachingReady = coaching && (!hasAuthoredAgents || coachingAllChecked || coachingPicked > 0);
 
-  // Tell the admin why Send is disabled (no scenario picked yet). Coaching-test
-  // invites auto-use the dedicated coaching scenario, so no pick is needed.
+  const btn = document.getElementById('admin-generate-btn');
+  if (btn) btn.disabled = coaching ? !coachingReady : total === 0;
+
+  // Tell the admin why Send is disabled (no scenario / no agent picked yet).
   const sendHint = document.getElementById('admin-send-hint');
-  if (sendHint) sendHint.hidden = coaching || total !== 0;
+  if (sendHint) sendHint.hidden = (coaching && coachingReady) || (!coaching && total !== 0);
 
   document.querySelectorAll('[data-type-count]').forEach((el) => {
     const tid = el.dataset.typeCount;
@@ -1096,6 +1155,19 @@ function updateSelectionCount() {
 
 // ---- Invite list ----------------------------------------------------------
 
+// Human label for an assigned scenario chip. Maps ca_ ids to the authored
+// agent's name (via state.coachingAgents) and renders the '__all_coaching__'
+// sentinel as "All coaching agents". Normal scenarios keep their display name.
+function coachingScenarioLabel(s) {
+  const id = s && s.id;
+  if (id === '__all_coaching__') return 'All coaching agents';
+  if (typeof id === 'string' && id.startsWith('ca_')) {
+    const agent = (state.coachingAgents || []).find((a) => a && a.id === id);
+    return agent?.name || id;
+  }
+  return s?.customer_name || id || '';
+}
+
 function renderInviteList(invites) {
   if (!invites.length) {
     return '<div class="admin-empty">No invites yet. Send your first one above.</div>';
@@ -1105,7 +1177,7 @@ function renderInviteList(invites) {
     const status = inviteStatus(inv, now);
     const scenarios = (inv.scenarios || []);
     const chips = scenarios.length
-      ? scenarios.slice(0, 4).map((s) => `<span class="admin-chip" title="${escapeAttr(s.tagline || '')}">${escapeHtml(s.customer_name || s.id)}</span>`).join('')
+      ? scenarios.slice(0, 4).map((s) => `<span class="admin-chip" title="${escapeAttr(s.tagline || '')}">${escapeHtml(coachingScenarioLabel(s))}</span>`).join('')
         + (scenarios.length > 4 ? `<span class="admin-chip">+${scenarios.length - 4}</span>` : '')
       : '<span class="admin-muted">no scenarios</span>';
 
@@ -2103,15 +2175,37 @@ async function onGenerate(e) {
   const modeEl = document.getElementById('admin-mode-coaching');
   const mode = modeEl && modeEl.checked ? 'coaching' : 'standard';
 
-  // Coaching-test invites always target the dedicated coaching_practice scenario
-  // (the server enforces this too); no library pick needed. Standard invites use
-  // the picked scenarios.
-  const scenarioIds = mode === 'coaching'
-    ? ['coaching_practice']
-    : [...form.querySelectorAll('input[name="scenario_id"]:checked')].map((el) => el.value);
-  if (mode !== 'coaching' && !scenarioIds.length) {
-    out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one scenario.</div>';
-    return;
+  // Coaching invites carry the authored agent ids the admin picked, or the
+  // '__all_coaching__' sentinel when "All coaching agents" is checked. When no
+  // agents are authored yet (picker shows only the fallback), send the legacy
+  // coaching_practice so the feature still works. Standard invites use the
+  // picked library scenarios.
+  let scenarioIds;
+  if (mode === 'coaching') {
+    const allChecked = !!document.getElementById('admin-coaching-all')?.checked;
+    if (allChecked) {
+      scenarioIds = ['__all_coaching__'];
+    } else {
+      const picked = [...form.querySelectorAll('input[name="coaching_agent_id"]:checked')]
+        .map((el) => el.value)
+        .filter((v) => v && v !== '__all_coaching__');
+      const hasAuthoredAgents = Array.isArray(state.coachingAgents) && state.coachingAgents.length > 0;
+      if (!picked.length) {
+        if (hasAuthoredAgents) {
+          out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one coaching agent (or "All coaching agents").</div>';
+          return;
+        }
+        scenarioIds = ['coaching_practice'];
+      } else {
+        scenarioIds = picked;
+      }
+    }
+  } else {
+    scenarioIds = [...form.querySelectorAll('input[name="scenario_id"]:checked')].map((el) => el.value);
+    if (!scenarioIds.length) {
+      out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one scenario.</div>';
+      return;
+    }
   }
 
   const email = (document.getElementById('admin-email').value || '').trim();

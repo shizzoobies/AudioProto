@@ -19,6 +19,52 @@ export async function onRequestGet({ request, env }) {
   }
   const scenarios = [];
   for (const sid of scope.scenarios) {
+    // The "all coaching agents" sentinel was already expanded by getInviteScope
+    // into concrete ca_ ids; skip the sentinel itself so it never renders.
+    if (sid === '__all_coaching__') continue;
+
+    // Admin-authored coaching agents (ca_) live in D1, not the SCENARIOS map.
+    // Emit the manager-facing data-contract object (prompt-only/server-only
+    // fields are intentionally omitted). All D1 reads are wrapped so a missing
+    // table can never break status; an inactive/unknown ca_ id is skipped.
+    if (typeof sid === 'string' && sid.startsWith('ca_')) {
+      let agent = null;
+      try {
+        agent = await env.DB
+          .prepare(`SELECT * FROM coaching_agents WHERE id = ? AND active = 1`)
+          .bind(sid)
+          .first();
+      } catch {
+        agent = null;
+      }
+      if (!agent) continue;
+      let openingLines = [];
+      if (agent.opening_lines) {
+        try {
+          const parsed = JSON.parse(agent.opening_lines);
+          if (Array.isArray(parsed)) openingLines = parsed;
+        } catch {
+          openingLines = [];
+        }
+      }
+      scenarios.push({
+        id: agent.id,
+        kind: 'coaching_agent',
+        name: agent.name || '',
+        age: agent.age ?? null,
+        role_title: agent.role_title || '',
+        demeanor: agent.demeanor || '',
+        incident: agent.incident || '',
+        modes: {
+          assessment: !!agent.mode_assessment,
+          coaching: !!agent.mode_coaching,
+          followup: !!agent.mode_followup,
+        },
+        opening_lines: openingLines,
+      });
+      continue;
+    }
+
     // Fall back to getScenario for ids not in the displayed type list (e.g. the
     // demo scenarios, which live in SCENARIOS but no SCENARIO_TYPE) so their
     // names/taglines still render on the landing instead of a raw id.

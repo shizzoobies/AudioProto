@@ -9,12 +9,17 @@
 
 import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
+import { buildCoachingAgentPrompt, COACHING_AGENT_MODES } from '../../../shared/coaching-agents.js';
 
 const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
+// The shared ElevenLabs agent that hosts every coachable employee — both the
+// hardcoded coaching_practice (Taylor) and any admin-authored ca_ agent. The
+// per-conversation prompt/voice overrides differentiate them.
+const SHARED_COACHING_AGENT_ID = 'agent_2501kt72x065ff4r9f308xq1fsha';
 // Scenarios that run on their OWN dedicated ElevenLabs agent (otherwise the
 // default demo agent is used). The coaching scenario has its own agent.
 const AGENT_BY_SCENARIO = {
-  coaching_practice: 'agent_2501kt72x065ff4r9f308xq1fsha',
+  coaching_practice: SHARED_COACHING_AGENT_ID,
 };
 const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
 // Scenarios allowed on the real-time voice agent: the demo personas + coaching.
@@ -31,16 +36,44 @@ export async function onRequestPost({ request, env }) {
   }
 
   const scenarioId = body?.scenario_id;
-  const scenario = getScenario(scenarioId);
-  if (!scenario) return jsonError('unknown_scenario', 400);
-  if (!VOICE_AGENT_SCENARIOS.has(scenarioId)) return jsonError('not_a_voice_agent_scenario', 403);
+  // Any id starting with ca_ is an admin-authored coaching agent (Phase 2).
+  // These don't live in the hardcoded SCENARIOS map; they're loaded from D1.
+  const isCoachingAgent = typeof scenarioId === 'string' && scenarioId.startsWith('ca_');
 
-  // Pick this scenario's dedicated agent (coaching) if it has one, else the
-  // default demo agent (an env override still wins for the default).
-  const agentId = AGENT_BY_SCENARIO[scenarioId] || env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID;
+  // Resolve an authored agent's profile up front (so the gate can verify it
+  // exists + is active before minting anything).
+  let agentProfile = null;
+  if (isCoachingAgent) {
+    try {
+      agentProfile = await env.DB
+        .prepare('SELECT * FROM coaching_agents WHERE id = ? AND active = 1')
+        .bind(scenarioId)
+        .first();
+    } catch {
+      agentProfile = null;
+    }
+    if (!agentProfile) return jsonError('unknown_scenario', 400);
+  }
+
+  // Hardcoded scenarios (demo personas + coaching_practice) resolve from the
+  // SCENARIOS map. Authored agents don't — they're gated separately above.
+  const scenario = isCoachingAgent ? null : getScenario(scenarioId);
+  if (!isCoachingAgent && !scenario) return jsonError('unknown_scenario', 400);
+  if (!isCoachingAgent && !VOICE_AGENT_SCENARIOS.has(scenarioId)) {
+    return jsonError('not_a_voice_agent_scenario', 403);
+  }
+
+  // Pick the agent: authored agents + coaching_practice share one coaching
+  // agent; demo personas use their mapped or the default agent (env override
+  // still wins for the default).
+  const agentId = isCoachingAgent
+    ? SHARED_COACHING_AGENT_ID
+    : (AGENT_BY_SCENARIO[scenarioId] || env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID);
 
   // Same scope checks as /api/chat: magic-link + invite recipients are limited to
-  // their assigned scenarios. (Agent/owner sessions pass through.)
+  // their assigned scenarios. (Agent/owner sessions pass through.) getInviteScope
+  // expands an __all_coaching__ invite into concrete ca_ ids, so a recipient
+  // granted "all coaching agents" passes this check for any active ca_ id.
   const lockedScenario = await getMagicScope(request, env);
   if (lockedScenario && lockedScenario !== scenarioId) return jsonError('forbidden_scenario', 403);
   const inviteScope = await getInviteScope(request, env);
@@ -81,10 +114,65 @@ export async function onRequestPost({ request, env }) {
   // it so the dashboard "Conversations" list is identifiable per user. Prefer the
   // name the participant typed (the only signal that distinguishes individuals on
   // the shared coaching link); fall back to the invite identity. ElevenLabs
-  // records audio + transcript automatically — this only labels them.
+  // records audio + transcript automatically — this only labels them. Computed
+  // before the authored-agent branch so ca_ agents are attributed too.
   const participantName = typeof body?.participant === 'string' ? body.participant.trim().slice(0, 60) : '';
   const inviteWho = inviteScope ? (inviteScope.recipient_name || inviteScope.recipient_email || '') : '';
   const userId = (participantName || inviteWho || 'guest').replace(/\s+/g, ' ').slice(0, 120);
+
+  // ---- Authored coaching agent (ca_) -------------------------------------
+  // Resolve the profile into the assembler's expected shape and build the
+  // full prompt + overrides from D1, then return early. The hardcoded
+  // coaching_practice and demo branches below are left untouched.
+  if (isCoachingAgent) {
+    const agentMode = COACHING_AGENT_MODES.includes(body?.mode) ? body.mode : 'coaching';
+    const agentPriorTranscript = Array.isArray(body?.prior_transcript) ? body.prior_transcript : [];
+
+    let openingLines = [];
+    if (agentProfile.opening_lines) {
+      try {
+        const parsed = JSON.parse(agentProfile.opening_lines);
+        if (Array.isArray(parsed)) openingLines = parsed;
+      } catch {
+        openingLines = [];
+      }
+    }
+
+    // The assembler accepts 0/1 too, but coerce the bit columns to booleans so
+    // the profile object is clean.
+    const profileObj = {
+      ...agentProfile,
+      opening_lines: openingLines,
+      derails: !!agentProfile.derails,
+      mode_assessment: !!agentProfile.mode_assessment,
+      mode_coaching: !!agentProfile.mode_coaching,
+      mode_followup: !!agentProfile.mode_followup,
+    };
+
+    const prompt = buildCoachingAgentPrompt(profileObj, {
+      mode: agentMode,
+      priorTranscript: agentPriorTranscript,
+    });
+    const firstMessage = openingLines[0]
+      || (agentMode === 'followup' ? 'Hey... you wanted to talk again?' : 'Hey... you wanted to see me?');
+
+    return json({
+      signed_url: signedUrl,
+      user_id: userId,
+      overrides: {
+        prompt,
+        first_message: firstMessage,
+        language: 'en',
+        // Authored agents may carry their own voice — use it when set (NOT
+        // null-forced like coaching_practice, which relies on its agent's voice).
+        voice_id: agentProfile.voice_id || null,
+      },
+      scenario: {
+        id: scenarioId,
+        customer_name: agentProfile.name || '',
+      },
+    });
+  }
 
   const turnTaking = isCoaching
     ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are Taylor, just called into a one-on-one with your manager. You speak FIRST with a short, guarded greeting (your first message), then let your manager talk. Respond in character to whatever feedback they give - guarded and a little defensive. Keep replies short; do not give speeches.'

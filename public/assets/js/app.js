@@ -6,13 +6,26 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260603-15 coaching-recording-attribution';
+const BUILD_ID = '20260604-2 coaching-agents-live';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
 // Flip VOICE_AGENT_ENABLED to false to fall back to the turn-based pipeline.
 const VOICE_AGENT_ENABLED = true;
 const VOICE_AGENT_SCENARIOS = new Set(['demo_sales', 'demo_service', 'coaching_practice']);
+
+// A coaching id is either the hardcoded coaching_practice (Taylor) or any
+// admin-authored coaching agent (ids start with ca_). Coaching ids run the
+// soft-skills voice stage (no POS, no inbound ring) on the shared coaching
+// ElevenLabs agent. Used everywhere the old code special-cased coaching_practice.
+function isCoachingId(id) {
+  return id === 'coaching_practice' || (typeof id === 'string' && id.startsWith('ca_'));
+}
+// True when a scenario should run the real-time ElevenLabs voice agent: the demo
+// personas + any coaching id (hardcoded or authored).
+function isVoiceAgentScenario(id) {
+  return VOICE_AGENT_SCENARIOS.has(id) || isCoachingId(id);
+}
 
 const state = {
   scenarioTypes: [],
@@ -378,7 +391,15 @@ async function init() {
     // demo_service) live in no scenario TYPE, so they were never added — merge
     // the recipient's scenarios in so "Take the call" actually starts them.
     for (const s of (state.recipient.scenarios || [])) {
-      if (s && s.id && !state.personaById.has(s.id)) state.personaById.set(s.id, { ...s });
+      if (!s || !s.id) continue;
+      // Authored coaching agents (kind:'coaching_agent') aren't part of the
+      // library; register them as persona-like objects so startCall/renderCall
+      // can run them like coaching_practice.
+      if (s.kind === 'coaching_agent') {
+        state.personaById.set(s.id, coachingAgentToPersona(s));
+      } else if (!state.personaById.has(s.id)) {
+        state.personaById.set(s.id, { ...s });
+      }
     }
     if (state.coachingTest) renderCoachingTest();
     else if (state.recipient.is_demo) renderDemoHome();
@@ -893,10 +914,50 @@ function wireLivingVoiceShell() {
 // list, no library nav. The post-report "New call" path returns here (see
 // renderReport). Mirrors renderRecipientHome's pre-amble (view/scenario reset,
 // conversation cancel, teardownAudio, title) and reuses startCall(personaId).
-function renderCoachingTest() {
+// Map an authored coaching agent (kind:'coaching_agent', from /api/me/status)
+// into a persona-like object so startCall/renderCall treat it like
+// coaching_practice. Only the manager-facing fields are present (the prompt-only
+// fields never leave the server). `coaching:true` routes it through the coaching
+// voice stage (no POS, no ring).
+function coachingAgentToPersona(s) {
+  return {
+    id: s.id,
+    customer_name: s.name || '',
+    coaching: true,
+    kind: 'coaching_agent',
+    title: s.role_title || 'Coaching Practice',
+    tagline: '',
+    age: s.age ?? null,
+    role_title: s.role_title || '',
+    demeanor: s.demeanor || '',
+    incident: s.incident || '',
+    modes: s.modes || { assessment: false, coaching: true, followup: false },
+    opening_lines: Array.isArray(s.opening_lines) ? s.opening_lines : [],
+  };
+}
+
+// Initials avatar text from a name ("Taylor Brooks" -> "TB", "Taylor" -> "TA").
+function coachingInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Manager coaching home (is_coaching invite). Handles ONE or MANY granted
+// coaching agents (authored ca_ agents and/or the legacy coaching_practice).
+//   - 0 agents  -> empty state.
+//   - 1 agent   -> its profile card directly (with a mode picker).
+//   - 2+ agents -> a list of agent cards; clicking one opens its profile card
+//                  (with a back link). No library nav.
+// The profile card shows an initials avatar, name/age/role, a demeanor line, the
+// incident, the optional "Your name" field, and one button per ENABLED mode
+// (Assessment / Coaching / Follow-up). Follow-up is disabled until a prior call
+// has been saved for that agent. Each mode button calls
+// startCall(agent.id, { mode, participant }). The post-call path returns here.
+function renderCoachingTest(selectedId) {
   state.view = 'recipient_home';
-  // Minimal coaching page: no demo shell/orb/splash/logo — just a centered title
-  // and a Start button. Keep the demo theme hook OFF so it's a clean screen.
+  // Minimal coaching page: no demo shell/orb/splash/logo — a clean screen.
   delete document.body.dataset.demo;
   document.body.dataset.coaching = 'true';
   document.body.dataset.view = 'home';
@@ -909,11 +970,12 @@ function renderCoachingTest() {
   teardownAudio();
 
   const r = state.recipient || {};
-  const scenarios = Array.isArray(r.scenarios) ? r.scenarios : [];
-  // Auto-load the first assigned scenario (already merged into personaById by init()).
-  const scenario = scenarios[0] || null;
+  const all = Array.isArray(r.scenarios) ? r.scenarios : [];
+  // The coaching agents granted to this recipient: authored agents (kind ===
+  // 'coaching_agent') PLUS the legacy single coaching_practice if assigned.
+  const agents = all.filter((s) => s && (s.kind === 'coaching_agent' || s.id === 'coaching_practice'));
 
-  if (!scenario) {
+  if (!agents.length) {
     dom.root.innerHTML = `
       <section class="coaching-test">
         <div class="coaching-test-card">
@@ -925,37 +987,116 @@ function renderCoachingTest() {
     return;
   }
 
-  const title = scenario.title || scenario.card_title || scenario.customer_name || 'Coaching Practice';
-  const person = scenario.customer_name || 'them';
-  const hasPrior = hasSavedCoaching(scenario.id);
+  const multi = agents.length > 1;
+  // Which agent's profile to show. With one agent, always it. With many, the
+  // selected one (if any) — otherwise show the list. Guard to a string id so a
+  // bare-reference call (renderCoachingTest passed as an event handler) doesn't
+  // treat the Event object as a selection.
+  const sel = typeof selectedId === 'string' ? selectedId : '';
+  const selected = sel
+    ? agents.find((a) => a.id === sel) || null
+    : (multi ? null : agents[0]);
+
+  // Multi-agent list view (no selection yet): a simple list of agent cards.
+  if (multi && !selected) {
+    const cardsHtml = agents.map((a) => {
+      const name = a.id === 'coaching_practice' ? (a.customer_name || a.title || 'Coaching Practice') : (a.name || 'Coaching agent');
+      const role = a.id === 'coaching_practice' ? (a.title || '') : (a.role_title || '');
+      return `
+        <li class="coaching-agent-card" data-agent-id="${escapeAttr(a.id)}" tabindex="0" role="button" aria-label="Open ${escapeAttr(name)}">
+          <span class="coaching-agent-avatar" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
+          <span class="coaching-agent-meta">
+            <span class="coaching-agent-name">${escapeHtml(name)}</span>
+            ${role ? `<span class="coaching-agent-role">${escapeHtml(role)}</span>` : ''}
+          </span>
+        </li>`;
+    }).join('');
+    dom.root.innerHTML = `
+      <section class="coaching-test">
+        <div class="coaching-test-card">
+          <h1 class="coaching-test-title">Coaching practice</h1>
+          <p class="coaching-test-sub">Choose who you want to practice with.</p>
+          <ul class="coaching-agent-list">${cardsHtml}</ul>
+        </div>
+      </section>
+    `;
+    dom.root.querySelectorAll('.coaching-agent-card').forEach((card) => {
+      const go = () => renderCoachingTest(card.dataset.agentId);
+      card.addEventListener('click', go);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+      });
+    });
+    return;
+  }
+
+  // Profile card for the selected (or only) agent.
+  renderCoachingProfile(selected, { multi });
+}
+
+// Render one agent's profile card with the mode picker. `multi` adds a back link
+// to the agent list.
+function renderCoachingProfile(agent, { multi = false } = {}) {
+  const legacy = agent.id === 'coaching_practice';
+  const name = legacy ? (agent.customer_name || agent.title || 'Coaching Practice') : (agent.name || 'Coaching agent');
+  const role = legacy ? (agent.title || '') : (agent.role_title || '');
+  const age = agent.age ?? null;
+  const demeanor = legacy ? '' : (agent.demeanor || '');
+  const incident = legacy ? '' : (agent.incident || '');
+  const hasPrior = hasSavedCoaching(agent.id);
   const savedName = loadCoachingParticipant();
+
+  // The mode buttons to render. Legacy coaching_practice keeps its 'fresh' +
+  // 'followup' pair; authored agents render one button per ENABLED mode
+  // (assessment / coaching / followup). Follow-up always renders so it can carry
+  // the "available after a call" hint, but is disabled until a prior call exists.
+  const m = agent.modes || {};
+  const modeDefs = legacy
+    ? [
+        { mode: 'fresh', label: 'Start fresh call' },
+        { mode: 'followup', label: 'Follow-up' },
+      ]
+    : [
+        ...(m.assessment ? [{ mode: 'assessment', label: 'Assessment' }] : []),
+        ...(m.coaching ? [{ mode: 'coaching', label: 'Coaching' }] : []),
+        ...(m.followup ? [{ mode: 'followup', label: 'Follow-up' }] : []),
+      ];
+  const buttonsHtml = modeDefs.map((def) => {
+    const isFollow = def.mode === 'followup';
+    const cls = isFollow ? 'ghost-button' : 'primary-button';
+    const enabled = isFollow ? hasPrior : true;
+    const disabled = enabled ? '' : ' disabled';
+    const hint = isFollow && !hasPrior
+      ? `<span class="coaching-opt-hint">Available after you finish a call — then ${escapeHtml(name)} will remember it.</span>`
+      : '';
+    return `<button class="${cls} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" type="button"${disabled}>
+          <span class="coaching-opt-label">${escapeHtml(def.label)}</span>${hint}
+        </button>`;
+  }).join('');
+
   dom.root.innerHTML = `
     <section class="coaching-test">
       <div class="coaching-test-card">
-        <h1 class="coaching-test-title">${escapeHtml(title)}</h1>
-        ${scenario.tagline ? `<p class="coaching-test-sub">${escapeHtml(scenario.tagline)}</p>` : ''}
+        ${multi ? '<button class="ghost-button coaching-back" type="button"><span aria-hidden="true">‹</span> All agents</button>' : ''}
+        <div class="coaching-profile">
+          <span class="coaching-agent-avatar coaching-agent-avatar-lg" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
+          <h1 class="coaching-test-title">${escapeHtml(name)}</h1>
+          <p class="coaching-profile-sub">${escapeHtml([role, age ? `age ${age}` : ''].filter(Boolean).join(' · '))}</p>
+        </div>
+        ${demeanor ? `<div class="coaching-profile-block"><h2 class="coaching-profile-h">Typical performance &amp; demeanor</h2><p class="coaching-profile-text">${escapeHtml(demeanor)}</p></div>` : ''}
+        ${incident ? `<div class="coaching-profile-block"><h2 class="coaching-profile-h">What happened</h2><p class="coaching-profile-text">${escapeHtml(incident)}</p></div>` : ''}
         <label class="coaching-test-name">
           <span class="coaching-test-name-label">Your name</span>
           <input class="coaching-test-name-input" id="coaching-name" type="text" autocomplete="name"
             placeholder="So this session can be reviewed later" value="${escapeAttr(savedName)}" maxlength="60">
         </label>
-        <div class="coaching-test-options">
-          <button class="primary-button coaching-test-start" data-mode="fresh" data-persona-id="${escapeAttr(scenario.id)}" type="button">
-            <span class="coaching-opt-label">Start fresh call</span>
-            <span class="coaching-opt-hint">A brand-new conversation — ${escapeHtml(person)} has no memory of any past call.</span>
-          </button>
-          <button class="ghost-button coaching-test-followup" data-mode="followup" data-persona-id="${escapeAttr(scenario.id)}" type="button"${hasPrior ? '' : ' disabled'}>
-            <span class="coaching-opt-label">Follow-up call</span>
-            <span class="coaching-opt-hint">${hasPrior
-              ? `Pick up where you left off — ${escapeHtml(person)} remembers your last conversation.`
-              : 'Available after you finish a call — then ' + escapeHtml(person) + ' will remember it.'}</span>
-          </button>
-        </div>
+        <div class="coaching-test-options">${buttonsHtml}</div>
       </div>
     </section>
   `;
+
   const nameInput = dom.root.querySelector('#coaching-name');
-  dom.root.querySelectorAll('.coaching-test-start, .coaching-test-followup').forEach((btn) => {
+  dom.root.querySelectorAll('.coaching-test-mode').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
       const participant = nameInput ? nameInput.value.trim() : '';
@@ -963,6 +1104,8 @@ function renderCoachingTest() {
       startCall(btn.dataset.personaId, { mode: btn.dataset.mode, participant });
     });
   });
+  const back = dom.root.querySelector('.coaching-back');
+  if (back) back.addEventListener('click', () => renderCoachingTest());
 }
 
 // The participant's name (optional) — labels their ElevenLabs recording so the
@@ -1609,9 +1752,12 @@ async function startCall(typeOrPersonaId, opts = {}) {
     ? persona.opening_lines
     : [persona.opening_line || ''];
   const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
-  // Coaching mode ('fresh' | 'followup'): a follow-up carries the prior call's
-  // transcript so Taylor remembers the last one-on-one.
-  const coachingMode = opts.mode === 'followup' ? 'followup' : 'fresh';
+  // Coaching mode. Authored agents (ca_) support 'assessment' | 'coaching' |
+  // 'followup'; the hardcoded coaching_practice keeps its 'fresh' | 'followup'.
+  // Only a follow-up carries the prior call's transcript so the agent "remembers"
+  // the last one-on-one. Default to 'coaching' (authored) / 'fresh' (legacy path
+  // passes its own opts.mode explicitly).
+  const coachingMode = opts.mode || 'coaching';
   const priorTranscript = coachingMode === 'followup' ? loadCoachingTranscript(personaId) : [];
   state.activeScenario = {
     ...persona,
@@ -1633,7 +1779,7 @@ async function startCall(typeOrPersonaId, opts = {}) {
   // modal and the incoming-call ring entirely and connect straight away. The
   // "Start the call" click is the user gesture renderCall relies on to unlock the
   // microphone and audio, so we go live directly.
-  if (persona.coaching || personaId === 'coaching_practice') {
+  if (persona.coaching || isCoachingId(personaId)) {
     renderCall(state.activeScenario);
     return;
   }
@@ -1892,7 +2038,7 @@ function renderCall(scenario, opts = {}) {
   // Coaching practice is a voice-only soft-skills session (manager coaching the
   // team member Taylor), NOT an inbound customer call — so it drops the
   // reservation POS and the phone chrome and shows a clean centered voice stage.
-  const isCoaching = scenario.id === 'coaching_practice';
+  const isCoaching = isCoachingId(scenario.id) || !!scenario.coaching;
   // Phone calls hide the live transcript ("captions") — a real phone call
   // wouldn't show them. The transcript element stays in the DOM (coaching reads
   // it) but is not displayed. Text-mode chats keep their conversation visible.
@@ -1906,7 +2052,7 @@ function renderCall(scenario, opts = {}) {
   // call header keeps the timer, Pause, and End call controls.
   // Coaching keeps the dock visible (it IS the voice stage); demo phone calls
   // hide it so the trainee sees only the POS.
-  const hideDock = isPhone && VOICE_AGENT_SCENARIOS.has(scenario.id) && !isCoaching;
+  const hideDock = isPhone && isVoiceAgentScenario(scenario.id) && !isCoaching;
   const useOrb = isPhone && isShowcaseCall && state.demoUnlocked;
   // Caller ID for the header (phone calls only) — mirrors a real CSF that shows
   // the inbound number next to the call duration.
@@ -2793,7 +2939,7 @@ function renderCall(scenario, opts = {}) {
 
   // ---- Mode-specific wiring ----
 
-  const useVoiceAgent = isPhone && VOICE_AGENT_ENABLED && VOICE_AGENT_SCENARIOS.has(scenario.id);
+  const useVoiceAgent = isPhone && VOICE_AGENT_ENABLED && isVoiceAgentScenario(scenario.id);
 
   if (isPhone) {
     setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');

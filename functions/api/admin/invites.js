@@ -126,19 +126,27 @@ async function createInvites(request, env) {
   // behavior unchanged.
   const mode = body?.mode === 'coaching' ? 'coaching' : null;
 
-  // Scenario assignment. Coaching-test invites ALWAYS target the single
-  // dedicated coaching_practice scenario (the coaching page auto-loads it), so
-  // the admin never needs to pick a library scenario - we force it here
-  // regardless of what the client sent. Standard invites use the picked library
-  // scenarios as before.
+  // Scenario assignment. Coaching invites carry the authored coaching-agent ids
+  // (ca_) the admin picked, or the '__all_coaching__' sentinel for "every
+  // coaching agent". When the client sends none (legacy open-coaching link, or
+  // before any agent is authored) we fall back to the single hardcoded
+  // coaching_practice scenario so the feature still works. Standard invites use
+  // the picked library scenarios as before.
   let scenarios;
   if (mode === 'coaching') {
-    scenarios = [COACHING_SCENARIO_ID];
+    const rawCoaching = Array.isArray(body?.scenario_ids)
+      ? body.scenario_ids.filter((s) => typeof s === 'string' && (s === '__all_coaching__' || s.startsWith('ca_') || s === COACHING_SCENARIO_ID))
+      : [];
+    scenarios = rawCoaching.length ? [...new Set(rawCoaching)] : [COACHING_SCENARIO_ID];
   } else {
     const rawScenarios = Array.isArray(body?.scenario_ids) ? body.scenario_ids.filter((s) => typeof s === 'string') : [];
     if (!rawScenarios.length) return jsonError('scenario_ids_required', 400);
     scenarios = [...new Set(rawScenarios)];
     for (const sid of scenarios) {
+      // Coaching-agent ids (ca_) and the "all coaching agents" sentinel are
+      // valid assignments alongside normal library scenarios; they're resolved
+      // from D1 (or expanded by getInviteScope) rather than the SCENARIOS map.
+      if (sid === '__all_coaching__' || sid.startsWith('ca_')) continue;
       if (!getScenario(sid)) return jsonError(`unknown_scenario:${sid}`, 400);
     }
   }
