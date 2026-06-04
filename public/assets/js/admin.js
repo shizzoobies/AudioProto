@@ -27,6 +27,8 @@ const state = {
   lastDemoUrl: null,   // last generated demo URL (shown once with a Copy button)
   coaching: null,      // { active, created_at } — the open coaching-test share link
   lastCoachingUrl: null, // last generated coaching URL (shown once with a Copy button)
+  coachingAgents: [],  // [{id, name, role_title, attitude, resistance, receptiveness, ...}] — authored coachable agents
+  editingCoachingAgentId: null, // id of the coaching agent currently loaded into the form, or null
   charts: null,        // { active, created_at, last_click_at }
   lastChartsUrl: null, // last generated charts URL (shown once with a Copy button)
   preview: null,       // { active, created_at, last_click_at, scenario_count }
@@ -130,6 +132,8 @@ async function logout() {
   state.lastDemoUrl = null;
   state.coaching = null;
   state.lastCoachingUrl = null;
+  state.coachingAgents = [];
+  state.editingCoachingAgentId = null;
   state.charts = null;
   state.lastChartsUrl = null;
   state.preview = null;
@@ -211,6 +215,16 @@ async function loadData() {
     }
   } catch (e) {
     console.warn('coaching load failed', e);
+  }
+
+  try {
+    const r = await fetch('/api/admin/coaching-agents', { credentials: 'same-origin' });
+    if (r.ok) {
+      const data = await r.json();
+      state.coachingAgents = data.agents || [];
+    }
+  } catch (e) {
+    console.warn('coaching agents load failed', e);
   }
 
   try {
@@ -340,6 +354,8 @@ function paintDashboard() {
 
     ${renderCoachingSection()}
 
+    ${renderCoachingAgentsSection()}
+
     ${renderChartsSection()}
 
     ${renderPreviewSection()}
@@ -391,6 +407,7 @@ function paintDashboard() {
   attachInviteListHandlers();
   attachDemoHandlers();
   attachCoachingHandlers();
+  attachCoachingAgentsHandlers();
   attachChartsHandlers();
   attachPreviewHandlers();
   attachRubricHandlers();
@@ -411,6 +428,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
   { id: 'sec-coaching', label: 'Coaching link' },
+  { id: 'sec-coaching-agents', label: 'Coaching agents' },
   { id: 'sec-charts', label: 'Charts link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
@@ -1437,6 +1455,323 @@ function paintCoachingGenerated() {
       }
     });
   });
+}
+
+// ---- Coaching agents (authoring) ------------------------------------------
+// Admin authoring of the coachable AI "employees" managers practice on. Phase 1:
+// create / edit / list / delete profiles. These are NOT yet wired into the live
+// call flow — this section only stores the profiles via /api/admin/coaching-agents.
+
+// The feedback-reception styles offered in the attitude <select>. Value === label.
+const COACHING_ATTITUDES = [
+  'Defensive',
+  'Defensive with an attitude',
+  'Dismissive (checked-out)',
+  'Anxious & insecure',
+  'Overconfident (knows best)',
+  'Agreeable but no follow-through',
+  'Combative',
+];
+
+function levelOptions(selected) {
+  return ['low', 'medium', 'high']
+    .map((lv) => `<option value="${lv}"${lv === selected ? ' selected' : ''}>${lv[0].toUpperCase() + lv.slice(1)}</option>`)
+    .join('');
+}
+
+function renderCoachingAgentsSection() {
+  return `
+    <section class="admin-section" id="sec-coaching-agents">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Coaching agents</h2>
+        <p class="admin-section-sub">The coachable AI employees managers practice on. Author each one's demeanor, how they take feedback, what they're resistant or receptive to, and the skill gap underneath. (Authoring only for now — these aren't wired into a live call yet.)</p>
+      </header>
+
+      <div id="admin-ca-alert"></div>
+
+      <form id="admin-ca-form" class="admin-ca-grid" autocomplete="off">
+        <input type="hidden" id="ca-id" value="">
+
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-name">Name <span class="admin-req">*</span></label>
+          <input type="text" id="ca-name" class="admin-input" placeholder="e.g. Taylor" required>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-age">Age</label>
+          <input type="number" id="ca-age" class="admin-input" placeholder="e.g. 24" min="0" max="120">
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-role">Role / title</label>
+          <input type="text" id="ca-role" class="admin-input" placeholder="e.g. Reservations agent">
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-voice">Voice ID</label>
+          <input type="text" id="ca-voice" class="admin-input" placeholder="ElevenLabs voice id">
+          <span class="admin-field-hint">Enable this voice on the shared ElevenLabs agent.</span>
+        </div>
+
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-attitude">Attitude to feedback</label>
+          <select id="ca-attitude" class="admin-select">
+            ${COACHING_ATTITUDES.map((a) => `<option value="${escapeAttr(a)}">${escapeHtml(a)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-resistance">Resistance (starting wall)</label>
+          <select id="ca-resistance" class="admin-select">${levelOptions('medium')}</select>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-receptiveness">Receptiveness (how far they soften)</label>
+          <select id="ca-receptiveness" class="admin-select">${levelOptions('medium')}</select>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-skill-gap">Skill gap</label>
+          <input type="text" id="ca-skill-gap" class="admin-input" placeholder="e.g. Misses upsell opportunities">
+        </div>
+
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-skill-gap-detail">Skill gap detail</label>
+          <textarea id="ca-skill-gap-detail" class="admin-input" rows="2" placeholder="What's really going on underneath the gap (the agent won't name this; it surfaces through behavior)."></textarea>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-demeanor">Typical performance & demeanor</label>
+          <textarea id="ca-demeanor" class="admin-input" rows="2" placeholder="How they normally show up at work."></textarea>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-incident">Recent incident</label>
+          <textarea id="ca-incident" class="admin-input" rows="2" placeholder="A recent situation the manager may bring up."></textarea>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-personality">Personality</label>
+          <textarea id="ca-personality" class="admin-input" rows="2" placeholder="Quirks, background, how they talk."></textarea>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-opening-lines">Opening lines <span class="admin-field-hint">(one per line)</span></label>
+          <textarea id="ca-opening-lines" class="admin-input" rows="3" placeholder="Hey... you wanted to see me?"></textarea>
+        </div>
+
+        <div class="admin-field admin-ca-wide">
+          <div class="admin-ca-checks">
+            <label class="admin-ca-check"><input type="checkbox" id="ca-derails"> Tends to stall / derail</label>
+            <label class="admin-ca-check"><input type="checkbox" id="ca-mode-assessment"> Assessment mode</label>
+            <label class="admin-ca-check"><input type="checkbox" id="ca-mode-coaching" checked> Coaching mode</label>
+            <label class="admin-ca-check"><input type="checkbox" id="ca-mode-followup"> Follow-up mode</label>
+            <label class="admin-ca-check"><input type="checkbox" id="ca-active" checked> Active</label>
+          </div>
+        </div>
+
+        <div class="admin-field admin-ca-wide admin-ca-actions">
+          <button type="submit" class="primary-button" id="ca-save-btn">Save agent</button>
+          <button type="button" class="ghost-button" id="ca-clear-btn">Clear / new</button>
+        </div>
+      </form>
+
+      <div id="admin-ca-list">${renderCoachingAgentsList(state.coachingAgents)}</div>
+    </section>
+  `;
+}
+
+function renderCoachingAgentsList(agents) {
+  if (!Array.isArray(agents) || !agents.length) {
+    return '<div class="admin-empty">No coaching agents yet. Author one above.</div>';
+  }
+  return agents.map((a) => {
+    const modes = [
+      a.mode_assessment ? 'Assessment' : '',
+      a.mode_coaching ? 'Coaching' : '',
+      a.mode_followup ? 'Follow-up' : '',
+    ].filter(Boolean).join(', ') || '—';
+    const statusPill = a.active
+      ? '<span class="admin-pill admin-pill-active">Active</span>'
+      : '<span class="admin-pill">Inactive</span>';
+    return `
+      <div class="admin-ca-row" data-id="${escapeAttr(a.id)}">
+        <div class="admin-ca-row-main">
+          <div class="admin-ca-row-name">${escapeHtml(a.name)} ${statusPill}</div>
+          <div class="admin-ca-row-meta">
+            ${a.role_title ? `<span>${escapeHtml(a.role_title)}</span>` : ''}
+            ${a.attitude ? `<span>${escapeHtml(a.attitude)}</span>` : ''}
+            <span>Modes: ${escapeHtml(modes)}</span>
+          </div>
+        </div>
+        <div class="admin-ca-row-actions">
+          <button type="button" class="ghost-button" data-ca-edit="${escapeAttr(a.id)}">Edit</button>
+          <button type="button" class="ghost-button" data-ca-delete="${escapeAttr(a.id)}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function attachCoachingAgentsHandlers() {
+  const form = document.getElementById('admin-ca-form');
+  if (form) form.addEventListener('submit', onSaveCoachingAgent);
+  const clearBtn = document.getElementById('ca-clear-btn');
+  if (clearBtn) clearBtn.addEventListener('click', clearCoachingAgentForm);
+
+  document.querySelectorAll('[data-ca-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => editCoachingAgent(btn.dataset.caEdit));
+  });
+  document.querySelectorAll('[data-ca-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteCoachingAgent(btn.dataset.caDelete));
+  });
+
+  // Re-load the form if we were mid-edit when the section re-rendered.
+  if (state.editingCoachingAgentId) {
+    const agent = state.coachingAgents.find((a) => a.id === state.editingCoachingAgentId);
+    if (agent) populateCoachingAgentForm(agent);
+    else state.editingCoachingAgentId = null;
+  }
+}
+
+function showCoachingAgentError(msg) {
+  const el = document.getElementById('admin-ca-alert');
+  if (!el) return;
+  el.innerHTML = msg
+    ? `<div class="admin-alert admin-alert-error">${escapeHtml(msg)}</div>`
+    : '';
+}
+
+async function onSaveCoachingAgent(e) {
+  e.preventDefault();
+  showCoachingAgentError('');
+  const btn = document.getElementById('ca-save-btn');
+
+  const val = (id) => (document.getElementById(id)?.value ?? '').trim();
+  const checked = (id) => (document.getElementById(id)?.checked ? 1 : 0);
+
+  const name = val('ca-name');
+  if (!name) { showCoachingAgentError('Name is required.'); return; }
+
+  const payload = {
+    id: val('ca-id') || undefined,
+    name,
+    age: val('ca-age') || null,
+    role_title: val('ca-role'),
+    voice_id: val('ca-voice'),
+    attitude: val('ca-attitude'),
+    resistance: val('ca-resistance'),
+    receptiveness: val('ca-receptiveness'),
+    skill_gap: val('ca-skill-gap'),
+    skill_gap_detail: val('ca-skill-gap-detail'),
+    demeanor: val('ca-demeanor'),
+    incident: val('ca-incident'),
+    personality: val('ca-personality'),
+    derails: checked('ca-derails'),
+    mode_assessment: checked('ca-mode-assessment'),
+    mode_coaching: checked('ca-mode-coaching'),
+    mode_followup: checked('ca-mode-followup'),
+    active: checked('ca-active'),
+    opening_lines: (document.getElementById('ca-opening-lines')?.value || '')
+      .split('\n').map((s) => s.trim()).filter(Boolean),
+  };
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  try {
+    const res = await fetch('/api/admin/coaching-agents', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCoachingAgentError(parts.length ? parts.join(' — ') : (res.statusText || 'Save failed'));
+      if (btn) { btn.disabled = false; btn.textContent = 'Save agent'; }
+      return;
+    }
+    state.editingCoachingAgentId = null;
+    await loadData();
+    refreshCoachingAgentsSection();
+  } catch (err) {
+    showCoachingAgentError('Network error: ' + (err?.message || String(err)));
+    if (btn) { btn.disabled = false; btn.textContent = 'Save agent'; }
+  }
+}
+
+function editCoachingAgent(id) {
+  const agent = state.coachingAgents.find((a) => a.id === id);
+  if (!agent) return;
+  state.editingCoachingAgentId = id;
+  populateCoachingAgentForm(agent);
+  const form = document.getElementById('admin-ca-form');
+  if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function populateCoachingAgentForm(agent) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  const check = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+  set('ca-id', agent.id);
+  set('ca-name', agent.name);
+  set('ca-age', agent.age ?? '');
+  set('ca-role', agent.role_title);
+  set('ca-voice', agent.voice_id);
+  set('ca-attitude', agent.attitude || COACHING_ATTITUDES[0]);
+  set('ca-resistance', agent.resistance || 'medium');
+  set('ca-receptiveness', agent.receptiveness || 'medium');
+  set('ca-skill-gap', agent.skill_gap);
+  set('ca-skill-gap-detail', agent.skill_gap_detail);
+  set('ca-demeanor', agent.demeanor);
+  set('ca-incident', agent.incident);
+  set('ca-personality', agent.personality);
+  set('ca-opening-lines', Array.isArray(agent.opening_lines) ? agent.opening_lines.join('\n') : '');
+  check('ca-derails', agent.derails);
+  check('ca-mode-assessment', agent.mode_assessment);
+  check('ca-mode-coaching', agent.mode_coaching);
+  check('ca-mode-followup', agent.mode_followup);
+  check('ca-active', agent.active);
+  const btn = document.getElementById('ca-save-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Save changes'; }
+}
+
+function clearCoachingAgentForm() {
+  state.editingCoachingAgentId = null;
+  const form = document.getElementById('admin-ca-form');
+  if (form) form.reset();
+  const idEl = document.getElementById('ca-id');
+  if (idEl) idEl.value = '';
+  // form.reset() restores checkbox defaults from the HTML, but be explicit:
+  const check = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+  check('ca-mode-coaching', true);
+  check('ca-active', true);
+  showCoachingAgentError('');
+  const btn = document.getElementById('ca-save-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Save agent'; }
+}
+
+async function deleteCoachingAgent(id) {
+  if (!confirm('Delete this coaching agent? This cannot be undone.')) return;
+  showCoachingAgentError('');
+  try {
+    const res = await fetch('/api/admin/coaching-agents?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCoachingAgentError(parts.length ? parts.join(' — ') : 'Delete failed');
+      return;
+    }
+    if (state.editingCoachingAgentId === id) state.editingCoachingAgentId = null;
+    await loadData();
+    refreshCoachingAgentsSection();
+  } catch (err) {
+    showCoachingAgentError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+// Swap just the Coaching agents section's DOM in place and re-wire its handlers.
+function refreshCoachingAgentsSection() {
+  const sec = document.getElementById('sec-coaching-agents');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderCoachingAgentsSection();
+    sec.replaceWith(tmp.firstElementChild);
+  }
+  attachCoachingAgentsHandlers();
 }
 
 // ---- Charts link ----------------------------------------------------------

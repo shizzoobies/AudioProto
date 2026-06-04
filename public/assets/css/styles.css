@@ -6246,3 +6246,82 @@ body[data-precall] #app-root {
 /* A preview never needs the report's call-to-action buttons. */
 .admin-modal .report-actions { display: none; }
 .admin-modal .report { max-width: none; }
+
+/* ---- Admin: Coaching agents (authoring) ---------------------------------- */
+.admin-req { color: var(--color-accent); }
+.admin-field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-text-tertiary);
+}
+.admin-ca-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-bottom: 22px;
+}
+.admin-ca-grid .admin-field { display: flex; flex-direction: column; }
+.admin-ca-wide { grid-column: 1 / -1; }
+.admin-ca-grid textarea.admin-input {
+  resize: vertical;
+  min-height: 56px;
+  font: inherit;
+  line-height: 1.5;
+}
+.admin-ca-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-elevated);
+}
+.admin-ca-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.admin-ca-check input { width: 16px; height: 16px; cursor: pointer; }
+.admin-ca-actions { display: flex; gap: 12px; align-items: center; }
+
+#admin-ca-list { display: flex; flex-direction: column; gap: 10px; }
+.admin-ca-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--admin-shadow-sm);
+}
+.admin-ca-row-main { min-width: 0; }
+.admin-ca-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+.admin-ca-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.admin-ca-row-actions { flex: none; display: flex; gap: 8px; }
+
+@media (max-width: 640px) {
+  .admin-ca-grid { grid-template-columns: 1fr; }
+  .admin-ca-row { flex-direction: column; align-items: stretch; }
+}
