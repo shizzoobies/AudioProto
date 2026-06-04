@@ -220,6 +220,14 @@ async function renderCoachingPage() {
       if (r.ok) { const d = await r.json(); state.coachingParticipants = d.participants || []; }
     } catch (e) { console.warn('coaching participants load failed', e); }
   }
+  // Editor roster is full-admin only too (each editor link grants the Scenarios
+  // editor scope, so editors must not be able to mint or see other editor links).
+  if (!state.coachingEditor && state.admin) {
+    try {
+      const r = await fetch('/api/admin/coaching-editors', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.coachingEditorInvites = d.editors || []; }
+    } catch (e) { console.warn('coaching editors load failed', e); }
+  }
   paintCoachingPage();
 }
 
@@ -236,12 +244,14 @@ function paintCoachingPage() {
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
     ${showRoster ? renderCoachingParticipantsSection() : ''}
     ${showRoster ? renderCoachingInviteSection() : ''}
+    ${showRoster ? renderCoachingEditorsSection() : ''}
     ${renderCoachingVoicesSection()}
     ${renderCoachingAgentsSection()}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
   if (showRoster) attachCoachingParticipantsHandlers();
   if (showRoster) attachCoachingInviteHandlers();
+  if (showRoster) attachCoachingEditorsHandlers();
   attachCoachingVoicesHandlers();
   attachCoachingAgentsHandlers();
   if (showAccess) attachCoachingAccessHandlers();
@@ -1706,15 +1716,17 @@ function fmtParticipantDate(ts) {
   }
 }
 
-function attachCoachingParticipantsHandlers() {
-  const refresh = document.getElementById('admin-participants-refresh');
-  if (refresh) refresh.addEventListener('click', reloadCoachingParticipants);
-
-  root.querySelectorAll('.admin-participant-copy').forEach((btn) => {
+// Bind every .admin-participant-copy inside a container (idempotent via a
+// data-wired guard) so it copies its data-url to the clipboard. Shared by the
+// participant roster, the editor roster, and the post-create success rows.
+function wireCopyButtons(container) {
+  if (!container) return;
+  container.querySelectorAll('.admin-participant-copy').forEach((btn) => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
     btn.addEventListener('click', async () => {
-      const url = btn.dataset.url;
       try {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(btn.dataset.url);
         const orig = btn.textContent;
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.textContent = orig; }, 1500);
@@ -1723,6 +1735,12 @@ function attachCoachingParticipantsHandlers() {
       }
     });
   });
+}
+
+function attachCoachingParticipantsHandlers() {
+  const refresh = document.getElementById('admin-participants-refresh');
+  if (refresh) refresh.addEventListener('click', reloadCoachingParticipants);
+  wireCopyButtons(document.getElementById('sec-coaching-participants'));
 }
 
 // Re-fetch the roster and swap just this section in place.
@@ -1758,7 +1776,7 @@ function renderCoachingInviteSection() {
         <h2 class="admin-section-title">Invite a participant</h2>
         <p class="admin-section-sub">Send a manager their own coaching link. They get a private dashboard with progress that accumulates across calls. We email it automatically — and it shows up in Participants above to copy &amp; send manually too.</p>
       </header>
-      <form id="coaching-invite-form" class="admin-invite-card" style="flex-direction:column;align-items:stretch;gap:14px;">
+      <form id="coaching-invite-form" class="admin-invite-card" style="display:flex;flex-direction:column;align-items:stretch;gap:14px;">
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <label style="flex:1 1 200px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
             <span class="admin-muted">Email</span>
@@ -1860,15 +1878,7 @@ async function onSendCoachingInvite(e) {
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
           <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(url)}">Copy</button>
         </div></div></div>` : ''}`;
-      out.querySelectorAll('.admin-participant-copy').forEach((b) => {
-        b.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(b.dataset.url);
-            const o = b.textContent; b.textContent = 'Copied!';
-            setTimeout(() => { b.textContent = o; }, 1500);
-          } catch { alert('Copy failed. Select the URL and copy it manually.'); }
-        });
-      });
+      wireCopyButtons(out);
     }
     // Clear the recipient fields (keep scenario selection sticky for the next
     // person) and refresh the roster so the new participant shows immediately.
@@ -1879,6 +1889,169 @@ async function onSendCoachingInvite(e) {
     if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Send invite'; }
+  }
+}
+
+// ---- Scenario editors (per-person authoring access) ------------------------
+// People who can AUTHOR scenarios — a separate area from participants (who take
+// calls). Each editor is an invites row (mode='coaching_editor') with its own
+// /coaching-pass/<token> link that opens ONLY the Scenarios editor. Backed by
+// /api/admin/coaching-editors (full-admin only). Roster + invite form together.
+
+function renderCoachingEditorsSection() {
+  const list = Array.isArray(state.coachingEditorInvites) ? state.coachingEditorInvites : [];
+  const activeCount = list.filter((e) => !e.revoked).length;
+  const roster = list.length
+    ? `<div class="coaching-roster">${list.map(renderEditorCard).join('')}</div>`
+    : `<p class="admin-muted" style="margin:0 0 4px;">No scenario editors yet. Invite someone below to let them author scenarios.</p>`;
+  return `
+    <section class="admin-section" id="sec-coaching-editors">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Scenario editors${activeCount ? ` <span class="admin-muted" style="font-weight:400;">(${activeCount})</span>` : ''}</h2>
+        <p class="admin-section-sub">People who can author scenarios. Each gets their own link that opens ONLY the Scenarios editor — no calls, no participant data. Revoke any one without affecting the others.</p>
+      </header>
+      ${roster}
+      <form id="coaching-editor-form" class="admin-invite-card" style="display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:12px;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <label style="flex:1 1 200px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Email</span>
+            <input class="admin-input" type="email" id="coaching-editor-email" placeholder="editor@store.com" autocomplete="off">
+          </label>
+          <label style="flex:1 1 160px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Name <span style="opacity:0.6;">(optional)</span></span>
+            <input class="admin-input" type="text" id="coaching-editor-name" placeholder="Tamishia" autocomplete="off">
+          </label>
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="submit" class="primary-button" id="coaching-editor-send">Invite editor</button>
+        </div>
+        <div id="coaching-editor-out" class="admin-generated"></div>
+      </form>
+    </section>
+  `;
+}
+
+function renderEditorCard(ed) {
+  const who = ed.recipient_name
+    ? `<strong>${escapeHtml(ed.recipient_name)}</strong> <span class="email">${escapeHtml(ed.recipient_email)}</span>`
+    : `<strong>${escapeHtml(ed.recipient_email)}</strong>`;
+  const last = ed.last_click_at ? `Last opened ${fmtParticipantDate(ed.last_click_at)}` : 'Not opened yet';
+  const revokedPill = ed.revoked ? ' <span class="admin-pill" style="background:#fee2e2;color:#991b1b;">Revoked</span>' : '';
+
+  const linkRow = (ed.has_link && ed.url && !ed.revoked)
+    ? `<div class="admin-generated-url-row">
+         <input class="admin-input admin-generated-url" readonly value="${escapeAttr(ed.url)}">
+         <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(ed.url)}">Copy</button>
+       </div>`
+    : (ed.revoked ? '' : `<p class="coaching-roster-nolink">Link not available — re-invite to generate one.</p>`);
+
+  const revokeBtn = ed.revoked
+    ? ''
+    : `<button type="button" class="ghost-button admin-editor-revoke" data-id="${escapeAttr(ed.id)}" style="align-self:flex-start;">Revoke</button>`;
+
+  return `
+    <div class="coaching-roster-card${ed.revoked ? ' is-revoked' : ''}">
+      <div class="coaching-roster-head">
+        <span class="coaching-roster-who">${who}${revokedPill}</span>
+        <span class="coaching-roster-meta">${escapeHtml(last)}</span>
+      </div>
+      ${linkRow}
+      ${revokeBtn}
+    </div>
+  `;
+}
+
+function attachCoachingEditorsHandlers() {
+  const form = document.getElementById('coaching-editor-form');
+  if (form) form.addEventListener('submit', onSendCoachingEditor);
+  const sec = document.getElementById('sec-coaching-editors');
+  wireCopyButtons(sec);
+  if (sec) {
+    sec.querySelectorAll('.admin-editor-revoke').forEach((btn) => {
+      btn.addEventListener('click', () => onRevokeCoachingEditor(btn.dataset.id));
+    });
+  }
+}
+
+async function onSendCoachingEditor(e) {
+  e.preventDefault();
+  const out = document.getElementById('coaching-editor-out');
+  const btn = document.getElementById('coaching-editor-send');
+  if (out) out.innerHTML = '';
+
+  const email = (document.getElementById('coaching-editor-email').value || '').trim();
+  const name = (document.getElementById('coaching-editor-name').value || '').trim() || null;
+  if (!email) {
+    if (out) out.innerHTML = '<div class="admin-alert admin-alert-error">Add an email.</div>';
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  try {
+    const res = await fetch('/api/admin/coaching-editors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, name }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    const ed = data.editor || null;
+    const emailOk = ed && ed.email_sent;
+    const url = ed && ed.url ? ed.url : '';
+    if (out) {
+      out.innerHTML = `
+        <div class="admin-alert admin-alert-success"><strong>Editor ${ed && ed.reused ? 'updated' : 'invited'}.</strong> ${emailOk ? 'Email sent.' : 'Email not sent — copy the link below and share it manually.'}</div>
+        ${url ? `<div class="admin-generated-list"><div class="admin-generated-row"><div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
+          <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(url)}">Copy</button>
+        </div></div></div>` : ''}`;
+      wireCopyButtons(out);
+    }
+    document.getElementById('coaching-editor-email').value = '';
+    document.getElementById('coaching-editor-name').value = '';
+    reloadCoachingEditors();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Invite editor'; }
+  }
+}
+
+async function onRevokeCoachingEditor(id) {
+  if (!id) return;
+  if (!confirm('Revoke this editor link? They will lose access to the Scenarios editor immediately.')) return;
+  try {
+    const res = await fetch('/api/admin/coaching-editors?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+    if (!res.ok) { alert('Revoke failed.'); return; }
+    reloadCoachingEditors();
+  } catch {
+    alert('Network error.');
+  }
+}
+
+async function reloadCoachingEditors() {
+  try {
+    const r = await fetch('/api/admin/coaching-editors', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.coachingEditorInvites = d.editors || []; }
+  } catch (e) {
+    console.warn('coaching editors reload failed', e);
+  }
+  const sec = document.getElementById('sec-coaching-editors');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderCoachingEditorsSection();
+    sec.replaceWith(tmp.firstElementChild);
+    attachCoachingEditorsHandlers();
   }
 }
 

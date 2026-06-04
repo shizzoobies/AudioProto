@@ -223,6 +223,101 @@ Meridian Simulations — this email was sent by a call simulator administrator.`
   }
 }
 
+// Sends the "you can author coaching scenarios" email to a per-person scenario
+// editor. Mirrors the others: inline-styled HTML, maroon CTA, never throws,
+// degrades to { ok:false, error:'no_api_key' } when RESEND_API_KEY is absent.
+//
+// sendCoachingEditorEmail(env, { to, name, url })
+//   -> { ok: true, id }              on success
+//   -> { ok: false, error, detail? } on any failure
+export async function sendCoachingEditorEmail(env, { to, name, url }) {
+  const apiKey = env?.RESEND_API_KEY;
+  if (!apiKey) return { ok: false, error: 'no_api_key' };
+
+  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Simulations <training@ka-testing.com>';
+  const subject = "You've been invited to author coaching scenarios";
+  const displayName = name || to;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:#8c1d2b;padding:20px 36px;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#f9c8cc;">COACHING SCENARIOS</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 36px 32px;">
+              <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">You can now author coaching scenarios${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
+              <p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">
+                You've been given access to the Scenarios editor — create and manage the coachable employee personas managers practice on. Click below to open it. No password needed; this link signs you in. It opens ONLY the Scenarios editor, nothing else.
+              </p>
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="border-radius:8px;background:#8c1d2b;">
+                    <a href="${escapeAttr(url)}"
+                       target="_blank"
+                       style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;background:#8c1d2b;">
+                      Open the Scenarios editor
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0 0;font-size:12px;color:#9ca3af;">
+                If the button doesn't work, copy this link into your browser:<br>
+                <a href="${escapeAttr(url)}" style="color:#8c1d2b;word-break:break-all;">${escapeHtml(url)}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations &mdash; this email was sent by a simulation administrator.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `You can now author coaching scenarios${displayName && displayName !== to ? ', ' + displayName : ''}.
+
+You've been given access to the Scenarios editor — create and manage the coachable employee personas managers practice on. Follow the link below to open it. No password needed; this link signs you in. It opens ONLY the Scenarios editor.
+
+${url}
+
+---
+Meridian Simulations — this email was sent by a simulation administrator.`;
+
+  try {
+    const res = await fetch(RESEND_API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: [to], subject, html, text }),
+    });
+
+    const body = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: `resend_${res.status}`, detail: body.slice(0, 500) };
+    }
+
+    let parsed;
+    try { parsed = JSON.parse(body); } catch { parsed = {}; }
+    return { ok: true, id: parsed.id || null };
+  } catch (e) {
+    return { ok: false, error: 'network', detail: String(e) };
+  }
+}
+
 // ---- helpers ----------------------------------------------------------------
 
 function fmtExpiry(ts) {

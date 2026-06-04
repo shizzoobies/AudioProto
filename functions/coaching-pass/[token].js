@@ -22,14 +22,18 @@ export async function onRequest({ request, env, params }) {
   const tokenHash = await sha256Hex(token);
   const row = await env.DB
     .prepare(
-      `SELECT id, recipient_email, expires_at FROM invites
+      `SELECT id, recipient_email, expires_at, mode FROM invites
        WHERE token_hash = ? AND revoked = 0 LIMIT 1`
     )
     .bind(tokenHash)
     .first();
 
   if (!row) return errorPage();
-  if (row.recipient_email !== COACHING_ADMIN_RECIPIENT_EMAIL) return errorPage();
+  // Accept BOTH the shared sentinel editor link and per-person editor invites
+  // (mode='coaching_editor'); both open the scoped Scenarios editor.
+  const isEditorLink =
+    row.recipient_email === COACHING_ADMIN_RECIPIENT_EMAIL || row.mode === 'coaching_editor';
+  if (!isEditorLink) return errorPage();
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return errorPage();
 

@@ -372,13 +372,17 @@ export async function getCoachingAdminScope(request, env) {
 
   const row = await env.DB
     .prepare(
-      `SELECT id, recipient_email, expires_at, token_hash
+      `SELECT id, recipient_email, expires_at, token_hash, mode
        FROM invites WHERE id = ? AND revoked = 0 LIMIT 1`
     )
     .bind(payload.invite_id)
     .first();
   if (!row) return null;
-  if (row.recipient_email !== COACHING_ADMIN_RECIPIENT_EMAIL) return null;
+  // Two kinds of editor link grant the same scoped-editor scope: the single
+  // shared sentinel link, and per-person editor invites (mode='coaching_editor').
+  const isSharedEditor = row.recipient_email === COACHING_ADMIN_RECIPIENT_EMAIL;
+  const isPersonalEditor = row.mode === 'coaching_editor';
+  if (!isSharedEditor && !isPersonalEditor) return null;
   if (row.token_hash !== payload.h) return null;
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return null;

@@ -64,7 +64,9 @@ async function listInvites(env) {
     (i) =>
       i.recipient_email !== DEMO_RECIPIENT_EMAIL &&
       i.recipient_email !== CHARTS_RECIPIENT_EMAIL &&
-      i.recipient_email !== PREVIEW_RECIPIENT_EMAIL
+      i.recipient_email !== PREVIEW_RECIPIENT_EMAIL &&
+      // Scenario-editor invites are managed on the coaching page, not here.
+      i.mode !== 'coaching_editor'
   );
   if (!invites.length) return json({ invites: [] });
 
