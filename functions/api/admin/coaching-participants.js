@@ -113,7 +113,12 @@ async function listParticipants(request, env) {
   const origin = env.INVITE_PUBLIC_URL || new URL(request.url).origin;
 
   const participants = rows.map((r) => {
-    const sids = byInvite.get(r.id) || [];
+    // Show ONLY coaching scenarios. A coaching invite can inherit sales-library
+    // assignments when its email previously held a standard invite (rows are
+    // keyed by email and assignments accumulate); those are noise on this roster.
+    const sids = (byInvite.get(r.id) || []).filter(
+      (sid) => sid === '__all_coaching__' || sid === COACHING_SCENARIO_ID || (typeof sid === 'string' && sid.startsWith('ca_'))
+    );
     const scenarios = sids.map((sid) => {
       if (sid === '__all_coaching__') return { id: sid, label: 'All scenarios', all: true };
       if (sid === COACHING_SCENARIO_ID) return { id: sid, label: 'Taylor (legacy)', all: false };

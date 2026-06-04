@@ -1647,8 +1647,8 @@ function paintDemoGenerated() {
 function renderCoachingParticipantsSection() {
   const list = Array.isArray(state.coachingParticipants) ? state.coachingParticipants : [];
   const body = list.length
-    ? `<div class="admin-generated-list">${list.map(renderParticipantCard).join('')}</div>`
-    : `<p class="admin-muted" style="margin:0;">No coaching participants yet. Create per-person coaching invites from the <a href="/admin">main admin dashboard</a> (turn on the <strong>Coaching</strong> toggle in the invite form). They'll appear here with their links.</p>`;
+    ? `<div class="coaching-roster">${list.map(renderParticipantCard).join('')}</div>`
+    : `<p class="admin-muted" style="margin:0;">No coaching participants yet. Use the <strong>Invite a participant</strong> form below to add managers. They'll appear here with their links.</p>`;
 
   return `
     <section class="admin-section" id="sec-coaching-participants">
@@ -1664,14 +1664,14 @@ function renderCoachingParticipantsSection() {
 
 function renderParticipantCard(p) {
   const who = p.recipient_name
-    ? `<strong>${escapeHtml(p.recipient_name)}</strong> <span class="admin-muted">&lt;${escapeHtml(p.recipient_email)}&gt;</span>`
+    ? `<strong>${escapeHtml(p.recipient_name)}</strong> <span class="email">${escapeHtml(p.recipient_email)}</span>`
     : `<strong>${escapeHtml(p.recipient_email)}</strong>`;
 
   const chips = (p.scenarios || []).length
     ? (p.scenarios || []).map((s) =>
         `<span class="admin-pill"${s.all ? ' style="background:#eef2ff;color:#3730a3;"' : ''}>${escapeHtml(s.label)}</span>`
-      ).join(' ')
-    : '<span class="admin-muted">No scenario assigned</span>';
+      ).join('')
+    : '<span class="admin-muted" style="font-size:13px;">No scenario assigned</span>';
 
   const calls = Number(p.call_count) || 0;
   const callsLabel = `${calls} call${calls === 1 ? '' : 's'} taken`;
@@ -1683,15 +1683,15 @@ function renderParticipantCard(p) {
          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(p.url)}">
          <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(p.url)}">Copy</button>
        </div>`
-    : `<p class="admin-muted" style="margin:0;font-size:13px;">Link not stored for this invite yet — re-send it from the main dashboard to generate a copyable link.</p>`;
+    : `<p class="coaching-roster-nolink">Link not stored for this invite yet — re-send it (form below) to generate a copyable link.</p>`;
 
   return `
-    <div class="admin-invite-card${p.revoked ? '' : ' is-active'}" style="flex-direction:column;align-items:stretch;gap:10px;${p.revoked ? 'opacity:0.6;' : ''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:14px;">${who}${revokedPill}</span>
-        <span class="admin-muted" style="font-size:12px;">${escapeHtml(callsLabel)} · ${escapeHtml(lastLabel)}</span>
+    <div class="coaching-roster-card${p.revoked ? ' is-revoked' : ''}">
+      <div class="coaching-roster-head">
+        <span class="coaching-roster-who">${who}${revokedPill}</span>
+        <span class="coaching-roster-meta">${escapeHtml(callsLabel)} · ${escapeHtml(lastLabel)}</span>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">${chips}</div>
+      <div class="coaching-roster-chips">${chips}</div>
       ${linkRow}
     </div>
   `;

@@ -196,9 +196,17 @@ async function createInvites(request, env) {
   const results = [];
 
   for (const rec of recipients) {
+    // Reuse only an invite of the SAME mode for this email. A coaching invite
+    // must never fold into an existing standard (sales) invite for the same
+    // address (or vice versa): rows are email-keyed and scenario assignments
+    // accumulate, so mixing modes pollutes both. COALESCE maps standard's NULL
+    // mode to 'standard' on both sides for a clean equality match.
     const existing = await env.DB
-      .prepare(`SELECT id FROM invites WHERE recipient_email = ? AND revoked = 0 LIMIT 1`)
-      .bind(rec.email)
+      .prepare(`SELECT id FROM invites
+                WHERE recipient_email = ? AND revoked = 0
+                  AND COALESCE(mode, 'standard') = COALESCE(?, 'standard')
+                LIMIT 1`)
+      .bind(rec.email, mode)
       .first();
 
     const token = randomToken();
