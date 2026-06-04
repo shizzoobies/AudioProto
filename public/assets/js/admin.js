@@ -213,6 +213,13 @@ async function renderCoachingPage() {
       if (r.ok) { state.coachingAccess = await r.json(); }
     } catch (e) { console.warn('coaching access load failed', e); }
   }
+  // Participant roster is full-admin only (it exposes each manager's live link).
+  if (!state.coachingEditor && state.admin) {
+    try {
+      const r = await fetch('/api/admin/coaching-participants', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.coachingParticipants = d.participants || []; }
+    } catch (e) { console.warn('coaching participants load failed', e); }
+  }
   paintCoachingPage();
 }
 
@@ -222,13 +229,19 @@ function paintCoachingPage() {
   // only (the scoped editor must never see — or be able to mint — access links).
   const showBack = !state.coachingEditor;
   const showAccess = !state.coachingEditor && !!state.admin;
+  // The roster exposes each participant's live link, so full admins only.
+  const showRoster = !state.coachingEditor && !!state.admin;
   root.innerHTML = `
     ${renderSignedInBar()}
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
+    ${showRoster ? renderCoachingParticipantsSection() : ''}
+    ${showRoster ? renderCoachingInviteSection() : ''}
     ${renderCoachingVoicesSection()}
     ${renderCoachingAgentsSection()}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
+  if (showRoster) attachCoachingParticipantsHandlers();
+  if (showRoster) attachCoachingInviteHandlers();
   attachCoachingVoicesHandlers();
   attachCoachingAgentsHandlers();
   if (showAccess) attachCoachingAccessHandlers();
@@ -1624,6 +1637,251 @@ function paintDemoGenerated() {
 // invites. Backed by the invites system (sentinel recipient_email + mode), so
 // generate rotates the token and revoke kills the link immediately. Mirrors the
 // demo link's generate / copy / revoke flow.
+// ---- Coaching participants roster ------------------------------------------
+// The cohort dashboard: every per-email coaching invite (mode='coaching') with
+// its live, copyable link, assigned scenario(s), calls taken, and last activity.
+// Backed by GET /api/admin/coaching-participants (full-admin only). Invites are
+// CREATED from the main admin dashboard's invite form; this is the read/manage
+// surface for the people already invited.
+
+function renderCoachingParticipantsSection() {
+  const list = Array.isArray(state.coachingParticipants) ? state.coachingParticipants : [];
+  const body = list.length
+    ? `<div class="admin-generated-list">${list.map(renderParticipantCard).join('')}</div>`
+    : `<p class="admin-muted" style="margin:0;">No coaching participants yet. Create per-person coaching invites from the <a href="/admin">main admin dashboard</a> (turn on the <strong>Coaching</strong> toggle in the invite form). They'll appear here with their links.</p>`;
+
+  return `
+    <section class="admin-section" id="sec-coaching-participants">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Participants${list.length ? ` <span class="admin-muted" style="font-weight:400;">(${list.length})</span>` : ''}</h2>
+        <p class="admin-section-sub">Everyone invited to coaching, each with their own dashboard and accumulating progress. Copy a link to re-send it manually. <button type="button" class="ghost-button" id="admin-participants-refresh" style="margin-left:6px;">Refresh</button></p>
+      </header>
+      ${body}
+    </section>
+  `;
+}
+
+function renderParticipantCard(p) {
+  const who = p.recipient_name
+    ? `<strong>${escapeHtml(p.recipient_name)}</strong> <span class="admin-muted">&lt;${escapeHtml(p.recipient_email)}&gt;</span>`
+    : `<strong>${escapeHtml(p.recipient_email)}</strong>`;
+
+  const chips = (p.scenarios || []).length
+    ? (p.scenarios || []).map((s) =>
+        `<span class="admin-pill"${s.all ? ' style="background:#eef2ff;color:#3730a3;"' : ''}>${escapeHtml(s.label)}</span>`
+      ).join(' ')
+    : '<span class="admin-muted">No scenario assigned</span>';
+
+  const calls = Number(p.call_count) || 0;
+  const callsLabel = `${calls} call${calls === 1 ? '' : 's'} taken`;
+  const lastLabel = p.last_activity ? `Last active ${fmtParticipantDate(p.last_activity)}` : 'No calls yet';
+  const revokedPill = p.revoked ? ' <span class="admin-pill" style="background:#fee2e2;color:#991b1b;">Revoked</span>' : '';
+
+  const linkRow = p.has_link && p.url
+    ? `<div class="admin-generated-url-row">
+         <input class="admin-input admin-generated-url" readonly value="${escapeAttr(p.url)}">
+         <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(p.url)}">Copy</button>
+       </div>`
+    : `<p class="admin-muted" style="margin:0;font-size:13px;">Link not stored for this invite yet — re-send it from the main dashboard to generate a copyable link.</p>`;
+
+  return `
+    <div class="admin-invite-card${p.revoked ? '' : ' is-active'}" style="flex-direction:column;align-items:stretch;gap:10px;${p.revoked ? 'opacity:0.6;' : ''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:14px;">${who}${revokedPill}</span>
+        <span class="admin-muted" style="font-size:12px;">${escapeHtml(callsLabel)} · ${escapeHtml(lastLabel)}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${chips}</div>
+      ${linkRow}
+    </div>
+  `;
+}
+
+// Short, local date formatter for the roster (epoch seconds -> "Jun 4, 2026").
+function fmtParticipantDate(ts) {
+  try {
+    return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return String(ts);
+  }
+}
+
+function attachCoachingParticipantsHandlers() {
+  const refresh = document.getElementById('admin-participants-refresh');
+  if (refresh) refresh.addEventListener('click', reloadCoachingParticipants);
+
+  root.querySelectorAll('.admin-participant-copy').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
+// Re-fetch the roster and swap just this section in place.
+async function reloadCoachingParticipants() {
+  const btn = document.getElementById('admin-participants-refresh');
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing...'; }
+  try {
+    const r = await fetch('/api/admin/coaching-participants', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.coachingParticipants = d.participants || []; }
+  } catch (e) {
+    console.warn('coaching participants reload failed', e);
+  }
+  const sec = document.getElementById('sec-coaching-participants');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderCoachingParticipantsSection();
+    sec.replaceWith(tmp.firstElementChild);
+    attachCoachingParticipantsHandlers();
+  }
+}
+
+// ---- Invite a participant (from the coaching dashboard) --------------------
+// A self-contained coaching-invite form so the whole cohort can be created and
+// managed in one place, next to the scenarios. POSTs to /api/admin/invites with
+// mode:'coaching' (same endpoint the main dashboard uses); on success it shows
+// the new link and refreshes the roster above. Full-admin only.
+
+function renderCoachingInviteSection() {
+  return `
+    <section class="admin-section" id="sec-coaching-invite">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Invite a participant</h2>
+        <p class="admin-section-sub">Send a manager their own coaching link. They get a private dashboard with progress that accumulates across calls. We email it automatically — and it shows up in Participants above to copy &amp; send manually too.</p>
+      </header>
+      <form id="coaching-invite-form" class="admin-invite-card" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <label style="flex:1 1 200px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Email</span>
+            <input class="admin-input" type="email" id="coaching-invite-email" placeholder="manager@store.com" autocomplete="off">
+          </label>
+          <label style="flex:1 1 160px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Name <span style="opacity:0.6;">(optional)</span></span>
+            <input class="admin-input" type="text" id="coaching-invite-name" placeholder="Jordan" autocomplete="off">
+          </label>
+          <label style="flex:0 0 auto;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Link expires</span>
+            <select class="admin-input" id="coaching-invite-expiry">
+              <option value="never" selected>Never</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="7">7 days</option>
+            </select>
+          </label>
+        </div>
+        <div>
+          <p class="admin-muted" style="margin:0 0 8px;font-size:13px;">Assign scenario(s)</p>
+          ${renderCoachingAgentPicker(state.coachingAgents)}
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;align-items:center;gap:10px;">
+          <button type="submit" class="primary-button" id="coaching-invite-send">Send invite</button>
+        </div>
+        <div id="coaching-invite-out" class="admin-generated"></div>
+      </form>
+    </section>
+  `;
+}
+
+function attachCoachingInviteHandlers() {
+  const form = document.getElementById('coaching-invite-form');
+  if (form) form.addEventListener('submit', onSendCoachingInvite);
+}
+
+async function onSendCoachingInvite(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const out = document.getElementById('coaching-invite-out');
+  const btn = document.getElementById('coaching-invite-send');
+  if (out) out.innerHTML = '';
+
+  const email = (document.getElementById('coaching-invite-email').value || '').trim();
+  const name = (document.getElementById('coaching-invite-name').value || '').trim() || null;
+  if (!email) {
+    if (out) out.innerHTML = '<div class="admin-alert admin-alert-error">Add a recipient email.</div>';
+    return;
+  }
+
+  // Mirror the main dashboard's coaching scenario resolution: "All scenarios"
+  // sentinel, the picked ca_ ids, or the legacy fallback when none are authored.
+  let scenarioIds;
+  const allChecked = !!document.getElementById('admin-coaching-all')?.checked;
+  if (allChecked) {
+    scenarioIds = ['__all_coaching__'];
+  } else {
+    const picked = [...form.querySelectorAll('input[name="coaching_agent_id"]:checked')]
+      .map((el) => el.value)
+      .filter((v) => v && v !== '__all_coaching__');
+    const hasAuthoredAgents = Array.isArray(state.coachingAgents) && state.coachingAgents.length > 0;
+    if (!picked.length) {
+      if (hasAuthoredAgents) {
+        if (out) out.innerHTML = '<div class="admin-alert admin-alert-error">Pick at least one scenario (or "All scenarios").</div>';
+        return;
+      }
+      scenarioIds = ['coaching_practice'];
+    } else {
+      scenarioIds = picked;
+    }
+  }
+
+  const expiryVal = document.getElementById('coaching-invite-expiry').value;
+  const expires_days = expiryVal === 'never' ? 'never' : parseInt(expiryVal, 10);
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  try {
+    const res = await fetch('/api/admin/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ scenario_ids: scenarioIds, recipients: [{ email, name }], expires_days, mode: 'coaching' }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    const inv = (data.invites || [])[0] || null;
+    const emailOk = inv && inv.email_sent;
+    const url = inv && inv.url ? inv.url : '';
+    if (out) {
+      out.innerHTML = `
+        <div class="admin-alert admin-alert-success"><strong>Invite ${inv && inv.reused ? 'updated' : 'created'}.</strong> ${emailOk ? 'Email sent.' : 'Email not sent — copy the link below and share it manually.'}</div>
+        ${url ? `<div class="admin-generated-list"><div class="admin-generated-row"><div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
+          <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(url)}">Copy</button>
+        </div></div></div>` : ''}`;
+      out.querySelectorAll('.admin-participant-copy').forEach((b) => {
+        b.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(b.dataset.url);
+            const o = b.textContent; b.textContent = 'Copied!';
+            setTimeout(() => { b.textContent = o; }, 1500);
+          } catch { alert('Copy failed. Select the URL and copy it manually.'); }
+        });
+      });
+    }
+    // Clear the recipient fields (keep scenario selection sticky for the next
+    // person) and refresh the roster so the new participant shows immediately.
+    document.getElementById('coaching-invite-email').value = '';
+    document.getElementById('coaching-invite-name').value = '';
+    reloadCoachingParticipants();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send invite'; }
+  }
+}
+
 function renderCoachingSection() {
   const coaching = state.coaching;
   const active = !!coaching?.active;

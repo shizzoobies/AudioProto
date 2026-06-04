@@ -28,6 +28,15 @@ async function ensureInviteModeColumn(env) {
   } catch {
     // column already present
   }
+  // token_plain holds the recoverable URL token so the admin roster can show /
+  // copy each participant's live link after creation (we otherwise store only
+  // the hash). These are passwordless training links, so retaining the token is
+  // an accepted, low-risk trade for "copy & send manually". Swallow dup-column.
+  try {
+    await env.DB.prepare(`ALTER TABLE invites ADD COLUMN token_plain TEXT`).run();
+  } catch {
+    // column already present
+  }
 }
 
 export async function onRequestGet({ env }) {
@@ -205,12 +214,12 @@ async function createInvites(request, env) {
       // provided (otherwise keep the existing one).
       await env.DB
         .prepare(`UPDATE invites
-                  SET token_hash = ?, expires_at = ?,
+                  SET token_hash = ?, token_plain = ?, expires_at = ?,
                       recipient_name = COALESCE(?, recipient_name),
                       created_by = COALESCE(?, created_by),
                       mode = ?
                   WHERE id = ?`)
-        .bind(tokenHash, expiresAt, rec.name, createdBy, mode, inviteId)
+        .bind(tokenHash, token, expiresAt, rec.name, createdBy, mode, inviteId)
         .run();
       const row = await env.DB
         .prepare(`SELECT created_at FROM invites WHERE id = ?`)
@@ -221,9 +230,9 @@ async function createInvites(request, env) {
       inviteId = randomId();
       await env.DB
         .prepare(`INSERT INTO invites
-                  (id, token_hash, recipient_email, recipient_name, created_at, expires_at, created_by, mode)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(inviteId, tokenHash, rec.email, rec.name, now, expiresAt, createdBy, mode)
+                  (id, token_hash, token_plain, recipient_email, recipient_name, created_at, expires_at, created_by, mode)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(inviteId, tokenHash, token, rec.email, rec.name, now, expiresAt, createdBy, mode)
         .run();
     }
 
