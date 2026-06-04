@@ -1689,7 +1689,8 @@ async function onImportElevenLabsVoices() {
     }
     const incoming = Array.isArray(d?.voices) ? d.voices : [];
     if (!incoming.length) {
-      if (alertEl) alertEl.innerHTML = `<div class="admin-alert">No voices found on the ElevenLabs agent. Add voices (with labels) to the agent first, then import.</div>`;
+      const diag = d?._diag ? ` <code style="font-size:11px;">debug: ${escapeHtml(JSON.stringify(d._diag))}</code>` : '';
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert">No voices found on the ElevenLabs agent. Make sure the voices are on agent_7001… and try again.${diag}</div>`;
       return;
     }
     const existing = new Set((state.coachingVoices || []).map((v) => v.voice_id));

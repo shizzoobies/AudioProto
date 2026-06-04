@@ -28,24 +28,42 @@ export async function onRequestGet({ env }) {
       return jsonError('agent_fetch_failed', 502, `${r.status} ${t.slice(0, 200)}`);
     }
     const data = await r.json().catch(() => null);
-    const tts = data?.conversational_config?.tts || {};
+    // ElevenLabs has used both `conversation_config` and `conversational_config`
+    // (and sometimes nests under `agent`), so probe all known shapes.
+    const cfg = data?.conversation_config
+      || data?.conversational_config
+      || data?.agent?.conversation_config
+      || data?.agent?.conversational_config
+      || {};
+    const tts = cfg?.tts || {};
     const supported = Array.isArray(tts.supported_voices) ? tts.supported_voices : [];
 
     const voices = [];
     const seen = new Set();
-    // The agent's default single voice first (if any), so a single-voice agent
-    // still imports something useful.
-    if (tts.voice_id && !seen.has(tts.voice_id)) {
-      voices.push({ label: 'Agent default voice', voice_id: String(tts.voice_id) });
-      seen.add(tts.voice_id);
-    }
+    const pushVoice = (id, label) => {
+      if (!id || seen.has(id)) return;
+      voices.push({ label: String(label || '').trim() || 'Unnamed voice', voice_id: String(id) });
+      seen.add(id);
+    };
+    // The agent's default/primary voice first (field name varies), then the
+    // multi-voice "supported voices" list (each may use label or name).
+    pushVoice(tts.voice_id || tts.default_voice_id, 'Agent default voice');
     for (const v of supported) {
-      if (!v || !v.voice_id || seen.has(v.voice_id)) continue;
-      voices.push({ label: String(v.label || '').trim() || 'Unnamed voice', voice_id: String(v.voice_id) });
-      seen.add(v.voice_id);
+      if (!v) continue;
+      pushVoice(v.voice_id || v.id, v.label || v.name || v.voice_name);
     }
 
-    return json({ voices });
+    const payload = { voices };
+    // If we still found nothing, return a small shape diagnostic so we can see
+    // exactly where ElevenLabs put the voices.
+    if (!voices.length) {
+      payload._diag = {
+        topKeys: data && typeof data === 'object' ? Object.keys(data) : [],
+        cfgKeys: cfg && typeof cfg === 'object' ? Object.keys(cfg) : [],
+        ttsKeys: tts && typeof tts === 'object' ? Object.keys(tts) : [],
+      };
+    }
+    return json(payload);
   } catch (e) {
     return jsonError('upstream_unreachable', 502, String(e?.message || e));
   }
