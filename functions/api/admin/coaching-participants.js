@@ -19,8 +19,6 @@ import {
   REVIEW_RECIPIENT_EMAIL,
   COACHING_ADMIN_RECIPIENT_EMAIL,
 } from '../../../shared/auth.js';
-import { COACHING_SCENARIO_ID } from '../../../shared/scenarios.js';
-
 // Every sentinel recipient_email that is a system link, not a real participant.
 const SENTINELS = new Set([
   COACHING_RECIPIENT_EMAIL,
@@ -113,15 +111,15 @@ async function listParticipants(request, env) {
   const origin = env.INVITE_PUBLIC_URL || new URL(request.url).origin;
 
   const participants = rows.map((r) => {
-    // Show ONLY coaching scenarios. A coaching invite can inherit sales-library
-    // assignments when its email previously held a standard invite (rows are
-    // keyed by email and assignments accumulate); those are noise on this roster.
+    // Show ONLY real authored coaching scenarios (ca_ ids) and the "all" grant.
+    // Excluded: the legacy `coaching_practice` (Taylor) holdover, which is no
+    // longer used, and any sales-library ids inherited from an old standard
+    // invite on the same email (rows are email-keyed and assignments accumulate).
     const sids = (byInvite.get(r.id) || []).filter(
-      (sid) => sid === '__all_coaching__' || sid === COACHING_SCENARIO_ID || (typeof sid === 'string' && sid.startsWith('ca_'))
+      (sid) => sid === '__all_coaching__' || (typeof sid === 'string' && sid.startsWith('ca_'))
     );
     const scenarios = sids.map((sid) => {
       if (sid === '__all_coaching__') return { id: sid, label: 'All scenarios', all: true };
-      if (sid === COACHING_SCENARIO_ID) return { id: sid, label: 'Taylor (legacy)', all: false };
       return { id: sid, label: agentLabels.get(sid) || sid, all: false };
     });
     const prog = progress.get(r.id) || { calls: 0, last: null };
