@@ -47,9 +47,24 @@ export async function onRequestGet({ request, env }) {
           openingLines = [];
         }
       }
+      // Server-side per-manager progress for this authored scenario, keyed to the
+      // invite link. Wrapped so a missing table/row never breaks status; defaults
+      // to a no-prior state. Drives the Follow-up gate + "N calls" line in the UI.
+      let progress = { call_count: 0, has_prior: false };
+      try {
+        const prog = await env.DB
+          .prepare(`SELECT call_count FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?`)
+          .bind(scope.invite_id, agent.id)
+          .first();
+        const callCount = Number(prog?.call_count) || 0;
+        progress = { call_count: callCount, has_prior: callCount > 0 };
+      } catch {
+        progress = { call_count: 0, has_prior: false };
+      }
       scenarios.push({
         id: agent.id,
         kind: 'coaching_agent',
+        scenario_name: agent.scenario_name || '',
         name: agent.name || '',
         age: agent.age ?? null,
         role_title: agent.role_title || '',
@@ -61,6 +76,7 @@ export async function onRequestGet({ request, env }) {
           followup: !!agent.mode_followup,
         },
         opening_lines: openingLines,
+        progress,
       });
       continue;
     }

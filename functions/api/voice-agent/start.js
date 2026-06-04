@@ -123,7 +123,27 @@ export async function onRequestPost({ request, env }) {
   // coaching_practice and demo branches below are left untouched.
   if (isCoachingAgent) {
     const agentMode = COACHING_AGENT_MODES.includes(body?.mode) ? body.mode : 'coaching';
-    const agentPriorTranscript = Array.isArray(body?.prior_transcript) ? body.prior_transcript : [];
+
+    // Server-side memory: IGNORE any client-sent prior_transcript. Load the saved
+    // transcript for THIS manager (invite link) in THIS scenario from
+    // coaching_progress, so the agent remembers every prior call regardless of
+    // browser/device. Assessment mode never gets a recap; coaching + followup do.
+    // No invite scope (owner/agent session testing) -> no saved memory.
+    let agentPriorTranscript = [];
+    if (inviteScope && agentMode !== 'assessment') {
+      try {
+        const prog = await env.DB
+          .prepare('SELECT transcript FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?')
+          .bind(inviteScope.invite_id, scenarioId)
+          .first();
+        if (prog?.transcript) {
+          const parsed = JSON.parse(prog.transcript);
+          if (Array.isArray(parsed)) agentPriorTranscript = parsed;
+        }
+      } catch {
+        agentPriorTranscript = [];
+      }
+    }
 
     let openingLines = [];
     if (agentProfile.opening_lines) {

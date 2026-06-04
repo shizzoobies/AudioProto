@@ -497,7 +497,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
   { id: 'sec-coaching', label: 'Coaching link' },
-  { id: 'sec-coaching-agents-link', label: 'Coaching agents' },
+  { id: 'sec-coaching-agents-link', label: 'Scenarios' },
   { id: 'sec-charts', label: 'Charts link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
@@ -1099,15 +1099,18 @@ function renderCoachingAgentPicker(agents) {
   if (!list.length) {
     return `
       <div class="admin-coaching-picker-empty">
-        <p class="admin-muted">No coaching agents authored yet — this invite will use the built-in coaching practice (Taylor).</p>
-        <p class="admin-muted"><a href="/admin-coaching" target="_blank" rel="noopener">Create coaching agents →</a></p>
+        <p class="admin-muted">No scenarios authored yet — this invite will use the built-in coaching practice (Taylor).</p>
+        <p class="admin-muted"><a href="/admin-coaching" target="_blank" rel="noopener">Create scenarios →</a></p>
       </div>`;
   }
-  const rows = list.map((a) => `
+  const rows = list.map((a) => {
+    const label = (a.scenario_name && a.scenario_name.trim()) || a.name || a.id;
+    return `
     <label class="admin-coaching-agent-opt">
       <input type="checkbox" name="coaching_agent_id" value="${escapeAttr(a.id)}">
-      <span class="admin-coaching-agent-text">${escapeHtml(a.name || a.id)}${a.role_title ? ` <span class="admin-muted">· ${escapeHtml(a.role_title)}</span>` : ''}</span>
-    </label>`).join('');
+      <span class="admin-coaching-agent-text">${escapeHtml(label)}${a.role_title ? ` <span class="admin-muted">· ${escapeHtml(a.role_title)}</span>` : ''}</span>
+    </label>`;
+  }).join('');
   return `
     <label class="admin-coaching-agent-opt admin-coaching-agent-all">
       <input type="checkbox" id="admin-coaching-all" name="coaching_agent_id" value="__all_coaching__">
@@ -1171,7 +1174,7 @@ function coachingScenarioLabel(s) {
   if (id === '__all_coaching__') return 'All coaching agents';
   if (typeof id === 'string' && id.startsWith('ca_')) {
     const agent = (state.coachingAgents || []).find((a) => a && a.id === id);
-    return agent?.name || id;
+    return (agent && ((agent.scenario_name && agent.scenario_name.trim()) || agent.name)) || id;
   }
   return s?.customer_name || id || '';
 }
@@ -1861,17 +1864,17 @@ function levelOptions(selected) {
 // (admin-coaching.html) to keep the dashboard uncluttered.
 function renderCoachingAgentsLinkCard() {
   const n = Array.isArray(state.coachingAgents) ? state.coachingAgents.length : 0;
-  const countLabel = n === 0 ? 'No agents yet' : `${n} agent${n === 1 ? '' : 's'}`;
+  const countLabel = n === 0 ? 'No scenarios yet' : `${n} scenario${n === 1 ? '' : 's'}`;
   return `
     <section class="admin-section" id="sec-coaching-agents-link">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
-        <h2 class="admin-section-title">Coaching agents</h2>
+        <h2 class="admin-section-title">Scenarios</h2>
         <p class="admin-section-sub">The library of coachable AI employees managers practice on. Authored and managed on their own page.</p>
       </header>
       <div class="admin-invite-card is-active" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <span class="admin-muted">${escapeHtml(countLabel)}</span>
-        <a class="primary-button" href="/admin-coaching">Open coaching agents &rarr;</a>
+        <a class="primary-button" href="/admin-coaching">Open scenarios &rarr;</a>
       </div>
     </section>
   `;
@@ -1882,8 +1885,8 @@ function renderCoachingAgentsSection() {
     <section class="admin-section" id="sec-coaching-agents">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
-        <h2 class="admin-section-title">Coaching agents</h2>
-        <p class="admin-section-sub">The coachable AI employees managers practice on. Author each one's demeanor, how they take feedback, what they're resistant or receptive to, and the skill gap underneath. (Authoring only for now — these aren't wired into a live call yet.)</p>
+        <h2 class="admin-section-title">Scenarios</h2>
+        <p class="admin-section-sub">The coachable AI employees managers practice on. Give each scenario a name, then author the employee's demeanor, how they take feedback, what they're resistant or receptive to, and the skill gap underneath.</p>
       </header>
 
       <div id="admin-ca-alert"></div>
@@ -1891,6 +1894,10 @@ function renderCoachingAgentsSection() {
       <form id="admin-ca-form" class="admin-ca-grid" autocomplete="off">
         <input type="hidden" id="ca-id" value="">
 
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-scenario-name">Scenario name</label>
+          <input type="text" id="ca-scenario-name" class="admin-input" placeholder="e.g. The disengaged closer">
+        </div>
         <div class="admin-field">
           <label class="admin-field-label" for="ca-name">Name <span class="admin-req">*</span></label>
           <input type="text" id="ca-name" class="admin-input" placeholder="e.g. Taylor" required>
@@ -1986,11 +1993,16 @@ function renderCoachingAgentsList(agents) {
     const statusPill = a.active
       ? '<span class="admin-pill admin-pill-active">Active</span>'
       : '<span class="admin-pill">Inactive</span>';
+    // Primary line is the scenario name (admin's label); fall back to the
+    // employee name. The employee name/role drop to the secondary meta line.
+    const primary = (a.scenario_name && a.scenario_name.trim()) || a.name;
+    const secondaryName = a.scenario_name && a.scenario_name.trim() ? a.name : '';
     return `
       <div class="admin-ca-row" data-id="${escapeAttr(a.id)}">
         <div class="admin-ca-row-main">
-          <div class="admin-ca-row-name">${escapeHtml(a.name)} ${statusPill}</div>
+          <div class="admin-ca-row-name">${escapeHtml(primary)} ${statusPill}</div>
           <div class="admin-ca-row-meta">
+            ${secondaryName ? `<span>${escapeHtml(secondaryName)}</span>` : ''}
             ${a.role_title ? `<span>${escapeHtml(a.role_title)}</span>` : ''}
             ${a.attitude ? `<span>${escapeHtml(a.attitude)}</span>` : ''}
             <span>Modes: ${escapeHtml(modes)}</span>
@@ -2054,6 +2066,7 @@ async function onSaveCoachingAgent(e) {
 
   const payload = {
     id: val('ca-id') || undefined,
+    scenario_name: val('ca-scenario-name'),
     name,
     age: val('ca-age') || null,
     role_title: val('ca-role'),
@@ -2112,6 +2125,7 @@ function populateCoachingAgentForm(agent) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
   const check = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
   set('ca-id', agent.id);
+  set('ca-scenario-name', agent.scenario_name);
   set('ca-name', agent.name);
   set('ca-age', agent.age ?? '');
   set('ca-role', agent.role_title);
@@ -2144,6 +2158,8 @@ function clearCoachingAgentForm() {
   if (form) form.reset();
   const idEl = document.getElementById('ca-id');
   if (idEl) idEl.value = '';
+  const scenarioNameEl = document.getElementById('ca-scenario-name');
+  if (scenarioNameEl) scenarioNameEl.value = '';
   // Rebuild the voice select so form.reset() doesn't land on a stale value.
   const voiceSel = document.getElementById('ca-voice');
   if (voiceSel) { voiceSel.innerHTML = renderVoiceOptions(''); voiceSel.value = ''; }

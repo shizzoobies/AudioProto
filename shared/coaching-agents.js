@@ -143,10 +143,16 @@ function modeBlock(mode, name, priorTranscript) {
     );
   }
   // default: coaching
+  const coachingRecap = buildPriorRecap(priorTranscript, name);
   return (
     `MODE — COACHING:\n` +
     `- This is the one-on-one feedback conversation. Your manager is giving you ` +
-    `feedback right now. React in character to whatever they actually raise.`
+    `feedback right now. React in character to whatever they actually raise.` +
+    (coachingRecap
+      ? `\n- You have spoken with this manager before — you remember these earlier ` +
+        `one-on-one(s); continue that relationship.` +
+        '\n\n' + coachingRecap
+      : '')
   );
 }
 

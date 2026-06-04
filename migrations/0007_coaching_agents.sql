@@ -7,6 +7,7 @@
 
 CREATE TABLE IF NOT EXISTS coaching_agents (
   id               TEXT PRIMARY KEY,            -- 'ca_' + short random id
+  scenario_name    TEXT,                        -- admin-chosen scenario label (optional)
   name             TEXT NOT NULL,
   age              INTEGER,
   role_title       TEXT,

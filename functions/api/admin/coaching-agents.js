@@ -47,6 +47,7 @@ export async function onRequestPost({ request, env }) {
     if (!name) return jsonError('name_required', 400);
 
     const fields = {
+      scenario_name: cleanStr(body?.scenario_name),
       name: cap(name),
       age: toIntOrNull(body?.age),
       role_title: cleanStr(body?.role_title),
@@ -83,7 +84,7 @@ export async function onRequestPost({ request, env }) {
       await env.DB
         .prepare(
           `UPDATE coaching_agents SET
-             name = ?, age = ?, role_title = ?, voice_id = ?, attitude = ?,
+             scenario_name = ?, name = ?, age = ?, role_title = ?, voice_id = ?, attitude = ?,
              resistance = ?, receptiveness = ?, skill_gap = ?, skill_gap_detail = ?,
              demeanor = ?, incident = ?, personality = ?, derails = ?,
              mode_assessment = ?, mode_coaching = ?, mode_followup = ?,
@@ -91,7 +92,7 @@ export async function onRequestPost({ request, env }) {
            WHERE id = ?`
         )
         .bind(
-          fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
+          fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
           fields.resistance, fields.receptiveness, fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
@@ -111,14 +112,14 @@ export async function onRequestPost({ request, env }) {
       await env.DB
         .prepare(
           `INSERT INTO coaching_agents
-             (id, name, age, role_title, voice_id, attitude, resistance, receptiveness,
+             (id, scenario_name, name, age, role_title, voice_id, attitude, resistance, receptiveness,
               skill_gap, skill_gap_detail, demeanor, incident, personality, derails,
               mode_assessment, mode_coaching, mode_followup, opening_lines, active,
               created_at, updated_at, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
-          id, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
+          id, fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
           fields.resistance, fields.receptiveness, fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
@@ -173,6 +174,7 @@ async function ensureCoachingAgentsTable(env) {
     await env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS coaching_agents (
          id               TEXT PRIMARY KEY,
+         scenario_name    TEXT,
          name             TEXT NOT NULL,
          age              INTEGER,
          role_title       TEXT,
@@ -199,6 +201,15 @@ async function ensureCoachingAgentsTable(env) {
   } catch {
     // table already present or a benign race — safe to ignore
   }
+  // Self-bootstrap the scenario_name column on DBs that predate it. ADD COLUMN
+  // throws "duplicate column" once present — swallow it.
+  try {
+    await env.DB.prepare(
+      `ALTER TABLE coaching_agents ADD COLUMN scenario_name TEXT`
+    ).run();
+  } catch {
+    // column already present — safe to ignore
+  }
 }
 
 // Shape a DB row into the JSON an admin client expects: booleans coerced,
@@ -216,6 +227,7 @@ function rowToAgent(row) {
   }
   return {
     id: row.id,
+    scenario_name: row.scenario_name || '',
     name: row.name,
     age: row.age ?? null,
     role_title: row.role_title || '',

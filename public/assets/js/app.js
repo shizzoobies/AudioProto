@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-2 coaching-agents-live';
+const BUILD_ID = '20260604-3 scenarios-progress';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -927,12 +927,14 @@ function coachingAgentToPersona(s) {
     kind: 'coaching_agent',
     title: s.role_title || 'Coaching Practice',
     tagline: '',
+    scenario_name: s.scenario_name || '',
     age: s.age ?? null,
     role_title: s.role_title || '',
     demeanor: s.demeanor || '',
     incident: s.incident || '',
     modes: s.modes || { assessment: false, coaching: true, followup: false },
     opening_lines: Array.isArray(s.opening_lines) ? s.opening_lines : [],
+    progress: s.progress || { call_count: 0, has_prior: false },
   };
 }
 
@@ -1043,7 +1045,13 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   const age = agent.age ?? null;
   const demeanor = legacy ? '' : (agent.demeanor || '');
   const incident = legacy ? '' : (agent.incident || '');
-  const hasPrior = hasSavedCoaching(agent.id);
+  // The optional admin-chosen scenario label (authored ca_ scenarios only).
+  const scenarioName = legacy ? '' : (agent.scenario_name || '');
+  // Prior-call gate. Authored scenarios use server-side per-manager progress
+  // (survives browser/device); legacy coaching_practice keeps its localStorage
+  // memory.
+  const callCount = legacy ? 0 : Number(agent.progress?.call_count) || 0;
+  const hasPrior = legacy ? hasSavedCoaching(agent.id) : !!agent.progress?.has_prior;
   const savedName = loadCoachingParticipant();
 
   // The mode buttons to render. Legacy coaching_practice keeps its 'fresh' +
@@ -1080,8 +1088,10 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
         ${multi ? '<button class="ghost-button coaching-back" type="button"><span aria-hidden="true">‹</span> All agents</button>' : ''}
         <div class="coaching-profile">
           <span class="coaching-agent-avatar coaching-agent-avatar-lg" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
+          ${scenarioName ? `<p class="coaching-profile-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
           <h1 class="coaching-test-title">${escapeHtml(name)}</h1>
           <p class="coaching-profile-sub">${escapeHtml([role, age ? `age ${age}` : ''].filter(Boolean).join(' · '))}</p>
+          ${callCount > 0 ? `<p class="coaching-profile-progress">You've taken ${callCount} call${callCount === 1 ? '' : 's'} in this scenario.</p>` : ''}
         </div>
         ${demeanor ? `<div class="coaching-profile-block"><h2 class="coaching-profile-h">Typical performance &amp; demeanor</h2><p class="coaching-profile-text">${escapeHtml(demeanor)}</p></div>` : ''}
         ${incident ? `<div class="coaching-profile-block"><h2 class="coaching-profile-h">What happened</h2><p class="coaching-profile-text">${escapeHtml(incident)}</p></div>` : ''}
@@ -1146,6 +1156,32 @@ function loadCoachingTranscript(scenarioId) {
 
 function hasSavedCoaching(scenarioId) {
   return loadCoachingTranscript(scenarioId).length >= 2;
+}
+
+// Re-fetch /api/me/status and refresh state.recipient.scenarios in place so the
+// coaching home reflects updated server-side progress (e.g. new call_count /
+// has_prior after a call). Also re-registers each authored coaching agent in
+// personaById so startCall keeps working. Best-effort: silently keeps the old
+// scenarios on any failure.
+async function refreshRecipientStatus() {
+  if (!state.recipient) return;
+  try {
+    const r = await fetch('/api/me/status', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const me = await r.json();
+    if (!me || !me.active || !Array.isArray(me.scenarios)) return;
+    state.recipient.scenarios = me.scenarios;
+    for (const s of me.scenarios) {
+      if (!s || !s.id) continue;
+      if (s.kind === 'coaching_agent') {
+        state.personaById.set(s.id, coachingAgentToPersona(s));
+      } else if (!state.personaById.has(s.id)) {
+        state.personaById.set(s.id, { ...s });
+      }
+    }
+  } catch {
+    // keep the existing scenarios on any error
+  }
 }
 
 // "The Living Voice" — a cinematic, sealed landing for the pitch demo recipient
@@ -1758,7 +1794,14 @@ async function startCall(typeOrPersonaId, opts = {}) {
   // the last one-on-one. Default to 'coaching' (authored) / 'fresh' (legacy path
   // passes its own opts.mode explicitly).
   const coachingMode = opts.mode || 'coaching';
-  const priorTranscript = coachingMode === 'followup' ? loadCoachingTranscript(personaId) : [];
+  // Authored coaching scenarios (ca_) load their prior transcript SERVER-SIDE
+  // (keyed to the invite link) in /api/voice-agent/start, so the client attaches
+  // none. Only the legacy coaching_practice replays its localStorage transcript
+  // into a follow-up call.
+  const priorTranscript =
+    (personaId === 'coaching_practice' && coachingMode === 'followup')
+      ? loadCoachingTranscript(personaId)
+      : [];
   state.activeScenario = {
     ...persona,
     title: persona.type_title || persona.title || '',
@@ -3085,17 +3128,35 @@ function renderCall(scenario, opts = {}) {
     }
   }
 
-  endCallBtn.addEventListener('click', () => {
+  endCallBtn.addEventListener('click', async () => {
     // Voice-agent calls carry their transcript on the agent; turn-based calls on
     // the conversation. teardownAudio() stops the agent.
     const messages = state.voiceAgent ? state.voiceAgent.getTranscript() : conversation.getMessages();
     conversation.cancel();
     teardownAudio();
     // Coaching practice has NO scored report — it's an open soft-skills rehearsal.
-    // Instead we save the transcript so the user can run a FOLLOW-UP call where
-    // Taylor remembers it, then return to the coaching page.
+    // Authored (ca_) scenarios persist progress SERVER-SIDE (keyed to the invite
+    // link) so the agent remembers every prior call across browsers/devices; the
+    // legacy coaching_practice keeps its localStorage follow-up memory.
     if (isCoaching) {
-      if (messages.length >= 2) saveCoachingTranscript(scenario.id, messages);
+      if (scenario.id && scenario.id.startsWith('ca_')) {
+        if (messages.length >= 2) {
+          try {
+            await fetch('/api/coaching/progress', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ scenario_id: scenario.id, messages }),
+            });
+          } catch {
+            // fire-and-forget — ignore network failure
+          }
+        }
+        // Reflect the new progress (call_count / follow-up unlock) on the home.
+        await refreshRecipientStatus();
+      } else if (messages.length >= 2) {
+        saveCoachingTranscript(scenario.id, messages);
+      }
       renderCoachingTest();
       return;
     }
