@@ -4,6 +4,7 @@ import {
   getAdminScope,
   getInviteScope,
   getReviewScope,
+  getCoachingAdminScope,
 } from '../../shared/auth.js';
 
 // Scoped review-editor links (cs_review) may reach ONLY these admin endpoints —
@@ -12,6 +13,18 @@ import {
 const REVIEW_ALLOWED_PATHS = new Set([
   '/api/admin/rubric',
   '/api/admin/review-session',
+]);
+
+// Scoped coaching-admin links (cs_coaching_admin) may reach ONLY these admin
+// endpoints — the Scenarios + Voices editing surface and the identity probe.
+// The generator (/api/admin/coaching-access) and the manager-link
+// (/api/admin/coaching) are intentionally NOT here: those stay cs_admin-only.
+const COACHING_ADMIN_ALLOWED_PATHS = new Set([
+  '/api/admin/coaching-agents',
+  '/api/admin/coaching-voices',
+  '/api/admin/elevenlabs-voices',
+  '/api/admin/voice-preview',
+  '/api/admin/coaching-access-session',
 ]);
 
 // Public paths skip auth entirely.
@@ -46,6 +59,10 @@ export async function onRequest(context) {
     if (REVIEW_ALLOWED_PATHS.has(url.pathname)) {
       const review = await getReviewScope(request, env);
       if (review) return next();
+    }
+    if (COACHING_ADMIN_ALLOWED_PATHS.has(url.pathname)) {
+      const ca = await getCoachingAdminScope(request, env);
+      if (ca) return next();
     }
     return jsonError('unauthorized', 401);
   }

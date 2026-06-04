@@ -32,6 +32,15 @@ export const PREVIEW_RECIPIENT_EMAIL = '__preview__@simulation.local';
 // /review-pass/[token] entry, and the /api middleware allow-list.
 export const REVIEW_RECIPIENT_EMAIL = '__review__@simulation.local';
 
+// Sentinel recipient_email for the scoped "coaching admin / Scenarios editor"
+// link. One invites row whose recipient_email is this constant; its
+// cs_coaching_admin cookie grants access to ONLY the coaching Scenarios admin
+// page (create/manage scenarios + voices), not the rest of the admin panel, so
+// someone can author scenarios without full admin access. See
+// getCoachingAdminScope, the /coaching-pass/[token] entry, and the /api
+// middleware allow-list.
+export const COACHING_ADMIN_RECIPIENT_EMAIL = '__coaching_admin__@simulation.local';
+
 // Sentinel recipient_email marking the single open "coaching" link — the
 // open-link sibling of the per-email coaching invites. Like the demo, it reuses
 // the invites table: one row whose recipient_email is this constant, with
@@ -336,6 +345,40 @@ export async function getReviewScope(request, env) {
     .first();
   if (!row) return null;
   if (row.recipient_email !== REVIEW_RECIPIENT_EMAIL) return null;
+  if (row.token_hash !== payload.h) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (row.expires_at && row.expires_at < now) return null;
+
+  return { invite_id: row.id, expires_at: row.expires_at };
+}
+
+// Validate a cs_coaching_admin cookie against the coaching-admin sentinel invites
+// row. Returns { invite_id, expires_at } when the cookie is present, signed,
+// scoped to 'coaching_admin', and still matches a non-revoked, non-expired row
+// whose token_hash equals the cookie's. Re-reads D1 every call so revoke/regenerate
+// is instant. Grants access to ONLY the coaching Scenarios admin endpoints.
+export async function getCoachingAdminScope(request, env) {
+  if (!env?.SESSION_SECRET || !env?.DB) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  const t = cookies.cs_coaching_admin;
+  if (!t) return null;
+  let payload;
+  try {
+    payload = await verifyToken(t, env.SESSION_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.scope !== 'coaching_admin' || !payload?.invite_id || !payload?.h) return null;
+
+  const row = await env.DB
+    .prepare(
+      `SELECT id, recipient_email, expires_at, token_hash
+       FROM invites WHERE id = ? AND revoked = 0 LIMIT 1`
+    )
+    .bind(payload.invite_id)
+    .first();
+  if (!row) return null;
+  if (row.recipient_email !== COACHING_ADMIN_RECIPIENT_EMAIL) return null;
   if (row.token_hash !== payload.h) return null;
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return null;
