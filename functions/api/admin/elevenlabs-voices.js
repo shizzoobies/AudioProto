@@ -15,11 +15,13 @@ import { SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
 const AGENT_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/agents/';
 
 export async function onRequestGet({ env }) {
-  if (!env.ELEVENLABS_API_KEY) return jsonError('elevenlabs_key_missing', 500);
+  // Coaching lives on its own ElevenLabs account — use the coaching key when set.
+  const apiKey = env.COACHING_ELEVENLABS_API_KEY || env.ELEVENLABS_API_KEY;
+  if (!apiKey) return jsonError('elevenlabs_key_missing', 500);
   try {
     const agentId = env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID;
     const r = await fetch(`${AGENT_ENDPOINT}${agentId}`, {
-      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY },
+      headers: { 'xi-api-key': apiKey },
     });
     if (!r.ok) {
       const t = await safeText(r);

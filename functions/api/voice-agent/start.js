@@ -17,8 +17,6 @@ const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/ge
 const VOICE_AGENT_SCENARIOS = new Set([...DEMO_SCENARIO_IDS, 'coaching_practice']);
 
 export async function onRequestPost({ request, env }) {
-  if (!env.ELEVENLABS_API_KEY) return jsonError('elevenlabs_key_missing', 500);
-
   let body;
   try {
     body = await request.json();
@@ -62,6 +60,13 @@ export async function onRequestPost({ request, env }) {
     ? (env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID)
     : (env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID);
 
+  // Coaching runs on its own ElevenLabs account, so it uses a separate API key
+  // when one is configured; demos + the turn-based pipeline keep the main key.
+  const elevenLabsKey = isAnyCoaching
+    ? (env.COACHING_ELEVENLABS_API_KEY || env.ELEVENLABS_API_KEY)
+    : env.ELEVENLABS_API_KEY;
+  if (!elevenLabsKey) return jsonError('elevenlabs_key_missing', 500);
+
   // Same scope checks as /api/chat: magic-link + invite recipients are limited to
   // their assigned scenarios. (Agent/owner sessions pass through.) getInviteScope
   // expands an __all_coaching__ invite into concrete ca_ ids, so a recipient
@@ -75,7 +80,7 @@ export async function onRequestPost({ request, env }) {
   let signed;
   try {
     const r = await fetch(`${SIGNED_URL_ENDPOINT}?agent_id=${encodeURIComponent(agentId)}`, {
-      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY },
+      headers: { 'xi-api-key': elevenLabsKey },
     });
     if (!r.ok) {
       const t = await safeText(r);
