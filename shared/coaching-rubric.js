@@ -121,9 +121,12 @@ Stay within Meridian policy when you coach. Every suggestion must be something a
 
 Hold etiquette: if at any point the agent places the caller on hold (or steps away / goes quiet to look something up), they should ASK the caller's permission first ("May I place you on a brief hold?"), wait for a yes, keep it short, and thank the caller when they return. Reward this when done well; if the agent holds or goes silent without asking, or leaves the caller hanging, note it as a growth area under the most relevant item (professionalism / wrap up).
 
-Scoring rubric. Score each of the items below from 1 to 5, grouped into sections. Submit a score for every item.`;
+Scoring rubric. For each item below, FIRST decide whether it actually applied to this call (see the applicability rule in the closing instructions), then score the ones that applied from 1 to 5. Submit an entry for every item; mark the ones that did not apply as not applicable instead of scoring them.`;
 
-const PROMPT_TAIL = `For any item where the moment never arose in this call, score what they did to set up success and note in the evidence that the moment did not come up.
+const PROMPT_TAIL = `Applicability (apply only the relevant parts):
+- For EACH item, decide first whether it actually applied to THIS call. If the situation genuinely never arose, or the item could not apply given the context (for example: personalizing the greeting with the customer's name on a brand-new inbound call where you do not yet have their name; a returning-customer step on a first-time caller; an advisory or add-on that simply did not fit this move), set "applicable" to false, briefly note in the evidence why it did not apply, and do not score it. Not-applicable items are excluded from scoring and never count against the agent.
+- Only mark an item not applicable when it TRULY did not apply. If the moment did arise and the agent handled it poorly, skipped a required step, or rushed past it, that is a LOW score, not "not applicable." Do not use "not applicable" to excuse a real miss.
+- Base overall_score only on the items that applied.
 
 Style rules:
 - Do not use em dashes anywhere in your output. Use commas, periods, or restart sentences.
@@ -136,22 +139,26 @@ Submit the report by calling the submit_coaching_report tool exactly once.`;
 const SCORE_ENTRY_SCHEMA = {
   type: 'object',
   properties: {
+    applicable: {
+      type: 'boolean',
+      description: 'Whether this item actually applied to THIS call. Set false ONLY when the situation genuinely never arose or could not apply given the context (for example: personalizing a greeting with the customer\'s name on a brand-new inbound call where the name is not yet known; a returning-customer step on a first-time caller; an advisory or disclosure that did not apply to this move). Do NOT set false just because the agent skipped or fumbled something they SHOULD have done — that is a low score, not Not Applicable. When false, the item is marked Not Applicable and excluded from scoring; it never counts against the agent.',
+    },
     score: {
       type: 'integer',
       minimum: 1,
       maximum: 5,
-      description: 'Score from 1 to 5.',
+      description: 'Score from 1 to 5. Ignored when applicable is false.',
     },
     evidence: {
       type: 'string',
-      description: 'A short verbatim quote from the transcript (in double quotes) or a one-sentence paraphrase.',
+      description: 'A short verbatim quote from the transcript (in double quotes) or a one-sentence paraphrase. When applicable is false, briefly state why this item did not apply to this call.',
     },
     suggestion: {
       type: 'string',
-      description: 'One concrete sentence describing what to try differently next time for this item.',
+      description: 'One concrete sentence describing what to try differently next time for this item. May be empty when applicable is false.',
     },
   },
-  required: ['score', 'evidence', 'suggestion'],
+  required: ['applicable', 'score', 'evidence', 'suggestion'],
 };
 
 // Order a list of items by section (RUBRIC_SECTIONS order) then by position.
@@ -215,7 +222,7 @@ export function buildCoaching(rawItems) {
           type: 'number',
           minimum: 1,
           maximum: 5,
-          description: 'Overall call score from 1.0 to 5.0, rounded to one decimal.',
+          description: 'Overall call score from 1.0 to 5.0, rounded to one decimal. Average only the items that applied to this call; exclude any item marked not applicable.',
         },
         scores: {
           type: 'object',

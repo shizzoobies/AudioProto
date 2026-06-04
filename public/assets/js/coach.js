@@ -125,16 +125,25 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
 // inside. The four phase sections hold 2 cards; General holds 4.
 function renderScoreSection(section, scores) {
   const items = section.items || [];
+  // Average only the items that APPLIED to this call — items the scorer marked
+  // not applicable (applicable === false) are excluded so they never drag the
+  // section score down.
   const vals = items
-    .map((it) => Number(scores?.[it.key]?.score))
-    .filter((n) => Number.isFinite(n));
+    .map((it) => scores?.[it.key])
+    .filter((d) => d && d.applicable !== false && Number.isFinite(Number(d.score)))
+    .map((d) => Number(d.score));
   const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+  // Distinguish "every item here didn't apply" (N/A) from "no data" (No score).
+  const allNa = items.length > 0 && items.every((it) => scores?.[it.key] && scores[it.key].applicable === false);
   const chevron = `<svg class="report-section-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const avgHtml = avg != null
+    ? `<span class="report-section-avg"><strong>${avg.toFixed(1)}</strong> <span>/ 5</span></span>`
+    : `<span class="report-section-avg report-section-avg-none">${allNa ? 'N/A' : 'No score'}</span>`;
   return `
     <details class="report-section" open>
       <summary class="report-section-summary">
         <span class="report-section-name">${escapeHtml(section.label)}</span>
-        ${avg != null ? `<span class="report-section-avg"><strong>${avg.toFixed(1)}</strong> <span>/ 5</span></span>` : '<span class="report-section-avg report-section-avg-none">No score</span>'}
+        ${avgHtml}
         ${chevron}
       </summary>
       <div class="report-section-cards">
@@ -153,6 +162,19 @@ function renderRubricCard(entry, data) {
           <div class="rubric-score-text">No score</div>
         </header>
         <p class="rubric-evidence">No evidence captured.</p>
+      </article>
+    `;
+  }
+  // Not applicable to this call: show a muted N/A card with the reason, no score
+  // or pips, and exclude it from the section average (handled in renderScoreSection).
+  if (data.applicable === false) {
+    return `
+      <article class="rubric-card rubric-card-na">
+        <header class="rubric-head">
+          <h3 class="rubric-label">${escapeHtml(entry.label)}</h3>
+          <div class="rubric-score-text rubric-score-na">N/A</div>
+        </header>
+        <p class="rubric-evidence">${escapeHtml(data.evidence || 'This did not apply to this call.')}</p>
       </article>
     `;
   }

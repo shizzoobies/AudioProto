@@ -2116,6 +2116,21 @@ body[data-demo] .report {
   border-color: var(--color-border-strong);
 }
 
+/* Not-applicable item: didn't apply to this call, excluded from scoring. Muted
+   so it reads as context, not a miss. */
+.rubric-card-na {
+  background: var(--color-surface-elevated, #f7f7f8);
+  border-style: dashed;
+  opacity: 0.85;
+}
+.rubric-score-na {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+}
+
 .rubric-head {
   display: flex;
   align-items: baseline;
