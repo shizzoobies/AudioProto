@@ -10,11 +10,8 @@
 // The fixed sections, in display order. Items reference one of these by `section`
 // key. Section management is intentionally not exposed in the admin UI yet.
 export const RUBRIC_SECTIONS = [
-  { key: 'beginning', label: 'Beginning — Greeting the Customer' },
-  { key: 'gathering', label: 'Gathering the Rental Information' },
-  { key: 'scheduling', label: 'Scheduling the Reservation' },
-  { key: 'wrap', label: 'Wrap Up' },
-  { key: 'general', label: 'General' },
+  { key: 'call_process', label: 'Call Process' },
+  { key: 'soft_skills', label: 'Soft Skills' },
 ];
 
 const SECTION_LABEL = Object.fromEntries(RUBRIC_SECTIONS.map((s) => [s.key, s.label]));
@@ -26,73 +23,73 @@ const SECTION_LABEL = Object.fromEntries(RUBRIC_SECTIONS.map((s) => [s.key, s.la
 //   required   - must-say / must-do elements the model verifies
 // anchors/policy_ref/required are optional; the model ignores empty ones.
 export const DEFAULT_RUBRIC_ITEMS = [
-  { key: 'beginning_greeting', section: 'beginning', position: 0,
+  { key: 'beginning_greeting', section: 'call_process', position: 0,
     label: 'Branded greeting & self-intro',
     guidance: 'Did they open with a proper branded greeting and give their name? For example, "Thank you for calling Meridian Moving and Storage, this is ___."',
     anchors: '5: Opens with the full branded greeting and their name right away. 3: Greets warmly but misses either the company name or their own name. 1: No greeting, or jumps in without identifying the company or themselves.',
     policy_ref: 'Meridian standard: every inbound call opens with "Thank you for calling Meridian Moving and Storage, this is [name]."',
     required: 'Company name "Meridian Moving and Storage"; the agent\'s own name' },
-  { key: 'beginning_offer', section: 'beginning', position: 1,
+  { key: 'beginning_offer', section: 'soft_skills', position: 0,
     label: 'Offer to help & set the tone',
     guidance: 'Did they ask how they can help and set a warm, professional tone from the first moment?',
     anchors: '5: Warmly invites the customer to share what they need and sets a confident, friendly tone. 3: Offers to help but flatly or transactionally. 1: No offer to help; cold or rushed open.',
     policy_ref: 'Meridian standard: after the greeting, invite the customer to explain what they need before launching into questions.',
     required: 'An open invitation to help (e.g. "How can I help you today?")' },
-  { key: 'gathering_details', section: 'gathering', position: 0,
+  { key: 'gathering_details', section: 'call_process', position: 1,
     label: 'Move details',
     guidance: 'Did they collect the move details the reservation needs - where from and to, the date, the load size - by asking good questions and confirming understanding?',
     anchors: '5: Collects and confirms all core details (origin, destination, date, load size) with good questions. 3: Gets most details but leaves a gap or never confirms. 1: Quotes or books without establishing the basic move details.',
     policy_ref: 'Meridian standard: a reservation requires origin, destination, pickup date, and load/home size before a quote.',
     required: 'Origin; destination; pickup date; load or home size' },
-  { key: 'gathering_equipment', section: 'gathering', position: 1,
+  { key: 'gathering_equipment', section: 'call_process', position: 2,
     label: 'Equipment match',
     guidance: 'Did they recommend the right truck size for the move and present the rate and options clearly?',
     anchors: '5: Recommends the right truck for the load and presents the rate and options clearly. 3: Suggests a truck vaguely or without tying it to the load. 1: Wrong-size recommendation, or no clear rate given.',
     policy_ref: 'Meridian standard: match truck size to the home/load size and present the rate before asking to book. Fleet: 10\', 15\', 20\', 26\'.',
     required: 'A specific truck size; the rate' },
-  { key: 'scheduling_location', section: 'scheduling', position: 0,
+  { key: 'scheduling_location', section: 'call_process', position: 3,
     label: 'Pickup location',
     guidance: 'Did they select or confirm the right pickup branch for the customer?',
     anchors: '5: Confirms a specific pickup branch the customer can reach. 3: Mentions a location but does not confirm it works for them. 1: No pickup location established.',
     policy_ref: 'Meridian standard: confirm a real pickup branch and that the customer can get to it.',
     required: 'A named pickup location' },
-  { key: 'scheduling_time', section: 'scheduling', position: 1,
+  { key: 'scheduling_time', section: 'call_process', position: 4,
     label: 'Pickup time',
     guidance: 'Did they lock in a firm pickup date and time?',
     anchors: '5: Locks a firm pickup date AND time. 3: Gets a date but leaves the time loose. 1: No firm pickup time.',
     policy_ref: 'Meridian standard: every reservation carries a firm pickup date and time.',
     required: 'A firm date; a firm time' },
-  { key: 'wrap_readback', section: 'wrap', position: 0,
+  { key: 'wrap_readback', section: 'call_process', position: 5,
     label: 'Read-back & confirmation',
     guidance: 'Did they read back and confirm the reservation details, including the confirmation number?',
     anchors: '5: Reads back the full reservation (truck, dates, location, total) and gives the confirmation number. 3: Confirms some details but skips the read-back or the confirmation number. 1: Ends without confirming the reservation.',
     policy_ref: 'Meridian standard: always read back the reservation and provide the confirmation number before closing.',
     required: 'Read-back of the details; the confirmation number' },
-  { key: 'wrap_close', section: 'wrap', position: 1,
+  { key: 'wrap_close', section: 'soft_skills', position: 3,
     label: 'Professional close',
     guidance: 'Did they cover next steps, ask if there is anything else, and close the call courteously?',
     anchors: '5: Covers next steps, asks "anything else," and closes courteously. 3: Closes politely but skips next steps or the "anything else." 1: Abrupt or no real close.',
     policy_ref: 'Meridian standard: close by confirming next steps, asking if there is anything else, and thanking the customer.',
     required: 'Next steps; "anything else?"; a courteous sign-off' },
-  { key: 'general_objections', section: 'general', position: 0,
+  { key: 'general_objections', section: 'soft_skills', position: 1,
     label: 'Overcoming objections',
     guidance: 'Did they handle objections (price, competitor, hesitation, "let me think about it" or "I need to ask my spouse") in the moment and land the booking on this call?',
     anchors: '5: Acknowledges the objection, resolves it in the moment (e.g. removes the risk of committing now, builds genuine urgency, reassures the worry), and closes the reservation on this call. 3: Acknowledges but does not resolve it, or lets the customer defer to "later" without trying to close now. 1: Ignores it, argues, caves, or actively defers the sale (offers a callback, tells them to think about it).',
     policy_ref: 'Meridian standard: the goal of a sales call is to overcome objections and complete the reservation on THIS call. Resolve hesitation in the moment by reinforcing value and removing risk (reservations are free to cancel or change), never by scheduling a callback, getting a third party on the line, or telling the customer to call back later.',
     required: 'Acknowledge the objection; resolve it in the moment; ask for and move to lock the booking on this call' },
-  { key: 'general_advisories', section: 'general', position: 1,
+  { key: 'general_advisories', section: 'call_process', position: 6,
     label: 'Reading advisories',
     guidance: 'Did they read or cover the required advisories, notices, and disclosures when they applied?',
     anchors: '5: Reads or covers every required advisory/disclosure that applied. 3: Covers some but misses one that applied. 1: Skips required advisories entirely.',
     policy_ref: 'Meridian standard: required advisories/disclosures (coverage options, mileage and fuel policy, age/license requirements) must be covered when applicable.',
     required: 'Coverage/insurance advisory; mileage & fuel policy; any disclosure the scenario calls for' },
-  { key: 'general_upsell', section: 'general', position: 2,
+  { key: 'general_upsell', section: 'soft_skills', position: 2,
     label: 'Upsell opportunities',
     guidance: 'Did they catch upsell opportunities (storage, furniture pads, a dolly, coverage) when the moment came up?',
     anchors: '5: Surfaces a genuinely relevant add-on at the right moment. 3: Mentions an add-on but mistimed or generic. 1: Misses obvious upsell moments, or pushes irrelevant add-ons.',
     policy_ref: 'Meridian standard: offer add-ons that fit the move (furniture pads, dolly, storage, coverage); never pressure or oversell.',
     required: 'At least one relevant, well-timed add-on offer' },
-  { key: 'general_policy', section: 'general', position: 3,
+  { key: 'general_policy', section: 'call_process', position: 7,
     label: 'Policy & accuracy',
     guidance: "Did they stay accurate to Meridian's stated policies and avoid promising things outside them?",
     anchors: '5: Everything stated is accurate to Meridian policy with no out-of-policy promises. 3: Mostly accurate with a minor misstatement. 1: Promises or states something outside Meridian policy.',
@@ -182,6 +179,14 @@ export function buildCoaching(rawItems) {
     .filter((it) => it.enabled === undefined || it.enabled === null || it.enabled === true || it.enabled === 1);
   if (!items.length) items = DEFAULT_RUBRIC_ITEMS;
   items = orderItems(items);
+
+  // Resilience guard: an item whose section is not one of the current section
+  // keys (e.g. a row still on an OLD section key because /api/coach read D1
+  // before the admin-side migration fired) must never be orphaned. Remap it to
+  // the default item's section by key, falling back to call_process.
+  const VALID = new Set(RUBRIC_SECTIONS.map((s) => s.key));
+  const DEFAULT_SECTION_BY_KEY = Object.fromEntries(DEFAULT_RUBRIC_ITEMS.map((d) => [d.key, d.section]));
+  items = items.map((it) => VALID.has(it.section) ? it : { ...it, section: DEFAULT_SECTION_BY_KEY[it.key] || 'call_process' });
 
   // System prompt: regenerate the rubric block from the items.
   const bySection = new Map();

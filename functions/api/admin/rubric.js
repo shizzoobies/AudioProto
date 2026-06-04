@@ -175,6 +175,28 @@ async function ensureSeeded(env) {
   }
 
   const now = Math.floor(Date.now() / 1000);
+
+  // One-time section remap: restructure the 5 call-phase sections into the two
+  // sections (Call Process / Soft Skills). Only fires while OLD section keys are
+  // still present, so it self-disables after running once and never fights later
+  // admin edits, which use the new keys.
+  const oldCount = await env.DB
+    .prepare(`SELECT COUNT(*) AS n FROM rubric_items WHERE section IN ('beginning','gathering','scheduling','wrap','general')`)
+    .first();
+  if (oldCount && Number(oldCount.n) > 0) {
+    const stmts = [];
+    // Re-bucket the known DEFAULT items by key into their new section + position.
+    for (const d of DEFAULT_RUBRIC_ITEMS) {
+      stmts.push(env.DB.prepare(`UPDATE rubric_items SET section = ?, position = ?, updated_at = ? WHERE key = ?`).bind(d.section, d.position, now, d.key));
+    }
+    // Re-bucket any CUSTOM items still on an old section via a fallback map.
+    const fallback = { beginning: 'soft_skills', gathering: 'call_process', scheduling: 'call_process', wrap: 'call_process', general: 'call_process' };
+    for (const [oldS, newS] of Object.entries(fallback)) {
+      stmts.push(env.DB.prepare(`UPDATE rubric_items SET section = ?, updated_at = ? WHERE section = ? AND is_custom = 1`).bind(newS, now, oldS));
+    }
+    if (stmts.length) await env.DB.batch(stmts);
+  }
+
   const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM rubric_items`).first();
   if (!countRow || Number(countRow.n) === 0) {
     const stmts = DEFAULT_RUBRIC_ITEMS.map((d) =>

@@ -624,12 +624,12 @@ function renderRubricBody(rubric) {
           <span class="admin-rubric-seccount">${on}/${list.length} on</span>
         </div>
         <div class="admin-rubric-items">
-          ${list.map((it) => renderRubricItem(it)).join('') || '<div class="admin-empty">No items in this section.</div>'}
+          ${list.map((it) => renderRubricItem(it, sections)).join('') || '<div class="admin-empty">No items in this section.</div>'}
         </div>
         <details class="admin-rubric-add">
           <summary class="admin-rubric-addbtn">+ Add item</summary>
           <div class="admin-rubric-editform" data-add-section="${escapeAttr(sec.key)}">
-            ${rubricFieldsHtml({})}
+            ${rubricFieldsHtml({ section: sec.key }, sections)}
             <button type="button" class="primary-button" data-add>Add item</button>
           </div>
         </details>
@@ -638,7 +638,7 @@ function renderRubricBody(rubric) {
   }).join('');
 }
 
-function renderRubricItem(it) {
+function renderRubricItem(it, sections = []) {
   const custom = !!it.is_custom;
   return `
     <div class="admin-rubric-item${it.enabled ? '' : ' is-off'}" data-key="${escapeAttr(it.key)}">
@@ -652,7 +652,7 @@ function renderRubricItem(it) {
         <details class="admin-rubric-edit">
           <summary class="admin-rubric-editbtn">Edit</summary>
           <div class="admin-rubric-editform">
-            ${rubricFieldsHtml(it)}
+            ${rubricFieldsHtml(it, sections)}
             <div class="admin-rubric-editactions">
               <button type="button" class="primary-button" data-save>Save changes</button>
               ${custom
@@ -669,8 +669,14 @@ function renderRubricItem(it) {
 // The editable fields for a rubric item, shared by the edit and add forms. The
 // label/guidance are core; the score guide, policy reference, and required list
 // are the policy-grounding fields injected into the AI prompt for this item.
-function rubricFieldsHtml(it = {}) {
+function rubricFieldsHtml(it = {}, sections = []) {
+  const sectionSelect = (Array.isArray(sections) && sections.length) ? `
+    <label class="admin-rubric-fl">Section</label>
+    <select class="admin-input" data-field="section">
+      ${sections.map((s) => `<option value="${escapeAttr(s.key)}"${s.key === it.section ? ' selected' : ''}>${escapeHtml(s.label)}</option>`).join('')}
+    </select>` : '';
   return `
+    ${sectionSelect}
     <label class="admin-rubric-fl">Label</label>
     <input class="admin-input" data-field="label" value="${escapeAttr(it.label || '')}" placeholder="Item label (e.g. Active listening)">
     <label class="admin-rubric-fl">What to look for</label>
@@ -736,7 +742,7 @@ function attachRubricHandlers() {
       const label = fv('label');
       const guidance = fv('guidance');
       const item = (state.rubric?.items || []).find((i) => i.key === key);
-      const section = item?.section;
+      const section = fv('section') || item?.section;
       const enabled = row.querySelector('input[data-toggle]')?.checked ? 1 : 0;
       if (!key || !section || !label || !guidance) return;
       rubricOp({ op: 'upsert', item: {
@@ -754,8 +760,8 @@ function attachRubricHandlers() {
     }
     if (addBtn) {
       const form = addBtn.closest('[data-add-section]');
-      const section = form?.dataset.addSection;
       const fv = (f) => (form.querySelector(`[data-field="${f}"]`)?.value || '').trim();
+      const section = fv('section') || form?.dataset.addSection;
       const label = fv('label');
       const guidance = fv('guidance');
       if (!section || !label || !guidance) {

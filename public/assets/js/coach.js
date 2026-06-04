@@ -1,30 +1,23 @@
-// The scorecard is five collapsible sections following the arc of the call
-// (Beginning -> Gather -> Scheduling -> Wrap Up), plus a cross-cutting General
-// section, each with its own sub-item cards. Mirrors the keys in
+// The scorecard is two collapsible sections (Call Process and Soft Skills),
+// each with its own sub-item cards. Mirrors the keys in
 // shared/coaching-rubric.js (kept in sync by hand; this file ships to the
 // browser without the shared import).
 const RUBRIC_DISPLAY = [
-  { label: 'Beginning — Greeting the Customer', items: [
+  { label: 'Call Process', items: [
     { key: 'beginning_greeting', label: 'Branded greeting & self-intro' },
-    { key: 'beginning_offer', label: 'Offer to help & set the tone' },
-  ] },
-  { label: 'Gathering the Rental Information', items: [
     { key: 'gathering_details', label: 'Move details' },
     { key: 'gathering_equipment', label: 'Equipment match' },
-  ] },
-  { label: 'Scheduling the Reservation', items: [
     { key: 'scheduling_location', label: 'Pickup location' },
     { key: 'scheduling_time', label: 'Pickup time' },
-  ] },
-  { label: 'Wrap Up', items: [
     { key: 'wrap_readback', label: 'Read-back & confirmation' },
-    { key: 'wrap_close', label: 'Professional close' },
-  ] },
-  { label: 'General', items: [
-    { key: 'general_objections', label: 'Overcoming objections' },
     { key: 'general_advisories', label: 'Reading advisories' },
-    { key: 'general_upsell', label: 'Upsell opportunities' },
     { key: 'general_policy', label: 'Policy & accuracy' },
+  ] },
+  { label: 'Soft Skills', items: [
+    { key: 'beginning_offer', label: 'Offer to help & set the tone' },
+    { key: 'general_objections', label: 'Overcoming objections' },
+    { key: 'general_upsell', label: 'Upsell opportunities' },
+    { key: 'wrap_close', label: 'Professional close' },
   ] },
 ];
 
