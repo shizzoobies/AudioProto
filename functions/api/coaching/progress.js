@@ -33,6 +33,15 @@ export async function onRequestPost({ request, env }) {
   if (!scenarioId) return jsonError('scenario_id_required', 400);
   if (!scenarioId.startsWith('ca_')) return jsonError('not_an_authored_scenario', 400);
 
+  // Which mode was just completed (drives the sequential unlock on the home).
+  // Unknown/missing -> no flag set; the call still counts.
+  const mode = ['assessment', 'coaching', 'followup'].includes(body?.mode) ? body.mode : null;
+  const doneCol =
+    mode === 'assessment' ? 'assessment_done'
+    : mode === 'coaching' ? 'coaching_done'
+    : mode === 'followup' ? 'followup_done'
+    : null;
+
   const scope = await getInviteScope(request, env);
   if (!scope) return jsonError('unauthorized', 401);
   if (!scope.scenarios.has(scenarioId)) return jsonError('forbidden', 403);
@@ -73,20 +82,23 @@ export async function onRequestPost({ request, env }) {
     const transcriptJson = JSON.stringify(merged);
 
     if (existing) {
+      // doneCol is whitelisted above, so interpolating it is safe.
+      const setDone = doneCol ? `, ${doneCol} = 1` : '';
       await env.DB
         .prepare(
-          `UPDATE coaching_progress SET transcript = ?, call_count = ?, updated_at = ?
+          `UPDATE coaching_progress SET transcript = ?, call_count = ?, updated_at = ?${setDone}
              WHERE invite_id = ? AND scenario_id = ?`
         )
         .bind(transcriptJson, callCount, now, scope.invite_id, scenarioId)
         .run();
     } else {
+      const cols = ['invite_id', 'scenario_id', 'transcript', 'call_count', 'updated_at'];
+      const vals = [scope.invite_id, scenarioId, transcriptJson, callCount, now];
+      if (doneCol) { cols.push(doneCol); vals.push(1); }
+      const placeholders = cols.map(() => '?').join(', ');
       await env.DB
-        .prepare(
-          `INSERT INTO coaching_progress (invite_id, scenario_id, transcript, call_count, updated_at)
-             VALUES (?, ?, ?, ?, ?)`
-        )
-        .bind(scope.invite_id, scenarioId, transcriptJson, callCount, now)
+        .prepare(`INSERT INTO coaching_progress (${cols.join(', ')}) VALUES (${placeholders})`)
+        .bind(...vals)
         .run();
     }
 
@@ -102,16 +114,28 @@ async function ensureProgressTable(env) {
   try {
     await env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS coaching_progress (
-         invite_id    TEXT NOT NULL,
-         scenario_id  TEXT NOT NULL,
-         transcript   TEXT,
-         call_count   INTEGER NOT NULL DEFAULT 0,
-         updated_at   INTEGER,
+         invite_id       TEXT NOT NULL,
+         scenario_id     TEXT NOT NULL,
+         transcript      TEXT,
+         call_count      INTEGER NOT NULL DEFAULT 0,
+         assessment_done INTEGER NOT NULL DEFAULT 0,
+         coaching_done   INTEGER NOT NULL DEFAULT 0,
+         followup_done   INTEGER NOT NULL DEFAULT 0,
+         updated_at      INTEGER,
          PRIMARY KEY (invite_id, scenario_id)
        )`
     ).run();
   } catch {
     // table already present or a benign race — safe to ignore
+  }
+  // Self-bootstrap the per-mode completion columns on DBs that predate them.
+  // ADD COLUMN throws "duplicate column" once present — swallow it.
+  for (const col of ['assessment_done', 'coaching_done', 'followup_done']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE coaching_progress ADD COLUMN ${col} INTEGER NOT NULL DEFAULT 0`).run();
+    } catch {
+      // column already present
+    }
   }
 }
 

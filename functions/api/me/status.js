@@ -50,16 +50,35 @@ export async function onRequestGet({ request, env }) {
       // Server-side per-manager progress for this authored scenario, keyed to the
       // invite link. Wrapped so a missing table/row never breaks status; defaults
       // to a no-prior state. Drives the Follow-up gate + "N calls" line in the UI.
-      let progress = { call_count: 0, has_prior: false };
+      let progress = { call_count: 0, has_prior: false, modes_done: { assessment: false, coaching: false, followup: false } };
       try {
         const prog = await env.DB
-          .prepare(`SELECT call_count FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?`)
+          .prepare(`SELECT call_count, assessment_done, coaching_done, followup_done FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?`)
           .bind(scope.invite_id, agent.id)
           .first();
         const callCount = Number(prog?.call_count) || 0;
-        progress = { call_count: callCount, has_prior: callCount > 0 };
+        progress = {
+          call_count: callCount,
+          has_prior: callCount > 0,
+          modes_done: {
+            assessment: !!prog?.assessment_done,
+            coaching: !!prog?.coaching_done,
+            followup: !!prog?.followup_done,
+          },
+        };
       } catch {
-        progress = { call_count: 0, has_prior: false };
+        // Columns may predate this build (no call saved since deploy). Fall back
+        // to call_count only; treat all modes as not-yet-done.
+        try {
+          const prog = await env.DB
+            .prepare(`SELECT call_count FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?`)
+            .bind(scope.invite_id, agent.id)
+            .first();
+          const callCount = Number(prog?.call_count) || 0;
+          progress = { call_count: callCount, has_prior: callCount > 0, modes_done: { assessment: false, coaching: false, followup: false } };
+        } catch {
+          progress = { call_count: 0, has_prior: false, modes_done: { assessment: false, coaching: false, followup: false } };
+        }
       }
       scenarios.push({
         id: agent.id,

@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-6 voice-only-coaching';
+const BUILD_ID = '20260604-7 mode-gating';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -934,7 +934,7 @@ function coachingAgentToPersona(s) {
     incident: s.incident || '',
     modes: s.modes || { assessment: false, coaching: true, followup: false },
     opening_lines: Array.isArray(s.opening_lines) ? s.opening_lines : [],
-    progress: s.progress || { call_count: 0, has_prior: false },
+    progress: s.progress || { call_count: 0, has_prior: false, modes_done: { assessment: false, coaching: false, followup: false } },
   };
 }
 
@@ -1059,6 +1059,10 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   // (assessment / coaching / followup). Follow-up always renders so it can carry
   // the "available after a call" hint, but is disabled until a prior call exists.
   const m = agent.modes || {};
+  // Per-mode completion (server-side, per manager). Authored scenarios unlock in
+  // order: each mode is available only once every earlier ENABLED mode has a
+  // completed call. Legacy coaching_practice keeps its original simpler rule.
+  const modesDone = agent.progress?.modes_done || {};
   const modeDefs = legacy
     ? [
         { mode: 'fresh', label: 'Start fresh call' },
@@ -1069,15 +1073,27 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
         ...(m.coaching ? [{ mode: 'coaching', label: 'Coaching' }] : []),
         ...(m.followup ? [{ mode: 'followup', label: 'Follow-up' }] : []),
       ];
-  const buttonsHtml = modeDefs.map((def) => {
-    const isFollow = def.mode === 'followup';
-    const cls = isFollow ? 'ghost-button' : 'primary-button';
-    const enabled = isFollow ? hasPrior : true;
-    const disabled = enabled ? '' : ' disabled';
-    const hint = isFollow && !hasPrior
-      ? `<span class="coaching-opt-hint">Available after you finish a call — then ${escapeHtml(name)} will remember it.</span>`
-      : '';
-    return `<button class="${cls} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" type="button"${disabled}>
+  const buttonsHtml = modeDefs.map((def, i) => {
+    let cls, locked, hint, tooltip;
+    if (legacy) {
+      const isFollow = def.mode === 'followup';
+      cls = isFollow ? 'ghost-button' : 'primary-button';
+      locked = isFollow ? !hasPrior : false;
+      hint = (isFollow && !hasPrior)
+        ? `<span class="coaching-opt-hint">Available after you finish a call — then ${escapeHtml(name)} will remember it.</span>`
+        : '';
+      tooltip = '';
+    } else {
+      // The first not-yet-done earlier mode is what blocks this one.
+      const blocking = modeDefs.slice(0, i).find((d) => !modesDone[d.mode]);
+      locked = !!blocking;
+      cls = (i === 0) ? 'primary-button' : 'ghost-button';
+      hint = locked
+        ? `<span class="coaching-opt-hint">Complete ${escapeHtml(blocking.label)} first.</span>`
+        : (modesDone[def.mode] ? `<span class="coaching-opt-hint">Completed — you can retake it.</span>` : '');
+      tooltip = locked ? `Complete ${blocking.label} first` : '';
+    }
+    return `<button class="${cls} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" type="button"${locked ? ' disabled' : ''}${tooltip ? ` title="${escapeAttr(tooltip)}"` : ''}>
           <span class="coaching-opt-label">${escapeHtml(def.label)}</span>${hint}
         </button>`;
   }).join('');
@@ -3146,7 +3162,7 @@ function renderCall(scenario, opts = {}) {
               method: 'POST',
               credentials: 'same-origin',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ scenario_id: scenario.id, messages }),
+              body: JSON.stringify({ scenario_id: scenario.id, messages, mode: scenario.coachingMode || 'coaching' }),
             });
           } catch {
             // fire-and-forget — ignore network failure

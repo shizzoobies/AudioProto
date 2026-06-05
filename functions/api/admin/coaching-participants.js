@@ -90,19 +90,26 @@ async function listParticipants(request, env) {
     // coaching_agents not bootstrapped yet — fall back to raw ids below
   }
 
-  // Per-participant progress: sum the call counts across their scenarios and
-  // take the most recent activity. coaching_progress may not exist yet.
+  // Per-participant progress, per scenario: the roster shows total calls + last
+  // activity AND a per-scenario list (each row gets its own Reset). The progress
+  // table may not exist yet.
   const progress = new Map(); // invite_id -> { calls, last }
+  const progressByInvite = new Map(); // invite_id -> [{ scenario_id, call_count, last_activity }]
   try {
     const pr = await env.DB
-      .prepare(`SELECT invite_id, call_count, updated_at FROM coaching_progress WHERE invite_id IN (${ph})`)
+      .prepare(`SELECT invite_id, scenario_id, call_count, updated_at FROM coaching_progress WHERE invite_id IN (${ph})`)
       .bind(...ids)
       .all();
     for (const p of pr?.results || []) {
+      const calls = Number(p.call_count) || 0;
       const cur = progress.get(p.invite_id) || { calls: 0, last: null };
-      cur.calls += Number(p.call_count) || 0;
+      cur.calls += calls;
       if (p.updated_at && (cur.last === null || p.updated_at > cur.last)) cur.last = p.updated_at;
       progress.set(p.invite_id, cur);
+
+      const list = progressByInvite.get(p.invite_id) || [];
+      list.push({ scenario_id: p.scenario_id, call_count: calls, last_activity: p.updated_at ?? null });
+      progressByInvite.set(p.invite_id, list);
     }
   } catch {
     // coaching_progress not bootstrapped yet — counts default to 0
@@ -124,6 +131,13 @@ async function listParticipants(request, env) {
     });
     const prog = progress.get(r.id) || { calls: 0, last: null };
     const hasLink = !!r.token_plain;
+    // Per-scenario progress rows (for the Reset buttons), labelled like the chips.
+    const progressScenarios = (progressByInvite.get(r.id) || []).map((ps) => ({
+      scenario_id: ps.scenario_id,
+      label: agentLabels.get(ps.scenario_id) || ps.scenario_id,
+      call_count: ps.call_count,
+      last_activity: ps.last_activity,
+    }));
     return {
       id: r.id,
       recipient_email: r.recipient_email,
@@ -136,6 +150,7 @@ async function listParticipants(request, env) {
       scenarios,
       call_count: prog.calls,
       last_activity: prog.last,
+      progress_scenarios: progressScenarios,
     };
   });
 

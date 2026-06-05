@@ -1695,6 +1695,19 @@ function renderParticipantCard(p) {
        </div>`
     : `<p class="coaching-roster-nolink">Link not stored for this invite yet — re-send it (form below) to generate a copyable link.</p>`;
 
+  // Per-scenario progress with a Reset (wipe memory + re-lock to Assessment).
+  const progressRows = (p.progress_scenarios || []).length
+    ? `<div class="coaching-roster-progress">
+        ${(p.progress_scenarios || []).map((ps) => {
+          const n = Number(ps.call_count) || 0;
+          return `<div class="coaching-roster-progress-row">
+            <span class="coaching-roster-progress-label">${escapeHtml(ps.label)} <span class="admin-muted">— ${n} call${n === 1 ? '' : 's'}</span></span>
+            <button type="button" class="ghost-button admin-progress-reset" data-invite="${escapeAttr(p.id)}" data-scenario="${escapeAttr(ps.scenario_id)}" data-label="${escapeAttr(ps.label)}">Reset</button>
+          </div>`;
+        }).join('')}
+      </div>`
+    : '';
+
   return `
     <div class="coaching-roster-card${p.revoked ? ' is-revoked' : ''}">
       <div class="coaching-roster-head">
@@ -1703,6 +1716,7 @@ function renderParticipantCard(p) {
       </div>
       <div class="coaching-roster-chips">${chips}</div>
       ${linkRow}
+      ${progressRows}
     </div>
   `;
 }
@@ -1740,7 +1754,32 @@ function wireCopyButtons(container) {
 function attachCoachingParticipantsHandlers() {
   const refresh = document.getElementById('admin-participants-refresh');
   if (refresh) refresh.addEventListener('click', reloadCoachingParticipants);
-  wireCopyButtons(document.getElementById('sec-coaching-participants'));
+  const sec = document.getElementById('sec-coaching-participants');
+  wireCopyButtons(sec);
+  if (sec) {
+    sec.querySelectorAll('.admin-progress-reset').forEach((btn) => {
+      btn.addEventListener('click', () => onResetParticipantProgress(btn.dataset.invite, btn.dataset.scenario, btn.dataset.label));
+    });
+  }
+}
+
+// Wipe one participant's progress in one scenario (memory + call_count +
+// mode-unlocks), so they restart it at Assessment. Admin-only.
+async function onResetParticipantProgress(inviteId, scenarioId, label) {
+  if (!inviteId || !scenarioId) return;
+  if (!confirm(`Reset all progress for "${label || scenarioId}"?\n\nThis wipes the saved conversation memory and re-locks the scenario back to Assessment. It can't be undone.`)) return;
+  try {
+    const res = await fetch('/api/admin/coaching-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ invite_id: inviteId, scenario_id: scenarioId }),
+    });
+    if (!res.ok) { alert('Reset failed.'); return; }
+    reloadCoachingParticipants();
+  } catch {
+    alert('Network error.');
+  }
 }
 
 // Re-fetch the roster and swap just this section in place.
