@@ -3170,6 +3170,20 @@ function renderCoachingAgentsSection() {
         </div>
 
         <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label">Card look <span class="admin-field-hint">background image + accent color for this scenario's card &amp; journey</span></label>
+          <input type="hidden" id="ca-image-id" value="">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+            <img id="ca-image-thumb" alt="" style="height:54px;border-radius:8px;border:1px solid var(--color-border);display:none;">
+            <label class="ghost-button" style="cursor:pointer;margin:0;">Upload image<input type="file" accept="image/*" id="ca-image-file" style="display:none;"></label>
+            <button type="button" class="ghost-button" id="ca-image-remove" style="display:none;">Remove image</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+              <input type="checkbox" id="ca-accent-on"> Accent color
+              <input type="color" id="ca-accent" value="#8c1d2b" style="width:38px;height:30px;padding:2px;border:1px solid var(--color-border);border-radius:6px;background:none;cursor:pointer;">
+            </label>
+          </div>
+        </div>
+
+        <div class="admin-field admin-ca-wide">
           <div class="admin-ca-checks">
             <label class="admin-ca-check"><input type="checkbox" id="ca-derails"> Tends to stall / derail</label>
             <label class="admin-ca-check"><input type="checkbox" id="ca-mode-assessment"> Assessment mode</label>
@@ -3240,6 +3254,11 @@ function attachCoachingAgentsHandlers() {
     });
   }
 
+  const caImageFile = document.getElementById('ca-image-file');
+  if (caImageFile) caImageFile.addEventListener('change', () => uploadScenarioImage(caImageFile.files && caImageFile.files[0]));
+  const caImageRemove = document.getElementById('ca-image-remove');
+  if (caImageRemove) caImageRemove.addEventListener('click', () => setScenarioImage(''));
+
   document.querySelectorAll('[data-ca-edit]').forEach((btn) => {
     btn.addEventListener('click', () => editCoachingAgent(btn.dataset.caEdit));
   });
@@ -3252,6 +3271,35 @@ function attachCoachingAgentsHandlers() {
     const agent = state.coachingAgents.find((a) => a.id === state.editingCoachingAgentId);
     if (agent) populateCoachingAgentForm(agent);
     else state.editingCoachingAgentId = null;
+  }
+}
+
+function setScenarioImage(id) {
+  const hidden = document.getElementById('ca-image-id');
+  const thumb = document.getElementById('ca-image-thumb');
+  const remove = document.getElementById('ca-image-remove');
+  if (hidden) hidden.value = id || '';
+  if (thumb) {
+    if (id) { thumb.src = '/coaching-image/' + id; thumb.style.display = ''; }
+    else { thumb.removeAttribute('src'); thumb.style.display = 'none'; }
+  }
+  if (remove) remove.style.display = id ? '' : 'none';
+}
+
+async function uploadScenarioImage(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || '')) { showCoachingAgentError('Please choose an image file.'); return; }
+  if (file.size > 2 * 1024 * 1024) { showCoachingAgentError('Image too large (max 2 MB). Resize / optimize it first.'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/admin/coaching-landing-image', { method: 'POST', credentials: 'same-origin', body: fd });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.id) { showCoachingAgentError('Upload failed' + (data && data.error ? ': ' + data.error : '') + '.'); return; }
+    setScenarioImage(data.id);
+    showCoachingAgentError('');
+  } catch {
+    showCoachingAgentError('Network error during upload.');
   }
 }
 
@@ -3296,6 +3344,8 @@ async function onSaveCoachingAgent(e) {
     active: checked('ca-active'),
     opening_lines: (document.getElementById('ca-opening-lines')?.value || '')
       .split('\n').map((s) => s.trim()).filter(Boolean),
+    image_id: val('ca-image-id'),
+    accent_color: document.getElementById('ca-accent-on')?.checked ? val('ca-accent') : '',
   };
 
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
@@ -3353,6 +3403,11 @@ function populateCoachingAgentForm(agent) {
   set('ca-incident', agent.incident);
   set('ca-personality', agent.personality);
   set('ca-opening-lines', Array.isArray(agent.opening_lines) ? agent.opening_lines.join('\n') : '');
+  setScenarioImage(agent.image_id || '');
+  const accentOn = document.getElementById('ca-accent-on');
+  if (accentOn) accentOn.checked = !!agent.accent_color;
+  const accentEl = document.getElementById('ca-accent');
+  if (accentEl && agent.accent_color) accentEl.value = agent.accent_color;
   check('ca-derails', agent.derails);
   check('ca-mode-assessment', agent.mode_assessment);
   check('ca-mode-coaching', agent.mode_coaching);
@@ -3370,6 +3425,11 @@ function clearCoachingAgentForm() {
   if (idEl) idEl.value = '';
   const scenarioNameEl = document.getElementById('ca-scenario-name');
   if (scenarioNameEl) scenarioNameEl.value = '';
+  setScenarioImage('');
+  const accentOnEl = document.getElementById('ca-accent-on');
+  if (accentOnEl) accentOnEl.checked = false;
+  const accentColorEl = document.getElementById('ca-accent');
+  if (accentColorEl) accentColorEl.value = '#8c1d2b';
   // Rebuild the voice select so form.reset() doesn't land on a stale value.
   const voiceSel = document.getElementById('ca-voice');
   if (voiceSel) { voiceSel.innerHTML = renderVoiceOptions(''); voiceSel.value = ''; }

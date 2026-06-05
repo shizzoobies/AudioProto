@@ -66,6 +66,8 @@ export async function onRequestPost({ request, env }) {
       mode_followup: toBit(body?.mode_followup),
       opening_lines: normalizeOpeningLines(body?.opening_lines),
       active: body?.active === undefined ? 1 : toBit(body?.active),
+      image_id: imageRef(body?.image_id),
+      accent_color: hexColor(body?.accent_color),
     };
 
     const now = Math.floor(Date.now() / 1000);
@@ -88,7 +90,7 @@ export async function onRequestPost({ request, env }) {
              resistance = ?, receptiveness = ?, skill_gap = ?, skill_gap_detail = ?,
              demeanor = ?, incident = ?, personality = ?, derails = ?,
              mode_assessment = ?, mode_coaching = ?, mode_followup = ?,
-             opening_lines = ?, active = ?, updated_at = ?
+             opening_lines = ?, active = ?, image_id = ?, accent_color = ?, updated_at = ?
            WHERE id = ?`
         )
         .bind(
@@ -96,7 +98,7 @@ export async function onRequestPost({ request, env }) {
           fields.resistance, fields.receptiveness, fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
-          fields.opening_lines, fields.active, now,
+          fields.opening_lines, fields.active, fields.image_id, fields.accent_color, now,
           id
         )
         .run();
@@ -115,15 +117,15 @@ export async function onRequestPost({ request, env }) {
              (id, scenario_name, name, age, role_title, voice_id, attitude, resistance, receptiveness,
               skill_gap, skill_gap_detail, demeanor, incident, personality, derails,
               mode_assessment, mode_coaching, mode_followup, opening_lines, active,
-              created_at, updated_at, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              image_id, accent_color, created_at, updated_at, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           id, fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
           fields.resistance, fields.receptiveness, fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
-          fields.opening_lines, fields.active, now, now, createdBy
+          fields.opening_lines, fields.active, fields.image_id, fields.accent_color, now, now, createdBy
         )
         .run();
     }
@@ -210,6 +212,14 @@ async function ensureCoachingAgentsTable(env) {
   } catch {
     // column already present — safe to ignore
   }
+  // Presentation columns (per-scenario card/journey look). Swallow dup-column.
+  for (const col of ['image_id TEXT', 'accent_color TEXT']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE coaching_agents ADD COLUMN ${col}`).run();
+    } catch {
+      // column already present
+    }
+  }
 }
 
 // Shape a DB row into the JSON an admin client expects: booleans coerced,
@@ -246,11 +256,17 @@ function rowToAgent(row) {
     mode_followup: !!row.mode_followup,
     opening_lines: openingLines,
     active: !!row.active,
+    image_id: row.image_id || '',
+    accent_color: row.accent_color || '',
     created_at: row.created_at ?? null,
     updated_at: row.updated_at ?? null,
     created_by: row.created_by || null,
   };
 }
+
+// Validators for the presentation fields.
+function imageRef(v) { return typeof v === 'string' && /^img_[a-f0-9]{6,}$/i.test(v) ? v : ''; }
+function hexColor(v) { return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : ''; }
 
 function cap(s) {
   return String(s).slice(0, FIELD_CAP);

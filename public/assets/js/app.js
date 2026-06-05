@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-13 layout-rows-columns';
+const BUILD_ID = '20260604-14 scenario-journey';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -933,6 +933,8 @@ function coachingAgentToPersona(s) {
     role_title: s.role_title || '',
     demeanor: s.demeanor || '',
     incident: s.incident || '',
+    image_id: s.image_id || '',
+    accent_color: s.accent_color || '',
     modes: s.modes || { assessment: false, coaching: true, followup: false },
     opening_lines: Array.isArray(s.opening_lines) ? s.opening_lines : [],
     progress: s.progress || { call_count: 0, has_prior: false, modes_done: { assessment: false, coaching: false, followup: false } },
@@ -1080,9 +1082,15 @@ function renderCoachingLanding(agents) {
     const scenarioName = isLegacy ? '' : (a.scenario_name || '');
     const cc = Number(a.progress?.call_count) || 0;
     const status = cc > 0 ? `${cc} call${cc === 1 ? '' : 's'} taken` : 'Not started';
+    const imgId = (!isLegacy && a.image_id) ? a.image_id : '';
+    const accent = (!isLegacy && a.accent_color) ? a.accent_color : '';
+    const sty = [];
+    if (accent) sty.push(`--accent:${accent}`);
+    if (imgId) sty.push(`background-image:linear-gradient(180deg, rgba(15,15,20,0.10), rgba(15,15,20,0.66)), url('/coaching-image/${encodeURIComponent(imgId)}')`);
+    const styAttr = sty.length ? ` style="${sty.join(';')}"` : '';
     return `
-      <li class="coaching-scn-card" data-agent-id="${escapeAttr(a.id)}" tabindex="0" role="button" aria-label="Open ${escapeAttr(name)}">
-        <span class="coaching-scn-avatar" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
+      <li class="coaching-scn-card${imgId ? ' has-image' : ''}" data-agent-id="${escapeAttr(a.id)}" tabindex="0" role="button" aria-label="Open ${escapeAttr(name)}"${styAttr}>
+        ${imgId ? '' : `<span class="coaching-scn-avatar" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>`}
         <span class="coaching-scn-meta">
           ${scenarioName ? `<span class="coaching-scn-eyebrow">${escapeHtml(scenarioName)}</span>` : ''}
           <span class="coaching-scn-name">${escapeHtml(name)}</span>
@@ -1154,6 +1162,8 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   // order: each mode is available only once every earlier ENABLED mode has a
   // completed call. Legacy coaching_practice keeps its original simpler rule.
   const modesDone = agent.progress?.modes_done || {};
+  const accent = (!legacy && agent.accent_color) ? agent.accent_color : '';
+  const imgId = (!legacy && agent.image_id) ? agent.image_id : '';
   const modeDefs = legacy
     ? [
         { mode: 'fresh', label: 'Start fresh call' },
@@ -1164,62 +1174,100 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
         ...(m.coaching ? [{ mode: 'coaching', label: 'Coaching' }] : []),
         ...(m.followup ? [{ mode: 'followup', label: 'Follow-up' }] : []),
       ];
-  const buttonsHtml = modeDefs.map((def, i) => {
-    let cls, locked, hint, tooltip;
-    if (legacy) {
+
+  const backHtml = multi ? '<button class="ghost-button coaching-back" type="button"><span aria-hidden="true">‹</span> Back</button>' : '';
+  const nameFieldHtml = `
+    <label class="coaching-test-name">
+      <span class="coaching-test-name-label">Your name</span>
+      <input class="coaching-test-name-input" id="coaching-name" type="text" autocomplete="name"
+        placeholder="So this session can be reviewed later" value="${escapeAttr(savedName)}" maxlength="60">
+    </label>`;
+
+  if (legacy) {
+    // Legacy coaching_practice keeps the simple button list.
+    const buttonsHtml = modeDefs.map((def) => {
       const isFollow = def.mode === 'followup';
-      cls = isFollow ? 'ghost-button' : 'primary-button';
-      locked = isFollow ? !hasPrior : false;
-      hint = (isFollow && !hasPrior)
+      const cls = isFollow ? 'ghost-button' : 'primary-button';
+      const locked = isFollow ? !hasPrior : false;
+      const hint = (isFollow && !hasPrior)
         ? `<span class="coaching-opt-hint">Available after you finish a call — then ${escapeHtml(name)} will remember it.</span>`
         : '';
-      tooltip = '';
-    } else {
-      // The first not-yet-done earlier mode is what blocks this one.
-      const blocking = modeDefs.slice(0, i).find((d) => !modesDone[d.mode]);
-      locked = !!blocking;
-      cls = (i === 0) ? 'primary-button' : 'ghost-button';
-      hint = locked
-        ? `<span class="coaching-opt-hint">Complete ${escapeHtml(blocking.label)} first.</span>`
-        : (modesDone[def.mode] ? `<span class="coaching-opt-hint">Completed — you can retake it.</span>` : '');
-      tooltip = locked ? `Complete ${blocking.label} first` : '';
-    }
-    return `<button class="${cls} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" type="button"${locked ? ' disabled' : ''}${tooltip ? ` title="${escapeAttr(tooltip)}"` : ''}>
+      return `<button class="${cls} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" type="button"${locked ? ' disabled' : ''}>
           <span class="coaching-opt-label">${escapeHtml(def.label)}</span>${hint}
         </button>`;
-  }).join('');
-
-  dom.root.innerHTML = `
-    <section class="coaching-test">
-      <div class="coaching-test-card">
-        ${multi ? '<button class="ghost-button coaching-back" type="button"><span aria-hidden="true">‹</span> Back</button>' : ''}
-        <div class="coaching-profile">
-          <span class="coaching-agent-avatar coaching-agent-avatar-lg" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
-          ${scenarioName ? `<p class="coaching-profile-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
-          <h1 class="coaching-test-title">${escapeHtml(name)}</h1>
-          <p class="coaching-profile-sub">${escapeHtml([role, age ? `age ${age}` : ''].filter(Boolean).join(' · '))}</p>
-          ${callCount > 0 ? `<p class="coaching-profile-progress">You've taken ${callCount} call${callCount === 1 ? '' : 's'} in this scenario.</p>` : ''}
+    }).join('');
+    dom.root.innerHTML = `
+      <section class="coaching-test">
+        <div class="coaching-test-card">
+          ${backHtml}
+          <div class="coaching-profile">
+            <span class="coaching-agent-avatar coaching-agent-avatar-lg" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
+            <h1 class="coaching-test-title">${escapeHtml(name)}</h1>
+            <p class="coaching-profile-sub">${escapeHtml([role, age ? `age ${age}` : ''].filter(Boolean).join(' · '))}</p>
+            ${callCount > 0 ? `<p class="coaching-profile-progress">You've taken ${callCount} call${callCount === 1 ? '' : 's'} in this scenario.</p>` : ''}
+          </div>
+          ${nameFieldHtml}
+          <div class="coaching-test-options">${buttonsHtml}</div>
         </div>
-        ${demeanor ? `<div class="coaching-profile-block"><h2 class="coaching-profile-h">Typical performance &amp; demeanor</h2><p class="coaching-profile-text">${escapeHtml(demeanor)}</p></div>` : ''}
-        ${incident ? `<div class="coaching-profile-block"><h2 class="coaching-profile-h">What happened</h2><p class="coaching-profile-text">${escapeHtml(incident)}</p></div>` : ''}
-        <label class="coaching-test-name">
-          <span class="coaching-test-name-label">Your name</span>
-          <input class="coaching-test-name-input" id="coaching-name" type="text" autocomplete="name"
-            placeholder="So this session can be reviewed later" value="${escapeAttr(savedName)}" maxlength="60">
-        </label>
-        <div class="coaching-test-options">${buttonsHtml}</div>
-      </div>
-    </section>
-  `;
+      </section>
+    `;
+  } else {
+    // Authored scenario → the connected-path journey.
+    const descFor = (mode) =>
+      mode === 'assessment' ? `Meet ${name} on a normal day — observe and diagnose before any coaching.`
+      : mode === 'coaching' ? `Your one-on-one. Give feedback and coach ${name} through it.`
+      : mode === 'followup' ? `Reconnect later — see what stuck and how ${name} has changed.`
+      : '';
+    const stepsHtml = modeDefs.map((def, i) => {
+      const prevAllDone = modeDefs.slice(0, i).every((d) => modesDone[d.mode]);
+      const st = !prevAllDone ? 'locked' : (modesDone[def.mode] ? 'done' : 'current');
+      const clickable = st !== 'locked';
+      const node = st === 'done' ? '&#10003;' : (st === 'locked' ? '&#128274;' : String(i + 1));
+      const cta = st === 'done' ? 'Completed — retake' : (st === 'current' ? 'Start now &rarr;' : 'Locked');
+      return `
+        <li class="journey-step is-${st}${clickable ? ' coaching-test-mode' : ''}"${clickable ? ` data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" role="button" tabindex="0"` : ''}>
+          <div class="journey-rail"><span class="journey-line"></span><span class="journey-node" aria-hidden="true">${node}</span><span class="journey-line"></span></div>
+          <div class="journey-content">
+            <span class="journey-step-stage">Step ${i + 1}</span>
+            <span class="journey-step-label">${escapeHtml(def.label)}</span>
+            <span class="journey-step-desc">${escapeHtml(descFor(def.mode))}</span>
+            <span class="journey-step-cta">${cta}</span>
+          </div>
+        </li>`;
+    }).join('');
+
+    const heroStyle = [];
+    if (imgId) heroStyle.push(`background-image:linear-gradient(180deg, rgba(15,15,20,0.30), rgba(15,15,20,0.72)), url('/coaching-image/${encodeURIComponent(imgId)}')`);
+    const accentVar = accent ? `--accent:${accent}` : '';
+
+    dom.root.innerHTML = `
+      <section class="coaching-journey-page"${accentVar ? ` style="${accentVar}"` : ''}>
+        ${backHtml}
+        <header class="coaching-journey-hero${imgId ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
+          <div class="cjh-inner">
+            ${scenarioName ? `<p class="cjh-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
+            <h1 class="cjh-title">${escapeHtml(name)}</h1>
+            <p class="cjh-sub">${escapeHtml([role, age ? `age ${age}` : ''].filter(Boolean).join(' · '))}</p>
+            ${callCount > 0 ? `<p class="cjh-progress">${callCount} call${callCount === 1 ? '' : 's'} taken</p>` : ''}
+          </div>
+        </header>
+        ${demeanor ? `<p class="coaching-journey-about">${escapeHtml(demeanor)}</p>` : ''}
+        ${nameFieldHtml}
+        <ol class="coaching-journey">${stepsHtml}</ol>
+      </section>
+    `;
+  }
 
   const nameInput = dom.root.querySelector('#coaching-name');
   dom.root.querySelectorAll('.coaching-test-mode').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    const go = () => {
       if (btn.disabled) return;
       const participant = nameInput ? nameInput.value.trim() : '';
       saveCoachingParticipant(participant);
       startCall(btn.dataset.personaId, { mode: btn.dataset.mode, participant });
-    });
+    };
+    btn.addEventListener('click', go);
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
   const back = dom.root.querySelector('.coaching-back');
   if (back) back.addEventListener('click', () => renderCoachingTest());

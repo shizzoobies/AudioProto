@@ -3907,6 +3907,84 @@ body[data-coaching] .app-header { display: none; }
 .coaching-scn-arrow { flex-shrink: 0; font-size: 28px; color: var(--color-text-tertiary); line-height: 1; transition: color 0.12s ease, transform 0.12s ease; }
 .coaching-scn-card:hover .coaching-scn-arrow { color: var(--color-accent); transform: translateX(2px); }
 
+/* Scenario card with a per-scenario background image (landing). */
+.coaching-scn-card.has-image {
+  min-height: 132px;
+  align-items: flex-end;
+  background-size: cover;
+  background-position: center;
+  border: none;
+  color: #fff;
+}
+.coaching-scn-card.has-image .coaching-scn-name,
+.coaching-scn-card.has-image .coaching-scn-eyebrow,
+.coaching-scn-card.has-image .coaching-scn-arrow { color: #fff; }
+.coaching-scn-card.has-image .coaching-scn-role,
+.coaching-scn-card.has-image .coaching-scn-status { color: rgba(255, 255, 255, 0.86); }
+.coaching-scn-card.has-image:hover { border: none; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22); }
+
+/* ---- Scenario journey (the elevated, per-scenario mode picker) ------------- */
+.coaching-journey-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+  animation: view-fade-in 0.3s ease;
+}
+.coaching-journey-page .coaching-back { margin-bottom: 16px; }
+.coaching-journey-hero {
+  border-radius: 18px;
+  padding: 44px 28px;
+  background: linear-gradient(135deg, var(--accent, var(--color-accent)), var(--color-accent-hover));
+  color: #fff;
+  text-align: center;
+}
+.coaching-journey-hero.has-image { background-size: cover; background-position: center; }
+.cjh-eyebrow { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; font-weight: 700; margin: 0 0 8px; opacity: 0.92; }
+.cjh-title { font-family: var(--font-display); font-size: clamp(26px, 4vw, 38px); font-weight: 500; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
+.cjh-sub { margin: 8px 0 0; font-size: 15px; opacity: 0.9; }
+.cjh-progress { margin: 10px 0 0; font-size: 12.5px; font-weight: 600; opacity: 0.92; }
+.coaching-journey-about { margin: 18px auto 0; max-width: 56ch; text-align: center; color: var(--color-text-secondary); font-size: 15px; line-height: 1.55; }
+.coaching-journey-name { margin-top: 22px; display: block; }
+
+.coaching-journey { list-style: none; margin: 26px 0 0; padding: 0; display: flex; gap: 0; }
+.journey-step { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.journey-rail { display: flex; align-items: center; }
+.journey-line { flex: 1; height: 3px; background: var(--color-border); }
+.journey-step:first-child .journey-line:first-child { visibility: hidden; }
+.journey-step:last-child .journey-line:last-child { visibility: hidden; }
+.journey-node {
+  flex: 0 0 auto;
+  width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 15px;
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+  color: var(--color-text-tertiary);
+  transition: transform 0.12s ease;
+}
+.journey-step.is-done .journey-node { background: var(--accent, var(--color-accent)); border-color: var(--accent, var(--color-accent)); color: #fff; }
+.journey-step.is-done .journey-line { background: var(--accent, var(--color-accent)); }
+.journey-step.is-current .journey-line:first-child { background: var(--accent, var(--color-accent)); }
+.journey-step.is-current .journey-node { border-color: var(--accent, var(--color-accent)); color: var(--accent, var(--color-accent)); box-shadow: 0 0 0 5px var(--color-accent-muted); }
+.journey-content { padding: 14px 12px 0; text-align: center; }
+.journey-step-stage { display: block; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--color-text-tertiary); }
+.journey-step-label { display: block; font-weight: 600; font-size: 16px; color: var(--color-text-primary); margin-top: 2px; }
+.journey-step-desc { display: block; font-size: 13px; color: var(--color-text-secondary); line-height: 1.45; margin-top: 6px; }
+.journey-step-cta { display: block; font-size: 12.5px; font-weight: 600; margin-top: 10px; color: var(--color-text-tertiary); }
+.journey-step.is-current .journey-step-cta,
+.journey-step.is-done .journey-step-cta { color: var(--accent, var(--color-accent)); }
+.journey-step.coaching-test-mode { cursor: pointer; }
+.journey-step.coaching-test-mode:hover .journey-node { transform: translateY(-2px); }
+.journey-step.is-locked { opacity: 0.65; }
+
+@media (max-width: 600px) {
+  .coaching-journey { flex-direction: column; gap: 10px; }
+  .journey-line { display: none; }
+  .journey-step { flex-direction: row; align-items: center; gap: 14px; border: 1px solid var(--color-border); border-radius: 14px; padding: 14px; }
+  .journey-rail { flex: 0 0 auto; }
+  .journey-content { text-align: left; padding: 0; }
+}
+
 /* Hero with a background image (overlay tint + text on top). */
 .coaching-landing-hero.has-image {
   position: relative;

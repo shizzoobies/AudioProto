@@ -89,6 +89,8 @@ export async function onRequestGet({ request, env }) {
         role_title: agent.role_title || '',
         demeanor: agent.demeanor || '',
         incident: agent.incident || '',
+        image_id: agent.image_id || '',
+        accent_color: agent.accent_color || '',
         modes: {
           assessment: !!agent.mode_assessment,
           coaching: !!agent.mode_coaching,
