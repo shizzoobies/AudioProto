@@ -3976,6 +3976,9 @@ body[data-coaching] .app-header { display: none; }
 .journey-step.coaching-test-mode { cursor: pointer; }
 .journey-step.coaching-test-mode:hover .journey-node { transform: translateY(-2px); }
 .journey-step.is-locked { opacity: 0.65; }
+.journey-step.is-held { opacity: 0.9; }
+.journey-step.is-held .journey-node { border-style: dashed; border-color: var(--accent, var(--color-accent)); color: var(--accent, var(--color-accent)); }
+.journey-step.is-held .journey-step-cta { color: var(--accent, var(--color-accent)); }
 
 @media (max-width: 600px) {
   .coaching-journey { flex-direction: column; gap: 10px; }
@@ -5996,6 +5999,16 @@ body[data-coaching] .app-header { display: none; }
 }
 .coaching-roster-progress-label { min-width: 0; word-break: break-word; }
 .coaching-roster-progress .admin-progress-reset { padding: 4px 12px !important; font-size: 12px !important; flex-shrink: 0; }
+.coaching-roster-scn { flex-direction: column; align-items: stretch; gap: 8px; }
+.cl-scn-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cl-stage-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.cl-stage-pill { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface); white-space: nowrap; }
+.cl-stage-pill.is-done { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.cl-stage-pill.is-open { border-color: var(--color-accent); color: var(--color-accent); }
+.cl-stage-pill.is-held { border-style: dashed; color: var(--color-text-tertiary); }
+.cl-stage-pill.is-locked { opacity: 0.55; }
+.cl-gate-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cl-gate-row .ghost-button { padding: 4px 12px !important; font-size: 12px !important; }
 .admin-invite-recipient { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .admin-invite-name { font-weight: 600; font-size: 14px; color: var(--color-text-primary); }
 .admin-invite-email { font-size: 12.5px; color: var(--color-text-tertiary); }

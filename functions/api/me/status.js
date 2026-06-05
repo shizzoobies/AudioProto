@@ -50,16 +50,18 @@ export async function onRequestGet({ request, env }) {
       // Server-side per-manager progress for this authored scenario, keyed to the
       // invite link. Wrapped so a missing table/row never breaks status; defaults
       // to a no-prior state. Drives the Follow-up gate + "N calls" line in the UI.
-      let progress = { call_count: 0, has_prior: false, modes_done: { assessment: false, coaching: false, followup: false } };
+      let progress = { call_count: 0, has_prior: false, unlocked_stage: 1, modes_done: { assessment: false, coaching: false, followup: false } };
       try {
         const prog = await env.DB
-          .prepare(`SELECT call_count, assessment_done, coaching_done, followup_done FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?`)
+          .prepare(`SELECT call_count, assessment_done, coaching_done, followup_done, unlocked_stage FROM coaching_progress WHERE invite_id = ? AND scenario_id = ?`)
           .bind(scope.invite_id, agent.id)
           .first();
         const callCount = Number(prog?.call_count) || 0;
         progress = {
           call_count: callCount,
           has_prior: callCount > 0,
+          // Admin progression gate (default 1 = only the first call open).
+          unlocked_stage: Number.isFinite(Number(prog?.unlocked_stage)) ? Number(prog.unlocked_stage) : 1,
           modes_done: {
             assessment: !!prog?.assessment_done,
             coaching: !!prog?.coaching_done,

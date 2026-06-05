@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-14 scenario-journey';
+const BUILD_ID = '20260604-15 progression-gate';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1218,12 +1218,24 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       : mode === 'coaching' ? `Your one-on-one. Give feedback and coach ${name} through it.`
       : mode === 'followup' ? `Reconnect later — see what stuck and how ${name} has changed.`
       : '';
+    // How many stages the coach has released (admin gate). Default 1 = only the
+    // first call. A stage is available only if the prior call is done AND the
+    // coach has unlocked it.
+    const unlockedStage = Number(agent.progress?.unlocked_stage) || 1;
     const stepsHtml = modeDefs.map((def, i) => {
       const prevAllDone = modeDefs.slice(0, i).every((d) => modesDone[d.mode]);
-      const st = !prevAllDone ? 'locked' : (modesDone[def.mode] ? 'done' : 'current');
-      const clickable = st !== 'locked';
-      const node = st === 'done' ? '&#10003;' : (st === 'locked' ? '&#128274;' : String(i + 1));
-      const cta = st === 'done' ? 'Completed — retake' : (st === 'current' ? 'Start now &rarr;' : 'Locked');
+      const adminAllowed = i < unlockedStage;
+      let st;
+      if (!prevAllDone) st = 'locked';        // must finish the previous call first
+      else if (!adminAllowed) st = 'held';    // coach hasn't released this call yet
+      else if (modesDone[def.mode]) st = 'done';
+      else st = 'current';
+      const clickable = st === 'done' || st === 'current';
+      const node = st === 'done' ? '&#10003;' : st === 'current' ? String(i + 1) : st === 'held' ? '&#9203;' : '&#128274;';
+      const cta = st === 'done' ? 'Completed — retake'
+        : st === 'current' ? 'Start now &rarr;'
+        : st === 'held' ? 'Your coach will open this'
+        : 'Locked';
       return `
         <li class="journey-step is-${st}${clickable ? ' coaching-test-mode' : ''}"${clickable ? ` data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" role="button" tabindex="0"` : ''}>
           <div class="journey-rail"><span class="journey-line"></span><span class="journey-node" aria-hidden="true">${node}</span><span class="journey-line"></span></div>

@@ -121,6 +121,7 @@ async function ensureProgressTable(env) {
          assessment_done INTEGER NOT NULL DEFAULT 0,
          coaching_done   INTEGER NOT NULL DEFAULT 0,
          followup_done   INTEGER NOT NULL DEFAULT 0,
+         unlocked_stage  INTEGER DEFAULT 1,
          updated_at      INTEGER,
          PRIMARY KEY (invite_id, scenario_id)
        )`
@@ -136,6 +137,14 @@ async function ensureProgressTable(env) {
     } catch {
       // column already present
     }
+  }
+  // Admin-controlled progression gate: the highest number of stages (calls) the
+  // participant may start. Default 1 = only the first call; the admin unlocks
+  // each next call from the dashboard. Memory/done flags are unaffected.
+  try {
+    await env.DB.prepare(`ALTER TABLE coaching_progress ADD COLUMN unlocked_stage INTEGER DEFAULT 1`).run();
+  } catch {
+    // column already present
   }
 }
 

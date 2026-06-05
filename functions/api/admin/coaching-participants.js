@@ -81,10 +81,16 @@ async function listParticipants(request, env) {
   // Scenario id -> friendly label. ca_ ids resolve to the authored scenario
   // name; the table may not exist yet, so guard.
   const agentLabels = new Map();
+  const agentModes = new Map(); // id -> [{ mode, label }] enabled, in arc order
   try {
-    const ar = await env.DB.prepare(`SELECT id, name, scenario_name FROM coaching_agents`).all();
+    const ar = await env.DB.prepare(`SELECT id, name, scenario_name, mode_assessment, mode_coaching, mode_followup FROM coaching_agents`).all();
     for (const a of ar?.results || []) {
       agentLabels.set(a.id, (a.scenario_name && a.scenario_name.trim()) || a.name || a.id);
+      const stages = [];
+      if (a.mode_assessment) stages.push({ mode: 'assessment', label: 'Assessment' });
+      if (a.mode_coaching) stages.push({ mode: 'coaching', label: 'Coaching' });
+      if (a.mode_followup) stages.push({ mode: 'followup', label: 'Follow-up' });
+      agentModes.set(a.id, stages);
     }
   } catch {
     // coaching_agents not bootstrapped yet — fall back to raw ids below
@@ -97,7 +103,7 @@ async function listParticipants(request, env) {
   const progressByInvite = new Map(); // invite_id -> [{ scenario_id, call_count, last_activity }]
   try {
     const pr = await env.DB
-      .prepare(`SELECT invite_id, scenario_id, call_count, updated_at FROM coaching_progress WHERE invite_id IN (${ph})`)
+      .prepare(`SELECT invite_id, scenario_id, call_count, updated_at, assessment_done, coaching_done, followup_done, unlocked_stage FROM coaching_progress WHERE invite_id IN (${ph})`)
       .bind(...ids)
       .all();
     for (const p of pr?.results || []) {
@@ -108,7 +114,13 @@ async function listParticipants(request, env) {
       progress.set(p.invite_id, cur);
 
       const list = progressByInvite.get(p.invite_id) || [];
-      list.push({ scenario_id: p.scenario_id, call_count: calls, last_activity: p.updated_at ?? null });
+      list.push({
+        scenario_id: p.scenario_id,
+        call_count: calls,
+        last_activity: p.updated_at ?? null,
+        done: { assessment: !!p.assessment_done, coaching: !!p.coaching_done, followup: !!p.followup_done },
+        unlocked_stage: Number.isFinite(Number(p.unlocked_stage)) ? Number(p.unlocked_stage) : 1,
+      });
       progressByInvite.set(p.invite_id, list);
     }
   } catch {
@@ -132,12 +144,20 @@ async function listParticipants(request, env) {
     const prog = progress.get(r.id) || { calls: 0, last: null };
     const hasLink = !!r.token_plain;
     // Per-scenario progress rows (for the Reset buttons), labelled like the chips.
-    const progressScenarios = (progressByInvite.get(r.id) || []).map((ps) => ({
-      scenario_id: ps.scenario_id,
-      label: agentLabels.get(ps.scenario_id) || ps.scenario_id,
-      call_count: ps.call_count,
-      last_activity: ps.last_activity,
-    }));
+    const progressScenarios = (progressByInvite.get(r.id) || []).map((ps) => {
+      const modeStages = agentModes.get(ps.scenario_id) || [];
+      const done = ps.done || {};
+      const stages = modeStages.map((st) => ({ mode: st.mode, label: st.label, done: !!done[st.mode] }));
+      return {
+        scenario_id: ps.scenario_id,
+        label: agentLabels.get(ps.scenario_id) || ps.scenario_id,
+        call_count: ps.call_count,
+        last_activity: ps.last_activity,
+        stages,
+        stage_count: stages.length,
+        unlocked_stage: ps.unlocked_stage || 1,
+      };
+    });
     return {
       id: r.id,
       recipient_email: r.recipient_email,

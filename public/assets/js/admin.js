@@ -2238,6 +2238,46 @@ function renderCoachingParticipantsSection() {
   `;
 }
 
+// One scenario's progress row inside a participant card: the journey stages,
+// the admin unlock gate (Unlock next call / Hold), and Reset.
+function renderParticipantScenarioRow(p, ps) {
+  const n = Number(ps.call_count) || 0;
+  const stages = Array.isArray(ps.stages) ? ps.stages : [];
+  const total = Number(ps.stage_count) || stages.length;
+  const unlocked = Number(ps.unlocked_stage) || 1;
+  const inv = escapeAttr(p.id), scn = escapeAttr(ps.scenario_id);
+
+  const pills = stages.map((st, i) => {
+    const prevAllDone = stages.slice(0, i).every((s) => s.done);
+    let cls, glyph;
+    if (st.done) { cls = 'done'; glyph = '✓'; }
+    else if (!prevAllDone) { cls = 'locked'; glyph = String(i + 1); }
+    else if (i >= unlocked) { cls = 'held'; glyph = '⏳'; }
+    else { cls = 'open'; glyph = String(i + 1); }
+    return `<span class="cl-stage-pill is-${cls}">${glyph} ${escapeHtml(st.label)}</span>`;
+  }).join('');
+
+  const canUnlock = unlocked < total;
+  const canHold = unlocked > 1;
+  const gateLine = total > 1
+    ? `<div class="cl-gate-row">
+        <button type="button" class="ghost-button cl-unlock-next" data-invite="${inv}" data-scenario="${scn}" data-val="${unlocked + 1}"${canUnlock ? '' : ' disabled'}>Unlock next call</button>
+        <button type="button" class="ghost-button cl-unlock-hold" data-invite="${inv}" data-scenario="${scn}" data-val="${unlocked - 1}"${canHold ? '' : ' disabled'}>Hold</button>
+        <span class="admin-muted" style="font-size:12px;">${unlocked >= total ? 'All calls unlocked' : `${unlocked} of ${total} calls unlocked`}</span>
+      </div>`
+    : '';
+
+  return `
+    <div class="coaching-roster-progress-row coaching-roster-scn">
+      <div class="cl-scn-head">
+        <span class="coaching-roster-progress-label">${escapeHtml(ps.label)} <span class="admin-muted">— ${n} call${n === 1 ? '' : 's'}</span></span>
+        <button type="button" class="ghost-button admin-progress-reset" data-invite="${inv}" data-scenario="${scn}" data-label="${escapeAttr(ps.label)}">Reset</button>
+      </div>
+      ${stages.length ? `<div class="cl-stage-pills">${pills}</div>` : ''}
+      ${gateLine}
+    </div>`;
+}
+
 function renderParticipantCard(p) {
   const who = p.recipient_name
     ? `<strong>${escapeHtml(p.recipient_name)}</strong> <span class="email">${escapeHtml(p.recipient_email)}</span>`
@@ -2261,16 +2301,10 @@ function renderParticipantCard(p) {
        </div>`
     : `<p class="coaching-roster-nolink">Link not stored for this invite yet — re-send it (form below) to generate a copyable link.</p>`;
 
-  // Per-scenario progress with a Reset (wipe memory + re-lock to Assessment).
+  // Per-scenario progress: the journey stages, the unlock gate, and Reset.
   const progressRows = (p.progress_scenarios || []).length
     ? `<div class="coaching-roster-progress">
-        ${(p.progress_scenarios || []).map((ps) => {
-          const n = Number(ps.call_count) || 0;
-          return `<div class="coaching-roster-progress-row">
-            <span class="coaching-roster-progress-label">${escapeHtml(ps.label)} <span class="admin-muted">— ${n} call${n === 1 ? '' : 's'}</span></span>
-            <button type="button" class="ghost-button admin-progress-reset" data-invite="${escapeAttr(p.id)}" data-scenario="${escapeAttr(ps.scenario_id)}" data-label="${escapeAttr(ps.label)}">Reset</button>
-          </div>`;
-        }).join('')}
+        ${(p.progress_scenarios || []).map((ps) => renderParticipantScenarioRow(p, ps)).join('')}
       </div>`
     : '';
 
@@ -2326,11 +2360,31 @@ function attachCoachingParticipantsHandlers() {
     sec.querySelectorAll('.admin-progress-reset').forEach((btn) => {
       btn.addEventListener('click', () => onResetParticipantProgress(btn.dataset.invite, btn.dataset.scenario, btn.dataset.label));
     });
+    sec.querySelectorAll('.cl-unlock-next, .cl-unlock-hold').forEach((btn) => {
+      btn.addEventListener('click', () => onUnlockStage(btn.dataset.invite, btn.dataset.scenario, parseInt(btn.dataset.val, 10)));
+    });
   }
 }
 
 // Wipe one participant's progress in one scenario (memory + call_count +
 // mode-unlocks), so they restart it at Assessment. Admin-only.
+// Set how many calls of the journey this participant may start (the admin gate).
+async function onUnlockStage(inviteId, scenarioId, value) {
+  if (!inviteId || !scenarioId || !Number.isFinite(value)) return;
+  try {
+    const res = await fetch('/api/admin/coaching-unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ invite_id: inviteId, scenario_id: scenarioId, unlocked_stage: value }),
+    });
+    if (!res.ok) { alert('Update failed.'); return; }
+    reloadCoachingParticipants();
+  } catch {
+    alert('Network error.');
+  }
+}
+
 async function onResetParticipantProgress(inviteId, scenarioId, label) {
   if (!inviteId || !scenarioId) return;
   if (!confirm(`Reset all progress for "${label || scenarioId}"?\n\nThis wipes the saved conversation memory and re-locks the scenario back to Assessment. It can't be undone.`)) return;
