@@ -3920,8 +3920,11 @@ body[data-coaching] .app-header { display: none; }
   background-size: cover;
   background-position: center;
 }
-/* When the hero carries an image, the landing starts flush at the top. */
+/* When the hero carries an image, the landing starts flush at the top — kill the
+   landing's own top padding AND the app-main container padding above it so the
+   full-bleed banner sits against the top edge. */
 .coaching-landing.has-hero-image { padding-top: 0; }
+.app-main:has(> .coaching-landing.has-hero-image) { padding-top: 0; }
 
 /* Admin live-preview for the landing editor. The iframe renders at a real device
    width and is scaled (via JS transform) to fit the panel, so full-bleed/100vw
