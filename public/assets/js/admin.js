@@ -1733,6 +1733,13 @@ function renderCoachingLandingSection() {
                 ${hero.imageId ? `<button type="button" class="ghost-button cl-hero-image-remove">Remove image</button>` : ''}
                 ${hero.imageId ? `<label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Overlay darkness</span><input type="range" min="0" max="100" class="cl-hero-overlay" value="${Number(hero.overlay) || 0}"></label>` : ''}
               </div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+                <label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Nudge left/right</span><input type="range" min="-400" max="400" step="4" class="cl-hero-offx" value="${Number(hero.offsetX) || 0}" style="width:130px;"></label>
+                <label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Nudge up/down</span><input type="range" min="-300" max="300" step="4" class="cl-hero-offy" value="${Number(hero.offsetY) || 0}" style="width:130px;"></label>
+                <label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Text width (0 = auto)</span><input type="range" min="0" max="1000" step="10" class="cl-hero-width" value="${Number(hero.textWidth) || 0}" style="width:130px;"></label>
+                <label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Text size %</span><input type="range" min="60" max="180" step="5" class="cl-hero-scale" value="${Number(hero.textScale) || 100}" style="width:130px;"></label>
+                <button type="button" class="ghost-button cl-hero-reset" style="padding:4px 10px !important;font-size:11px;">Reset position &amp; size</button>
+              </div>
             </div>
           </details>
         </div>
@@ -1826,6 +1833,11 @@ function attachCoachingLandingHandlers() {
   bindSel(sec, '.cl-hero-image', 'change', (el) => uploadLandingImage(el.files && el.files[0], { kind: 'hero' }));
   bindSel(sec, '.cl-hero-image-remove', 'click', () => { L.hero.imageId = ''; paintLandingSection(); });
   bindSel(sec, '.cl-hero-overlay', 'input', (el) => { L.hero.overlay = +el.value; });
+  bindSel(sec, '.cl-hero-offx', 'input', (el) => { L.hero.offsetX = +el.value; });
+  bindSel(sec, '.cl-hero-offy', 'input', (el) => { L.hero.offsetY = +el.value; });
+  bindSel(sec, '.cl-hero-width', 'input', (el) => { L.hero.textWidth = +el.value; });
+  bindSel(sec, '.cl-hero-scale', 'input', (el) => { L.hero.textScale = +el.value; });
+  bindSel(sec, '.cl-hero-reset', 'click', () => { L.hero.offsetX = 0; L.hero.offsetY = 0; L.hero.textWidth = 0; L.hero.textScale = 100; paintLandingSection(); });
 
   // Sections
   sec.querySelectorAll('.cl-heading').forEach((el) => el.addEventListener('input', () => setSection(el, 'heading', el.value)));

@@ -111,10 +111,23 @@ export function renderLandingContentHtml(content) {
   const heroTint = hero.bgColor || '#000000';
   const heroAlign = (hero.align === 'left' || hero.align === 'right') ? hero.align : 'center';
 
+  // Fine-tune: text-size scale (CSS var the title/intro multiply by) + the inner
+  // block's nudge (translate) and width. Neutral values (scale 100, offset 0,
+  // width 0) leave everything at the CSS default.
+  const scale = Number(hero.textScale) || 100;
+  if (scale && scale !== 100) heroStyle.push(`--hero-text-scale:${scale / 100}`);
+  const innerStyle = [];
+  const ox = Number(hero.offsetX) || 0;
+  const oy = Number(hero.offsetY) || 0;
+  if (ox || oy) innerStyle.push(`transform:translate(${ox}px,${oy}px)`);
+  const tw = Number(hero.textWidth) || 0;
+  if (tw > 0) innerStyle.push(`max-width:${tw}px`);
+  const innerAttr = innerStyle.length ? ` style="${innerStyle.join(';')}"` : '';
+
   return `
     <header class="coaching-landing-hero align-${heroAlign}${heroHasImg ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
       ${heroHasImg ? `<span class="coaching-block-tint" style="background:${heroTint};opacity:${heroOverlay}"></span>` : ''}
-      <div class="coaching-landing-hero-inner">
+      <div class="coaching-landing-hero-inner"${innerAttr}>
         <p class="coaching-landing-eyebrow"${heroColor}>${esc(eyebrow)}</p>
         <h1 class="coaching-landing-title"${heroColor}>${esc(title)}</h1>
         ${intro ? `<p class="coaching-landing-intro"${heroColor}>${esc(intro)}</p>` : ''}

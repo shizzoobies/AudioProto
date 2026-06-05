@@ -3836,7 +3836,7 @@ body[data-coaching] .app-header { display: none; }
 .coaching-landing-title {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-size: clamp(30px, 5vw, 46px);
+  font-size: calc(clamp(30px, 5vw, 46px) * var(--hero-text-scale, 1));
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 1.08;
@@ -3847,7 +3847,7 @@ body[data-coaching] .app-header { display: none; }
 .coaching-landing-intro {
   margin: 18px auto 0;
   max-width: 56ch;
-  font-size: 17px;
+  font-size: calc(17px * var(--hero-text-scale, 1));
   line-height: 1.6;
   color: var(--color-text-secondary);
 }

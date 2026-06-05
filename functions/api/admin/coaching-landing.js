@@ -105,6 +105,11 @@ function normalizeContent(input) {
     imageId: imageId(heroSrc.imageId),
     overlay: pct(heroSrc.overlay),
     align: ALIGNS.has(heroSrc.align) ? heroSrc.align : 'center',
+    // Fine-tune position + size (neutral defaults: 0 / 0 / 0-auto / 100%).
+    offsetX: intRange(heroSrc.offsetX, -400, 400),
+    offsetY: intRange(heroSrc.offsetY, -300, 300),
+    textWidth: intRange(heroSrc.textWidth, 0, 1200),
+    textScale: scalePct(heroSrc.textScale),
   };
   const rawSections = Array.isArray(src.sections) ? src.sections : [];
   const sections = [];
@@ -143,6 +148,16 @@ function imageId(v) { return typeof v === 'string' && IMAGE_ID_RE.test(v) ? v : 
 function pct(v) {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+}
+function intRange(v, min, max) {
+  const n = parseInt(v, 10);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(min, Math.min(max, n));
+}
+// Text-size percentage: defaults to 100 (not 0) for missing/invalid input.
+function scalePct(v) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? Math.max(50, Math.min(200, n)) : 100;
 }
 
 function json(obj, status = 200) {
