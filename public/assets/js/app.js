@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-5 rubric-two-sections';
+const BUILD_ID = '20260604-6 voice-only-coaching';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2082,12 +2082,12 @@ function renderCall(scenario, opts = {}) {
   // team member Taylor), NOT an inbound customer call — so it drops the
   // reservation POS and the phone chrome and shows a clean centered voice stage.
   const isCoaching = isCoachingId(scenario.id) || !!scenario.coaching;
-  // Phone calls hide the live transcript ("captions") — a real phone call
-  // wouldn't show them. The transcript element stays in the DOM (coaching reads
-  // it) but is not displayed. Text-mode chats keep their conversation visible.
-  // Coaching shows its transcript (you want to see what Taylor said); demo phone
-  // calls hide captions like a real call.
-  const hideCaptions = isPhone && !isCoaching;
+  // Phone/voice calls hide the live transcript ("captions") — a real call
+  // wouldn't show them, and coaching is a full voice-only experience (no text on
+  // screen). The transcript <ol> stays in the DOM but is never displayed; saved
+  // progress reads the voice agent's own transcript, not this element. Text-mode
+  // chats keep their conversation visible.
+  const hideCaptions = isPhone;
   // Demo (voice-agent) phone calls hide the entire call dock — the floating,
   // chat-style panel — so the trainee just sees the POS, like a real rep on a
   // live call. The status/transcript elements stay in the DOM (JS still updates
