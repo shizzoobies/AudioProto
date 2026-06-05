@@ -1866,8 +1866,15 @@ async function uploadLandingImage(file, target) {
     const res = await fetch('/api/admin/coaching-landing-image', { method: 'POST', credentials: 'same-origin', body: fd });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || !data.id) { alert('Upload failed' + (data && data.error ? ': ' + data.error : '') + '.'); return; }
-    if (target.kind === 'hero') state.coachingLanding.hero.imageId = data.id;
-    else if (state.coachingLanding.sections[target.index]) state.coachingLanding.sections[target.index].imageId = data.id;
+    if (target.kind === 'hero') {
+      state.coachingLanding.hero.imageId = data.id;
+      // Give a readable default scrim so white text shows on a light image.
+      if (!Number(state.coachingLanding.hero.overlay)) state.coachingLanding.hero.overlay = 35;
+    } else if (state.coachingLanding.sections[target.index]) {
+      const blk = state.coachingLanding.sections[target.index];
+      blk.imageId = data.id;
+      if (blk.type === 'image_overlay' && !Number(blk.overlay)) blk.overlay = 45;
+    }
     paintLandingSection();
   } catch {
     alert('Network error during upload.');

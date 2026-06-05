@@ -20,9 +20,16 @@ export async function onRequest({ env, params }) {
   } catch {
     return notFound();
   }
-  if (!row || !row.data) return notFound();
+  if (!row || row.data == null) return notFound();
 
-  return new Response(row.data, {
+  // D1 returns BLOB columns as a plain Array<number> (or sometimes an
+  // ArrayBuffer). Normalize to a Uint8Array — a valid Response body. Passing the
+  // raw number[] yields an EMPTY body (HTTP 200, 0 bytes).
+  const body = row.data instanceof ArrayBuffer || ArrayBuffer.isView(row.data)
+    ? row.data
+    : new Uint8Array(row.data);
+
+  return new Response(body, {
     status: 200,
     headers: {
       'Content-Type': typeof row.mime === 'string' && row.mime ? row.mime : 'application/octet-stream',
