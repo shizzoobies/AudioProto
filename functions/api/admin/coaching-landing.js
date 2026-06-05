@@ -11,9 +11,16 @@ import { randomId, getAdminScope } from '../../../shared/auth.js';
 
 const SINGLETON_ID = 'default';
 const FIELD_CAP = 280;     // hero eyebrow/title
-const INTRO_CAP = 2000;    // hero intro + section body
-const HEADING_CAP = 160;
-const MAX_SECTIONS = 24;
+const INTRO_CAP = 4000;    // hero intro + section body
+const HEADING_CAP = 200;
+const MAX_SECTIONS = 30;
+
+// Per-block styling + layout vocabulary. Anything outside these sets is dropped
+// on save, so the stored content is always a safe, known shape.
+const BLOCK_TYPES = new Set(['text', 'image_overlay', 'image_split']);
+const FONT_KEYS = new Set(['default', 'sans', 'serif', 'geometric', 'modern', 'mono']);
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const IMAGE_ID_RE = /^img_[a-f0-9]{6,}$/i;
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
@@ -91,18 +98,34 @@ function normalizeContent(input) {
     eyebrow: cap(heroSrc.eyebrow, FIELD_CAP),
     title: cap(heroSrc.title, FIELD_CAP),
     intro: cap(heroSrc.intro, INTRO_CAP),
+    font: font(heroSrc.font),
+    textColor: color(heroSrc.textColor),
+    bgColor: color(heroSrc.bgColor),
+    imageId: imageId(heroSrc.imageId),
+    overlay: pct(heroSrc.overlay),
   };
   const rawSections = Array.isArray(src.sections) ? src.sections : [];
   const sections = [];
   for (const s of rawSections.slice(0, MAX_SECTIONS)) {
     if (!s || typeof s !== 'object') continue;
+    const type = BLOCK_TYPES.has(s.type) ? s.type : 'text';
     const heading = cap(s.heading, HEADING_CAP);
     const bodyText = cap(s.body, INTRO_CAP);
-    if (!heading && !bodyText) continue; // drop fully-empty blocks
+    const imgId = imageId(s.imageId);
+    // Keep a block if it carries anything — text OR an image (image-only banners
+    // are valid).
+    if (!heading && !bodyText && !imgId) continue;
     sections.push({
       id: typeof s.id === 'string' && s.id ? s.id.slice(0, 40) : 'sec_' + randomId(6),
+      type,
       heading,
       body: bodyText,
+      imageId: imgId,
+      imageSide: s.imageSide === 'right' ? 'right' : 'left',
+      overlay: pct(s.overlay),
+      font: font(s.font),
+      textColor: color(s.textColor),
+      bgColor: color(s.bgColor),
     });
   }
   return { hero, sections };
@@ -111,6 +134,13 @@ function normalizeContent(input) {
 function cap(v, n) {
   if (typeof v !== 'string') return '';
   return v.trim().slice(0, n);
+}
+function font(v) { return typeof v === 'string' && FONT_KEYS.has(v) ? v : ''; }
+function color(v) { return typeof v === 'string' && HEX_RE.test(v) ? v.toLowerCase() : ''; }
+function imageId(v) { return typeof v === 'string' && IMAGE_ID_RE.test(v) ? v : ''; }
+function pct(v) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
 }
 
 function json(obj, status = 200) {

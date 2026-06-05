@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-8 coaching-landing';
+const BUILD_ID = '20260604-9 landing-rich-blocks';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -993,6 +993,77 @@ function renderCoachingTest(selectedId) {
 // content sections, with the assigned scenarios as cards beneath. Hero/sections
 // come from /api/me/status (state.recipient.coaching_landing); sensible defaults
 // render when the admin hasn't authored anything yet. Handles 0 / 1 / many.
+// Curated font stacks for landing blocks (keys are validated server-side; the
+// families are loaded via the Google Fonts link in app.html). '' = inherit.
+const COACHING_FONT_STACKS = {
+  default: '',
+  sans: "'Inter', system-ui, sans-serif",
+  serif: "'Playfair Display', Georgia, serif",
+  geometric: "'Poppins', system-ui, sans-serif",
+  modern: "'Space Grotesk', system-ui, sans-serif",
+  mono: "'JetBrains Mono', ui-monospace, monospace",
+};
+function coachingFontStack(key) { return COACHING_FONT_STACKS[key] || ''; }
+
+// All color/font/image values below come from server-validated content (hex
+// colors, whitelisted font keys, id-shaped image refs), so they're safe to drop
+// into inline styles (CSP allows 'unsafe-inline' styles).
+function imgUrl(id) { return `/coaching-image/${encodeURIComponent(id)}`; }
+
+function renderLandingBlock(s) {
+  if (!s || typeof s !== 'object') return '';
+  const type = s.type || 'text';
+  const heading = typeof s.heading === 'string' ? s.heading : '';
+  const body = typeof s.body === 'string' ? s.body : '';
+  const imgId = s.imageId || '';
+  const fontStack = coachingFontStack(s.font);
+  const textColor = s.textColor || '';
+  const bgColor = s.bgColor || '';
+  const colorStyle = textColor ? ` style="color:${textColor}"` : '';
+
+  const textInner = `
+    ${heading ? `<h2 class="coaching-landing-section-h"${colorStyle}>${escapeHtml(heading)}</h2>` : ''}
+    ${body ? `<div class="coaching-landing-section-body"${colorStyle}>${paragraphsHtml(body)}</div>` : ''}`;
+
+  if (type === 'image_overlay' && imgId) {
+    const overlay = (Math.max(0, Math.min(100, Number(s.overlay) || 0)) / 100);
+    const tint = bgColor || '#000000';
+    const wrap = [`background-image:url('${imgUrl(imgId)}')`];
+    if (fontStack) wrap.push(`font-family:${fontStack}`);
+    const inner = textColor ? ` style="color:${textColor}"` : ' style="color:#fff"';
+    return `
+      <section class="coaching-landing-block coaching-block-overlay" style="${wrap.join(';')}">
+        <span class="coaching-block-tint" style="background:${tint};opacity:${overlay}"></span>
+        <div class="coaching-block-overlay-inner"${inner}>
+          ${heading ? `<h2 class="coaching-block-overlay-h">${escapeHtml(heading)}</h2>` : ''}
+          ${body ? `<div class="coaching-block-overlay-body">${paragraphsHtml(body)}</div>` : ''}
+        </div>
+      </section>`;
+  }
+
+  if (type === 'image_split' && imgId) {
+    const sideClass = s.imageSide === 'right' ? 'is-right' : 'is-left';
+    const wrap = [];
+    if (fontStack) wrap.push(`font-family:${fontStack}`);
+    if (bgColor) wrap.push(`background:${bgColor}`);
+    return `
+      <section class="coaching-landing-block coaching-block-split ${sideClass}"${wrap.length ? ` style="${wrap.join(';')}"` : ''}>
+        <div class="coaching-block-split-img" style="background-image:url('${imgUrl(imgId)}')"></div>
+        <div class="coaching-block-split-text">${textInner}</div>
+      </section>`;
+  }
+
+  // Plain text block.
+  if (!heading && !body) return '';
+  const wrap = [];
+  if (fontStack) wrap.push(`font-family:${fontStack}`);
+  if (bgColor) wrap.push(`background:${bgColor}`);
+  return `
+    <section class="coaching-landing-section${bgColor ? ' has-bg' : ''}"${wrap.length ? ` style="${wrap.join(';')}"` : ''}>
+      ${textInner}
+    </section>`;
+}
+
 function renderCoachingLanding(agents) {
   const landing = (state.recipient && state.recipient.coaching_landing) || null;
   const hero = (landing && landing.hero) || {};
@@ -1002,16 +1073,19 @@ function renderCoachingLanding(agents) {
     || 'Step into real coaching scenarios with team members who remember every conversation you have with them. Take them at your own pace — your progress is saved.';
   const sections = (landing && Array.isArray(landing.sections)) ? landing.sections : [];
 
-  const sectionsHtml = sections.map((s) => {
-    const heading = s && typeof s.heading === 'string' ? s.heading : '';
-    const body = s && typeof s.body === 'string' ? s.body : '';
-    if (!heading && !body) return '';
-    return `
-      <section class="coaching-landing-section">
-        ${heading ? `<h2 class="coaching-landing-section-h">${escapeHtml(heading)}</h2>` : ''}
-        ${body ? `<div class="coaching-landing-section-body">${paragraphsHtml(body)}</div>` : ''}
-      </section>`;
-  }).join('');
+  const sectionsHtml = sections.map(renderLandingBlock).join('');
+
+  // Hero styling: optional background image (with overlay tint), font + colors.
+  const heroFont = coachingFontStack(hero.font);
+  const heroHasImg = !!hero.imageId;
+  const heroStyle = [];
+  if (heroFont) heroStyle.push(`font-family:${heroFont}`);
+  if (heroHasImg) heroStyle.push(`background-image:url('${imgUrl(hero.imageId)}')`);
+  else if (hero.bgColor) heroStyle.push(`background:${hero.bgColor}`);
+  const heroTextColor = hero.textColor || (heroHasImg ? '#ffffff' : '');
+  const heroColor = heroTextColor ? ` style="color:${heroTextColor}"` : '';
+  const heroOverlay = heroHasImg ? (Math.max(0, Math.min(100, Number(hero.overlay) || 0)) / 100) : 0;
+  const heroTint = hero.bgColor || '#000000';
 
   const cardsHtml = agents.map((a) => {
     const isLegacy = a.id === 'coaching_practice';
@@ -1042,10 +1116,13 @@ function renderCoachingLanding(agents) {
 
   dom.root.innerHTML = `
     <div class="coaching-landing">
-      <header class="coaching-landing-hero">
-        <p class="coaching-landing-eyebrow">${escapeHtml(eyebrow)}</p>
-        <h1 class="coaching-landing-title">${escapeHtml(title)}</h1>
-        ${intro ? `<p class="coaching-landing-intro">${escapeHtml(intro)}</p>` : ''}
+      <header class="coaching-landing-hero${heroHasImg ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
+        ${heroHasImg ? `<span class="coaching-block-tint" style="background:${heroTint};opacity:${heroOverlay}"></span>` : ''}
+        <div class="coaching-landing-hero-inner">
+          <p class="coaching-landing-eyebrow"${heroColor}>${escapeHtml(eyebrow)}</p>
+          <h1 class="coaching-landing-title"${heroColor}>${escapeHtml(title)}</h1>
+          ${intro ? `<p class="coaching-landing-intro"${heroColor}>${escapeHtml(intro)}</p>` : ''}
+        </div>
       </header>
       ${sectionsHtml}
       ${scenariosBlock}

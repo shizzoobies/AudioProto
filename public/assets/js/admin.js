@@ -1670,6 +1670,28 @@ function ensureLandingState() {
   if (!Array.isArray(state.coachingLanding.sections)) state.coachingLanding.sections = [];
 }
 
+// Curated font choices (keys match the participant-side COACHING_FONT_STACKS).
+const ADMIN_LANDING_FONTS = [
+  ['default', 'Default'],
+  ['sans', 'Inter (clean sans)'],
+  ['serif', 'Playfair (elegant serif)'],
+  ['geometric', 'Poppins (geometric)'],
+  ['modern', 'Space Grotesk (modern)'],
+  ['mono', 'JetBrains Mono'],
+];
+function clFontSelect(cls, value, idxAttr) {
+  const v = value || 'default';
+  const opts = ADMIN_LANDING_FONTS.map(([k, l]) => `<option value="${k}"${v === k ? ' selected' : ''}>${l}</option>`).join('');
+  return `<select class="admin-input ${cls}"${idxAttr || ''} style="font-size:12px;padding:5px 8px;">${opts}</select>`;
+}
+// A color picker + a "Default" (clear) button. Empty value = inherit.
+function clColorCtl(cls, clearCls, value, fallback, idxAttr) {
+  return `<span style="display:flex;gap:6px;align-items:center;">
+    <input type="color" class="${cls}"${idxAttr || ''} value="${escapeAttr(value || fallback)}" style="width:38px;height:30px;padding:2px;border:1px solid var(--color-border);border-radius:6px;background:none;cursor:pointer;">
+    <button type="button" class="ghost-button ${clearCls}"${idxAttr || ''} style="padding:3px 8px !important;font-size:11px;"${value ? '' : ' disabled'}>Default</button>
+  </span>`;
+}
+
 function renderCoachingLandingSection() {
   ensureLandingState();
   const hero = state.coachingLanding.hero;
@@ -1679,7 +1701,7 @@ function renderCoachingLandingSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Landing page</h2>
-        <p class="admin-section-sub">The splash and content every participant sees above their scenarios. Edit the hero, add any number of content blocks, then Save.</p>
+        <p class="admin-section-sub">The splash and content every participant sees above their scenarios. Edit the hero, add content blocks (text, full-width image with text on top, or image beside text), style each one, then Save.</p>
       </header>
       <div class="admin-invite-card" style="display:flex;flex-direction:column;align-items:stretch;gap:14px;">
         <div style="display:flex;flex-direction:column;gap:10px;">
@@ -1695,6 +1717,22 @@ function renderCoachingLandingSection() {
             <span class="admin-muted">Intro</span>
             <textarea class="admin-input" id="cl-intro" rows="3" maxlength="2000" placeholder="A short welcome / what this program is.">${escapeHtml(hero.intro || '')}</textarea>
           </label>
+          <details class="cl-hero-style">
+            <summary class="admin-muted" style="cursor:pointer;font-size:13px;">Hero style &amp; background image</summary>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
+              <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+                <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Font</span>${clFontSelect('cl-hero-font', hero.font, '')}</label>
+                <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Text color</span>${clColorCtl('cl-hero-text-color', 'cl-hero-text-clear', hero.textColor, '#ffffff', '')}</label>
+                <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">${hero.imageId ? 'Overlay color' : 'Background'}</span>${clColorCtl('cl-hero-bg-color', 'cl-hero-bg-clear', hero.bgColor, '#1a1a1a', '')}</label>
+              </div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                ${hero.imageId ? `<img src="/coaching-image/${escapeAttr(hero.imageId)}" alt="" style="height:54px;border-radius:8px;border:1px solid var(--color-border);">` : ''}
+                <label class="ghost-button" style="cursor:pointer;margin:0;">${hero.imageId ? 'Replace background' : 'Add background image'}<input type="file" accept="image/*" class="cl-hero-image" style="display:none;"></label>
+                ${hero.imageId ? `<button type="button" class="ghost-button cl-hero-image-remove">Remove image</button>` : ''}
+                ${hero.imageId ? `<label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Overlay darkness</span><input type="range" min="0" max="100" class="cl-hero-overlay" value="${Number(hero.overlay) || 0}"></label>` : ''}
+              </div>
+            </div>
+          </details>
         </div>
         <div id="cl-sections" style="display:flex;flex-direction:column;gap:12px;">
           ${sections.map((s, i) => renderLandingSectionEditor(s, i, sections.length)).join('')}
@@ -1710,18 +1748,46 @@ function renderCoachingLandingSection() {
 }
 
 function renderLandingSectionEditor(s, i, total) {
+  const type = s.type || 'text';
+  const isOverlay = type === 'image_overlay';
+  const isSplit = type === 'image_split';
+  const isImage = isOverlay || isSplit;
+  const imgId = s.imageId || '';
   return `
-    <div class="admin-invite-card cl-section" style="display:flex;flex-direction:column;align-items:stretch;gap:8px;background:var(--color-surface-elevated);">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <span class="admin-muted" style="font-size:12px;">Section ${i + 1}</span>
+    <div class="admin-invite-card cl-section" style="display:flex;flex-direction:column;align-items:stretch;gap:10px;background:var(--color-surface-elevated);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="admin-muted" style="font-size:12px;">Block ${i + 1}</span>
+          <select class="admin-input cl-type" data-index="${i}" style="font-size:12px;padding:4px 8px;">
+            <option value="text"${type === 'text' ? ' selected' : ''}>Text</option>
+            <option value="image_overlay"${isOverlay ? ' selected' : ''}>Image + text on top</option>
+            <option value="image_split"${isSplit ? ' selected' : ''}>Image beside text</option>
+          </select>
+        </span>
         <span style="display:flex;gap:4px;">
           <button type="button" class="ghost-button cl-up" data-index="${i}"${i === 0 ? ' disabled' : ''} title="Move up" style="padding:4px 10px !important;">&uarr;</button>
           <button type="button" class="ghost-button cl-down" data-index="${i}"${i === total - 1 ? ' disabled' : ''} title="Move down" style="padding:4px 10px !important;">&darr;</button>
           <button type="button" class="ghost-button cl-remove" data-index="${i}" title="Remove" style="padding:4px 10px !important;">Remove</button>
         </span>
       </div>
-      <input class="admin-input cl-heading" data-index="${i}" maxlength="160" value="${escapeAttr(s.heading || '')}" placeholder="Section heading">
-      <textarea class="admin-input cl-body" data-index="${i}" rows="4" maxlength="2000" placeholder="Section text (leave a blank line between paragraphs)">${escapeHtml(s.body || '')}</textarea>
+
+      ${isImage ? `
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        ${imgId ? `<img src="/coaching-image/${escapeAttr(imgId)}" alt="" style="height:54px;border-radius:8px;border:1px solid var(--color-border);">` : ''}
+        <label class="ghost-button" style="cursor:pointer;margin:0;">${imgId ? 'Replace image' : 'Upload image'}<input type="file" accept="image/*" class="cl-image" data-index="${i}" style="display:none;"></label>
+        ${imgId ? `<button type="button" class="ghost-button cl-image-remove" data-index="${i}">Remove image</button>` : `<span class="admin-muted" style="font-size:12px;">PNG/JPG/WebP, up to 2 MB. Optimize large banners first.</span>`}
+      </div>` : ''}
+
+      <input class="admin-input cl-heading" data-index="${i}" maxlength="200" value="${escapeAttr(s.heading || '')}" placeholder="${isOverlay ? 'Headline (over the image)' : 'Section heading'}">
+      <textarea class="admin-input cl-body" data-index="${i}" rows="${isOverlay ? 3 : 4}" maxlength="4000" placeholder="Text (leave a blank line between paragraphs)">${escapeHtml(s.body || '')}</textarea>
+
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Font</span>${clFontSelect('cl-font', s.font, ` data-index="${i}"`)}</label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Text color</span>${clColorCtl('cl-text-color', 'cl-text-clear', s.textColor, isOverlay ? '#ffffff' : '#222222', ` data-index="${i}"`)}</label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">${isOverlay ? 'Overlay color' : 'Background'}</span>${clColorCtl('cl-bg-color', 'cl-bg-clear', s.bgColor, isOverlay ? '#000000' : '#f6f4ef', ` data-index="${i}"`)}</label>
+        ${isOverlay ? `<label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Overlay darkness</span><input type="range" min="0" max="100" class="cl-overlay" data-index="${i}" value="${Number(s.overlay) || 0}"></label>` : ''}
+        ${isSplit ? `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Image side</span><select class="admin-input cl-side" data-index="${i}" style="font-size:12px;padding:4px 8px;"><option value="left"${s.imageSide !== 'right' ? ' selected' : ''}>Left</option><option value="right"${s.imageSide === 'right' ? ' selected' : ''}>Right</option></select></label>` : ''}
+      </div>
     </div>
   `;
 }
@@ -1730,26 +1796,80 @@ function attachCoachingLandingHandlers() {
   const sec = document.getElementById('sec-coaching-landing');
   if (!sec) return;
   ensureLandingState();
-  const eyebrow = document.getElementById('cl-eyebrow');
-  const title = document.getElementById('cl-title');
-  const intro = document.getElementById('cl-intro');
-  if (eyebrow) eyebrow.addEventListener('input', () => { state.coachingLanding.hero.eyebrow = eyebrow.value; });
-  if (title) title.addEventListener('input', () => { state.coachingLanding.hero.title = title.value; });
-  if (intro) intro.addEventListener('input', () => { state.coachingLanding.hero.intro = intro.value; });
+  const L = state.coachingLanding;
 
-  sec.querySelectorAll('.cl-heading').forEach((el) => {
-    el.addEventListener('input', () => { const i = +el.dataset.index; if (state.coachingLanding.sections[i]) state.coachingLanding.sections[i].heading = el.value; });
-  });
-  sec.querySelectorAll('.cl-body').forEach((el) => {
-    el.addEventListener('input', () => { const i = +el.dataset.index; if (state.coachingLanding.sections[i]) state.coachingLanding.sections[i].body = el.value; });
-  });
+  // Hero text
+  bindEl('cl-eyebrow', 'input', (el) => { L.hero.eyebrow = el.value; });
+  bindEl('cl-title', 'input', (el) => { L.hero.title = el.value; });
+  bindEl('cl-intro', 'input', (el) => { L.hero.intro = el.value; });
+
+  // Hero style
+  bindSel(sec, '.cl-hero-font', 'change', (el) => { L.hero.font = el.value; });
+  bindSel(sec, '.cl-hero-text-color', 'input', (el) => { L.hero.textColor = el.value; enableClearNear(el, '.cl-hero-text-clear'); });
+  bindSel(sec, '.cl-hero-text-clear', 'click', () => { L.hero.textColor = ''; paintLandingSection(); });
+  bindSel(sec, '.cl-hero-bg-color', 'input', (el) => { L.hero.bgColor = el.value; enableClearNear(el, '.cl-hero-bg-clear'); });
+  bindSel(sec, '.cl-hero-bg-clear', 'click', () => { L.hero.bgColor = ''; paintLandingSection(); });
+  bindSel(sec, '.cl-hero-image', 'change', (el) => uploadLandingImage(el.files && el.files[0], { kind: 'hero' }));
+  bindSel(sec, '.cl-hero-image-remove', 'click', () => { L.hero.imageId = ''; paintLandingSection(); });
+  bindSel(sec, '.cl-hero-overlay', 'input', (el) => { L.hero.overlay = +el.value; });
+
+  // Sections
+  sec.querySelectorAll('.cl-heading').forEach((el) => el.addEventListener('input', () => setSection(el, 'heading', el.value)));
+  sec.querySelectorAll('.cl-body').forEach((el) => el.addEventListener('input', () => setSection(el, 'body', el.value)));
+  sec.querySelectorAll('.cl-type').forEach((el) => el.addEventListener('change', () => { setSection(el, 'type', el.value); paintLandingSection(); }));
+  sec.querySelectorAll('.cl-side').forEach((el) => el.addEventListener('change', () => setSection(el, 'imageSide', el.value)));
+  sec.querySelectorAll('.cl-overlay').forEach((el) => el.addEventListener('input', () => setSection(el, 'overlay', +el.value)));
+  sec.querySelectorAll('.cl-font').forEach((el) => el.addEventListener('change', () => setSection(el, 'font', el.value)));
+  sec.querySelectorAll('.cl-text-color').forEach((el) => el.addEventListener('input', () => { setSection(el, 'textColor', el.value); enableClearNear(el, '.cl-text-clear'); }));
+  sec.querySelectorAll('.cl-bg-color').forEach((el) => el.addEventListener('input', () => { setSection(el, 'bgColor', el.value); enableClearNear(el, '.cl-bg-clear'); }));
+  sec.querySelectorAll('.cl-text-clear').forEach((el) => el.addEventListener('click', () => { setSectionByIndex(+el.dataset.index, 'textColor', ''); paintLandingSection(); }));
+  sec.querySelectorAll('.cl-bg-clear').forEach((el) => el.addEventListener('click', () => { setSectionByIndex(+el.dataset.index, 'bgColor', ''); paintLandingSection(); }));
+  sec.querySelectorAll('.cl-image').forEach((el) => el.addEventListener('change', () => uploadLandingImage(el.files && el.files[0], { kind: 'section', index: +el.dataset.index })));
+  sec.querySelectorAll('.cl-image-remove').forEach((el) => el.addEventListener('click', () => { setSectionByIndex(+el.dataset.index, 'imageId', ''); paintLandingSection(); }));
   sec.querySelectorAll('.cl-up').forEach((b) => b.addEventListener('click', () => moveLandingSection(+b.dataset.index, -1)));
   sec.querySelectorAll('.cl-down').forEach((b) => b.addEventListener('click', () => moveLandingSection(+b.dataset.index, 1)));
   sec.querySelectorAll('.cl-remove').forEach((b) => b.addEventListener('click', () => removeLandingSection(+b.dataset.index)));
+
   const add = document.getElementById('cl-add');
   if (add) add.addEventListener('click', addLandingSection);
   const save = document.getElementById('cl-save');
   if (save) save.addEventListener('click', saveCoachingLanding);
+
+  function bindEl(id, ev, fn) { const el = document.getElementById(id); if (el) el.addEventListener(ev, () => fn(el)); }
+  function bindSel(root, selector, ev, fn) { const el = root.querySelector(selector); if (el) el.addEventListener(ev, () => fn(el)); }
+}
+
+function setSection(el, key, val) { setSectionByIndex(+el.dataset.index, key, val); }
+function setSectionByIndex(i, key, val) {
+  ensureLandingState();
+  if (state.coachingLanding.sections[i]) state.coachingLanding.sections[i][key] = val;
+}
+function enableClearNear(colorEl, clearSel) {
+  const parent = colorEl.parentElement;
+  const btn = parent && parent.querySelector(clearSel);
+  if (btn) btn.disabled = false;
+}
+
+// Upload an image file to D1-backed storage and attach its id to the hero or a
+// section block, then repaint. target = { kind:'hero' } | { kind:'section', index }.
+async function uploadLandingImage(file, target) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || '')) { alert('Please choose an image file.'); return; }
+  if (file.size > 2 * 1024 * 1024) { alert('Image is too large (max 2 MB). Please resize / optimize it first.'); return; }
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/admin/coaching-landing-image', { method: 'POST', credentials: 'same-origin', body: fd });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.id) { alert('Upload failed' + (data && data.error ? ': ' + data.error : '') + '.'); return; }
+    if (target.kind === 'hero') state.coachingLanding.hero.imageId = data.id;
+    else if (state.coachingLanding.sections[target.index]) state.coachingLanding.sections[target.index].imageId = data.id;
+    paintLandingSection();
+  } catch {
+    alert('Network error during upload.');
+  }
 }
 
 // Pull the current hero input values into state before a structural re-render
@@ -1776,7 +1896,7 @@ function paintLandingSection() {
 function addLandingSection() {
   ensureLandingState();
   syncLandingHeroFromDom();
-  state.coachingLanding.sections.push({ heading: '', body: '' });
+  state.coachingLanding.sections.push({ type: 'text', heading: '', body: '', imageId: '', imageSide: 'left', overlay: 0, font: '', textColor: '', bgColor: '' });
   paintLandingSection();
 }
 function removeLandingSection(i) {
