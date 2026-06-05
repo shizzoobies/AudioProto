@@ -3920,6 +3920,22 @@ body[data-coaching] .app-header { display: none; }
 .coaching-landing-hero-inner { position: relative; z-index: 1; }
 .coaching-block-tint { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 
+/* Hero text position — place text on one side when the image's focus is on the
+   other. Applies to any hero; the side layout matters most with a background image. */
+.coaching-landing-hero.align-left { text-align: left; }
+.coaching-landing-hero.align-right { text-align: right; }
+.coaching-landing-hero.align-left .coaching-landing-title,
+.coaching-landing-hero.align-left .coaching-landing-intro { margin-left: 0; margin-right: auto; }
+.coaching-landing-hero.align-right .coaching-landing-title,
+.coaching-landing-hero.align-right .coaching-landing-intro { margin-right: 0; margin-left: auto; }
+.coaching-landing-hero.has-image { display: flex; align-items: center; }
+.coaching-landing-hero.has-image.align-left { justify-content: flex-start; }
+.coaching-landing-hero.has-image.align-right { justify-content: flex-end; }
+.coaching-landing-hero.has-image.align-center { justify-content: center; }
+.coaching-landing-hero.has-image .coaching-landing-hero-inner { width: 100%; max-width: 34ch; }
+.coaching-landing-hero.has-image .coaching-landing-title,
+.coaching-landing-hero.has-image .coaching-landing-intro { max-width: none; }
+
 /* Rich image blocks break out to full viewport width for impact. */
 .coaching-landing-block {
   position: relative;

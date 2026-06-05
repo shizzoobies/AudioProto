@@ -1722,6 +1722,7 @@ function renderCoachingLandingSection() {
             <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
                 <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Font</span>${clFontSelect('cl-hero-font', hero.font, '')}</label>
+                <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Text position</span><select class="admin-input cl-hero-align" style="font-size:12px;padding:5px 8px;"><option value="left"${hero.align === 'left' ? ' selected' : ''}>Left</option><option value="center"${(hero.align || 'center') === 'center' ? ' selected' : ''}>Center</option><option value="right"${hero.align === 'right' ? ' selected' : ''}>Right</option></select></label>
                 <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Text color</span>${clColorCtl('cl-hero-text-color', 'cl-hero-text-clear', hero.textColor, '#ffffff', '')}</label>
                 <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">${hero.imageId ? 'Overlay color' : 'Background'}</span>${clColorCtl('cl-hero-bg-color', 'cl-hero-bg-clear', hero.bgColor, '#1a1a1a', '')}</label>
               </div>
@@ -1805,6 +1806,7 @@ function attachCoachingLandingHandlers() {
 
   // Hero style
   bindSel(sec, '.cl-hero-font', 'change', (el) => { L.hero.font = el.value; });
+  bindSel(sec, '.cl-hero-align', 'change', (el) => { L.hero.align = el.value; });
   bindSel(sec, '.cl-hero-text-color', 'input', (el) => { L.hero.textColor = el.value; enableClearNear(el, '.cl-hero-text-clear'); });
   bindSel(sec, '.cl-hero-text-clear', 'click', () => { L.hero.textColor = ''; paintLandingSection(); });
   bindSel(sec, '.cl-hero-bg-color', 'input', (el) => { L.hero.bgColor = el.value; enableClearNear(el, '.cl-hero-bg-clear'); });

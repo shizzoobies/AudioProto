@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-9 landing-rich-blocks';
+const BUILD_ID = '20260604-10 hero-text-position';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1086,6 +1086,7 @@ function renderCoachingLanding(agents) {
   const heroColor = heroTextColor ? ` style="color:${heroTextColor}"` : '';
   const heroOverlay = heroHasImg ? (Math.max(0, Math.min(100, Number(hero.overlay) || 0)) / 100) : 0;
   const heroTint = hero.bgColor || '#000000';
+  const heroAlign = (hero.align === 'left' || hero.align === 'right') ? hero.align : 'center';
 
   const cardsHtml = agents.map((a) => {
     const isLegacy = a.id === 'coaching_practice';
@@ -1116,7 +1117,7 @@ function renderCoachingLanding(agents) {
 
   dom.root.innerHTML = `
     <div class="coaching-landing">
-      <header class="coaching-landing-hero${heroHasImg ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
+      <header class="coaching-landing-hero align-${heroAlign}${heroHasImg ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
         ${heroHasImg ? `<span class="coaching-block-tint" style="background:${heroTint};opacity:${heroOverlay}"></span>` : ''}
         <div class="coaching-landing-hero-inner">
           <p class="coaching-landing-eyebrow"${heroColor}>${escapeHtml(eyebrow)}</p>

@@ -19,6 +19,7 @@ const MAX_SECTIONS = 30;
 // on save, so the stored content is always a safe, known shape.
 const BLOCK_TYPES = new Set(['text', 'image_overlay', 'image_split']);
 const FONT_KEYS = new Set(['default', 'sans', 'serif', 'geometric', 'modern', 'mono']);
+const ALIGNS = new Set(['left', 'center', 'right']);
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const IMAGE_ID_RE = /^img_[a-f0-9]{6,}$/i;
 
@@ -103,6 +104,7 @@ function normalizeContent(input) {
     bgColor: color(heroSrc.bgColor),
     imageId: imageId(heroSrc.imageId),
     overlay: pct(heroSrc.overlay),
+    align: ALIGNS.has(heroSrc.align) ? heroSrc.align : 'center',
   };
   const rawSections = Array.isArray(src.sections) ? src.sections : [];
   const sections = [];
