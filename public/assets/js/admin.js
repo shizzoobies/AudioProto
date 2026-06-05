@@ -2317,6 +2317,9 @@ function renderParticipantCard(p) {
       <div class="coaching-roster-chips">${chips}</div>
       ${linkRow}
       ${progressRows}
+      <div class="coaching-roster-foot">
+        <button type="button" class="ghost-button admin-participant-remove" data-invite="${escapeAttr(p.id)}" data-label="${escapeAttr(p.recipient_name || p.recipient_email)}">Remove participant</button>
+      </div>
     </div>
   `;
 }
@@ -2363,11 +2366,28 @@ function attachCoachingParticipantsHandlers() {
     sec.querySelectorAll('.cl-unlock-next, .cl-unlock-hold').forEach((btn) => {
       btn.addEventListener('click', () => onUnlockStage(btn.dataset.invite, btn.dataset.scenario, parseInt(btn.dataset.val, 10)));
     });
+    sec.querySelectorAll('.admin-participant-remove').forEach((btn) => {
+      btn.addEventListener('click', () => onRemoveParticipant(btn.dataset.invite, btn.dataset.label));
+    });
   }
 }
 
 // Wipe one participant's progress in one scenario (memory + call_count +
 // mode-unlocks), so they restart it at Assessment. Admin-only.
+// Remove (revoke) a participant — their link stops working and they leave the
+// roster. Reuses the generic invite-revoke endpoint.
+async function onRemoveParticipant(inviteId, label) {
+  if (!inviteId) return;
+  if (!confirm(`Remove ${label || 'this participant'}?\n\nTheir link stops working and they disappear from this list. Re-invite the same email to start them fresh.`)) return;
+  try {
+    const res = await fetch('/api/admin/invites/' + encodeURIComponent(inviteId), { method: 'DELETE', credentials: 'same-origin' });
+    if (!res.ok) { alert('Remove failed.'); return; }
+    reloadCoachingParticipants();
+  } catch {
+    alert('Network error.');
+  }
+}
+
 // Set how many calls of the journey this participant may start (the admin gate).
 async function onUnlockStage(inviteId, scenarioId, value) {
   if (!inviteId || !scenarioId || !Number.isFinite(value)) return;

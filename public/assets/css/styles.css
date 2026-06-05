@@ -6009,6 +6009,9 @@ body[data-coaching] .app-header { display: none; }
 .cl-stage-pill.is-locked { opacity: 0.55; }
 .cl-gate-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .cl-gate-row .ghost-button { padding: 4px 12px !important; font-size: 12px !important; }
+.coaching-roster-foot { display: flex; justify-content: flex-end; margin-top: 4px; }
+.coaching-roster-foot .admin-participant-remove { padding: 3px 10px !important; font-size: 11.5px !important; color: var(--color-text-tertiary); }
+.coaching-roster-foot .admin-participant-remove:hover { color: var(--color-danger); border-color: var(--color-danger); }
 .admin-invite-recipient { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .admin-invite-name { font-weight: 600; font-size: 14px; color: var(--color-text-primary); }
 .admin-invite-email { font-size: 12.5px; color: var(--color-text-tertiary); }

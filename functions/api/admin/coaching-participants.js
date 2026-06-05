@@ -62,7 +62,8 @@ async function listParticipants(request, env) {
      ORDER BY revoked ASC, created_at DESC`
   ).all();
 
-  const rows = (res?.results || []).filter((r) => !SENTINELS.has(r.recipient_email));
+  // Hide sentinels and revoked (removed) participants from the roster.
+  const rows = (res?.results || []).filter((r) => !SENTINELS.has(r.recipient_email) && !r.revoked);
   if (!rows.length) return json({ participants: [] });
 
   const ids = rows.map((r) => r.id);
@@ -143,21 +144,26 @@ async function listParticipants(request, env) {
     });
     const prog = progress.get(r.id) || { calls: 0, last: null };
     const hasLink = !!r.token_plain;
-    // Per-scenario progress rows (for the Reset buttons), labelled like the chips.
-    const progressScenarios = (progressByInvite.get(r.id) || []).map((ps) => {
-      const modeStages = agentModes.get(ps.scenario_id) || [];
-      const done = ps.done || {};
-      const stages = modeStages.map((st) => ({ mode: st.mode, label: st.label, done: !!done[st.mode] }));
-      return {
-        scenario_id: ps.scenario_id,
-        label: agentLabels.get(ps.scenario_id) || ps.scenario_id,
-        call_count: ps.call_count,
-        last_activity: ps.last_activity,
-        stages,
-        stage_count: stages.length,
-        unlocked_stage: ps.unlocked_stage || 1,
-      };
-    });
+    // Journey gate for EVERY assigned concrete scenario (not just started ones),
+    // so the stage pills + unlock controls show immediately. Merge any progress.
+    const progLookup = new Map((progressByInvite.get(r.id) || []).map((ps) => [ps.scenario_id, ps]));
+    const progressScenarios = scenarios
+      .filter((s) => !s.all && typeof s.id === 'string' && s.id.startsWith('ca_'))
+      .map((s) => {
+        const modeStages = agentModes.get(s.id) || [];
+        const ps = progLookup.get(s.id);
+        const done = (ps && ps.done) || {};
+        const stages = modeStages.map((st) => ({ mode: st.mode, label: st.label, done: !!done[st.mode] }));
+        return {
+          scenario_id: s.id,
+          label: s.label,
+          call_count: ps ? ps.call_count : 0,
+          last_activity: ps ? ps.last_activity : null,
+          stages,
+          stage_count: stages.length,
+          unlocked_stage: ps ? ps.unlocked_stage : 1,
+        };
+      });
     return {
       id: r.id,
       recipient_email: r.recipient_email,
