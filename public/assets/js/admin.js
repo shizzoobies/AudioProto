@@ -1746,9 +1746,15 @@ function renderCoachingLandingSection() {
         </div>
       </div>
       <div class="cl-preview-wrap">
-        <p class="admin-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;margin:0 0 8px;">Live preview</p>
-        <iframe id="cl-preview" class="cl-preview-frame" title="Landing live preview"></iframe>
-        <p class="admin-muted" style="font-size:12px;margin:8px 0 0;">Updates as you edit. Your scenario cards appear below this on the real participant page.</p>
+        <div class="cl-preview-toolbar">
+          <span class="admin-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Live preview</span>
+          <span class="cl-preview-devices">
+            <button type="button" class="ghost-button cl-preview-device is-active" data-w="1280" style="padding:3px 10px !important;font-size:11px;">Desktop</button>
+            <button type="button" class="ghost-button cl-preview-device" data-w="390" style="padding:3px 10px !important;font-size:11px;">Mobile</button>
+          </span>
+        </div>
+        <div class="cl-preview-stage"><iframe id="cl-preview" class="cl-preview-frame" title="Landing live preview" scrolling="no"></iframe></div>
+        <p class="admin-muted" style="font-size:12px;margin:8px 0 0;">Scaled to the selected screen width — what participants actually see. Your scenario cards appear below this on the real page.</p>
       </div>
     </section>
   `;
@@ -1848,6 +1854,11 @@ function attachCoachingLandingHandlers() {
   // specific handlers above run first (updating state), then this fires.
   sec.addEventListener('input', scheduleLandingPreview);
   sec.addEventListener('change', scheduleLandingPreview);
+  sec.querySelectorAll('.cl-preview-device').forEach((b) => b.addEventListener('click', () => {
+    _landingPreviewWidth = Number(b.dataset.w) || 1280;
+    sec.querySelectorAll('.cl-preview-device').forEach((x) => x.classList.toggle('is-active', x === b));
+    updateLandingPreview();
+  }));
   buildLandingPreview();
 
   function bindEl(id, ev, fn) { const el = document.getElementById(id); if (el) el.addEventListener(ev, () => fn(el)); }
@@ -1855,7 +1866,11 @@ function attachCoachingLandingHandlers() {
 }
 
 // ---- Landing live preview (iframe, shares the participant renderer) ---------
+// Rendered at a real device width (so full-bleed / 100vw layout matches the
+// participant page) then scaled to fit the editor panel.
 let _landingPreviewTimer = null;
+let _landingPreviewWidth = 1280;
+let _landingResizeBound = false;
 
 function buildLandingPreview() {
   const iframe = document.getElementById('cl-preview');
@@ -1867,19 +1882,34 @@ function buildLandingPreview() {
     + '<link rel="stylesheet" href="/assets/css/styles.css">'
     + '<style>html,body{margin:0;background:#fff;}</style>'
     + '</head><body data-coaching="true"><div class="coaching-landing" id="cl-preview-content"></div></body></html>';
-  iframe.onload = () => updateLandingPreview();
+  // Re-measure after load AND a beat later (once fonts settle) for accurate height.
+  iframe.onload = () => { updateLandingPreview(); setTimeout(updateLandingPreview, 350); };
   iframe.srcdoc = doc;
+  if (!_landingResizeBound) { _landingResizeBound = true; window.addEventListener('resize', scheduleLandingPreview); }
 }
 
 function updateLandingPreview() {
   const iframe = document.getElementById('cl-preview');
-  if (!iframe || !iframe.contentDocument) return;
+  const stage = document.querySelector('.cl-preview-stage');
+  if (!iframe || !iframe.contentDocument || !stage) return;
   ensureLandingState();
   const root = iframe.contentDocument.getElementById('cl-preview-content');
   if (!root) return;
   const hasImg = !!(state.coachingLanding.hero && state.coachingLanding.hero.imageId);
   root.className = 'coaching-landing' + (hasImg ? ' has-hero-image' : '');
   root.innerHTML = renderLandingContentHtml(state.coachingLanding);
+
+  // Lay out at the chosen virtual width, measure the content's natural height,
+  // then scale the whole frame down to fit the panel.
+  const vw = _landingPreviewWidth;
+  iframe.style.width = vw + 'px';
+  iframe.style.height = '10px';
+  const docEl = iframe.contentDocument.documentElement;
+  const contentH = Math.max(docEl ? docEl.scrollHeight : 0, 200);
+  iframe.style.height = contentH + 'px';
+  const scale = stage.clientWidth / vw;
+  iframe.style.transform = 'scale(' + scale + ')';
+  stage.style.height = (contentH * scale) + 'px';
 }
 
 function scheduleLandingPreview() {

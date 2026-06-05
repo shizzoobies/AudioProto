@@ -3923,16 +3923,22 @@ body[data-coaching] .app-header { display: none; }
 /* When the hero carries an image, the landing starts flush at the top. */
 .coaching-landing.has-hero-image { padding-top: 0; }
 
-/* Admin live-preview iframe for the landing editor. */
+/* Admin live-preview for the landing editor. The iframe renders at a real device
+   width and is scaled (via JS transform) to fit the panel, so full-bleed/100vw
+   layout matches the participant page. The stage clips + sizes to the scaled frame. */
 .cl-preview-wrap { margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 16px; }
-.cl-preview-frame {
+.cl-preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.cl-preview-devices { display: flex; gap: 4px; }
+.cl-preview-device.is-active { border-color: var(--color-accent); color: var(--color-accent); }
+.cl-preview-stage {
+  position: relative;
   width: 100%;
-  height: 540px;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: #fff;
-  display: block;
 }
+.cl-preview-frame { border: 0; display: block; transform-origin: top left; }
 .coaching-landing-hero-inner { position: relative; z-index: 1; }
 .coaching-block-tint { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 
