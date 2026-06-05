@@ -20,6 +20,8 @@ const MAX_SECTIONS = 30;
 const BLOCK_TYPES = new Set(['text', 'image_overlay', 'image_split']);
 const FONT_KEYS = new Set(['default', 'sans', 'serif', 'geometric', 'modern', 'mono']);
 const ALIGNS = new Set(['left', 'center', 'right']);
+const ROW_WIDTHS = new Set(['contained', 'full']);
+const MAX_ROWS = 40;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const IMAGE_ID_RE = /^img_[a-f0-9]{6,}$/i;
 
@@ -111,31 +113,70 @@ function normalizeContent(input) {
     textWidth: intRange(heroSrc.textWidth, 0, 1200),
     textScale: scalePct(heroSrc.textScale),
   };
-  const rawSections = Array.isArray(src.sections) ? src.sections : [];
-  const sections = [];
-  for (const s of rawSections.slice(0, MAX_SECTIONS)) {
-    if (!s || typeof s !== 'object') continue;
-    const type = BLOCK_TYPES.has(s.type) ? s.type : 'text';
-    const heading = cap(s.heading, HEADING_CAP);
-    const bodyText = cap(s.body, INTRO_CAP);
-    const imgId = imageId(s.imageId);
-    // Keep a block if it carries anything — text OR an image (image-only banners
-    // are valid).
-    if (!heading && !bodyText && !imgId) continue;
-    sections.push({
-      id: typeof s.id === 'string' && s.id ? s.id.slice(0, 40) : 'sec_' + randomId(6),
-      type,
-      heading,
-      body: bodyText,
-      imageId: imgId,
-      imageSide: s.imageSide === 'right' ? 'right' : 'left',
-      overlay: pct(s.overlay),
-      font: font(s.font),
-      textColor: color(s.textColor),
-      bgColor: color(s.bgColor),
-    });
+  // Layout: rows of 1-3 columns. Legacy flat `sections` migrate to single-column
+  // rows so old content keeps working until it's re-saved.
+  let rawRows;
+  if (Array.isArray(src.rows)) {
+    rawRows = src.rows;
+  } else if (Array.isArray(src.sections)) {
+    rawRows = src.sections.map((s) => ({ width: legacyRowWidth(s), cols: 1, blocks: [s] }));
+  } else {
+    rawRows = [];
   }
-  return { hero, sections };
+  const rows = [];
+  for (const r of rawRows.slice(0, MAX_ROWS)) {
+    const nr = normalizeRow(r);
+    if (nr) rows.push(nr);
+  }
+  return { hero, rows };
+}
+
+// Legacy flat blocks that were full-bleed (image banners, background text) keep
+// that look when migrated to a row; plain text stays contained.
+function legacyRowWidth(s) {
+  return (s && (s.type === 'image_overlay' || s.type === 'image_split' || (s.type === 'text' && s.bgColor))) ? 'full' : 'contained';
+}
+
+// One content block (a column's contents) or null if it carries nothing.
+function normalizeBlock(s) {
+  if (!s || typeof s !== 'object') return null;
+  const type = BLOCK_TYPES.has(s.type) ? s.type : 'text';
+  const heading = cap(s.heading, HEADING_CAP);
+  const bodyText = cap(s.body, INTRO_CAP);
+  const imgId = imageId(s.imageId);
+  if (!heading && !bodyText && !imgId) return null;
+  return {
+    id: typeof s.id === 'string' && s.id ? s.id.slice(0, 40) : 'blk_' + randomId(6),
+    type,
+    heading,
+    body: bodyText,
+    imageId: imgId,
+    imageSide: s.imageSide === 'right' ? 'right' : 'left',
+    overlay: pct(s.overlay),
+    font: font(s.font),
+    textColor: color(s.textColor),
+    bgColor: color(s.bgColor),
+  };
+}
+
+// One layout row: 1-3 columns, contained or full-bleed, optional background. A
+// row is dropped if all its columns are empty. Empty interior columns are kept
+// as null so the column count is preserved.
+function normalizeRow(r) {
+  if (!r || typeof r !== 'object') return null;
+  let cols = parseInt(r.cols, 10);
+  if (!(cols >= 1 && cols <= 3)) cols = 1;
+  const raw = Array.isArray(r.blocks) ? r.blocks : [];
+  const blocks = [];
+  for (let i = 0; i < cols; i++) blocks.push(normalizeBlock(raw[i]));
+  if (!blocks.some(Boolean)) return null;
+  return {
+    id: typeof r.id === 'string' && r.id ? r.id.slice(0, 40) : 'row_' + randomId(6),
+    width: ROW_WIDTHS.has(r.width) ? r.width : 'contained',
+    cols,
+    bgColor: color(r.bgColor),
+    blocks,
+  };
 }
 
 function cap(v, n) {

@@ -86,9 +86,41 @@ function renderBlock(s) {
     </section>`;
 }
 
-// Hero + blocks HTML (NOT the scenario cards — those are data-driven and added
-// by the participant page). Applies the same sensible defaults the live page
-// uses when the admin hasn't authored a field yet.
+// Legacy content stored a flat `sections` array; new content uses `rows` (each a
+// 1-3 column layout). Migrate sections to single-column rows on the fly so old
+// content keeps rendering until it's re-saved.
+function migrateRows(landing) {
+  if (Array.isArray(landing.rows)) return landing.rows;
+  if (Array.isArray(landing.sections)) {
+    return landing.sections.map((s) => ({
+      width: (s && (s.type === 'image_overlay' || s.type === 'image_split' || (s.type === 'text' && s.bgColor))) ? 'full' : 'contained',
+      cols: 1,
+      blocks: [s],
+    }));
+  }
+  return [];
+}
+
+function renderRow(row) {
+  if (!row || typeof row !== 'object') return '';
+  const blocks = Array.isArray(row.blocks) ? row.blocks : [];
+  if (!blocks.some(Boolean)) return '';
+  let cols = parseInt(row.cols, 10);
+  if (!(cols >= 1 && cols <= 3)) cols = Math.max(1, Math.min(3, blocks.length || 1));
+  const width = row.width === 'full' ? 'full' : 'contained';
+  const hasBg = !!row.bgColor;
+  const style = hasBg ? ` style="background:${row.bgColor}"` : '';
+  let colsHtml = '';
+  for (let i = 0; i < cols; i++) {
+    const b = blocks[i];
+    colsHtml += `<div class="cl-col">${b ? renderBlock(b) : ''}</div>`;
+  }
+  return `<div class="cl-row width-${width}${hasBg ? ' has-bg' : ''}"${style}><div class="cl-row-cols cols-${cols}">${colsHtml}</div></div>`;
+}
+
+// Hero + rows HTML (NOT the scenario cards — those are data-driven and added by
+// the participant page). Applies the same sensible defaults the live page uses
+// when the admin hasn't authored a field yet.
 export function renderLandingContentHtml(content) {
   const landing = content && typeof content === 'object' ? content : {};
   const hero = landing.hero && typeof landing.hero === 'object' ? landing.hero : {};
@@ -96,8 +128,7 @@ export function renderLandingContentHtml(content) {
   const title = hero.title || 'Practice the conversations that matter.';
   const intro = hero.intro
     || 'Step into real coaching scenarios with team members who remember every conversation you have with them. Take them at your own pace — your progress is saved.';
-  const sections = Array.isArray(landing.sections) ? landing.sections : [];
-  const blocksHtml = sections.map(renderBlock).join('');
+  const rowsHtml = migrateRows(landing).map(renderRow).join('');
 
   const heroFont = fontStack(hero.font);
   const heroHasImg = !!hero.imageId;
@@ -133,5 +164,5 @@ export function renderLandingContentHtml(content) {
         ${intro ? `<p class="coaching-landing-intro"${heroColor}>${esc(intro)}</p>` : ''}
       </div>
     </header>
-    ${blocksHtml}`;
+    ${rowsHtml}`;
 }

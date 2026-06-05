@@ -3,11 +3,11 @@ import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
 import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
-import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-12';
+import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-13';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-12 hero-fine-tune';
+const BUILD_ID = '20260604-13 layout-rows-columns';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).

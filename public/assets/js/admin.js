@@ -1665,11 +1665,43 @@ function paintDemoGenerated() {
 // fly (no re-render, so focus is kept), structural changes (add/move/remove)
 // re-render the section from state.
 
+function newLandingBlock() {
+  return { type: 'text', heading: '', body: '', imageId: '', imageSide: 'left', overlay: 0, font: '', textColor: '', bgColor: '' };
+}
+
 function ensureLandingState() {
   if (!state.coachingLanding || typeof state.coachingLanding !== 'object') state.coachingLanding = {};
   if (!state.coachingLanding.hero || typeof state.coachingLanding.hero !== 'object') state.coachingLanding.hero = {};
-  if (!Array.isArray(state.coachingLanding.sections)) state.coachingLanding.sections = [];
+  // Migrate legacy flat `sections` to single-column rows.
+  if (!Array.isArray(state.coachingLanding.rows)) {
+    state.coachingLanding.rows = Array.isArray(state.coachingLanding.sections)
+      ? state.coachingLanding.sections.map((s) => ({
+        width: (s && (s.type === 'image_overlay' || s.type === 'image_split' || (s.type === 'text' && s.bgColor))) ? 'full' : 'contained',
+        cols: 1, bgColor: '', blocks: [s],
+      }))
+      : [];
+  }
+  delete state.coachingLanding.sections;
+  // Normalize each row's shape so the editor can rely on it.
+  for (const row of state.coachingLanding.rows) {
+    if (!row || typeof row !== 'object') continue;
+    if (row.width !== 'full') row.width = 'contained';
+    let cols = parseInt(row.cols, 10);
+    if (!(cols >= 1 && cols <= 3)) cols = 1;
+    row.cols = cols;
+    if (!Array.isArray(row.blocks)) row.blocks = [];
+    while (row.blocks.length < cols) row.blocks.push(null);
+    if (row.blocks.length > cols) row.blocks.length = cols;
+    if (typeof row.bgColor !== 'string') row.bgColor = '';
+  }
 }
+
+function rowAt(ri) { ensureLandingState(); return state.coachingLanding.rows[ri] || null; }
+function blockAt(el) {
+  const row = state.coachingLanding.rows[+el.dataset.row];
+  return row && Array.isArray(row.blocks) ? row.blocks[+el.dataset.col] : null;
+}
+function setBlockField(el, key, val) { const b = blockAt(el); if (b) b[key] = val; }
 
 // Curated font choices (keys match the participant-side COACHING_FONT_STACKS).
 const ADMIN_LANDING_FONTS = [
@@ -1696,7 +1728,7 @@ function clColorCtl(cls, clearCls, value, fallback, idxAttr) {
 function renderCoachingLandingSection() {
   ensureLandingState();
   const hero = state.coachingLanding.hero;
-  const sections = state.coachingLanding.sections;
+  const rows = state.coachingLanding.rows;
   return `
     <section class="admin-section" id="sec-coaching-landing">
       <header class="admin-section-head">
@@ -1743,11 +1775,11 @@ function renderCoachingLandingSection() {
             </div>
           </details>
         </div>
-        <div id="cl-sections" style="display:flex;flex-direction:column;gap:12px;">
-          ${sections.map((s, i) => renderLandingSectionEditor(s, i, sections.length)).join('')}
+        <div id="cl-rows" style="display:flex;flex-direction:column;gap:0;">
+          ${rows.map((r, ri) => renderRowEditor(r, ri, rows.length)).join('')}
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button type="button" class="ghost-button" id="cl-add">+ Add content section</button>
+          <button type="button" class="ghost-button" id="cl-add-row">+ Add row</button>
           <button type="button" class="primary-button" id="cl-save">Save landing page</button>
           <span id="cl-saved" class="admin-muted" style="font-size:13px;"></span>
         </div>
@@ -1767,46 +1799,85 @@ function renderCoachingLandingSection() {
   `;
 }
 
-function renderLandingSectionEditor(s, i, total) {
+// A layout row: column-count + width + background controls, a drag handle for
+// reordering, and one column slot per column (each holding a block or empty).
+function renderRowEditor(row, ri, total) {
+  const cols = row.cols || 1;
+  const width = row.width === 'full' ? 'full' : 'contained';
+  let slots = '';
+  for (let ci = 0; ci < cols; ci++) slots += renderColumnSlot(row.blocks[ci], ri, ci, cols);
+  return `
+    <div class="cl-row-editor" data-row="${ri}">
+      <div class="cl-row-editor-head">
+        <span class="cl-row-handle" draggable="true" data-row="${ri}" title="Drag to reorder rows"><span style="font-size:14px;">&#9776;</span> Row ${ri + 1}</span>
+        <span class="cl-row-controls">
+          <select class="admin-input cl-row-cols-sel" data-row="${ri}" style="font-size:12px;padding:4px 8px;" title="Columns in this row">
+            <option value="1"${cols === 1 ? ' selected' : ''}>1 column</option>
+            <option value="2"${cols === 2 ? ' selected' : ''}>2 columns</option>
+            <option value="3"${cols === 3 ? ' selected' : ''}>3 columns</option>
+          </select>
+          <select class="admin-input cl-row-width" data-row="${ri}" style="font-size:12px;padding:4px 8px;" title="Row width">
+            <option value="contained"${width === 'contained' ? ' selected' : ''}>Contained</option>
+            <option value="full"${width === 'full' ? ' selected' : ''}>Full width</option>
+          </select>
+          <span style="display:flex;align-items:center;gap:4px;font-size:11px;" class="admin-muted">Bg ${clColorCtl('cl-row-bg', 'cl-row-bg-clear', row.bgColor, '#f6f4ef', ` data-row="${ri}"`)}</span>
+          <button type="button" class="ghost-button cl-row-up" data-row="${ri}"${ri === 0 ? ' disabled' : ''} title="Move up" style="padding:4px 9px !important;">&uarr;</button>
+          <button type="button" class="ghost-button cl-row-down" data-row="${ri}"${ri === total - 1 ? ' disabled' : ''} title="Move down" style="padding:4px 9px !important;">&darr;</button>
+          <button type="button" class="ghost-button cl-row-remove" data-row="${ri}" title="Remove row" style="padding:4px 9px !important;">Remove</button>
+        </span>
+      </div>
+      <div class="cl-row-editor-cols">${slots}</div>
+    </div>
+  `;
+}
+
+function renderColumnSlot(block, ri, ci, cols) {
+  const label = cols > 1 ? `<span class="cl-col-slot-label">Column ${ci + 1}</span>` : '';
+  const inner = block
+    ? renderBlockEditor(block, ri, ci)
+    : `<button type="button" class="ghost-button cl-add-block" data-row="${ri}" data-col="${ci}">+ Add block</button>`;
+  return `<div class="cl-col-slot" data-row="${ri}" data-col="${ci}">${label}${inner}</div>`;
+}
+
+// One content block, addressed by (row, col). Draggable via its handle so it can
+// be moved/swapped between columns and rows.
+function renderBlockEditor(s, ri, ci) {
   const type = s.type || 'text';
   const isOverlay = type === 'image_overlay';
   const isSplit = type === 'image_split';
   const isImage = isOverlay || isSplit;
   const imgId = s.imageId || '';
+  const idx = ` data-row="${ri}" data-col="${ci}"`;
   return `
-    <div class="admin-invite-card cl-section" style="display:flex;flex-direction:column;align-items:stretch;gap:10px;background:var(--color-surface-elevated);">
+    <div class="admin-invite-card cl-block-editor" data-row="${ri}" data-col="${ci}" style="display:flex;flex-direction:column;align-items:stretch;gap:10px;background:var(--color-surface-elevated);">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
         <span style="display:flex;align-items:center;gap:8px;">
-          <span class="admin-muted" style="font-size:12px;">Block ${i + 1}</span>
-          <select class="admin-input cl-type" data-index="${i}" style="font-size:12px;padding:4px 8px;">
+          <span class="cl-block-handle" draggable="true"${idx} title="Drag block to another column or row"><span style="font-size:14px;">&#9776;</span></span>
+          <select class="admin-input cl-type"${idx} style="font-size:12px;padding:4px 8px;">
             <option value="text"${type === 'text' ? ' selected' : ''}>Text</option>
             <option value="image_overlay"${isOverlay ? ' selected' : ''}>Image + text on top</option>
             <option value="image_split"${isSplit ? ' selected' : ''}>Image beside text</option>
           </select>
         </span>
-        <span style="display:flex;gap:4px;">
-          <button type="button" class="ghost-button cl-up" data-index="${i}"${i === 0 ? ' disabled' : ''} title="Move up" style="padding:4px 10px !important;">&uarr;</button>
-          <button type="button" class="ghost-button cl-down" data-index="${i}"${i === total - 1 ? ' disabled' : ''} title="Move down" style="padding:4px 10px !important;">&darr;</button>
-          <button type="button" class="ghost-button cl-remove" data-index="${i}" title="Remove" style="padding:4px 10px !important;">Remove</button>
-        </span>
+        <button type="button" class="ghost-button cl-block-remove"${idx} title="Remove block" style="padding:4px 10px !important;">Remove</button>
       </div>
 
       ${isImage ? `
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
         ${imgId ? `<img src="/coaching-image/${escapeAttr(imgId)}" alt="" style="height:54px;border-radius:8px;border:1px solid var(--color-border);">` : ''}
-        <label class="ghost-button" style="cursor:pointer;margin:0;">${imgId ? 'Replace image' : 'Upload image'}<input type="file" accept="image/*" class="cl-image" data-index="${i}" style="display:none;"></label>
-        ${imgId ? `<button type="button" class="ghost-button cl-image-remove" data-index="${i}">Remove image</button>` : `<span class="admin-muted" style="font-size:12px;">PNG/JPG/WebP, up to 2 MB. Optimize large banners first.</span>`}
+        <label class="ghost-button" style="cursor:pointer;margin:0;">${imgId ? 'Replace image' : 'Upload image'}<input type="file" accept="image/*" class="cl-image"${idx} style="display:none;"></label>
+        ${imgId ? `<button type="button" class="ghost-button cl-image-remove"${idx}>Remove image</button>` : `<span class="admin-muted" style="font-size:12px;">PNG/JPG/WebP, up to 2 MB.</span>`}
       </div>` : ''}
 
-      <input class="admin-input cl-heading" data-index="${i}" maxlength="200" value="${escapeAttr(s.heading || '')}" placeholder="${isOverlay ? 'Headline (over the image)' : 'Section heading'}">
-      <textarea class="admin-input cl-body" data-index="${i}" rows="${isOverlay ? 3 : 4}" maxlength="4000" placeholder="Text (leave a blank line between paragraphs)">${escapeHtml(s.body || '')}</textarea>
+      <input class="admin-input cl-heading"${idx} maxlength="200" value="${escapeAttr(s.heading || '')}" placeholder="${isOverlay ? 'Headline (over the image)' : 'Heading'}">
+      <textarea class="admin-input cl-body"${idx} rows="${isOverlay ? 3 : 4}" maxlength="4000" placeholder="Text (leave a blank line between paragraphs)">${escapeHtml(s.body || '')}</textarea>
 
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Font</span>${clFontSelect('cl-font', s.font, ` data-index="${i}"`)}</label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Text color</span>${clColorCtl('cl-text-color', 'cl-text-clear', s.textColor, isOverlay ? '#ffffff' : '#222222', ` data-index="${i}"`)}</label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">${isOverlay ? 'Overlay color' : 'Background'}</span>${clColorCtl('cl-bg-color', 'cl-bg-clear', s.bgColor, isOverlay ? '#000000' : '#f6f4ef', ` data-index="${i}"`)}</label>
-        ${isOverlay ? `<label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Overlay darkness</span><input type="range" min="0" max="100" class="cl-overlay" data-index="${i}" value="${Number(s.overlay) || 0}"></label>` : ''}
-        ${isSplit ? `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Image side</span><select class="admin-input cl-side" data-index="${i}" style="font-size:12px;padding:4px 8px;"><option value="left"${s.imageSide !== 'right' ? ' selected' : ''}>Left</option><option value="right"${s.imageSide === 'right' ? ' selected' : ''}>Right</option></select></label>` : ''}
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Font</span>${clFontSelect('cl-font', s.font, idx)}</label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Text color</span>${clColorCtl('cl-text-color', 'cl-text-clear', s.textColor, isOverlay ? '#ffffff' : '#222222', idx)}</label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">${isOverlay ? 'Overlay color' : 'Background'}</span>${clColorCtl('cl-bg-color', 'cl-bg-clear', s.bgColor, isOverlay ? '#000000' : '#f6f4ef', idx)}</label>
+        ${isOverlay ? `<label style="display:flex;flex-direction:column;gap:2px;font-size:12px;"><span class="admin-muted">Overlay darkness</span><input type="range" min="0" max="100" class="cl-overlay"${idx} value="${Number(s.overlay) || 0}"></label>` : ''}
+        ${isSplit ? `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;"><span class="admin-muted">Image side</span><select class="admin-input cl-side"${idx} style="font-size:12px;padding:4px 8px;"><option value="left"${s.imageSide !== 'right' ? ' selected' : ''}>Left</option><option value="right"${s.imageSide === 'right' ? ' selected' : ''}>Right</option></select></label>` : ''}
       </div>
     </div>
   `;
@@ -1839,25 +1910,35 @@ function attachCoachingLandingHandlers() {
   bindSel(sec, '.cl-hero-scale', 'input', (el) => { L.hero.textScale = +el.value; });
   bindSel(sec, '.cl-hero-reset', 'click', () => { L.hero.offsetX = 0; L.hero.offsetY = 0; L.hero.textWidth = 0; L.hero.textScale = 100; paintLandingSection(); });
 
-  // Sections
-  sec.querySelectorAll('.cl-heading').forEach((el) => el.addEventListener('input', () => setSection(el, 'heading', el.value)));
-  sec.querySelectorAll('.cl-body').forEach((el) => el.addEventListener('input', () => setSection(el, 'body', el.value)));
-  sec.querySelectorAll('.cl-type').forEach((el) => el.addEventListener('change', () => { setSection(el, 'type', el.value); paintLandingSection(); }));
-  sec.querySelectorAll('.cl-side').forEach((el) => el.addEventListener('change', () => setSection(el, 'imageSide', el.value)));
-  sec.querySelectorAll('.cl-overlay').forEach((el) => el.addEventListener('input', () => setSection(el, 'overlay', +el.value)));
-  sec.querySelectorAll('.cl-font').forEach((el) => el.addEventListener('change', () => setSection(el, 'font', el.value)));
-  sec.querySelectorAll('.cl-text-color').forEach((el) => el.addEventListener('input', () => { setSection(el, 'textColor', el.value); enableClearNear(el, '.cl-text-clear'); }));
-  sec.querySelectorAll('.cl-bg-color').forEach((el) => el.addEventListener('input', () => { setSection(el, 'bgColor', el.value); enableClearNear(el, '.cl-bg-clear'); }));
-  sec.querySelectorAll('.cl-text-clear').forEach((el) => el.addEventListener('click', () => { setSectionByIndex(+el.dataset.index, 'textColor', ''); paintLandingSection(); }));
-  sec.querySelectorAll('.cl-bg-clear').forEach((el) => el.addEventListener('click', () => { setSectionByIndex(+el.dataset.index, 'bgColor', ''); paintLandingSection(); }));
-  sec.querySelectorAll('.cl-image').forEach((el) => el.addEventListener('change', () => uploadLandingImage(el.files && el.files[0], { kind: 'section', index: +el.dataset.index })));
-  sec.querySelectorAll('.cl-image-remove').forEach((el) => el.addEventListener('click', () => { setSectionByIndex(+el.dataset.index, 'imageId', ''); paintLandingSection(); }));
-  sec.querySelectorAll('.cl-up').forEach((b) => b.addEventListener('click', () => moveLandingSection(+b.dataset.index, -1)));
-  sec.querySelectorAll('.cl-down').forEach((b) => b.addEventListener('click', () => moveLandingSection(+b.dataset.index, 1)));
-  sec.querySelectorAll('.cl-remove').forEach((b) => b.addEventListener('click', () => removeLandingSection(+b.dataset.index)));
+  // Blocks (keyed by row + col)
+  sec.querySelectorAll('.cl-heading').forEach((el) => el.addEventListener('input', () => setBlockField(el, 'heading', el.value)));
+  sec.querySelectorAll('.cl-body').forEach((el) => el.addEventListener('input', () => setBlockField(el, 'body', el.value)));
+  sec.querySelectorAll('.cl-type').forEach((el) => el.addEventListener('change', () => { setBlockField(el, 'type', el.value); paintLandingSection(); }));
+  sec.querySelectorAll('.cl-side').forEach((el) => el.addEventListener('change', () => setBlockField(el, 'imageSide', el.value)));
+  sec.querySelectorAll('.cl-overlay').forEach((el) => el.addEventListener('input', () => setBlockField(el, 'overlay', +el.value)));
+  sec.querySelectorAll('.cl-font').forEach((el) => el.addEventListener('change', () => setBlockField(el, 'font', el.value)));
+  sec.querySelectorAll('.cl-text-color').forEach((el) => el.addEventListener('input', () => { setBlockField(el, 'textColor', el.value); enableClearNear(el, '.cl-text-clear'); }));
+  sec.querySelectorAll('.cl-bg-color').forEach((el) => el.addEventListener('input', () => { setBlockField(el, 'bgColor', el.value); enableClearNear(el, '.cl-bg-clear'); }));
+  sec.querySelectorAll('.cl-text-clear').forEach((el) => el.addEventListener('click', () => { const b = blockAt(el); if (b) b.textColor = ''; paintLandingSection(); }));
+  sec.querySelectorAll('.cl-bg-clear').forEach((el) => el.addEventListener('click', () => { const b = blockAt(el); if (b) b.bgColor = ''; paintLandingSection(); }));
+  sec.querySelectorAll('.cl-image').forEach((el) => el.addEventListener('change', () => uploadLandingImage(el.files && el.files[0], { kind: 'block', r: +el.dataset.row, c: +el.dataset.col })));
+  sec.querySelectorAll('.cl-image-remove').forEach((el) => el.addEventListener('click', () => { const b = blockAt(el); if (b) b.imageId = ''; paintLandingSection(); }));
+  sec.querySelectorAll('.cl-block-remove').forEach((el) => el.addEventListener('click', () => removeBlock(+el.dataset.row, +el.dataset.col)));
+  sec.querySelectorAll('.cl-add-block').forEach((el) => el.addEventListener('click', () => addBlockToSlot(+el.dataset.row, +el.dataset.col)));
 
-  const add = document.getElementById('cl-add');
-  if (add) add.addEventListener('click', addLandingSection);
+  // Rows
+  sec.querySelectorAll('.cl-row-cols-sel').forEach((el) => el.addEventListener('change', () => setRowCols(+el.dataset.row, +el.value)));
+  sec.querySelectorAll('.cl-row-width').forEach((el) => el.addEventListener('change', () => { const r = rowAt(+el.dataset.row); if (r) r.width = el.value; }));
+  sec.querySelectorAll('.cl-row-bg').forEach((el) => el.addEventListener('input', () => { const r = rowAt(+el.dataset.row); if (r) r.bgColor = el.value; enableClearNear(el, '.cl-row-bg-clear'); }));
+  sec.querySelectorAll('.cl-row-bg-clear').forEach((el) => el.addEventListener('click', () => { const r = rowAt(+el.dataset.row); if (r) r.bgColor = ''; paintLandingSection(); }));
+  sec.querySelectorAll('.cl-row-up').forEach((el) => el.addEventListener('click', () => moveRowBy(+el.dataset.row, -1)));
+  sec.querySelectorAll('.cl-row-down').forEach((el) => el.addEventListener('click', () => moveRowBy(+el.dataset.row, 1)));
+  sec.querySelectorAll('.cl-row-remove').forEach((el) => el.addEventListener('click', () => removeRow(+el.dataset.row)));
+
+  attachLandingDnd(sec);
+
+  const add = document.getElementById('cl-add-row');
+  if (add) add.addEventListener('click', addRow);
   const save = document.getElementById('cl-save');
   if (save) save.addEventListener('click', saveCoachingLanding);
 
@@ -1929,11 +2010,119 @@ function scheduleLandingPreview() {
   _landingPreviewTimer = setTimeout(updateLandingPreview, 140);
 }
 
-function setSection(el, key, val) { setSectionByIndex(+el.dataset.index, key, val); }
-function setSectionByIndex(i, key, val) {
-  ensureLandingState();
-  if (state.coachingLanding.sections[i]) state.coachingLanding.sections[i][key] = val;
+// ---- Row / block operations -------------------------------------------------
+function setRowCols(ri, n) {
+  const row = rowAt(ri);
+  if (!row) return;
+  syncLandingHeroFromDom();
+  n = Math.max(1, Math.min(3, n || 1));
+  const cur = Array.isArray(row.blocks) ? row.blocks : [];
+  const next = [];
+  for (let i = 0; i < n; i++) next.push(cur[i] || null);
+  row.cols = n;
+  row.blocks = next;
+  paintLandingSection();
 }
+function addRow() {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  state.coachingLanding.rows.push({ width: 'contained', cols: 1, bgColor: '', blocks: [newLandingBlock()] });
+  paintLandingSection();
+}
+function removeRow(ri) {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  state.coachingLanding.rows.splice(ri, 1);
+  paintLandingSection();
+}
+function moveRowBy(ri, dir) {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  const rows = state.coachingLanding.rows;
+  const j = ri + dir;
+  if (j < 0 || j >= rows.length) return;
+  const tmp = rows[ri]; rows[ri] = rows[j]; rows[j] = tmp;
+  paintLandingSection();
+}
+function addBlockToSlot(ri, ci) {
+  const row = rowAt(ri);
+  if (!row) return;
+  syncLandingHeroFromDom();
+  row.blocks[ci] = newLandingBlock();
+  paintLandingSection();
+}
+function removeBlock(ri, ci) {
+  const row = rowAt(ri);
+  if (!row) return;
+  syncLandingHeroFromDom();
+  row.blocks[ci] = null;
+  paintLandingSection();
+}
+// Drag a row to a new position (drop ON the target row).
+function moveRowDrag(from, to) {
+  ensureLandingState();
+  const rows = state.coachingLanding.rows;
+  if (from === to || from < 0 || from >= rows.length || to < 0 || to >= rows.length) return;
+  const [r] = rows.splice(from, 1);
+  rows.splice(from < to ? to - 1 : to, 0, r);
+  paintLandingSection();
+}
+// Drag a block into a column slot — swap with whatever is there (across rows).
+function moveBlockDrag(from, to) {
+  ensureLandingState();
+  const rows = state.coachingLanding.rows;
+  const a = rows[from.r], b = rows[to.r];
+  if (!a || !b || (from.r === to.r && from.c === to.c)) return;
+  const tmp = b.blocks[to.c] || null;
+  b.blocks[to.c] = a.blocks[from.c] || null;
+  a.blocks[from.c] = tmp;
+  paintLandingSection();
+}
+
+// ---- Drag & drop wiring -----------------------------------------------------
+let _clDrag = null;
+function clearClDropTargets(sec) { sec.querySelectorAll('.cl-drop-target').forEach((e) => e.classList.remove('cl-drop-target')); }
+function attachLandingDnd(sec) {
+  sec.querySelectorAll('.cl-row-handle').forEach((h) => {
+    h.addEventListener('dragstart', (e) => {
+      const card = h.closest('.cl-row-editor');
+      _clDrag = { type: 'row', from: +h.dataset.row };
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'row'); if (card) e.dataTransfer.setDragImage(card, 16, 16); } catch {}
+    });
+    h.addEventListener('dragend', () => { _clDrag = null; clearClDropTargets(sec); });
+  });
+  sec.querySelectorAll('.cl-row-editor').forEach((card) => {
+    card.addEventListener('dragover', (e) => { if (_clDrag && _clDrag.type === 'row') { e.preventDefault(); card.classList.add('cl-drop-target'); } });
+    card.addEventListener('dragleave', () => card.classList.remove('cl-drop-target'));
+    card.addEventListener('drop', (e) => {
+      if (!_clDrag || _clDrag.type !== 'row') return;
+      e.preventDefault();
+      const from = _clDrag.from, to = +card.dataset.row;
+      _clDrag = null; clearClDropTargets(sec);
+      setTimeout(() => moveRowDrag(from, to), 0);
+    });
+  });
+  sec.querySelectorAll('.cl-block-handle').forEach((h) => {
+    h.addEventListener('dragstart', (e) => {
+      const card = h.closest('.cl-block-editor');
+      _clDrag = { type: 'block', from: { r: +h.dataset.row, c: +h.dataset.col } };
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'block'); if (card) e.dataTransfer.setDragImage(card, 16, 16); } catch {}
+    });
+    h.addEventListener('dragend', () => { _clDrag = null; clearClDropTargets(sec); });
+  });
+  sec.querySelectorAll('.cl-col-slot').forEach((slot) => {
+    slot.addEventListener('dragover', (e) => { if (_clDrag && _clDrag.type === 'block') { e.preventDefault(); slot.classList.add('cl-drop-target'); } });
+    slot.addEventListener('dragleave', () => slot.classList.remove('cl-drop-target'));
+    slot.addEventListener('drop', (e) => {
+      if (!_clDrag || _clDrag.type !== 'block') return;
+      e.preventDefault();
+      const from = _clDrag.from, to = { r: +slot.dataset.row, c: +slot.dataset.col };
+      _clDrag = null; clearClDropTargets(sec);
+      setTimeout(() => moveBlockDrag(from, to), 0);
+    });
+  });
+}
+
 function enableClearNear(colorEl, clearSel) {
   const parent = colorEl.parentElement;
   const btn = parent && parent.querySelector(clearSel);
@@ -1958,10 +2147,13 @@ async function uploadLandingImage(file, target) {
       state.coachingLanding.hero.imageId = data.id;
       // Give a readable default scrim so white text shows on a light image.
       if (!Number(state.coachingLanding.hero.overlay)) state.coachingLanding.hero.overlay = 35;
-    } else if (state.coachingLanding.sections[target.index]) {
-      const blk = state.coachingLanding.sections[target.index];
-      blk.imageId = data.id;
-      if (blk.type === 'image_overlay' && !Number(blk.overlay)) blk.overlay = 45;
+    } else if (target.kind === 'block') {
+      const row = state.coachingLanding.rows[target.r];
+      const blk = row && row.blocks ? row.blocks[target.c] : null;
+      if (blk) {
+        blk.imageId = data.id;
+        if (blk.type === 'image_overlay' && !Number(blk.overlay)) blk.overlay = 45;
+      }
     }
     paintLandingSection();
   } catch {
@@ -1988,28 +2180,6 @@ function paintLandingSection() {
   tmp.innerHTML = renderCoachingLandingSection();
   sec.replaceWith(tmp.firstElementChild);
   attachCoachingLandingHandlers();
-}
-
-function addLandingSection() {
-  ensureLandingState();
-  syncLandingHeroFromDom();
-  state.coachingLanding.sections.push({ type: 'text', heading: '', body: '', imageId: '', imageSide: 'left', overlay: 0, font: '', textColor: '', bgColor: '' });
-  paintLandingSection();
-}
-function removeLandingSection(i) {
-  ensureLandingState();
-  syncLandingHeroFromDom();
-  state.coachingLanding.sections.splice(i, 1);
-  paintLandingSection();
-}
-function moveLandingSection(i, dir) {
-  ensureLandingState();
-  syncLandingHeroFromDom();
-  const arr = state.coachingLanding.sections;
-  const j = i + dir;
-  if (j < 0 || j >= arr.length) return;
-  [arr[i], arr[j]] = [arr[j], arr[i]];
-  paintLandingSection();
 }
 
 async function saveCoachingLanding() {
