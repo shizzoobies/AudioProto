@@ -11,6 +11,7 @@
 // Reuse the real coaching-report renderer so the rubric preview is pixel-identical
 // to what a trainee sees after a call.
 import { renderReportHtml } from './coach.js';
+import { renderLandingContentHtml } from './coaching-landing-view.js';
 
 const root = document.getElementById('admin-root');
 const logoutBtn = document.getElementById('admin-logout');
@@ -1744,6 +1745,11 @@ function renderCoachingLandingSection() {
           <span id="cl-saved" class="admin-muted" style="font-size:13px;"></span>
         </div>
       </div>
+      <div class="cl-preview-wrap">
+        <p class="admin-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;margin:0 0 8px;">Live preview</p>
+        <iframe id="cl-preview" class="cl-preview-frame" title="Landing live preview"></iframe>
+        <p class="admin-muted" style="font-size:12px;margin:8px 0 0;">Updates as you edit. Your scenario cards appear below this on the real participant page.</p>
+      </div>
     </section>
   `;
 }
@@ -1837,8 +1843,48 @@ function attachCoachingLandingHandlers() {
   const save = document.getElementById('cl-save');
   if (save) save.addEventListener('click', saveCoachingLanding);
 
+  // Live preview — (re)build the iframe shell, then refresh on each edit. A
+  // single delegated listener catches every input/change in the editor; the
+  // specific handlers above run first (updating state), then this fires.
+  sec.addEventListener('input', scheduleLandingPreview);
+  sec.addEventListener('change', scheduleLandingPreview);
+  buildLandingPreview();
+
   function bindEl(id, ev, fn) { const el = document.getElementById(id); if (el) el.addEventListener(ev, () => fn(el)); }
   function bindSel(root, selector, ev, fn) { const el = root.querySelector(selector); if (el) el.addEventListener(ev, () => fn(el)); }
+}
+
+// ---- Landing live preview (iframe, shares the participant renderer) ---------
+let _landingPreviewTimer = null;
+
+function buildLandingPreview() {
+  const iframe = document.getElementById('cl-preview');
+  if (!iframe) return;
+  const fonts = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap';
+  const doc = '<!doctype html><html><head><meta charset="utf-8">'
+    + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    + '<link rel="stylesheet" href="' + fonts + '">'
+    + '<link rel="stylesheet" href="/assets/css/styles.css">'
+    + '<style>html,body{margin:0;background:#fff;}</style>'
+    + '</head><body data-coaching="true"><div class="coaching-landing" id="cl-preview-content"></div></body></html>';
+  iframe.onload = () => updateLandingPreview();
+  iframe.srcdoc = doc;
+}
+
+function updateLandingPreview() {
+  const iframe = document.getElementById('cl-preview');
+  if (!iframe || !iframe.contentDocument) return;
+  ensureLandingState();
+  const root = iframe.contentDocument.getElementById('cl-preview-content');
+  if (!root) return;
+  const hasImg = !!(state.coachingLanding.hero && state.coachingLanding.hero.imageId);
+  root.className = 'coaching-landing' + (hasImg ? ' has-hero-image' : '');
+  root.innerHTML = renderLandingContentHtml(state.coachingLanding);
+}
+
+function scheduleLandingPreview() {
+  if (_landingPreviewTimer) clearTimeout(_landingPreviewTimer);
+  _landingPreviewTimer = setTimeout(updateLandingPreview, 140);
 }
 
 function setSection(el, key, val) { setSectionByIndex(+el.dataset.index, key, val); }

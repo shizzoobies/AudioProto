@@ -3,10 +3,11 @@ import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
 import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
+import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-11';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-10 hero-text-position';
+const BUILD_ID = '20260604-11 full-width-hero + shared-renderer';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1066,27 +1067,11 @@ function renderLandingBlock(s) {
 
 function renderCoachingLanding(agents) {
   const landing = (state.recipient && state.recipient.coaching_landing) || null;
-  const hero = (landing && landing.hero) || {};
-  const eyebrow = hero.eyebrow || 'Coaching Practice';
-  const title = hero.title || 'Practice the conversations that matter.';
-  const intro = hero.intro
-    || 'Step into real coaching scenarios with team members who remember every conversation you have with them. Take them at your own pace — your progress is saved.';
-  const sections = (landing && Array.isArray(landing.sections)) ? landing.sections : [];
-
-  const sectionsHtml = sections.map(renderLandingBlock).join('');
-
-  // Hero styling: optional background image (with overlay tint), font + colors.
-  const heroFont = coachingFontStack(hero.font);
-  const heroHasImg = !!hero.imageId;
-  const heroStyle = [];
-  if (heroFont) heroStyle.push(`font-family:${heroFont}`);
-  if (heroHasImg) heroStyle.push(`background-image:url('${imgUrl(hero.imageId)}')`);
-  else if (hero.bgColor) heroStyle.push(`background:${hero.bgColor}`);
-  const heroTextColor = hero.textColor || (heroHasImg ? '#ffffff' : '');
-  const heroColor = heroTextColor ? ` style="color:${heroTextColor}"` : '';
-  const heroOverlay = heroHasImg ? (Math.max(0, Math.min(100, Number(hero.overlay) || 0)) / 100) : 0;
-  const heroTint = hero.bgColor || '#000000';
-  const heroAlign = (hero.align === 'left' || hero.align === 'right') ? hero.align : 'center';
+  // Hero + content blocks come from the shared renderer (single source of truth
+  // with the admin live preview). A hero background image makes the whole landing
+  // top edge-to-edge (full width), so flag the wrapper.
+  const hasHeroImg = !!(landing && landing.hero && landing.hero.imageId);
+  const contentHtml = renderLandingContentHtml(landing);
 
   const cardsHtml = agents.map((a) => {
     const isLegacy = a.id === 'coaching_practice';
@@ -1116,16 +1101,8 @@ function renderCoachingLanding(agents) {
     : `<div class="coaching-landing-scenarios"><p class="coaching-landing-section-body">No scenarios assigned yet. Please contact whoever sent you this link.</p></div>`;
 
   dom.root.innerHTML = `
-    <div class="coaching-landing">
-      <header class="coaching-landing-hero align-${heroAlign}${heroHasImg ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
-        ${heroHasImg ? `<span class="coaching-block-tint" style="background:${heroTint};opacity:${heroOverlay}"></span>` : ''}
-        <div class="coaching-landing-hero-inner">
-          <p class="coaching-landing-eyebrow"${heroColor}>${escapeHtml(eyebrow)}</p>
-          <h1 class="coaching-landing-title"${heroColor}>${escapeHtml(title)}</h1>
-          ${intro ? `<p class="coaching-landing-intro"${heroColor}>${escapeHtml(intro)}</p>` : ''}
-        </div>
-      </header>
-      ${sectionsHtml}
+    <div class="coaching-landing${hasHeroImg ? ' has-hero-image' : ''}">
+      ${contentHtml}
       ${scenariosBlock}
     </div>
   `;
