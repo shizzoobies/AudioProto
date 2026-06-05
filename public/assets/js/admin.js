@@ -228,6 +228,13 @@ async function renderCoachingPage() {
       if (r.ok) { const d = await r.json(); state.coachingEditorInvites = d.editors || []; }
     } catch (e) { console.warn('coaching editors load failed', e); }
   }
+  // Shared landing page content (full-admin only).
+  if (!state.coachingEditor && state.admin) {
+    try {
+      const r = await fetch('/api/admin/coaching-landing', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.coachingLanding = d.content || { hero: {}, sections: [] }; }
+    } catch (e) { console.warn('coaching landing load failed', e); }
+  }
   paintCoachingPage();
 }
 
@@ -242,6 +249,7 @@ function paintCoachingPage() {
   root.innerHTML = `
     ${renderSignedInBar()}
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
+    ${showRoster ? renderCoachingLandingSection() : ''}
     ${showRoster ? renderCoachingParticipantsSection() : ''}
     ${showRoster ? renderCoachingInviteSection() : ''}
     ${showRoster ? renderCoachingEditorsSection() : ''}
@@ -249,6 +257,7 @@ function paintCoachingPage() {
     ${renderCoachingAgentsSection()}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
+  if (showRoster) attachCoachingLandingHandlers();
   if (showRoster) attachCoachingParticipantsHandlers();
   if (showRoster) attachCoachingInviteHandlers();
   if (showRoster) attachCoachingEditorsHandlers();
@@ -1647,6 +1656,176 @@ function paintDemoGenerated() {
 // invites. Backed by the invites system (sentinel recipient_email + mode), so
 // generate rotates the token and revoke kills the link immediately. Mirrors the
 // demo link's generate / copy / revoke flow.
+// ---- Coaching landing page editor ------------------------------------------
+// Authors the SHARED participant landing: a hero (eyebrow/title/intro) + any
+// number of free-form content sections (heading + body). Saved to
+// /api/admin/coaching-landing; participants read it via /api/me/status. Full
+// admins only. Edits live in state.coachingLanding; inputs update state on the
+// fly (no re-render, so focus is kept), structural changes (add/move/remove)
+// re-render the section from state.
+
+function ensureLandingState() {
+  if (!state.coachingLanding || typeof state.coachingLanding !== 'object') state.coachingLanding = {};
+  if (!state.coachingLanding.hero || typeof state.coachingLanding.hero !== 'object') state.coachingLanding.hero = {};
+  if (!Array.isArray(state.coachingLanding.sections)) state.coachingLanding.sections = [];
+}
+
+function renderCoachingLandingSection() {
+  ensureLandingState();
+  const hero = state.coachingLanding.hero;
+  const sections = state.coachingLanding.sections;
+  return `
+    <section class="admin-section" id="sec-coaching-landing">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Landing page</h2>
+        <p class="admin-section-sub">The splash and content every participant sees above their scenarios. Edit the hero, add any number of content blocks, then Save.</p>
+      </header>
+      <div class="admin-invite-card" style="display:flex;flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Eyebrow (small label above the title)</span>
+            <input class="admin-input" id="cl-eyebrow" maxlength="280" value="${escapeAttr(hero.eyebrow || '')}" placeholder="Coaching Practice">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Title</span>
+            <input class="admin-input" id="cl-title" maxlength="280" value="${escapeAttr(hero.title || '')}" placeholder="Practice the conversations that matter.">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Intro</span>
+            <textarea class="admin-input" id="cl-intro" rows="3" maxlength="2000" placeholder="A short welcome / what this program is.">${escapeHtml(hero.intro || '')}</textarea>
+          </label>
+        </div>
+        <div id="cl-sections" style="display:flex;flex-direction:column;gap:12px;">
+          ${sections.map((s, i) => renderLandingSectionEditor(s, i, sections.length)).join('')}
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button type="button" class="ghost-button" id="cl-add">+ Add content section</button>
+          <button type="button" class="primary-button" id="cl-save">Save landing page</button>
+          <span id="cl-saved" class="admin-muted" style="font-size:13px;"></span>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderLandingSectionEditor(s, i, total) {
+  return `
+    <div class="admin-invite-card cl-section" style="display:flex;flex-direction:column;align-items:stretch;gap:8px;background:var(--color-surface-elevated);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span class="admin-muted" style="font-size:12px;">Section ${i + 1}</span>
+        <span style="display:flex;gap:4px;">
+          <button type="button" class="ghost-button cl-up" data-index="${i}"${i === 0 ? ' disabled' : ''} title="Move up" style="padding:4px 10px !important;">&uarr;</button>
+          <button type="button" class="ghost-button cl-down" data-index="${i}"${i === total - 1 ? ' disabled' : ''} title="Move down" style="padding:4px 10px !important;">&darr;</button>
+          <button type="button" class="ghost-button cl-remove" data-index="${i}" title="Remove" style="padding:4px 10px !important;">Remove</button>
+        </span>
+      </div>
+      <input class="admin-input cl-heading" data-index="${i}" maxlength="160" value="${escapeAttr(s.heading || '')}" placeholder="Section heading">
+      <textarea class="admin-input cl-body" data-index="${i}" rows="4" maxlength="2000" placeholder="Section text (leave a blank line between paragraphs)">${escapeHtml(s.body || '')}</textarea>
+    </div>
+  `;
+}
+
+function attachCoachingLandingHandlers() {
+  const sec = document.getElementById('sec-coaching-landing');
+  if (!sec) return;
+  ensureLandingState();
+  const eyebrow = document.getElementById('cl-eyebrow');
+  const title = document.getElementById('cl-title');
+  const intro = document.getElementById('cl-intro');
+  if (eyebrow) eyebrow.addEventListener('input', () => { state.coachingLanding.hero.eyebrow = eyebrow.value; });
+  if (title) title.addEventListener('input', () => { state.coachingLanding.hero.title = title.value; });
+  if (intro) intro.addEventListener('input', () => { state.coachingLanding.hero.intro = intro.value; });
+
+  sec.querySelectorAll('.cl-heading').forEach((el) => {
+    el.addEventListener('input', () => { const i = +el.dataset.index; if (state.coachingLanding.sections[i]) state.coachingLanding.sections[i].heading = el.value; });
+  });
+  sec.querySelectorAll('.cl-body').forEach((el) => {
+    el.addEventListener('input', () => { const i = +el.dataset.index; if (state.coachingLanding.sections[i]) state.coachingLanding.sections[i].body = el.value; });
+  });
+  sec.querySelectorAll('.cl-up').forEach((b) => b.addEventListener('click', () => moveLandingSection(+b.dataset.index, -1)));
+  sec.querySelectorAll('.cl-down').forEach((b) => b.addEventListener('click', () => moveLandingSection(+b.dataset.index, 1)));
+  sec.querySelectorAll('.cl-remove').forEach((b) => b.addEventListener('click', () => removeLandingSection(+b.dataset.index)));
+  const add = document.getElementById('cl-add');
+  if (add) add.addEventListener('click', addLandingSection);
+  const save = document.getElementById('cl-save');
+  if (save) save.addEventListener('click', saveCoachingLanding);
+}
+
+// Pull the current hero input values into state before a structural re-render
+// (section inputs already write to state on every keystroke).
+function syncLandingHeroFromDom() {
+  ensureLandingState();
+  const eyebrow = document.getElementById('cl-eyebrow');
+  const title = document.getElementById('cl-title');
+  const intro = document.getElementById('cl-intro');
+  if (eyebrow) state.coachingLanding.hero.eyebrow = eyebrow.value;
+  if (title) state.coachingLanding.hero.title = title.value;
+  if (intro) state.coachingLanding.hero.intro = intro.value;
+}
+
+function paintLandingSection() {
+  const sec = document.getElementById('sec-coaching-landing');
+  if (!sec) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderCoachingLandingSection();
+  sec.replaceWith(tmp.firstElementChild);
+  attachCoachingLandingHandlers();
+}
+
+function addLandingSection() {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  state.coachingLanding.sections.push({ heading: '', body: '' });
+  paintLandingSection();
+}
+function removeLandingSection(i) {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  state.coachingLanding.sections.splice(i, 1);
+  paintLandingSection();
+}
+function moveLandingSection(i, dir) {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  const arr = state.coachingLanding.sections;
+  const j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  paintLandingSection();
+}
+
+async function saveCoachingLanding() {
+  ensureLandingState();
+  syncLandingHeroFromDom();
+  const btn = document.getElementById('cl-save');
+  const saved = document.getElementById('cl-saved');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (saved) { saved.textContent = ''; saved.style.color = ''; }
+  try {
+    const res = await fetch('/api/admin/coaching-landing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(state.coachingLanding),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (saved) { saved.textContent = `Save failed${data?.error ? ' — ' + data.error : ''}.`; saved.style.color = 'var(--color-danger)'; }
+      return;
+    }
+    state.coachingLanding = data.content || state.coachingLanding;
+    paintLandingSection();
+    const savedAfter = document.getElementById('cl-saved');
+    if (savedAfter) { savedAfter.textContent = 'Saved.'; setTimeout(() => { const s = document.getElementById('cl-saved'); if (s) s.textContent = ''; }, 2500); }
+  } catch (err) {
+    if (saved) { saved.textContent = 'Network error.'; saved.style.color = 'var(--color-danger)'; }
+  } finally {
+    const b = document.getElementById('cl-save');
+    if (b) { b.disabled = false; b.textContent = 'Save landing page'; }
+  }
+}
+
 // ---- Coaching participants roster ------------------------------------------
 // The cohort dashboard: every per-email coaching invite (mode='coaching') with
 // its live, copyable link, assigned scenario(s), calls taken, and last activity.

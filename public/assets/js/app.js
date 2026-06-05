@@ -6,7 +6,7 @@ import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-7 mode-gating';
+const BUILD_ID = '20260604-8 coaching-landing';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -977,63 +977,99 @@ function renderCoachingTest(selectedId) {
   // 'coaching_agent') PLUS the legacy single coaching_practice if assigned.
   const agents = all.filter((s) => s && (s.kind === 'coaching_agent' || s.id === 'coaching_practice'));
 
-  if (!agents.length) {
-    dom.root.innerHTML = `
-      <section class="coaching-test">
-        <div class="coaching-test-card">
-          <h1 class="coaching-test-title">No scenario assigned yet</h1>
-          <p class="coaching-test-sub">This coaching link has no scenario yet. Please contact whoever sent it.</p>
-        </div>
-      </section>
-    `;
-    return;
-  }
-
-  const multi = agents.length > 1;
-  // Which agent's profile to show. With one agent, always it. With many, the
-  // selected one (if any) — otherwise show the list. Guard to a string id so a
-  // bare-reference call (renderCoachingTest passed as an event handler) doesn't
-  // treat the Event object as a selection.
+  // A chosen scenario drills into the focused profile + mode picker (with a back
+  // link to the landing). With no selection we show the elevated landing — even
+  // for a single scenario, so the splash + content always front the experience.
   const sel = typeof selectedId === 'string' ? selectedId : '';
-  const selected = sel
-    ? agents.find((a) => a.id === sel) || null
-    : (multi ? null : agents[0]);
-
-  // Multi-agent list view (no selection yet): a simple list of agent cards.
-  if (multi && !selected) {
-    const cardsHtml = agents.map((a) => {
-      const name = a.id === 'coaching_practice' ? (a.customer_name || a.title || 'Coaching Practice') : (a.name || 'Coaching agent');
-      const role = a.id === 'coaching_practice' ? (a.title || '') : (a.role_title || '');
-      return `
-        <li class="coaching-agent-card" data-agent-id="${escapeAttr(a.id)}" tabindex="0" role="button" aria-label="Open ${escapeAttr(name)}">
-          <span class="coaching-agent-avatar" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
-          <span class="coaching-agent-meta">
-            <span class="coaching-agent-name">${escapeHtml(name)}</span>
-            ${role ? `<span class="coaching-agent-role">${escapeHtml(role)}</span>` : ''}
-          </span>
-        </li>`;
-    }).join('');
-    dom.root.innerHTML = `
-      <section class="coaching-test">
-        <div class="coaching-test-card">
-          <h1 class="coaching-test-title">Coaching practice</h1>
-          <p class="coaching-test-sub">Choose who you want to practice with.</p>
-          <ul class="coaching-agent-list">${cardsHtml}</ul>
-        </div>
-      </section>
-    `;
-    dom.root.querySelectorAll('.coaching-agent-card').forEach((card) => {
-      const go = () => renderCoachingTest(card.dataset.agentId);
-      card.addEventListener('click', go);
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
-      });
-    });
+  const selected = sel ? agents.find((a) => a.id === sel) || null : null;
+  if (selected) {
+    renderCoachingProfile(selected, { multi: true });
     return;
   }
+  renderCoachingLanding(agents);
+}
 
-  // Profile card for the selected (or only) agent.
-  renderCoachingProfile(selected, { multi });
+// The elevated coaching landing: an admin-authored splash (hero) + free-form
+// content sections, with the assigned scenarios as cards beneath. Hero/sections
+// come from /api/me/status (state.recipient.coaching_landing); sensible defaults
+// render when the admin hasn't authored anything yet. Handles 0 / 1 / many.
+function renderCoachingLanding(agents) {
+  const landing = (state.recipient && state.recipient.coaching_landing) || null;
+  const hero = (landing && landing.hero) || {};
+  const eyebrow = hero.eyebrow || 'Coaching Practice';
+  const title = hero.title || 'Practice the conversations that matter.';
+  const intro = hero.intro
+    || 'Step into real coaching scenarios with team members who remember every conversation you have with them. Take them at your own pace — your progress is saved.';
+  const sections = (landing && Array.isArray(landing.sections)) ? landing.sections : [];
+
+  const sectionsHtml = sections.map((s) => {
+    const heading = s && typeof s.heading === 'string' ? s.heading : '';
+    const body = s && typeof s.body === 'string' ? s.body : '';
+    if (!heading && !body) return '';
+    return `
+      <section class="coaching-landing-section">
+        ${heading ? `<h2 class="coaching-landing-section-h">${escapeHtml(heading)}</h2>` : ''}
+        ${body ? `<div class="coaching-landing-section-body">${paragraphsHtml(body)}</div>` : ''}
+      </section>`;
+  }).join('');
+
+  const cardsHtml = agents.map((a) => {
+    const isLegacy = a.id === 'coaching_practice';
+    const name = isLegacy ? (a.customer_name || a.title || 'Coaching Practice') : (a.name || 'Coaching agent');
+    const role = isLegacy ? (a.title || '') : (a.role_title || '');
+    const scenarioName = isLegacy ? '' : (a.scenario_name || '');
+    const cc = Number(a.progress?.call_count) || 0;
+    const status = cc > 0 ? `${cc} call${cc === 1 ? '' : 's'} taken` : 'Not started';
+    return `
+      <li class="coaching-scn-card" data-agent-id="${escapeAttr(a.id)}" tabindex="0" role="button" aria-label="Open ${escapeAttr(name)}">
+        <span class="coaching-scn-avatar" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
+        <span class="coaching-scn-meta">
+          ${scenarioName ? `<span class="coaching-scn-eyebrow">${escapeHtml(scenarioName)}</span>` : ''}
+          <span class="coaching-scn-name">${escapeHtml(name)}</span>
+          ${role ? `<span class="coaching-scn-role">${escapeHtml(role)}</span>` : ''}
+          <span class="coaching-scn-status">${escapeHtml(status)}</span>
+        </span>
+        <span class="coaching-scn-arrow" aria-hidden="true">&rsaquo;</span>
+      </li>`;
+  }).join('');
+
+  const scenariosBlock = agents.length
+    ? `<div class="coaching-landing-scenarios">
+         <h2 class="coaching-landing-section-h">${agents.length > 1 ? 'Your scenarios' : 'Your scenario'}</h2>
+         <ul class="coaching-scn-list">${cardsHtml}</ul>
+       </div>`
+    : `<div class="coaching-landing-scenarios"><p class="coaching-landing-section-body">No scenarios assigned yet. Please contact whoever sent you this link.</p></div>`;
+
+  dom.root.innerHTML = `
+    <div class="coaching-landing">
+      <header class="coaching-landing-hero">
+        <p class="coaching-landing-eyebrow">${escapeHtml(eyebrow)}</p>
+        <h1 class="coaching-landing-title">${escapeHtml(title)}</h1>
+        ${intro ? `<p class="coaching-landing-intro">${escapeHtml(intro)}</p>` : ''}
+      </header>
+      ${sectionsHtml}
+      ${scenariosBlock}
+    </div>
+  `;
+
+  dom.root.querySelectorAll('.coaching-scn-card').forEach((card) => {
+    const go = () => renderCoachingTest(card.dataset.agentId);
+    card.addEventListener('click', go);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+}
+
+// Split admin-authored body text into escaped paragraphs (blank line = new
+// paragraph; single newlines become <br>). Safe: all text is HTML-escaped.
+function paragraphsHtml(text) {
+  return String(text || '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
 // Render one agent's profile card with the mode picker. `multi` adds a back link
@@ -1101,7 +1137,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   dom.root.innerHTML = `
     <section class="coaching-test">
       <div class="coaching-test-card">
-        ${multi ? '<button class="ghost-button coaching-back" type="button"><span aria-hidden="true">‹</span> All agents</button>' : ''}
+        ${multi ? '<button class="ghost-button coaching-back" type="button"><span aria-hidden="true">‹</span> Back</button>' : ''}
         <div class="coaching-profile">
           <span class="coaching-agent-avatar coaching-agent-avatar-lg" aria-hidden="true">${escapeHtml(coachingInitials(name))}</span>
           ${scenarioName ? `<p class="coaching-profile-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
@@ -1187,6 +1223,7 @@ async function refreshRecipientStatus() {
     const me = await r.json();
     if (!me || !me.active || !Array.isArray(me.scenarios)) return;
     state.recipient.scenarios = me.scenarios;
+    if ('coaching_landing' in me) state.recipient.coaching_landing = me.coaching_landing;
     for (const s of me.scenarios) {
       if (!s || !s.id) continue;
       if (s.kind === 'coaching_agent') {

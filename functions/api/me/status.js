@@ -148,11 +148,30 @@ export async function onRequestGet({ request, env }) {
     isCoaching = false;
   }
 
+  // Shared coaching landing content (hero + free-form sections), authored by
+  // admins. Only relevant to coaching recipients; read defensively so a missing
+  // table (no content saved yet) just yields null and the client uses defaults.
+  let coachingLanding = null;
+  if (isCoaching) {
+    try {
+      const row = await env.DB
+        .prepare(`SELECT content FROM coaching_landing WHERE id = 'default'`)
+        .first();
+      if (row?.content) {
+        const parsed = JSON.parse(row.content);
+        if (parsed && typeof parsed === 'object') coachingLanding = parsed;
+      }
+    } catch {
+      coachingLanding = null;
+    }
+  }
+
   return json({
     active: true,
     is_demo: isDemo,
     is_preview: isPreview,
     is_coaching: isCoaching,
+    coaching_landing: coachingLanding,
     // Don't surface the internal sentinel address to the client.
     recipient_name: (isDemo || isPreview || isCoachingSentinel) ? null : (scope.recipient_name || null),
     recipient_email: (isDemo || isPreview || isCoachingSentinel) ? null : scope.recipient_email,
