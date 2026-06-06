@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260604-15 progression-gate';
+const BUILD_ID = '20260606-1 coaching-dashboard';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -989,7 +989,33 @@ function renderCoachingTest(selectedId) {
     renderCoachingProfile(selected, { multi: true });
     return;
   }
-  renderCoachingLanding(agents);
+
+  // Top-level coaching home. Managers with an assigned AUTHORED agent (ca_) get
+  // the 3-week coaching DASHBOARD; everyone else (legacy coaching_practice,
+  // empty state) keeps the existing landing. We fetch /api/coaching/dashboard:
+  // a non-null `agent` ⇒ dashboard; `agent:null` (or any failure) ⇒ legacy.
+  renderCoachingLanding(agents); // optimistic legacy paint; replaced if a dashboard loads
+  fetchCoachingDashboard();
+}
+
+// Fetch /api/coaching/dashboard and, if this manager has an authored agent,
+// swap the legacy landing for the course dashboard. Guarded by a render token
+// so a stale fetch (e.g. user navigated away) can't clobber a newer view.
+async function fetchCoachingDashboard() {
+  const token = (state.coachingDashToken = (state.coachingDashToken || 0) + 1);
+  let data = null;
+  try {
+    const res = await fetch('/api/coaching/dashboard', { credentials: 'same-origin' });
+    if (res.ok) data = await res.json();
+  } catch {
+    data = null;
+  }
+  // A newer render started while we were fetching — abandon this result.
+  if (token !== state.coachingDashToken) return;
+  // No authored agent (or the call failed): keep the legacy landing already
+  // painted by renderCoachingTest — nothing to do.
+  if (!data || !data.active || !data.agent) return;
+  renderCoachingDashboard(data);
 }
 
 // The elevated coaching landing: an admin-authored splash (hero) + free-form
@@ -1283,6 +1309,318 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   });
   const back = dom.root.querySelector('.coaching-back');
   if (back) back.addEventListener('click', () => renderCoachingTest());
+}
+
+// ---- Coaching DASHBOARD (the 3-week / 8-section manager course view) -------
+// Rendered for managers with an assigned AUTHORED agent (ca_). Consumes
+// GET /api/coaching/dashboard (see fetchCoachingDashboard). Layout, top→bottom:
+//   1. Agent profile card (always visible)
+//   2. Week progress strip (current unlocked stage highlighted)
+//   3. Sections grouped by week — locked cards stay visible but inert; unlocked
+//      cards render by type (incident / form / call / activities)
+//   4. Export Development Plan (PDF) via a print-only DOM + @media print.
+// A section is UNLOCKED when data.stage >= section.stage.
+
+// An initials avatar for the dashboard profile when no photo is set. Mirrors the
+// existing .coaching-agent-avatar look used elsewhere.
+function dashAvatarHtml(agent) {
+  const photo = agent.photo || '';
+  if (photo) {
+    // `photo` is an admin-supplied data URL or asset URL (stored verbatim).
+    return `<img class="dash-profile-photo" src="${escapeAttr(photo)}" alt="${escapeAttr(agent.name || 'Agent')}">`;
+  }
+  return `<span class="dash-profile-photo dash-profile-initials" aria-hidden="true">${escapeHtml(coachingInitials(agent.name))}</span>`;
+}
+
+function renderCoachingDashboard(data) {
+  const agent = data.agent || {};
+  const stage = Number(data.stage) || 1;
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  const fields = Array.isArray(data.fields) ? data.fields : [];
+  const answers = (data && typeof data.answers === 'object' && data.answers) || {};
+  const calls = (data && typeof data.calls === 'object' && data.calls) || {};
+  const savedName = loadCoachingParticipant();
+
+  // ---- 1. Agent profile card ----
+  const rows = [
+    ['Name', agent.name || ''],
+    ['Age', agent.age != null && agent.age !== '' ? String(agent.age) : ''],
+    ['Position', agent.role_title || ''],
+    ['Personality', agent.personality || ''],
+  ].filter(([, v]) => v !== '');
+  const profileHtml = `
+    <div class="dash-profile">
+      <div class="dash-profile-media">${dashAvatarHtml(agent)}</div>
+      <div class="dash-profile-body">
+        ${agent.scenario_name ? `<p class="dash-profile-eyebrow">${escapeHtml(agent.scenario_name)}</p>` : ''}
+        <dl class="dash-profile-rows">
+          ${rows.map(([label, val]) => `
+            <div class="dash-profile-row">
+              <dt>${escapeHtml(label)}</dt>
+              <dd>${escapeHtml(val)}</dd>
+            </div>`).join('')}
+        </dl>
+      </div>
+    </div>`;
+
+  // ---- 2. Week progress strip ----
+  // The highest unlocked week = the week of the highest-stage unlocked section.
+  let unlockedWeek = 1;
+  for (const s of sections) {
+    if (stage >= Number(s.stage) && Number(s.week) > unlockedWeek) unlockedWeek = Number(s.week);
+  }
+  const weeks = [1, 2, 3];
+  const stripHtml = `
+    <div class="dash-strip" role="list">
+      ${weeks.map((w) => `
+        <span class="dash-strip-week${w <= unlockedWeek ? ' is-on' : ' is-dim'}" role="listitem">Week ${w}</span>`).join('<span class="dash-strip-sep" aria-hidden="true">·</span>')}
+    </div>`;
+
+  // ---- 3. Sections grouped by week ----
+  const sectionHtml = (section) => {
+    const unlocked = stage >= Number(section.stage);
+    if (!unlocked) {
+      return `
+        <div class="dash-section is-locked">
+          <div class="dash-section-head">
+            <h3 class="dash-section-title">${escapeHtml(section.title || '')}</h3>
+            <span class="dash-lock-chip">🔒 Unlocks in Week ${escapeHtml(String(section.week))}</span>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="dash-section" data-section-key="${escapeAttr(section.section_key || section.key || '')}">
+        <div class="dash-section-head">
+          <h3 class="dash-section-title">${escapeHtml(section.title || '')}</h3>
+        </div>
+        <div class="dash-section-body">${dashSectionBody(section, { agent, fields, answers, calls, savedName })}</div>
+      </div>`;
+  };
+
+  const weekGroupsHtml = weeks.map((w) => {
+    const inWeek = sections.filter((s) => Number(s.week) === w);
+    if (!inWeek.length) return '';
+    return `
+      <section class="dash-week-group">
+        <h2 class="dash-week">Week ${w}</h2>
+        ${inWeek.map(sectionHtml).join('')}
+      </section>`;
+  }).join('');
+
+  // ---- 4. Export button (acts on the live form fields) ----
+  const exportHtml = `
+    <div class="dash-export">
+      <button class="primary-button dash-export-btn" type="button">Export Development Plan (PDF)</button>
+    </div>`;
+
+  dom.root.innerHTML = `
+    <div class="coaching-dash">
+      ${profileHtml}
+      ${stripHtml}
+      ${weekGroupsHtml}
+      ${exportHtml}
+    </div>
+  `;
+
+  // The print container must be a DIRECT child of <body> so the @media print
+  // rule (body.printing > *:not(#coaching-print)) can hide the rest of the page.
+  let printHost = document.getElementById('coaching-print');
+  if (!printHost) {
+    printHost = document.createElement('div');
+    printHost.id = 'coaching-print';
+    printHost.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(printHost);
+  }
+
+  wireCoachingDashboard(data);
+}
+
+// Render one UNLOCKED section's interactive body by type.
+function dashSectionBody(section, ctx) {
+  const type = section.type;
+  if (type === 'incident') {
+    const agent = ctx.agent;
+    const img = agent.incident_image
+      ? `<img class="dash-incident-img" src="${escapeAttr(agent.incident_image)}" alt="">`
+      : '';
+    return `
+      ${agent.incident ? `<div class="dash-incident-text">${paragraphsHtml(agent.incident)}</div>` : '<p class="dash-muted">No incident recorded.</p>'}
+      ${img}`;
+  }
+
+  if (type === 'form') {
+    const mine = ctx.fields
+      .filter((f) => f.section_key === section.section_key)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    if (!mine.length) return '<p class="dash-muted">No questions yet.</p>';
+    return mine.map((f) => {
+      const val = ctx.answers[f.key] || '';
+      return `
+        <label class="dash-form-field">
+          <span class="dash-form-label">${escapeHtml(f.label || '')}</span>
+          <textarea class="dash-form-input" data-field-key="${escapeAttr(f.key)}" rows="3">${escapeHtml(val)}</textarea>
+          <span class="dash-save-note" data-for="${escapeAttr(f.key)}" aria-live="polite"></span>
+        </label>`;
+    }).join('');
+  }
+
+  if (type === 'call') {
+    const mode = section.mode;
+    const call = (ctx.calls && ctx.calls[mode]) || {};
+    if (call.completed) {
+      const takenBy = call.taken_by || '';
+      return `
+        <div class="dash-call dash-call-done" data-mode="${escapeAttr(mode)}">
+          <p class="dash-call-label">Recording</p>
+          <audio class="dash-rec-audio" controls preload="none" src="/api/coaching/recording?mode=${encodeURIComponent(mode)}"></audio>
+          <p class="dash-rec-err" hidden>Recording is still processing — check back in a minute. <button type="button" class="ghost-button dash-rec-retry">Retry</button></p>
+          <div class="dash-call-foot">
+            <a class="ghost-button dash-rec-download" href="/api/coaching/recording?mode=${encodeURIComponent(mode)}&download=1">Download recording</a>
+            ${takenBy ? `<span class="dash-call-takenby">Taken by: ${escapeHtml(takenBy)}</span>` : ''}
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="dash-call" data-mode="${escapeAttr(mode)}">
+        <label class="dash-call-name">
+          <span class="dash-call-name-label">Who is taking this call?</span>
+          <input class="dash-call-name-input" type="text" autocomplete="name" maxlength="60"
+            placeholder="So this session can be reviewed later" value="${escapeAttr(ctx.savedName)}">
+        </label>
+        <button class="primary-button dash-call-btn" type="button" data-mode="${escapeAttr(mode)}">Call the agent</button>
+      </div>`;
+  }
+
+  if (type === 'activities') {
+    return '<p class="dash-activities">Follow-up activities — games, a book club, and a workbook — coming soon.</p>';
+  }
+
+  return '';
+}
+
+// Wire autosave (form), recording retry/error (calls), call buttons, and the
+// PDF export for a freshly-rendered dashboard.
+function wireCoachingDashboard(data) {
+  const root = dom.root;
+
+  // --- Autosave dev-plan fields (debounced per field) ---
+  root.querySelectorAll('.dash-form-input').forEach((ta) => {
+    let timer = null;
+    const note = root.querySelector(`.dash-save-note[data-for="${cssEscape(ta.dataset.fieldKey)}"]`);
+    ta.addEventListener('input', () => {
+      if (note) note.textContent = 'Saving…';
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/coaching/answer', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field_key: ta.dataset.fieldKey, value: ta.value }),
+          });
+          if (note) note.textContent = res.ok ? 'Saved' : 'Save failed';
+        } catch {
+          if (note) note.textContent = 'Save failed';
+        }
+      }, 600);
+    });
+  });
+
+  // --- Recording players: error/retry handling (audio still processing → 202) ---
+  root.querySelectorAll('.dash-call-done').forEach((wrap) => {
+    const audio = wrap.querySelector('.dash-rec-audio');
+    const err = wrap.querySelector('.dash-rec-err');
+    const retry = wrap.querySelector('.dash-rec-retry');
+    if (!audio) return;
+    const baseSrc = audio.getAttribute('src');
+    let retryCount = 0;
+    audio.addEventListener('error', () => { if (err) err.hidden = false; });
+    if (retry) {
+      retry.addEventListener('click', () => {
+        retryCount += 1;
+        if (err) err.hidden = true;
+        audio.setAttribute('src', `${baseSrc}&t=${retryCount}`);
+        audio.load();
+      });
+    }
+  });
+
+  // --- Call buttons: save the name, then start the call in this mode ---
+  root.querySelectorAll('.dash-call-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wrap = btn.closest('.dash-call');
+      const input = wrap ? wrap.querySelector('.dash-call-name-input') : null;
+      const participant = input ? input.value.trim() : '';
+      saveCoachingParticipant(participant);
+      startCall(data.agent.id, { mode: btn.dataset.mode, participant });
+    });
+  });
+
+  // --- Export Development Plan (PDF) ---
+  const exportBtn = root.querySelector('.dash-export-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => exportCoachingPlan(data));
+  }
+}
+
+// Build a print-only DOM of ALL dev-plan answers (reading the live textareas so
+// unsaved edits are included), grouped by section, with the agent header, then
+// print. CSP-safe: no libraries; a `body.printing` class + @media print rules
+// hide everything except #coaching-print.
+function exportCoachingPlan(data) {
+  const host = document.getElementById('coaching-print');
+  if (!host) return;
+  const agent = data.agent || {};
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  const fields = Array.isArray(data.fields) ? data.fields : [];
+
+  // Current values from the live textareas (fall back to saved answers).
+  const liveVal = (key) => {
+    const ta = dom.root.querySelector(`.dash-form-input[data-field-key="${cssEscape(key)}"]`);
+    if (ta) return ta.value;
+    return (data.answers && data.answers[key]) || '';
+  };
+
+  const formSections = sections.filter((s) => s.type === 'form');
+  const groupsHtml = formSections.map((s) => {
+    const mine = fields
+      .filter((f) => f.section_key === s.section_key)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    if (!mine.length) return '';
+    const qa = mine.map((f) => `
+      <div class="print-qa">
+        <p class="print-q">${escapeHtml(f.label || '')}</p>
+        <div class="print-a">${paragraphsHtml(liveVal(f.key)) || '<p class="print-empty">—</p>'}</div>
+      </div>`).join('');
+    return `
+      <section class="print-section">
+        <h2 class="print-section-h">${escapeHtml(s.title || '')}</h2>
+        ${qa}
+      </section>`;
+  }).join('');
+
+  host.innerHTML = `
+    <header class="print-header">
+      <h1 class="print-title">Development Plan</h1>
+      <p class="print-sub">${escapeHtml(agent.name || '')}${agent.role_title ? ` · ${escapeHtml(agent.role_title)}` : ''}</p>
+    </header>
+    ${groupsHtml || '<p>No development-plan answers yet.</p>'}`;
+
+  const cleanup = () => {
+    document.body.classList.remove('printing');
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  document.body.classList.add('printing');
+  window.print();
+}
+
+// Minimal CSS.escape fallback for attribute selectors built from our own
+// field keys (alnum + underscore by construction). Avoids a hard dependency on
+// CSS.escape in older engines.
+function cssEscape(s) {
+  if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(s));
+  return String(s).replace(/["\\]/g, '\\$&');
 }
 
 // The participant's name (optional) — labels their ElevenLabs recording so the
@@ -3314,7 +3652,13 @@ function renderCall(scenario, opts = {}) {
               method: 'POST',
               credentials: 'same-origin',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ scenario_id: scenario.id, messages, mode: scenario.coachingMode || 'coaching' }),
+              body: JSON.stringify({
+                scenario_id: scenario.id,
+                messages,
+                mode: scenario.coachingMode || 'coaching',
+                conversation_id: state.voiceAgent?.getConversationId?.() || null,
+                taken_by: scenario.participant || '',
+              }),
             });
           } catch {
             // fire-and-forget — ignore network failure
