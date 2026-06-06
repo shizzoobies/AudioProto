@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260606-1 coaching-dashboard';
+const BUILD_ID = '20260606-2 dashboard-stage-gate';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -3559,8 +3559,21 @@ function renderCall(scenario, opts = {}) {
     });
     state.voiceAgent = agent;
     agent.start().catch((err) => {
-      console.warn('voice agent failed; falling back to turn-based', err);
       if (state.voiceAgent === agent) state.voiceAgent = null;
+      // Coaching calls have NO turn-based fallback. The most common failure here
+      // is the server stage-gate (call_locked) — a call the manager's cohort hasn't
+      // unlocked yet. Show a clear message and return to the dashboard rather than
+      // dropping into the (wrong) turn-based pipeline.
+      if (isCoaching) {
+        const locked = String(err && err.message) === 'call_locked';
+        teardownAudio();
+        alert(locked
+          ? "This call isn't unlocked yet. Your study group hasn't reached this part of the program."
+          : 'Could not start the call. Please try again in a moment.');
+        renderCoachingTest();
+        return;
+      }
+      console.warn('voice agent failed; falling back to turn-based', err);
       if (state.view === 'call' && !state.callPaused) {
         setPhoneState('your_turn', 'Your turn — greet the caller.', 'They just picked up. Say hello and introduce yourself.');
         startListening();

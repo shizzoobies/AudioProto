@@ -10,6 +10,8 @@
 import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
 import { buildCoachingAgentPrompt, COACHING_AGENT_MODES, SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
+import { stageForMode } from '../../../shared/coaching-dashboard.js';
+import { resolveManagerStage } from '../../../shared/dashboard-store.js';
 
 const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
 const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
@@ -75,6 +77,17 @@ export async function onRequestPost({ request, env }) {
   if (lockedScenario && lockedScenario !== scenarioId) return jsonError('forbidden_scenario', 403);
   const inviteScope = await getInviteScope(request, env);
   if (inviteScope && !inviteScope.scenarios.has(scenarioId)) return jsonError('forbidden_scenario', 403);
+
+  // Coaching dashboard gate: a cohort manager may only START a call whose section
+  // is unlocked for their cohort's stage (assessment=1, coaching=3, followup=4).
+  // The client greys locked sections, but enforce it here too so a locked call
+  // can never actually run (legacy picker, stale view, or a direct request).
+  // Ad-hoc (non-cohort) managers resolve to MAX_STAGE and are ungated.
+  if (isCoachingAgent && inviteScope) {
+    const reqMode = COACHING_AGENT_MODES.includes(body?.mode) ? body.mode : 'coaching';
+    const effStage = await resolveManagerStage(env, inviteScope.invite_id);
+    if (effStage < stageForMode(reqMode)) return jsonError('call_locked', 403);
+  }
 
   // Mint the signed wss URL with the API key (never exposed to the browser).
   let signed;

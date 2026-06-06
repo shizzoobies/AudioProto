@@ -27,6 +27,14 @@ export const DASHBOARD_SECTIONS = [
 // on dashboard_calls writes and the recording proxy.
 export const CALL_MODES = ['assessment', 'coaching', 'followup'];
 
+// The unlock stage required for a given call mode (assessment=1, coaching=3,
+// followup=4). Used to enforce the dashboard gate on the SERVER so a locked call
+// cannot be started regardless of the client path. Unknown mode -> stage 1.
+export function stageForMode(mode) {
+  const s = DASHBOARD_SECTIONS.find((x) => x.type === 'call' && x.mode === mode);
+  return s ? s.stage : 1;
+}
+
 // Default Development-Plan fields (the admin can later edit these; this is the seed).
 // Each: { section_key, label, type:'textarea', position }
 export const DEFAULT_DASHBOARD_FIELDS = [

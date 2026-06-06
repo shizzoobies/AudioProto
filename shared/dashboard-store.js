@@ -9,7 +9,31 @@
 // constants live in the pure shared/coaching-dashboard.js.
 
 import { randomId } from './auth.js';
-import { DEFAULT_DASHBOARD_FIELDS } from './coaching-dashboard.js';
+import { DEFAULT_DASHBOARD_FIELDS, MAX_STAGE } from './coaching-dashboard.js';
+
+// Resolve the effective unlocked stage for a manager (by their invite_id). A
+// cohort member is gated to their cohort's unlocked_stage; an ad-hoc (non-cohort)
+// manager is ungated (MAX_STAGE). Used by BOTH the dashboard endpoint (display)
+// and /api/voice-agent/start (to ENFORCE the gate server-side). Never throws.
+export async function resolveManagerStage(env, inviteId) {
+  if (!env?.DB || !inviteId) return MAX_STAGE;
+  try {
+    const member = await env.DB
+      .prepare(`SELECT cohort_id FROM cohort_members WHERE invite_id = ? LIMIT 1`)
+      .bind(inviteId)
+      .first();
+    if (!member) return MAX_STAGE; // not in a cohort -> ungated
+    const cohort = await env.DB
+      .prepare(`SELECT unlocked_stage FROM cohorts WHERE id = ?`)
+      .bind(member.cohort_id)
+      .first();
+    const n = Number(cohort?.unlocked_stage);
+    if (!Number.isFinite(n)) return 1;
+    return Math.max(1, Math.min(MAX_STAGE, n));
+  } catch {
+    return MAX_STAGE;
+  }
+}
 
 // Create the dashboard tables if they do not exist yet, and seed dashboard_fields
 // from the defaults when the table is empty. Safe to call repeatedly; never
