@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS coaching_agents (
   mode_followup    INTEGER NOT NULL DEFAULT 0,  -- 0/1
   opening_lines    TEXT,                        -- JSON array string of opening line options
   active           INTEGER NOT NULL DEFAULT 1,  -- 0/1
+  photo            TEXT,                        -- agent portrait (data URL / asset ref) for the dashboard
+  incident_image   TEXT,                        -- image illustrating the recent incident
   created_at       INTEGER NOT NULL,            -- unix seconds
   updated_at       INTEGER,                     -- unix seconds
   created_by       TEXT                         -- admin id/email that authored it, or NULL

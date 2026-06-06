@@ -16,6 +16,8 @@
 // Cloudflare without a manual migration step.
 
 import { getInviteScope } from '../../../shared/auth.js';
+import { CALL_MODES } from '../../../shared/coaching-dashboard.js';
+import { ensureDashboardTables } from '../../../shared/dashboard-store.js';
 
 const TRANSCRIPT_CAP = 120; // keep only the most recent N turns
 
@@ -100,6 +102,41 @@ export async function onRequestPost({ request, env }) {
         .prepare(`INSERT INTO coaching_progress (${cols.join(', ')}) VALUES (${placeholders})`)
         .bind(...vals)
         .run();
+    }
+
+    // Also mark this call as taken (one-try) in the coaching dashboard and store
+    // the ElevenLabs conversation_id so the dashboard can fetch the recording.
+    // Defensive: must NEVER break the transcript save above, so it is fully
+    // wrapped and only runs when a known call mode and/or conversation id is sent.
+    try {
+      const callMode = CALL_MODES.includes(body?.mode) ? body.mode : null;
+      const conversationId =
+        typeof body?.conversation_id === 'string' && body.conversation_id.trim()
+          ? body.conversation_id.trim().slice(0, 200)
+          : null;
+      const takenBy =
+        typeof body?.taken_by === 'string' && body.taken_by.trim()
+          ? body.taken_by.trim().slice(0, 120)
+          : null;
+      if (callMode || conversationId || takenBy) {
+        const dashMode = callMode || mode; // fall back to the mode parsed up top
+        if (CALL_MODES.includes(dashMode)) {
+          await ensureDashboardTables(env);
+          await env.DB
+            .prepare(
+              `INSERT INTO dashboard_calls (invite_id, mode, conversation_id, taken_by, completed_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT (invite_id, mode) DO UPDATE SET
+                 conversation_id = COALESCE(excluded.conversation_id, dashboard_calls.conversation_id),
+                 taken_by = COALESCE(excluded.taken_by, dashboard_calls.taken_by),
+                 completed_at = excluded.completed_at`
+            )
+            .bind(scope.invite_id, dashMode, conversationId, takenBy, now)
+            .run();
+        }
+      }
+    } catch {
+      // dashboard write is best-effort — never fail the transcript save over it
     }
 
     return json({ ok: true, call_count: callCount });
