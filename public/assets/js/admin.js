@@ -40,6 +40,8 @@ const state = {
   lastReviewUrl: null, // last generated review-editor URL (shown once with a Copy button)
   reviewer: false,     // true when signed in via a scoped review link (rubric-only view)
   coachingEditor: false, // true when signed in via a scoped coaching-admin link (Scenarios-only view)
+  dashboardFields: [], // [{id, section_key, label, type, position, active}] — editable Development-Plan questions (full admin)
+  cohorts: [],         // [{id, name, unlocked_stage, created_at, members:[...]}] — study groups (full admin)
   coachingAccess: null,  // { active, created_at, last_click_at } — the scoped Scenarios-editor share link
   lastCoachingAccessUrl: null, // last generated coaching-access URL (shown once with a Copy button)
 };
@@ -170,6 +172,8 @@ async function logout() {
   state.preview = null;
   state.lastPreviewUrl = null;
   state.coachingEditor = false;
+  state.dashboardFields = [];
+  state.cohorts = [];
   state.coachingAccess = null;
   state.lastCoachingAccessUrl = null;
   renderLogin();
@@ -236,6 +240,20 @@ async function renderCoachingPage() {
       if (r.ok) { const d = await r.json(); state.coachingLanding = d.content || { hero: {}, sections: [] }; }
     } catch (e) { console.warn('coaching landing load failed', e); }
   }
+  // Development-Plan questions editor (full-admin only — scoped editor 401s).
+  if (!state.coachingEditor && state.admin) {
+    try {
+      const r = await fetch('/api/admin/dashboard-fields', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.dashboardFields = d.fields || []; }
+    } catch (e) { console.warn('dashboard fields load failed', e); }
+  }
+  // Cohorts / study groups (full-admin only — scoped editor 401s).
+  if (!state.coachingEditor && state.admin) {
+    try {
+      const r = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.cohorts = d.cohorts || []; }
+    } catch (e) { console.warn('cohorts load failed', e); }
+  }
   paintCoachingPage();
 }
 
@@ -256,6 +274,8 @@ function paintCoachingPage() {
     ${showRoster ? renderCoachingEditorsSection() : ''}
     ${renderCoachingVoicesSection()}
     ${renderCoachingAgentsSection()}
+    ${showRoster ? renderDashboardFieldsSection() : ''}
+    ${showRoster ? renderCohortsSection() : ''}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
   if (showRoster) attachCoachingLandingHandlers();
@@ -264,6 +284,8 @@ function paintCoachingPage() {
   if (showRoster) attachCoachingEditorsHandlers();
   attachCoachingVoicesHandlers();
   attachCoachingAgentsHandlers();
+  if (showRoster) attachDashboardFieldsHandlers();
+  if (showRoster) attachCohortsHandlers();
   if (showAccess) attachCoachingAccessHandlers();
 }
 
@@ -3243,6 +3265,17 @@ function renderCoachingAgentsSection() {
           <textarea id="ca-opening-lines" class="admin-input" rows="3" placeholder="Hey... you wanted to see me?"></textarea>
         </div>
 
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-photo">Photo</label>
+          <input type="text" id="ca-photo" class="admin-input" placeholder="https://… or data:image/…">
+          <span class="admin-field-hint">Image URL or leave blank for an initials avatar.</span>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-incident-image">Incident image</label>
+          <input type="text" id="ca-incident-image" class="admin-input" placeholder="https://… or data:image/…">
+          <span class="admin-field-hint">Image URL or leave blank for an initials avatar.</span>
+        </div>
+
         <div class="admin-field admin-ca-wide">
           <label class="admin-field-label">Card look <span class="admin-field-hint">background image + accent color for this scenario's card &amp; journey</span></label>
           <input type="hidden" id="ca-image-id" value="">
@@ -3420,6 +3453,8 @@ async function onSaveCoachingAgent(e) {
       .split('\n').map((s) => s.trim()).filter(Boolean),
     image_id: val('ca-image-id'),
     accent_color: document.getElementById('ca-accent-on')?.checked ? val('ca-accent') : '',
+    photo: val('ca-photo'),
+    incident_image: val('ca-incident-image'),
   };
 
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
@@ -3477,6 +3512,8 @@ function populateCoachingAgentForm(agent) {
   set('ca-incident', agent.incident);
   set('ca-personality', agent.personality);
   set('ca-opening-lines', Array.isArray(agent.opening_lines) ? agent.opening_lines.join('\n') : '');
+  set('ca-photo', agent.photo);
+  set('ca-incident-image', agent.incident_image);
   setScenarioImage(agent.image_id || '');
   const accentOn = document.getElementById('ca-accent-on');
   if (accentOn) accentOn.checked = !!agent.accent_color;
@@ -3499,6 +3536,10 @@ function clearCoachingAgentForm() {
   if (idEl) idEl.value = '';
   const scenarioNameEl = document.getElementById('ca-scenario-name');
   if (scenarioNameEl) scenarioNameEl.value = '';
+  const photoEl = document.getElementById('ca-photo');
+  if (photoEl) photoEl.value = '';
+  const incidentImageEl = document.getElementById('ca-incident-image');
+  if (incidentImageEl) incidentImageEl.value = '';
   setScenarioImage('');
   const accentOnEl = document.getElementById('ca-accent-on');
   if (accentOnEl) accentOnEl.checked = false;
@@ -3547,6 +3588,551 @@ function refreshCoachingAgentsSection() {
     sec.replaceWith(tmp.firstElementChild);
   }
   attachCoachingAgentsHandlers();
+}
+
+// ---- Development-Plan questions editor (full admin only) -------------------
+// The editable questions managers answer in each Development-Plan part. Three
+// sub-groups map to section_key devplan1/devplan2/devplan3. Backed by
+// /api/admin/dashboard-fields (GET/POST upsert/DELETE). Mirrors the voices
+// panel's add/list/delete handler style; re-renders the section in place.
+
+const DEVPLAN_GROUPS = [
+  { key: 'devplan1', title: 'Part 1', sub: 'Week 1 — before/at the assessment call' },
+  { key: 'devplan2', title: 'Part 2', sub: 'Week 1 homework — after the assessment' },
+  { key: 'devplan3', title: 'Part 3', sub: 'Week 2 — after the coaching call' },
+];
+
+const MAX_STAGE = 5;
+const STAGE_LABELS = {
+  1: 'Week 1 meeting (Incident + Dev-Plan Pt.1 + Assessment call)',
+  2: 'Week 1 homework (Dev-Plan Pt.2) unlocked',
+  3: 'Week 2 (Coaching call + Dev-Plan Pt.3) unlocked',
+  4: 'Week 3 (Follow-up call) unlocked',
+  5: 'Follow-Up Activities unlocked',
+};
+
+function renderDashboardFieldsSection() {
+  const fields = Array.isArray(state.dashboardFields) ? state.dashboardFields : [];
+  const groups = DEVPLAN_GROUPS.map((g) => {
+    const rows = fields
+      .filter((f) => f.section_key === g.key)
+      .sort((a, b) => (a.position - b.position) || (a.created_at - b.created_at));
+    const listHtml = rows.length
+      ? rows.map((f) => renderDashboardFieldRow(f)).join('')
+      : '<div class="admin-empty">No questions yet.</div>';
+    return `
+      <div class="admin-df-group" data-df-group="${escapeAttr(g.key)}">
+        <div class="admin-df-group-head">
+          <h3 class="admin-df-group-title">${escapeHtml(g.title)}</h3>
+          <span class="admin-field-hint">${escapeHtml(g.sub)}</span>
+        </div>
+        <div class="admin-df-list">${listHtml}</div>
+        <form class="admin-df-add" data-df-add="${escapeAttr(g.key)}" autocomplete="off">
+          <textarea class="admin-input" rows="2" placeholder="Add a question…" required></textarea>
+          <button type="submit" class="primary-button">Add question</button>
+        </form>
+      </div>
+    `;
+  }).join('');
+  return `
+    <section class="admin-section" id="sec-dashboard-fields">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Development Plan questions</h2>
+        <p class="admin-section-sub">The questions managers answer in each Development-Plan part. Edit the label, toggle a question on/off, or remove it. Inactive questions are hidden from managers but kept here.</p>
+      </header>
+      <div id="admin-df-alert"></div>
+      <div class="admin-df-groups">${groups}</div>
+    </section>
+  `;
+}
+
+function renderDashboardFieldRow(f) {
+  const inactive = !f.active;
+  return `
+    <div class="admin-ca-row${inactive ? ' is-inactive' : ''}" data-df-id="${escapeAttr(f.id)}">
+      <div class="admin-ca-row-main">
+        <div class="admin-ca-row-name">${escapeHtml(f.label)}${inactive ? ' <span class="admin-pill">Inactive</span>' : ''}</div>
+      </div>
+      <div class="admin-ca-row-actions">
+        <button type="button" class="ghost-button" data-df-edit="${escapeAttr(f.id)}">Edit</button>
+        <button type="button" class="ghost-button" data-df-toggle="${escapeAttr(f.id)}">${f.active ? 'Disable' : 'Enable'}</button>
+        <button type="button" class="ghost-button" data-df-delete="${escapeAttr(f.id)}">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function attachDashboardFieldsHandlers() {
+  const sec = document.getElementById('sec-dashboard-fields');
+  if (!sec) return;
+  sec.querySelectorAll('[data-df-add]').forEach((form) => {
+    form.addEventListener('submit', (e) => onAddDashboardField(e, form.dataset.dfAdd));
+  });
+  sec.querySelectorAll('[data-df-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => onEditDashboardField(btn.dataset.dfEdit));
+  });
+  sec.querySelectorAll('[data-df-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => onToggleDashboardField(btn.dataset.dfToggle));
+  });
+  sec.querySelectorAll('[data-df-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => onDeleteDashboardField(btn.dataset.dfDelete));
+  });
+}
+
+function showDashboardFieldsError(msg) {
+  const el = document.getElementById('admin-df-alert');
+  if (!el) return;
+  el.innerHTML = msg ? `<div class="admin-alert admin-alert-error">${escapeHtml(msg)}</div>` : '';
+}
+
+async function reloadDashboardFields() {
+  try {
+    const r = await fetch('/api/admin/dashboard-fields', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.dashboardFields = d.fields || []; }
+  } catch (e) { console.warn('dashboard fields reload failed', e); }
+  refreshDashboardFieldsSection();
+}
+
+function refreshDashboardFieldsSection() {
+  const sec = document.getElementById('sec-dashboard-fields');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderDashboardFieldsSection();
+    sec.replaceWith(tmp.firstElementChild);
+  }
+  attachDashboardFieldsHandlers();
+}
+
+async function onAddDashboardField(e, sectionKey) {
+  e.preventDefault();
+  showDashboardFieldsError('');
+  const form = e.target;
+  const ta = form.querySelector('textarea');
+  const label = (ta?.value || '').trim();
+  if (!label) return;
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
+  try {
+    const res = await fetch('/api/admin/dashboard-fields', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ section_key: sectionKey, label }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showDashboardFieldsError(parts.length ? parts.join(' — ') : (res.statusText || 'Add failed'));
+      if (btn) { btn.disabled = false; btn.textContent = 'Add question'; }
+      return;
+    }
+    await reloadDashboardFields();
+  } catch (err) {
+    showDashboardFieldsError('Network error: ' + (err?.message || String(err)));
+    if (btn) { btn.disabled = false; btn.textContent = 'Add question'; }
+  }
+}
+
+async function onEditDashboardField(id) {
+  const field = (state.dashboardFields || []).find((f) => f.id === id);
+  if (!field) return;
+  const next = prompt('Edit question:', field.label);
+  if (next === null) return;
+  const label = next.trim();
+  if (!label) return;
+  showDashboardFieldsError('');
+  try {
+    const res = await fetch('/api/admin/dashboard-fields', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: field.id, section_key: field.section_key, label, active: field.active ? 1 : 0 }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showDashboardFieldsError(parts.length ? parts.join(' — ') : 'Save failed');
+      return;
+    }
+    await reloadDashboardFields();
+  } catch (err) {
+    showDashboardFieldsError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+async function onToggleDashboardField(id) {
+  const field = (state.dashboardFields || []).find((f) => f.id === id);
+  if (!field) return;
+  showDashboardFieldsError('');
+  try {
+    const res = await fetch('/api/admin/dashboard-fields', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: field.id, section_key: field.section_key, label: field.label, active: field.active ? 0 : 1 }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showDashboardFieldsError(parts.length ? parts.join(' — ') : 'Toggle failed');
+      return;
+    }
+    await reloadDashboardFields();
+  } catch (err) {
+    showDashboardFieldsError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+async function onDeleteDashboardField(id) {
+  if (!confirm('Delete this question? This cannot be undone.')) return;
+  showDashboardFieldsError('');
+  try {
+    const res = await fetch('/api/admin/dashboard-fields?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showDashboardFieldsError(parts.length ? parts.join(' — ') : 'Delete failed');
+      return;
+    }
+    await reloadDashboardFields();
+  } catch (err) {
+    showDashboardFieldsError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+// ---- Cohorts (study groups, full admin only) ------------------------------
+// Named groups of managers sharing one unlocked_stage gate. Create a cohort,
+// advance/set its stage, and "assign managers" — each manager is randomly drawn
+// a scenario from a chosen pool, gets a coaching invite minted, and the link is
+// returned once (copyable). Backed by /api/admin/cohorts (op-based POST).
+
+function stageLabel(stage) {
+  const s = Math.max(1, Math.min(Number(stage) || 1, MAX_STAGE));
+  return `Stage ${s} of ${MAX_STAGE} — ${STAGE_LABELS[s] || ''}`;
+}
+
+function renderCohortsSection() {
+  const cohorts = Array.isArray(state.cohorts) ? state.cohorts : [];
+  const listHtml = cohorts.length
+    ? cohorts.map((c) => renderCohortCard(c)).join('')
+    : '<div class="admin-empty">No study groups yet. Create one above.</div>';
+  return `
+    <section class="admin-section" id="sec-cohorts">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Cohorts (study groups)</h2>
+        <p class="admin-section-sub">Group managers into a cohort that shares one progression gate. Advance the cohort's stage to unlock the next part of the journey for everyone in it. Assign managers to randomly draw each a scenario and mint their coaching link.</p>
+      </header>
+      <div id="admin-cohort-alert"></div>
+      <form id="admin-cohort-create" class="admin-cv-form" autocomplete="off">
+        <div class="admin-field">
+          <label class="admin-field-label" for="cohort-name">Cohort name</label>
+          <input type="text" id="cohort-name" class="admin-input" placeholder="e.g. June intake" required>
+        </div>
+        <div class="admin-field admin-cv-submit-field">
+          <label class="admin-field-label" style="visibility:hidden">Create</label>
+          <button type="submit" class="primary-button">Create cohort</button>
+        </div>
+      </form>
+      <div id="admin-cohort-list">${listHtml}</div>
+    </section>
+  `;
+}
+
+function renderCohortCard(c) {
+  const stage = Number(c.unlocked_stage) || 1;
+  const atMax = stage >= MAX_STAGE;
+  const members = Array.isArray(c.members) ? c.members : [];
+  const roster = members.length
+    ? members.map((m) => `
+        <div class="admin-ca-row" data-cohort-member="${escapeAttr(m.invite_id)}">
+          <div class="admin-ca-row-main">
+            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '—')}</div>
+            <div class="admin-ca-row-meta">
+              ${m.member_email ? `<span>${escapeHtml(m.member_email)}</span>` : ''}
+              ${m.scenario_name ? `<span>${escapeHtml(m.scenario_name)}</span>` : ''}
+            </div>
+          </div>
+          <div class="admin-ca-row-actions">
+            <button type="button" class="ghost-button" data-cohort-remove="${escapeAttr(m.invite_id)}">Remove</button>
+          </div>
+        </div>`).join('')
+    : '<div class="admin-empty">No managers assigned yet.</div>';
+
+  // Pool of active scenarios to draw from (from state.coachingAgents).
+  const agents = (state.coachingAgents || []).filter((a) => a && a.active);
+  const checks = agents.length
+    ? agents.map((a) => {
+        const label = (a.scenario_name && a.scenario_name.trim()) || a.name || a.id;
+        return `<label class="admin-ca-check"><input type="checkbox" class="cohort-scenario-pick" value="${escapeAttr(a.id)}" checked> ${escapeHtml(label)}</label>`;
+      }).join('')
+    : '<span class="admin-field-hint">No active scenarios — create one in the Scenarios panel above.</span>';
+
+  return `
+    <div class="admin-cohort-card" data-cohort-id="${escapeAttr(c.id)}">
+      <div class="admin-cohort-head">
+        <h3 class="admin-cohort-name">${escapeHtml(c.name || 'Untitled cohort')}</h3>
+        <div class="admin-cohort-actions">
+          <button type="button" class="ghost-button" data-cohort-delete="${escapeAttr(c.id)}">Delete cohort</button>
+        </div>
+      </div>
+      <div class="admin-cohort-stage">
+        <span class="admin-muted">${escapeHtml(stageLabel(stage))}</span>
+        <button type="button" class="primary-button" data-cohort-advance="${escapeAttr(c.id)}"${atMax ? ' disabled' : ''}>Advance to next stage</button>
+      </div>
+      <div class="admin-cohort-roster">${roster}</div>
+      <form class="admin-cohort-assign" data-cohort-assign="${escapeAttr(c.id)}" autocomplete="off">
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label">Assign managers <span class="admin-field-hint">one per line — <code>Name, email</code> or just <code>email</code></span></label>
+          <textarea class="admin-input cohort-managers" rows="3" placeholder="Alex Smith, alex@example.com&#10;jordan@example.com"></textarea>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label">Scenario pool <span class="admin-field-hint">each manager is randomly drawn one of these</span></label>
+          <div class="admin-ca-checks cohort-scenario-pool">${checks}</div>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <button type="submit" class="primary-button">Assign</button>
+        </div>
+      </form>
+      <div class="admin-cohort-assigned" data-cohort-assigned="${escapeAttr(c.id)}"></div>
+    </div>
+  `;
+}
+
+function attachCohortsHandlers() {
+  const sec = document.getElementById('sec-cohorts');
+  if (!sec) return;
+  const createForm = document.getElementById('admin-cohort-create');
+  if (createForm) createForm.addEventListener('submit', onCreateCohort);
+  sec.querySelectorAll('[data-cohort-advance]').forEach((btn) => {
+    btn.addEventListener('click', () => onAdvanceCohort(btn.dataset.cohortAdvance));
+  });
+  sec.querySelectorAll('[data-cohort-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => onDeleteCohort(btn.dataset.cohortDelete));
+  });
+  sec.querySelectorAll('[data-cohort-remove]').forEach((btn) => {
+    const card = btn.closest('[data-cohort-id]');
+    btn.addEventListener('click', () => onRemoveCohortMember(card?.dataset.cohortId, btn.dataset.cohortRemove));
+  });
+  sec.querySelectorAll('[data-cohort-assign]').forEach((form) => {
+    form.addEventListener('submit', (e) => onAssignCohortManagers(e, form.dataset.cohortAssign));
+  });
+}
+
+function showCohortError(msg) {
+  const el = document.getElementById('admin-cohort-alert');
+  if (!el) return;
+  el.innerHTML = msg ? `<div class="admin-alert admin-alert-error">${escapeHtml(msg)}</div>` : '';
+}
+
+async function reloadCohorts() {
+  try {
+    const r = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
+    if (r.ok) { const d = await r.json(); state.cohorts = d.cohorts || []; }
+  } catch (e) { console.warn('cohorts reload failed', e); }
+  refreshCohortsSection();
+}
+
+function refreshCohortsSection() {
+  const sec = document.getElementById('sec-cohorts');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderCohortsSection();
+    sec.replaceWith(tmp.firstElementChild);
+  }
+  attachCohortsHandlers();
+}
+
+async function onCreateCohort(e) {
+  e.preventDefault();
+  showCohortError('');
+  const name = (document.getElementById('cohort-name')?.value || '').trim();
+  if (!name) return;
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+  try {
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'create', name }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCohortError(parts.length ? parts.join(' — ') : 'Create failed');
+      if (btn) { btn.disabled = false; btn.textContent = 'Create cohort'; }
+      return;
+    }
+    await reloadCohorts();
+  } catch (err) {
+    showCohortError('Network error: ' + (err?.message || String(err)));
+    if (btn) { btn.disabled = false; btn.textContent = 'Create cohort'; }
+  }
+}
+
+async function onAdvanceCohort(cohortId) {
+  if (!cohortId) return;
+  showCohortError('');
+  try {
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'advance', cohort_id: cohortId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCohortError(parts.length ? parts.join(' — ') : 'Advance failed');
+      return;
+    }
+    await reloadCohorts();
+  } catch (err) {
+    showCohortError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+async function onDeleteCohort(cohortId) {
+  if (!cohortId) return;
+  if (!confirm('Delete this cohort and its membership records? (Managers\' existing links are left intact.)')) return;
+  showCohortError('');
+  try {
+    const res = await fetch('/api/admin/cohorts?id=' + encodeURIComponent(cohortId), {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCohortError(parts.length ? parts.join(' — ') : 'Delete failed');
+      return;
+    }
+    await reloadCohorts();
+  } catch (err) {
+    showCohortError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+async function onRemoveCohortMember(cohortId, inviteId) {
+  if (!cohortId || !inviteId) return;
+  if (!confirm('Remove this manager from the cohort? Their coaching link will be revoked.')) return;
+  showCohortError('');
+  try {
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'remove_member', cohort_id: cohortId, invite_id: inviteId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCohortError(parts.length ? parts.join(' — ') : 'Remove failed');
+      return;
+    }
+    await reloadCohorts();
+  } catch (err) {
+    showCohortError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+async function onAssignCohortManagers(e, cohortId) {
+  e.preventDefault();
+  showCohortError('');
+  const form = e.target;
+  const card = form.closest('[data-cohort-id]');
+  const managersText = (form.querySelector('.cohort-managers')?.value || '');
+  const members = parseCohortManagers(managersText);
+  if (!members.length) { showCohortError('Add at least one manager (Name, email or just email).'); return; }
+  const scenarioIds = Array.from(form.querySelectorAll('.cohort-scenario-pick:checked')).map((cb) => cb.value);
+  if (!scenarioIds.length) { showCohortError('Pick at least one scenario for the pool.'); return; }
+
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning...'; }
+  try {
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'assign', cohort_id: cohortId, members, scenario_ids: scenarioIds }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCohortError(parts.length ? parts.join(' — ') : 'Assign failed');
+      if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
+      return;
+    }
+    // Show the minted links once (copyable), then refresh the roster.
+    const assigned = Array.isArray(data?.assigned) ? data.assigned : [];
+    const assignedEl = card ? card.querySelector('[data-cohort-assigned]') : null;
+    if (assignedEl) assignedEl.innerHTML = renderAssignedLinks(assigned);
+    // Reload the cohort list so the new members appear in the roster, then
+    // re-render the just-minted links under the right card (they aren't stored).
+    await reloadCohorts();
+    const freshCard = document.querySelector(`#sec-cohorts [data-cohort-id="${cssEscape(cohortId)}"]`);
+    const freshAssignedEl = freshCard ? freshCard.querySelector('[data-cohort-assigned]') : null;
+    if (freshAssignedEl) {
+      freshAssignedEl.innerHTML = renderAssignedLinks(assigned);
+      wireCopyButtons(freshAssignedEl);
+    }
+  } catch (err) {
+    showCohortError('Network error: ' + (err?.message || String(err)));
+    if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
+  }
+}
+
+// Parse the managers textarea: one per line, "Name, email" or just "email".
+function parseCohortManagers(text) {
+  const out = [];
+  for (const line of String(text || '').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let name = null;
+    let email = trimmed;
+    const comma = trimmed.lastIndexOf(',');
+    if (comma >= 0) {
+      name = trimmed.slice(0, comma).trim() || null;
+      email = trimmed.slice(comma + 1).trim();
+    }
+    if (!email) continue;
+    out.push({ name, email });
+  }
+  return out;
+}
+
+function renderAssignedLinks(assigned) {
+  if (!Array.isArray(assigned) || !assigned.length) return '';
+  const rows = assigned.map((a) => `
+    <div class="admin-ca-row">
+      <div class="admin-ca-row-main">
+        <div class="admin-ca-row-name">${escapeHtml(a.name || a.email || '—')}</div>
+        <div class="admin-ca-row-meta">
+          ${a.email ? `<span>${escapeHtml(a.email)}</span>` : ''}
+          ${a.scenario_name ? `<span>${escapeHtml(a.scenario_name)}</span>` : ''}
+          <span class="admin-cv-voice-id">${escapeHtml(a.url || '')}</span>
+        </div>
+      </div>
+      <div class="admin-ca-row-actions">
+        <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(a.url || '')}">Copy link</button>
+      </div>
+    </div>`).join('');
+  return `
+    <div class="admin-alert admin-alert-success">Assigned ${assigned.length} manager(s). These links are shown once — copy and distribute them now.</div>
+    ${rows}
+  `;
+}
+
+// Minimal CSS.escape fallback for the cohort-id attribute selector (ids are
+// 'co_' + hex, so this is belt-and-braces for older engines).
+function cssEscape(s) {
+  if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(s);
+  return String(s).replace(/["\\\]]/g, '\\$&');
 }
 
 // ---- Charts link ----------------------------------------------------------
