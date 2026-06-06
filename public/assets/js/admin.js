@@ -287,6 +287,135 @@ function paintCoachingPage() {
   if (showRoster) attachDashboardFieldsHandlers();
   if (showRoster) attachCohortsHandlers();
   if (showAccess) attachCoachingAccessHandlers();
+
+  // Make every section collapsible + add the sticky side-nav slider.
+  enhanceCoachingPage();
+}
+
+// ---- Coaching admin page: collapsible sections + sticky side-nav ----------
+// Each .admin-section gets a chevron toggle (collapsed state persists in
+// localStorage), and a fixed side rail lists the sections with click-to-jump +
+// scroll-spy. A MutationObserver re-decorates sections that get re-rendered in
+// place by the various refresh*Section() helpers so collapse survives edits.
+const COACH_COLLAPSE_KEY = 'coach:collapsed';
+const COACH_CHEVRON = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden="true"><path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+let coachSectionObserver = null;
+
+function loadCoachCollapsed() {
+  try { return new Set(JSON.parse(localStorage.getItem(COACH_COLLAPSE_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveCoachCollapsed(set) {
+  try { localStorage.setItem(COACH_COLLAPSE_KEY, JSON.stringify([...set])); } catch {}
+}
+
+// Add the collapse toggle + apply saved state to one section. Idempotent.
+function decorateCoachSection(sec, collapsed) {
+  if (!sec) return null;
+  const head = sec.querySelector('.admin-section-head');
+  if (!head) return null;
+  // Ensure a stable id (for the nav anchor + persisted collapse state). Derive
+  // one from the section title when the section has none.
+  if (!sec.id) {
+    const t = sec.querySelector('.admin-section-title');
+    const slug = (t ? t.textContent : 'section').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'section';
+    sec.id = 'coach-sec-' + slug;
+  }
+  if (collapsed.has(sec.id)) sec.setAttribute('data-collapsed', 'true');
+  if (!sec.querySelector(':scope > .admin-collapse-toggle')) {
+    sec.classList.add('admin-collapsible');
+    head.classList.add('admin-collapsible-head');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'admin-collapse-toggle';
+    btn.setAttribute('aria-label', 'Collapse or expand this section');
+    btn.innerHTML = COACH_CHEVRON;
+    sec.appendChild(btn); // absolutely positioned top-right via CSS
+  }
+  const title = sec.querySelector('.admin-section-title');
+  return { id: sec.id, label: (title ? title.textContent : sec.id).trim() };
+}
+
+function toggleCoachSection(sec) {
+  if (!sec || !sec.id) return;
+  const set = loadCoachCollapsed();
+  const collapse = sec.getAttribute('data-collapsed') !== 'true';
+  sec.setAttribute('data-collapsed', collapse ? 'true' : 'false');
+  if (collapse) set.add(sec.id); else set.delete(sec.id);
+  saveCoachCollapsed(set);
+}
+
+function enhanceCoachingPage() {
+  const collapsed = loadCoachCollapsed();
+  const sections = Array.from(root.querySelectorAll('.admin-section'));
+  const items = [];
+  sections.forEach((sec) => { const it = decorateCoachSection(sec, collapsed); if (it) items.push(it); });
+
+  // Build the fixed side-nav (recreated each paint).
+  const existing = document.getElementById('coach-sidenav');
+  if (existing) existing.remove();
+  const nav = document.createElement('nav');
+  nav.id = 'coach-sidenav';
+  nav.className = 'coach-sidenav';
+  nav.setAttribute('aria-label', 'Coaching admin sections');
+  nav.innerHTML = `<div class="coach-sidenav-title">Sections</div>` +
+    items.map((it) => `<a class="coach-sidenav-link" href="#${escapeAttr(it.id)}" data-target="${escapeAttr(it.id)}">${escapeHtml(it.label)}</a>`).join('');
+  document.body.appendChild(nav);
+
+  const setActive = (id) => nav.querySelectorAll('.coach-sidenav-link')
+    .forEach((l) => l.classList.toggle('is-active', l.dataset.target === id));
+
+  nav.addEventListener('click', (e) => {
+    const a = e.target.closest('.coach-sidenav-link');
+    if (!a) return;
+    e.preventDefault();
+    const sec = document.getElementById(a.dataset.target);
+    if (!sec) return;
+    if (sec.getAttribute('data-collapsed') === 'true') {
+      sec.setAttribute('data-collapsed', 'false');
+      const set = loadCoachCollapsed(); set.delete(sec.id); saveCoachCollapsed(set);
+    }
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActive(a.dataset.target);
+  });
+
+  // Toggle on header / chevron click (delegated once on root so it survives
+  // section re-renders). Ignore clicks on interactive controls inside a header.
+  if (!root.dataset.coachCollapseWired) {
+    root.dataset.coachCollapseWired = '1';
+    root.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('.admin-collapse-toggle');
+      if (toggleBtn) { toggleCoachSection(toggleBtn.closest('.admin-section')); return; }
+      const head = e.target.closest('.admin-collapsible-head');
+      if (!head) return;
+      if (e.target.closest('button, a, input, select, textarea, label')) return;
+      toggleCoachSection(head.closest('.admin-section'));
+    });
+  }
+
+  // Scroll-spy: highlight the section nearest the top of the viewport.
+  if ('IntersectionObserver' in window && sections.length) {
+    const io = new IntersectionObserver((entries) => {
+      const vis = entries.filter((en) => en.isIntersecting).sort((a, b) => a.target.offsetTop - b.target.offsetTop);
+      if (vis.length) setActive(vis[0].target.id);
+    }, { rootMargin: '-12% 0px -75% 0px', threshold: 0 });
+    sections.forEach((s) => { if (s.id) io.observe(s); });
+  }
+
+  // Re-decorate sections that refresh*Section() swaps in place (so the chevron +
+  // collapsed state come back after an edit). Set up once.
+  if (!coachSectionObserver) {
+    coachSectionObserver = new MutationObserver((muts) => {
+      const cset = loadCoachCollapsed();
+      for (const m of muts) {
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.matches && n.matches('.admin-section')) decorateCoachSection(n, cset);
+          if (n.querySelectorAll) n.querySelectorAll('.admin-section').forEach((s) => decorateCoachSection(s, cset));
+        }
+      }
+    });
+    coachSectionObserver.observe(root, { childList: true, subtree: true });
+  }
 }
 
 async function loadData() {
