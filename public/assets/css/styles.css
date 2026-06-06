@@ -7138,3 +7138,630 @@ body[data-precall] #app-root {
   .dash-profile-photo { width: 100%; height: 200px; }
   .dash-profile-row { grid-template-columns: 84px 1fr; }
 }
+
+
+/* =============================================================================
+   Coaching admin — Editorial Warm theme (scoped)
+   Applies ONLY to: body[data-admin-page="coaching"]
+   Every selector in this block is prefixed to that attribute so it cannot
+   bleed onto the main admin dashboard (/admin) or any other page.
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. Custom properties — palette, type, shadow tokens
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] {
+  /* Canvas / paper */
+  --coach-paper:        #FAF6EF;
+  --coach-card:         #FFFDF9;
+
+  /* Ink scale */
+  --coach-ink:          #2A2520;
+  --coach-ink-2:        #6B6256;  /* secondary warm gray */
+  --coach-ink-3:        #9A9081;  /* tertiary / hints */
+
+  /* Accent */
+  --coach-accent:       #C2603C;
+  --coach-accent-hover: #A94E2E;
+  --coach-accent-muted: rgba(194, 96, 60, 0.10);
+
+  /* Gold hairline */
+  --coach-gold:         #C9A14A;
+  --coach-gold-rule:    rgba(201, 161, 74, 0.30);
+
+  /* Warm shadows (brown-tinted, not neutral gray) */
+  --coach-shadow-sm:
+    0 1px 2px rgba(42, 37, 32, 0.04),
+    0 2px 6px rgba(42, 37, 32, 0.05);
+  --coach-shadow-card:
+    inset 0 1px 0 rgba(255, 252, 245, 0.80),
+    0 1px 3px rgba(42, 37, 32, 0.05),
+    0 8px 24px rgba(42, 37, 32, 0.07);
+  --coach-shadow-sidenav:
+    0 4px 18px rgba(42, 37, 32, 0.09),
+    0 1px 3px  rgba(42, 37, 32, 0.05);
+
+  /* Typography */
+  --coach-font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --coach-font-ui:    'Inter', system-ui, -apple-system, sans-serif;
+  --coach-font-mono:  'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ---------------------------------------------------------------------------
+   2. Canvas — warm paper background, ink body text
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] {
+  background:
+    radial-gradient(900px 600px at 60% -5%, rgba(201, 161, 74, 0.06), transparent 55%),
+    radial-gradient(600px 400px at 10% 80%, rgba(194, 96, 60, 0.04), transparent 50%),
+    var(--coach-paper);
+  background-attachment: fixed;
+  color: var(--coach-ink);
+  font-family: var(--coach-font-ui);
+}
+
+/* Selection tinted warm */
+body[data-admin-page="coaching"] ::selection {
+  background: var(--coach-accent-muted);
+  color: var(--coach-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   3. Top banner — editorial identity strip
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-banner {
+  background: var(--coach-card);
+  border-bottom: 1px solid var(--coach-gold-rule);
+  box-shadow: 0 1px 4px rgba(42, 37, 32, 0.06);
+  padding: 18px 36px;
+}
+
+body[data-admin-page="coaching"] .admin-brand {
+  font-family: var(--coach-font-serif);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--coach-ink);
+  gap: 12px;
+}
+
+body[data-admin-page="coaching"] .admin-brand-dot {
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 35% 30%, #D4775A, var(--coach-accent));
+  box-shadow: 0 0 0 3px rgba(194, 96, 60, 0.18), 0 1px 3px rgba(194, 96, 60, 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+   4. Page layout — admin-main restores warm background
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-main {
+  /* Inherit the canvas; no secondary background needed */
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   5. Section cards — the editorial "page" unit
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-section {
+  background: var(--coach-card);
+  border: 1px solid rgba(201, 161, 74, 0.22);
+  border-radius: 16px;
+  padding: 30px 32px;
+  box-shadow: var(--coach-shadow-card);
+  gap: 22px;
+}
+
+/* Section head: gold hairline rule under the title area */
+body[data-admin-page="coaching"] .admin-section-head {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--coach-gold-rule);
+  gap: 5px;
+}
+
+/* Section title — Playfair Display, generous */
+body[data-admin-page="coaching"] .admin-section-title {
+  font-family: var(--coach-font-serif);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--coach-ink);
+}
+
+/* Eyebrow — mono, terracotta, upper-tracked */
+body[data-admin-page="coaching"] .admin-eyebrow {
+  font-family: var(--coach-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--coach-accent);
+  margin: 0 0 4px;
+}
+
+/* Remove the left-bar pseudo from the base style; keep only terracotta colour */
+body[data-admin-page="coaching"] .admin-eyebrow::before {
+  background: linear-gradient(90deg, var(--coach-accent), rgba(194, 96, 60, 0.20));
+}
+
+/* Section sub-text — warm secondary */
+body[data-admin-page="coaching"] .admin-section-sub {
+  color: var(--coach-ink-2);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+/* Preserve collapse visibility logic; only restyle not hide/show */
+body[data-admin-page="coaching"] .admin-section[data-collapsed="true"] > :not(.admin-section-head):not(.admin-collapse-toggle) {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Inputs & selects — warm white fields, terracotta focus
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-input,
+body[data-admin-page="coaching"] .admin-select {
+  background: var(--coach-card);
+  border: 1px solid rgba(106, 98, 86, 0.28);
+  border-radius: 9px;
+  color: var(--coach-ink);
+  font-family: var(--coach-font-ui);
+  font-size: 14px;
+  padding: 11px 13px;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+body[data-admin-page="coaching"] .admin-input::placeholder {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .admin-input:focus,
+body[data-admin-page="coaching"] .admin-select:focus {
+  outline: none;
+  border-color: var(--coach-accent);
+  box-shadow: 0 0 0 3px rgba(194, 96, 60, 0.14);
+}
+
+body[data-admin-page="coaching"] .admin-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--coach-ink);
+  letter-spacing: 0.01em;
+}
+
+body[data-admin-page="coaching"] .admin-field-hint {
+  color: var(--coach-ink-3);
+  font-size: 11.5px;
+}
+
+body[data-admin-page="coaching"] .admin-req {
+  color: var(--coach-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   7. Buttons — terracotta primary, warm ghost
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .primary-button {
+  background: var(--coach-accent);
+  border: 1px solid var(--coach-accent);
+  border-radius: 9px;
+  color: #ffffff;
+  font-family: var(--coach-font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 10px 20px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(42, 37, 32, 0.08), 0 4px 14px rgba(194, 96, 60, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.06s ease;
+}
+
+body[data-admin-page="coaching"] .primary-button:hover:not(:disabled) {
+  background: var(--coach-accent-hover);
+  border-color: var(--coach-accent-hover);
+  box-shadow: 0 2px 4px rgba(42, 37, 32, 0.10), 0 8px 22px rgba(194, 96, 60, 0.30);
+  transform: translateY(-1px);
+}
+
+body[data-admin-page="coaching"] .primary-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+body[data-admin-page="coaching"] .primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+body[data-admin-page="coaching"] .ghost-button {
+  background: var(--coach-card);
+  border: 1px solid rgba(106, 98, 86, 0.30);
+  border-radius: 8px;
+  color: var(--coach-ink-2);
+  font-family: var(--coach-font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+body[data-admin-page="coaching"] .ghost-button:hover:not(:disabled) {
+  background: rgba(201, 161, 74, 0.07);
+  border-color: var(--coach-gold);
+  color: var(--coach-ink);
+}
+
+body[data-admin-page="coaching"] .ghost-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------------
+   8. Side-nav rail — paper card with gold hairline
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .coach-sidenav {
+  background: var(--coach-card);
+  border: 1px solid var(--coach-gold-rule);
+  border-radius: 13px;
+  box-shadow: var(--coach-shadow-sidenav);
+  padding: 14px;
+  gap: 3px;
+}
+
+body[data-admin-page="coaching"] .coach-sidenav-title {
+  font-family: var(--coach-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--coach-ink-3);
+  padding: 2px 8px 10px;
+  border-bottom: 1px solid var(--coach-gold-rule);
+  margin-bottom: 4px;
+}
+
+body[data-admin-page="coaching"] .coach-sidenav-link {
+  color: var(--coach-ink-2);
+  border-radius: 7px;
+  border-left: 2px solid transparent;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: var(--coach-font-ui);
+  transition: background 0.13s ease, color 0.13s ease, border-left-color 0.13s ease;
+}
+
+body[data-admin-page="coaching"] .coach-sidenav-link:hover {
+  background: rgba(194, 96, 60, 0.06);
+  color: var(--coach-ink);
+}
+
+body[data-admin-page="coaching"] .coach-sidenav-link.is-active {
+  background: rgba(194, 96, 60, 0.09);
+  border-left-color: var(--coach-accent);
+  color: var(--coach-ink);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+   9. Collapse toggle — warm, on-brand
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-collapse-toggle {
+  background: var(--coach-card);
+  border: 1px solid rgba(106, 98, 86, 0.25);
+  border-radius: 8px;
+  color: var(--coach-ink-3);
+  transition: transform 0.18s ease, color 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+body[data-admin-page="coaching"] .admin-collapse-toggle:hover {
+  color: var(--coach-accent);
+  border-color: rgba(194, 96, 60, 0.40);
+  background: rgba(194, 96, 60, 0.06);
+}
+
+/* Preserve the rotated state for collapsed sections */
+body[data-admin-page="coaching"] .admin-section[data-collapsed="true"] .admin-collapse-toggle {
+  transform: rotate(-90deg);
+}
+
+/* ---------------------------------------------------------------------------
+   10. Alerts — warm-tinted variants
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-alert {
+  border-radius: 9px;
+  padding: 12px 15px;
+  font-size: 13px;
+  line-height: 1.55;
+  background: rgba(255, 253, 249, 0.90);
+  border: 1px solid rgba(154, 144, 129, 0.25);
+  color: var(--coach-ink-2);
+}
+
+body[data-admin-page="coaching"] .admin-alert-error {
+  background: rgba(253, 235, 228, 0.75);
+  border-color: rgba(194, 96, 60, 0.30);
+  color: #8B3A1E;
+}
+
+body[data-admin-page="coaching"] .admin-alert-success {
+  background: rgba(235, 246, 237, 0.75);
+  border-color: rgba(21, 128, 61, 0.25);
+  color: #1a5e30;
+}
+
+/* ---------------------------------------------------------------------------
+   11. Pills / chips — warm-toned
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-pill {
+  font-family: var(--coach-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(154, 144, 129, 0.12);
+  color: var(--coach-ink-2);
+  border: 1px solid rgba(154, 144, 129, 0.22);
+}
+
+body[data-admin-page="coaching"] .admin-pill-active {
+  background: rgba(21, 128, 61, 0.10);
+  color: #1a5e30;
+  border-color: rgba(21, 128, 61, 0.20);
+}
+
+body[data-admin-page="coaching"] .admin-pill-revoked {
+  background: rgba(185, 28, 28, 0.08);
+  color: #922020;
+  border-color: rgba(185, 28, 28, 0.18);
+}
+
+body[data-admin-page="coaching"] .admin-pill-expired {
+  background: rgba(154, 144, 129, 0.10);
+  color: var(--coach-ink-3);
+  border-color: rgba(154, 144, 129, 0.18);
+}
+
+body[data-admin-page="coaching"] .admin-pill-premium {
+  background: var(--coach-accent-muted);
+  color: var(--coach-accent);
+  border-color: rgba(194, 96, 60, 0.22);
+}
+
+/* Stage pills in roster (cl-stage-pill variants) */
+body[data-admin-page="coaching"] .cl-stage-pill {
+  border-color: rgba(154, 144, 129, 0.25);
+  color: var(--coach-ink-3);
+  background: var(--coach-card);
+}
+
+body[data-admin-page="coaching"] .cl-stage-pill.is-done {
+  background: var(--coach-accent);
+  border-color: var(--coach-accent);
+  color: #ffffff;
+}
+
+body[data-admin-page="coaching"] .cl-stage-pill.is-open {
+  border-color: var(--coach-accent);
+  color: var(--coach-accent);
+}
+
+body[data-admin-page="coaching"] .cl-stage-pill.is-held {
+  border-style: dashed;
+  color: var(--coach-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+   12. Cohort cards
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-cohort-card {
+  background: var(--coach-card);
+  border: 1px solid rgba(201, 161, 74, 0.20);
+  border-radius: 13px;
+  padding: 20px 22px;
+  box-shadow: var(--coach-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+body[data-admin-page="coaching"] .admin-cohort-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--coach-gold-rule);
+}
+
+body[data-admin-page="coaching"] .admin-cohort-name {
+  font-family: var(--coach-font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--coach-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+body[data-admin-page="coaching"] .admin-cohort-stage {
+  font-family: var(--coach-font-mono);
+  font-size: 11px;
+  color: var(--coach-ink-2);
+  letter-spacing: 0.04em;
+}
+
+body[data-admin-page="coaching"] .admin-cohort-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body[data-admin-page="coaching"] .admin-cohort-assign {
+  padding-top: 12px;
+  border-top: 1px solid var(--coach-gold-rule);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+/* ---------------------------------------------------------------------------
+   13. Coaching roster cards (participant rows in cohorts)
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .coaching-roster-card {
+  background: var(--coach-card);
+  border: 1px solid rgba(154, 144, 129, 0.20);
+  border-radius: 10px;
+  box-shadow: var(--coach-shadow-sm);
+}
+
+body[data-admin-page="coaching"] .coaching-roster-progress {
+  border-top-color: var(--coach-gold-rule);
+}
+
+body[data-admin-page="coaching"] .coaching-roster-who {
+  color: var(--coach-ink);
+  font-weight: 600;
+}
+
+body[data-admin-page="coaching"] .coaching-roster-who .email {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .coaching-roster-meta {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .coaching-roster-nolink {
+  color: var(--coach-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+   14. Scenario rows (coaching-agent list rows)
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-ca-row {
+  background: var(--coach-card);
+  border: 1px solid rgba(154, 144, 129, 0.20);
+  border-radius: 11px;
+  box-shadow: var(--coach-shadow-sm);
+  transition: border-color 0.13s ease, box-shadow 0.13s ease;
+}
+
+body[data-admin-page="coaching"] .admin-ca-row:hover {
+  border-color: rgba(194, 96, 60, 0.25);
+  box-shadow: 0 2px 10px rgba(42, 37, 32, 0.08);
+}
+
+body[data-admin-page="coaching"] .admin-ca-row-name {
+  font-family: var(--coach-font-ui);
+  font-weight: 600;
+  color: var(--coach-ink);
+}
+
+body[data-admin-page="coaching"] .admin-ca-row-meta {
+  color: var(--coach-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+   15. Scenario-form checkbox group
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-ca-checks {
+  background: rgba(201, 161, 74, 0.05);
+  border: 1px solid var(--coach-gold-rule);
+  border-radius: 10px;
+}
+
+body[data-admin-page="coaching"] .admin-ca-check {
+  color: var(--coach-ink-2);
+  font-size: 13px;
+}
+
+body[data-admin-page="coaching"] .admin-ca-check:has(input:checked) {
+  color: var(--coach-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   16. Recordings strip
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .cohort-rec-item {
+  color: var(--coach-ink-2);
+}
+
+body[data-admin-page="coaching"] .cohort-rec-mode {
+  color: var(--coach-ink);
+}
+
+body[data-admin-page="coaching"] .cohort-rec-by {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .cohort-rec-none {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .cohort-rec-dl {
+  color: var(--coach-accent);
+  border-color: rgba(194, 96, 60, 0.30);
+}
+
+body[data-admin-page="coaching"] .cohort-rec-dl:hover {
+  border-color: var(--coach-accent);
+  background: var(--coach-accent-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   17. Miscellaneous utility overrides (scoped)
+   --------------------------------------------------------------------------- */
+body[data-admin-page="coaching"] .admin-muted {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .admin-hint {
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .admin-empty {
+  background: rgba(201, 161, 74, 0.05);
+  border: 1px dashed var(--coach-gold-rule);
+  border-radius: 10px;
+  color: var(--coach-ink-3);
+}
+
+body[data-admin-page="coaching"] .admin-chip {
+  background: rgba(154, 144, 129, 0.10);
+  border-color: rgba(154, 144, 129, 0.20);
+  color: var(--coach-ink-2);
+}
+
+/* Voice row select inside admin-coaching */
+body[data-admin-page="coaching"] .admin-cv-voice-id {
+  color: var(--coach-ink-3);
+}
+
+/* Generated URL read-only field — slightly recessed */
+body[data-admin-page="coaching"] .admin-generated-url {
+  background: rgba(250, 246, 239, 0.70);
+  color: var(--coach-ink-2);
+}
+
+/* ---------------------------------------------------------------------------
+   18. Hover / motion — respects prefers-reduced-motion
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  body[data-admin-page="coaching"] .primary-button,
+  body[data-admin-page="coaching"] .ghost-button,
+  body[data-admin-page="coaching"] .admin-ca-row,
+  body[data-admin-page="coaching"] .admin-collapse-toggle,
+  body[data-admin-page="coaching"] .coach-sidenav-link,
+  body[data-admin-page="coaching"] .cohort-rec-dl {
+    transition: none;
+  }
+  body[data-admin-page="coaching"] .primary-button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ===== End: Coaching admin — Editorial Warm theme ========================= */
