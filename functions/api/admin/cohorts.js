@@ -56,6 +56,25 @@ async function listCohorts(env) {
     // coaching_agents missing — leave names unresolved (fall back to id)
   }
 
+  // Per-member call/recording state, keyed by invite_id then mode (so the admin
+  // roster can surface each manager's recordings for review).
+  const callsByInvite = new Map();
+  try {
+    const callsRes = await env.DB
+      .prepare(`SELECT invite_id, mode, conversation_id, taken_by, completed_at FROM dashboard_calls`)
+      .all();
+    for (const c of callsRes?.results || []) {
+      if (!callsByInvite.has(c.invite_id)) callsByInvite.set(c.invite_id, {});
+      callsByInvite.get(c.invite_id)[c.mode] = {
+        completed: !!(c.completed_at || c.conversation_id),
+        has_recording: !!c.conversation_id,
+        taken_by: c.taken_by || null,
+      };
+    }
+  } catch {
+    // dashboard_calls missing — members simply carry no call info
+  }
+
   const byCohort = new Map(cohorts.map((c) => [c.id, []]));
   for (const m of members) {
     byCohort.get(m.cohort_id)?.push({
@@ -64,6 +83,7 @@ async function listCohorts(env) {
       scenario_name: scenarioNames.get(m.scenario_id) || m.scenario_id || null,
       member_name: m.member_name || null,
       member_email: m.member_email || null,
+      calls: callsByInvite.get(m.invite_id) || {},
       url: null, // tokens aren't stored — links are only shown once at assign time
     });
   }

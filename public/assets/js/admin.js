@@ -3843,6 +3843,31 @@ function renderCohortsSection() {
   `;
 }
 
+// Per-member call/recording strip for the cohort roster: each of the three
+// calls shows its state, and a recorded one gets an inline player + download
+// (the audio streams from /api/admin/cohort-recording, cs_admin-gated).
+function cohortMemberCallsHtml(m) {
+  const calls = (m && m.calls) || {};
+  const modes = [['assessment', 'Assessment'], ['coaching', 'Coaching'], ['followup', 'Follow-up']];
+  const items = modes.map(([mode, label]) => {
+    const c = calls[mode];
+    const by = c && c.taken_by ? ` <span class="cohort-rec-by">· ${escapeHtml(c.taken_by)}</span>` : '';
+    if (!c || !c.completed) {
+      return `<div class="cohort-rec-item"><span class="cohort-rec-mode">${label}</span> <span class="cohort-rec-none">not taken</span></div>`;
+    }
+    if (!c.has_recording) {
+      return `<div class="cohort-rec-item"><span class="cohort-rec-mode">${label}</span>${by} <span class="cohort-rec-none">taken (no recording)</span></div>`;
+    }
+    const base = `/api/admin/cohort-recording?invite_id=${encodeURIComponent(m.invite_id)}&mode=${mode}`;
+    return `<div class="cohort-rec-item">
+      <span class="cohort-rec-mode">${label}</span>${by}
+      <audio class="cohort-rec-audio" controls preload="none" src="${escapeAttr(base)}"></audio>
+      <a class="ghost-button cohort-rec-dl" href="${escapeAttr(base)}&amp;download=1">Download</a>
+    </div>`;
+  }).join('');
+  return `<div class="cohort-rec-list">${items}</div>`;
+}
+
 function renderCohortCard(c) {
   const stage = Number(c.unlocked_stage) || 1;
   const atMax = stage >= MAX_STAGE;
@@ -3856,6 +3881,7 @@ function renderCohortCard(c) {
               ${m.member_email ? `<span>${escapeHtml(m.member_email)}</span>` : ''}
               ${m.scenario_name ? `<span>${escapeHtml(m.scenario_name)}</span>` : ''}
             </div>
+            ${cohortMemberCallsHtml(m)}
           </div>
           <div class="admin-ca-row-actions">
             <button type="button" class="ghost-button" data-cohort-remove="${escapeAttr(m.invite_id)}">Remove</button>
@@ -3920,6 +3946,19 @@ function attachCohortsHandlers() {
   });
   sec.querySelectorAll('[data-cohort-assign]').forEach((form) => {
     form.addEventListener('submit', (e) => onAssignCohortManagers(e, form.dataset.cohortAssign));
+  });
+  // Recording players: a 202 (audio still processing on ElevenLabs) surfaces as a
+  // load error — show a small "still processing" note instead of a dead player.
+  sec.querySelectorAll('.cohort-rec-audio').forEach((a) => {
+    a.addEventListener('error', () => {
+      const item = a.closest('.cohort-rec-item');
+      if (item && !item.querySelector('.cohort-rec-proc')) {
+        const note = document.createElement('span');
+        note.className = 'cohort-rec-proc admin-muted';
+        note.textContent = 'still processing…';
+        item.appendChild(note);
+      }
+    });
   });
 }
 

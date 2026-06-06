@@ -6809,6 +6809,28 @@ body[data-precall] #app-root {
 }
 .admin-ca-row-actions { flex: none; display: flex; gap: 8px; }
 
+/* Cohort member recordings strip */
+.cohort-rec-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cohort-rec-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.cohort-rec-mode { font-weight: 600; min-width: 76px; color: var(--color-text-primary); }
+.cohort-rec-by { color: var(--color-text-tertiary); }
+.cohort-rec-none { color: var(--color-text-tertiary); font-style: italic; }
+.cohort-rec-audio { height: 30px; max-width: 240px; }
+.cohort-rec-dl { padding: 2px 10px; font-size: 12px; }
+.cohort-rec-proc { font-style: italic; }
+
 @media (max-width: 640px) {
   .admin-ca-grid { grid-template-columns: 1fr; }
   .admin-ca-row { flex-direction: column; align-items: stretch; }
