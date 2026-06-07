@@ -42,7 +42,7 @@ export async function onRequestGet({ request, env }) {
 // been written since these columns were introduced (invites.js adds them too).
 // Swallow the duplicate-column error once present.
 async function ensureColumns(env) {
-  for (const col of ['mode TEXT', 'token_plain TEXT']) {
+  for (const col of ['mode TEXT', 'token_plain TEXT', 'cohort TEXT', 'recipient_role TEXT']) {
     try {
       await env.DB.prepare(`ALTER TABLE invites ADD COLUMN ${col}`).run();
     } catch {
@@ -56,7 +56,7 @@ async function listParticipants(request, env) {
 
   const res = await env.DB.prepare(
     `SELECT id, recipient_email, recipient_name, created_at, expires_at,
-            revoked, revoked_at, token_plain
+            revoked, revoked_at, token_plain, cohort, recipient_role
      FROM invites
      WHERE mode = 'coaching'
      ORDER BY revoked ASC, created_at DESC`
@@ -168,6 +168,8 @@ async function listParticipants(request, env) {
       id: r.id,
       recipient_email: r.recipient_email,
       recipient_name: r.recipient_name || null,
+      cohort: r.cohort || '',
+      role: r.recipient_role || '',
       url: hasLink ? `${origin}/me/${r.token_plain}` : null,
       has_link: hasLink,
       created_at: r.created_at ?? null,

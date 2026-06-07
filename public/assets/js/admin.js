@@ -2373,18 +2373,44 @@ async function saveCoachingLanding() {
 
 function renderCoachingParticipantsSection() {
   const list = Array.isArray(state.coachingParticipants) ? state.coachingParticipants : [];
-  const body = list.length
-    ? `<div class="coaching-roster">${list.map(renderParticipantCard).join('')}</div>`
-    : `<p class="admin-muted" style="margin:0;">No coaching participants yet. Use the <strong>Invite a participant</strong> form below to add managers. They'll appear here with their links.</p>`;
+  let body;
+  if (!list.length) {
+    body = `<p class="admin-muted" style="margin:0;">No coaching participants yet. Use the <strong>Invite a participant</strong> form below — they'll appear here grouped by cohort, each with their link.</p>`;
+  } else {
+    // Group by cohort; "No cohort" last.
+    const groups = new Map();
+    for (const p of list) {
+      const key = p.cohort || '';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    }
+    const keys = [...groups.keys()].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
+    body = keys.map((key) => {
+      const members = groups.get(key);
+      const linkCount = members.filter((m) => m.url).length;
+      return `
+        <div class="cl-cohort-group">
+          <div class="cl-cohort-head">
+            <span class="cl-cohort-name">${escapeHtml(key || 'No cohort')} <span class="admin-muted" style="font-weight:400;">(${members.length})</span></span>
+            ${linkCount ? `<button type="button" class="ghost-button cl-copy-cohort" data-cohort="${escapeAttr(key)}">Copy all ${linkCount} link${linkCount === 1 ? '' : 's'}</button>` : ''}
+          </div>
+          <div class="coaching-roster">${members.map(renderParticipantCard).join('')}</div>
+        </div>`;
+    }).join('');
+  }
 
   return `
     <section class="admin-section" id="sec-coaching-participants">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Participants${list.length ? ` <span class="admin-muted" style="font-weight:400;">(${list.length})</span>` : ''}</h2>
-        <p class="admin-section-sub">Everyone invited to coaching, each with their own dashboard and accumulating progress. Copy a link to re-send it manually. <button type="button" class="ghost-button" id="admin-participants-refresh" style="margin-left:6px;">Refresh</button></p>
+        <p class="admin-section-sub">Everyone invited, grouped by cohort. Copy one person's link, or <strong>Copy all links</strong> for a whole cohort to send out. <button type="button" class="ghost-button" id="admin-participants-refresh" style="margin-left:6px;">Refresh</button></p>
       </header>
       ${body}
+      <p class="admin-muted" style="margin-top:16px;font-size:12.5px;line-height:1.5;">
+        <strong>Call recordings</strong> live in ElevenLabs (the coaching account) → <em>Conversational AI → Conversations</em>, each tagged with the participant's name.
+        <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener" style="color:var(--color-accent);">Open ElevenLabs →</a>
+      </p>
     </section>
   `;
 }
@@ -2444,6 +2470,7 @@ function renderParticipantCard(p) {
   const callsLabel = `${calls} call${calls === 1 ? '' : 's'} taken`;
   const lastLabel = p.last_activity ? `Last active ${fmtParticipantDate(p.last_activity)}` : 'No calls yet';
   const revokedPill = p.revoked ? ' <span class="admin-pill" style="background:#fee2e2;color:#991b1b;">Revoked</span>' : '';
+  const rolePill = p.role ? ` <span class="cl-role-chip">${escapeHtml(p.role)}</span>` : '';
 
   const linkRow = p.has_link && p.url
     ? `<div class="admin-generated-url-row">
@@ -2462,14 +2489,23 @@ function renderParticipantCard(p) {
   return `
     <div class="coaching-roster-card${p.revoked ? ' is-revoked' : ''}">
       <div class="coaching-roster-head">
-        <span class="coaching-roster-who">${who}${revokedPill}</span>
+        <span class="coaching-roster-who">${who}${rolePill}${revokedPill}</span>
         <span class="coaching-roster-meta">${escapeHtml(callsLabel)} · ${escapeHtml(lastLabel)}</span>
       </div>
       <div class="coaching-roster-chips">${chips}</div>
       ${linkRow}
       ${progressRows}
       <div class="coaching-roster-foot">
-        <button type="button" class="ghost-button admin-participant-remove" data-invite="${escapeAttr(p.id)}" data-label="${escapeAttr(p.recipient_name || p.recipient_email)}">Remove participant</button>
+        <span class="cl-reassign">
+          <input class="admin-input cl-meta-cohort" list="coaching-cohort-list" value="${escapeAttr(p.cohort || '')}" placeholder="Cohort" style="font-size:12px;padding:3px 8px;max-width:150px;">
+          <select class="admin-input cl-meta-role" style="font-size:12px;padding:3px 8px;">
+            <option value=""${!p.role ? ' selected' : ''}>No role</option>
+            <option value="Manager"${p.role === 'Manager' ? ' selected' : ''}>Manager</option>
+            <option value="Senior Agent"${p.role === 'Senior Agent' ? ' selected' : ''}>Senior Agent</option>
+          </select>
+          <button type="button" class="ghost-button cl-meta-save" data-invite="${escapeAttr(p.id)}">Save</button>
+        </span>
+        <button type="button" class="ghost-button admin-participant-remove" data-invite="${escapeAttr(p.id)}" data-label="${escapeAttr(p.recipient_name || p.recipient_email)}">Remove</button>
       </div>
     </div>
   `;
@@ -2520,6 +2556,53 @@ function attachCoachingParticipantsHandlers() {
     sec.querySelectorAll('.admin-participant-remove').forEach((btn) => {
       btn.addEventListener('click', () => onRemoveParticipant(btn.dataset.invite, btn.dataset.label));
     });
+    sec.querySelectorAll('.cl-copy-cohort').forEach((btn) => {
+      btn.addEventListener('click', () => copyCohortLinks(btn));
+    });
+    sec.querySelectorAll('.cl-meta-save').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.coaching-roster-card');
+        const cohort = card && card.querySelector('.cl-meta-cohort') ? card.querySelector('.cl-meta-cohort').value : '';
+        const role = card && card.querySelector('.cl-meta-role') ? card.querySelector('.cl-meta-role').value : '';
+        onSaveParticipantMeta(btn.dataset.invite, cohort, role, btn);
+      });
+    });
+  }
+}
+
+// Copy every link in a cohort (newline-separated) to the clipboard.
+async function copyCohortLinks(btn) {
+  const cohort = btn.dataset.cohort || '';
+  const links = (state.coachingParticipants || [])
+    .filter((p) => (p.cohort || '') === cohort && p.url)
+    .map((p) => p.url);
+  if (!links.length) return;
+  try {
+    await navigator.clipboard.writeText(links.join('\n'));
+    const orig = btn.textContent;
+    btn.textContent = `Copied ${links.length}!`;
+    setTimeout(() => { btn.textContent = orig; }, 1600);
+  } catch {
+    alert('Copy failed. Links:\n\n' + links.join('\n'));
+  }
+}
+
+// Save a participant's cohort + role without rotating their link.
+async function onSaveParticipantMeta(inviteId, cohort, role, btn) {
+  if (!inviteId) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  try {
+    const res = await fetch('/api/admin/coaching-participant-meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ invite_id: inviteId, cohort, role }),
+    });
+    if (!res.ok) { alert('Save failed.'); if (btn) { btn.disabled = false; btn.textContent = 'Save'; } return; }
+    reloadCoachingParticipants();
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
   }
 }
 
@@ -2598,19 +2681,39 @@ async function reloadCoachingParticipants() {
 // mode:'coaching' (same endpoint the main dashboard uses); on success it shows
 // the new link and refreshes the roster above. Full-admin only.
 
+function coachingCohortOptions() {
+  const set = new Set();
+  (state.coachingParticipants || []).forEach((p) => { if (p && p.cohort) set.add(p.cohort); });
+  return [...set].sort().map((c) => `<option value="${escapeAttr(c)}"></option>`).join('');
+}
+
 function renderCoachingInviteSection() {
   return `
     <section class="admin-section" id="sec-coaching-invite">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Invite a participant</h2>
-        <p class="admin-section-sub">Send a manager their own coaching link. They get a private dashboard with progress that accumulates across calls. We email it automatically — and it shows up in Participants above to copy &amp; send manually too.</p>
+        <p class="admin-section-sub"><strong>1.</strong> Put them in a cohort &amp; pick their role · <strong>2.</strong> Add their email · <strong>3.</strong> Choose the scenario · <strong>4.</strong> Send. They get a private link (emailed automatically, and listed under their cohort in Participants above to copy &amp; send yourself).</p>
       </header>
       <form id="coaching-invite-form" class="admin-invite-card" style="display:flex;flex-direction:column;align-items:stretch;gap:14px;">
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <label style="flex:1 1 180px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Cohort</span>
+            <input class="admin-input" id="coaching-invite-cohort" list="coaching-cohort-list" placeholder="e.g. March 2026 — type a new one or pick existing" autocomplete="off">
+            <datalist id="coaching-cohort-list">${coachingCohortOptions()}</datalist>
+          </label>
+          <label style="flex:0 0 auto;display:flex;flex-direction:column;gap:4px;font-size:13px;">
+            <span class="admin-muted">Role</span>
+            <select class="admin-input" id="coaching-invite-role">
+              <option value="Manager" selected>Manager</option>
+              <option value="Senior Agent">Senior Agent</option>
+            </select>
+          </label>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <label style="flex:1 1 200px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
             <span class="admin-muted">Email</span>
-            <input class="admin-input" type="email" id="coaching-invite-email" placeholder="manager@store.com" autocomplete="off">
+            <input class="admin-input" type="email" id="coaching-invite-email" placeholder="person@store.com" autocomplete="off">
           </label>
           <label style="flex:1 1 160px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
             <span class="admin-muted">Name <span style="opacity:0.6;">(optional)</span></span>
@@ -2653,6 +2756,8 @@ async function onSendCoachingInvite(e) {
 
   const email = (document.getElementById('coaching-invite-email').value || '').trim();
   const name = (document.getElementById('coaching-invite-name').value || '').trim() || null;
+  const cohort = (document.getElementById('coaching-invite-cohort')?.value || '').trim();
+  const role = (document.getElementById('coaching-invite-role')?.value || '').trim();
   if (!email) {
     if (out) out.innerHTML = '<div class="admin-alert admin-alert-error">Add a recipient email.</div>';
     return;
@@ -2689,7 +2794,7 @@ async function onSendCoachingInvite(e) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ scenario_ids: scenarioIds, recipients: [{ email, name }], expires_days, mode: 'coaching' }),
+      body: JSON.stringify({ scenario_ids: scenarioIds, recipients: [{ email, name }], expires_days, mode: 'coaching', cohort, role }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {

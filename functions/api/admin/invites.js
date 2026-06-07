@@ -37,6 +37,14 @@ async function ensureInviteModeColumn(env) {
   } catch {
     // column already present
   }
+  // Cohort grouping + role label for coaching participants. Swallow dup-column.
+  for (const col of ['cohort TEXT', 'recipient_role TEXT']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE invites ADD COLUMN ${col}`).run();
+    } catch {
+      // column already present
+    }
+  }
 }
 
 export async function onRequestGet({ env }) {
@@ -137,6 +145,12 @@ async function createInvites(request, env) {
   // behavior unchanged.
   const mode = body?.mode === 'coaching' ? 'coaching' : null;
 
+  // Cohort name (free text, the admin's grouping) + role label for coaching
+  // participants. Empty when not provided (standard invites don't use these).
+  const cohort = typeof body?.cohort === 'string' ? body.cohort.trim().slice(0, 80) : '';
+  const ROLE_SET = new Set(['Manager', 'Senior Agent']);
+  const role = typeof body?.role === 'string' && ROLE_SET.has(body.role.trim()) ? body.role.trim() : '';
+
   // Scenario assignment. Coaching invites carry the authored coaching-agent ids
   // (ca_) the admin picked, or the '__all_coaching__' sentinel for "every
   // coaching agent". When the client sends none (legacy open-coaching link, or
@@ -227,9 +241,11 @@ async function createInvites(request, env) {
                   SET token_hash = ?, token_plain = ?, expires_at = ?,
                       recipient_name = COALESCE(?, recipient_name),
                       created_by = COALESCE(?, created_by),
-                      mode = ?
+                      mode = ?,
+                      cohort = COALESCE(NULLIF(?, ''), cohort),
+                      recipient_role = COALESCE(NULLIF(?, ''), recipient_role)
                   WHERE id = ?`)
-        .bind(tokenHash, token, expiresAt, rec.name, createdBy, mode, inviteId)
+        .bind(tokenHash, token, expiresAt, rec.name, createdBy, mode, cohort, role, inviteId)
         .run();
       const row = await env.DB
         .prepare(`SELECT created_at FROM invites WHERE id = ?`)
@@ -240,9 +256,9 @@ async function createInvites(request, env) {
       inviteId = randomId();
       await env.DB
         .prepare(`INSERT INTO invites
-                  (id, token_hash, token_plain, recipient_email, recipient_name, created_at, expires_at, created_by, mode)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(inviteId, tokenHash, token, rec.email, rec.name, now, expiresAt, createdBy, mode)
+                  (id, token_hash, token_plain, recipient_email, recipient_name, created_at, expires_at, created_by, mode, cohort, recipient_role)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(inviteId, tokenHash, token, rec.email, rec.name, now, expiresAt, createdBy, mode, cohort, role)
         .run();
     }
 

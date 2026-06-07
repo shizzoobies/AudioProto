@@ -6012,6 +6012,15 @@ body[data-coaching] .app-header { display: none; }
 .coaching-roster-foot { display: flex; justify-content: flex-end; margin-top: 4px; }
 .coaching-roster-foot .admin-participant-remove { padding: 3px 10px !important; font-size: 11.5px !important; color: var(--color-text-tertiary); }
 .coaching-roster-foot .admin-participant-remove:hover { color: var(--color-danger); border-color: var(--color-danger); }
+
+/* Cohort grouping + role label */
+.cl-cohort-group { margin-bottom: 24px; }
+.cl-cohort-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--color-border); }
+.cl-cohort-name { font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
+.cl-cohort-head .cl-copy-cohort { padding: 4px 12px !important; font-size: 12px !important; flex-shrink: 0; }
+.cl-role-chip { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px; background: var(--color-accent-muted); color: var(--color-accent); vertical-align: middle; margin-left: 4px; }
+.cl-reassign { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cl-reassign .cl-meta-save { padding: 3px 12px !important; font-size: 12px !important; }
 .admin-invite-recipient { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .admin-invite-name { font-weight: 600; font-size: 14px; color: var(--color-text-primary); }
 .admin-invite-email { font-size: 12.5px; color: var(--color-text-tertiary); }
