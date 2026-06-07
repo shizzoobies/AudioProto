@@ -4098,6 +4098,15 @@ function cohortMemberCallsHtml(m) {
   return `<div class="cohort-rec-list">${items}</div>`;
 }
 
+// One Name + Email row for the cohort "People to add" list.
+function cohortMemberRowHtml() {
+  return `<div class="cohort-mrow">
+    <input class="admin-input cohort-m-name" type="text" placeholder="Name (optional)" autocomplete="off">
+    <input class="admin-input cohort-m-email" type="email" placeholder="email@store.com" autocomplete="off">
+    <button type="button" class="ghost-button cohort-mrow-del" title="Remove this row" aria-label="Remove">&times;</button>
+  </div>`;
+}
+
 function renderCohortCard(c) {
   const stage = Number(c.unlocked_stage) || 1;
   const atMax = stage >= MAX_STAGE;
@@ -4151,8 +4160,9 @@ function renderCohortCard(c) {
       <div class="admin-cohort-roster">${roster}</div>
       <form class="admin-cohort-assign" data-cohort-assign="${escapeAttr(c.id)}" autocomplete="off">
         <div class="admin-field admin-ca-wide">
-          <label class="admin-field-label">Assign people <span class="admin-field-hint">one per line — <code>Name, email</code> or just <code>email</code></span></label>
-          <textarea class="admin-input cohort-managers" rows="3" placeholder="Alex Smith, alex@example.com&#10;jordan@example.com"></textarea>
+          <label class="admin-field-label">People to add <span class="admin-field-hint">name (optional) + email — add a row per person</span></label>
+          <div class="cohort-mrows">${cohortMemberRowHtml()}${cohortMemberRowHtml()}${cohortMemberRowHtml()}</div>
+          <button type="button" class="ghost-button cohort-add-row">+ Add another person</button>
         </div>
         <div class="admin-field">
           <label class="admin-field-label">Role</label>
@@ -4199,6 +4209,23 @@ function attachCohortsHandlers() {
   });
   sec.querySelectorAll('.cohort-member-reset').forEach((btn) => {
     btn.addEventListener('click', () => onResetCohortMember(btn.dataset.invite, btn.dataset.scenario, btn.dataset.label));
+  });
+  // "Add another person" appends a Name/Email row; the × removes one (keeping >=1).
+  sec.querySelectorAll('.cohort-add-row').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const rows = btn.parentElement && btn.parentElement.querySelector('.cohort-mrows');
+      if (!rows) return;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = cohortMemberRowHtml();
+      rows.appendChild(tmp.firstElementChild);
+    });
+  });
+  sec.addEventListener('click', (e) => {
+    const del = e.target.closest && e.target.closest('.cohort-mrow-del');
+    if (!del) return;
+    const container = del.closest('.cohort-mrows');
+    const row = del.closest('.cohort-mrow');
+    if (container && row && container.querySelectorAll('.cohort-mrow').length > 1) row.remove();
   });
   // Recording players: a 202 (audio still processing on ElevenLabs) surfaces as a
   // load error — show a small "still processing" note instead of a dead player.
@@ -4372,9 +4399,16 @@ async function onAssignCohortManagers(e, cohortId) {
   showCohortError('');
   const form = e.target;
   const card = form.closest('[data-cohort-id]');
-  const managersText = (form.querySelector('.cohort-managers')?.value || '');
-  const members = parseCohortManagers(managersText);
-  if (!members.length) { showCohortError('Add at least one manager (Name, email or just email).'); return; }
+  const members = [];
+  const seen = new Set();
+  form.querySelectorAll('.cohort-mrow').forEach((row) => {
+    const email = (row.querySelector('.cohort-m-email')?.value || '').trim().toLowerCase();
+    if (!email || seen.has(email)) return;
+    seen.add(email);
+    const name = (row.querySelector('.cohort-m-name')?.value || '').trim();
+    members.push({ name: name || null, email });
+  });
+  if (!members.length) { showCohortError('Add at least one person (email is required).'); return; }
   const scenarioIds = Array.from(form.querySelectorAll('.cohort-scenario-pick:checked')).map((cb) => cb.value);
   if (!scenarioIds.length) { showCohortError('Pick at least one scenario for the pool.'); return; }
   const role = form.querySelector('.cohort-role')?.value || '';
