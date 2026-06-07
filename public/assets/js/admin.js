@@ -269,23 +269,19 @@ function paintCoachingPage() {
     ${renderSignedInBar()}
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
     ${showRoster ? renderCoachingLandingSection() : ''}
-    ${showRoster ? renderCoachingParticipantsSection() : ''}
-    ${showRoster ? renderCoachingInviteSection() : ''}
+    ${showRoster ? renderCohortsSection() : ''}
     ${showRoster ? renderCoachingEditorsSection() : ''}
     ${renderCoachingVoicesSection()}
     ${renderCoachingAgentsSection()}
     ${showRoster ? renderDashboardFieldsSection() : ''}
-    ${showRoster ? renderCohortsSection() : ''}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
   if (showRoster) attachCoachingLandingHandlers();
-  if (showRoster) attachCoachingParticipantsHandlers();
-  if (showRoster) attachCoachingInviteHandlers();
+  if (showRoster) attachCohortsHandlers();
   if (showRoster) attachCoachingEditorsHandlers();
   attachCoachingVoicesHandlers();
   attachCoachingAgentsHandlers();
   if (showRoster) attachDashboardFieldsHandlers();
-  if (showRoster) attachCohortsHandlers();
   if (showAccess) attachCoachingAccessHandlers();
 
   // Make every section collapsible + add the sticky side-nav slider.
@@ -4058,8 +4054,8 @@ function renderCohortsSection() {
     <section class="admin-section" id="sec-cohorts">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
-        <h2 class="admin-section-title">Cohorts (study groups)</h2>
-        <p class="admin-section-sub">Group managers into a cohort that shares one progression gate. Advance the cohort's stage to unlock the next part of the journey for everyone in it. Assign managers to randomly draw each a scenario and mint their coaching link.</p>
+        <h2 class="admin-section-title">Cohorts</h2>
+        <p class="admin-section-sub"><strong>1.</strong> Create a cohort · <strong>2.</strong> Assign people (choose role + scenario pool — each is drawn a scenario &amp; gets their own link) · <strong>3.</strong> <strong>Copy all links</strong> to send them out · <strong>4.</strong> Deliver your lesson, then <strong>Advance to next stage</strong> to open the next call for everyone. Each member's call recordings appear in their row.</p>
       </header>
       <div id="admin-cohort-alert"></div>
       <form id="admin-cohort-create" class="admin-cv-form" autocomplete="off">
@@ -4110,14 +4106,21 @@ function renderCohortCard(c) {
     ? members.map((m) => `
         <div class="admin-ca-row" data-cohort-member="${escapeAttr(m.invite_id)}">
           <div class="admin-ca-row-main">
-            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '—')}</div>
+            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '—')}${m.role ? ` <span class="cl-role-chip">${escapeHtml(m.role)}</span>` : ''}</div>
             <div class="admin-ca-row-meta">
               ${m.member_email ? `<span>${escapeHtml(m.member_email)}</span>` : ''}
               ${m.scenario_name ? `<span>${escapeHtml(m.scenario_name)}</span>` : ''}
             </div>
+            ${m.url
+              ? `<div class="admin-generated-url-row" style="margin-top:8px;">
+                  <input class="admin-input admin-generated-url" readonly value="${escapeAttr(m.url)}">
+                  <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(m.url)}">Copy</button>
+                </div>`
+              : `<div class="admin-muted" style="font-size:12px;margin-top:6px;">Link unavailable (revoked) — re-assign to mint a fresh one.</div>`}
             ${cohortMemberCallsHtml(m)}
           </div>
           <div class="admin-ca-row-actions">
+            <button type="button" class="ghost-button cohort-member-reset" data-invite="${escapeAttr(m.invite_id)}" data-scenario="${escapeAttr(m.scenario_id || '')}" data-label="${escapeAttr(m.member_name || m.member_email || '')}">Reset</button>
             <button type="button" class="ghost-button" data-cohort-remove="${escapeAttr(m.invite_id)}">Remove</button>
           </div>
         </div>`).join('')
@@ -4137,6 +4140,7 @@ function renderCohortCard(c) {
       <div class="admin-cohort-head">
         <h3 class="admin-cohort-name">${escapeHtml(c.name || 'Untitled cohort')}</h3>
         <div class="admin-cohort-actions">
+          ${members.some((m) => m.url) ? `<button type="button" class="ghost-button cohort-copy-all" data-cohort-id="${escapeAttr(c.id)}">Copy all links</button>` : ''}
           <button type="button" class="ghost-button" data-cohort-delete="${escapeAttr(c.id)}">Delete cohort</button>
         </div>
       </div>
@@ -4147,8 +4151,15 @@ function renderCohortCard(c) {
       <div class="admin-cohort-roster">${roster}</div>
       <form class="admin-cohort-assign" data-cohort-assign="${escapeAttr(c.id)}" autocomplete="off">
         <div class="admin-field admin-ca-wide">
-          <label class="admin-field-label">Assign managers <span class="admin-field-hint">one per line — <code>Name, email</code> or just <code>email</code></span></label>
+          <label class="admin-field-label">Assign people <span class="admin-field-hint">one per line — <code>Name, email</code> or just <code>email</code></span></label>
           <textarea class="admin-input cohort-managers" rows="3" placeholder="Alex Smith, alex@example.com&#10;jordan@example.com"></textarea>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label">Role</label>
+          <select class="admin-input cohort-role">
+            <option value="Manager" selected>Manager</option>
+            <option value="Senior Agent">Senior Agent</option>
+          </select>
         </div>
         <div class="admin-field admin-ca-wide">
           <label class="admin-field-label">Scenario pool <span class="admin-field-hint">each manager is randomly drawn one of these</span></label>
@@ -4180,6 +4191,14 @@ function attachCohortsHandlers() {
   });
   sec.querySelectorAll('[data-cohort-assign]').forEach((form) => {
     form.addEventListener('submit', (e) => onAssignCohortManagers(e, form.dataset.cohortAssign));
+  });
+  // Member links (copy + copy-all) and per-member reset.
+  wireCopyButtons(sec);
+  sec.querySelectorAll('.cohort-copy-all').forEach((btn) => {
+    btn.addEventListener('click', () => onCopyCohortAllLinks(btn.dataset.cohortId, btn));
+  });
+  sec.querySelectorAll('.cohort-member-reset').forEach((btn) => {
+    btn.addEventListener('click', () => onResetCohortMember(btn.dataset.invite, btn.dataset.scenario, btn.dataset.label));
   });
   // Recording players: a 202 (audio still processing on ElevenLabs) surfaces as a
   // load error — show a small "still processing" note instead of a dead player.
@@ -4218,6 +4237,40 @@ function refreshCohortsSection() {
     sec.replaceWith(tmp.firstElementChild);
   }
   attachCohortsHandlers();
+}
+
+// Copy every member link in a cohort (newline-separated) to the clipboard.
+async function onCopyCohortAllLinks(cohortId, btn) {
+  const cohort = (state.cohorts || []).find((c) => c.id === cohortId);
+  const links = cohort ? (cohort.members || []).map((m) => m.url).filter(Boolean) : [];
+  if (!links.length) return;
+  try {
+    await navigator.clipboard.writeText(links.join('\n'));
+    const orig = btn.textContent;
+    btn.textContent = `Copied ${links.length}!`;
+    setTimeout(() => { btn.textContent = orig; }, 1600);
+  } catch {
+    alert('Copy failed. Links:\n\n' + links.join('\n'));
+  }
+}
+
+// Wipe one cohort member's progress in their scenario (memory + completion +
+// gate), so they restart from the beginning. Reuses /api/admin/coaching-reset.
+async function onResetCohortMember(inviteId, scenarioId, label) {
+  if (!inviteId || !scenarioId) return;
+  if (!confirm(`Reset progress for ${label || 'this member'}?\n\nWipes their saved conversation + completion and re-locks the scenario to the start. Can't be undone.`)) return;
+  try {
+    const res = await fetch('/api/admin/coaching-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ invite_id: inviteId, scenario_id: scenarioId }),
+    });
+    if (!res.ok) { alert('Reset failed.'); return; }
+    reloadCohorts();
+  } catch {
+    alert('Network error.');
+  }
 }
 
 async function onCreateCohort(e) {
@@ -4324,6 +4377,7 @@ async function onAssignCohortManagers(e, cohortId) {
   if (!members.length) { showCohortError('Add at least one manager (Name, email or just email).'); return; }
   const scenarioIds = Array.from(form.querySelectorAll('.cohort-scenario-pick:checked')).map((cb) => cb.value);
   if (!scenarioIds.length) { showCohortError('Pick at least one scenario for the pool.'); return; }
+  const role = form.querySelector('.cohort-role')?.value || '';
 
   const btn = form.querySelector('button[type="submit"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Assigning...'; }
@@ -4332,7 +4386,7 @@ async function onAssignCohortManagers(e, cohortId) {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ op: 'assign', cohort_id: cohortId, members, scenario_ids: scenarioIds }),
+      body: JSON.stringify({ op: 'assign', cohort_id: cohortId, members, scenario_ids: scenarioIds, role }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
