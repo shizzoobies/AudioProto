@@ -4115,10 +4115,18 @@ function renderCohortCard(c) {
     ? members.map((m) => `
         <div class="admin-ca-row" data-cohort-member="${escapeAttr(m.invite_id)}">
           <div class="admin-ca-row-main">
-            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '—')}${m.role ? ` <span class="cl-role-chip">${escapeHtml(m.role)}</span>` : ''}</div>
+            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '—')}</div>
             <div class="admin-ca-row-meta">
               ${m.member_email ? `<span>${escapeHtml(m.member_email)}</span>` : ''}
               ${m.scenario_name ? `<span>${escapeHtml(m.scenario_name)}</span>` : ''}
+            </div>
+            <div class="cohort-member-rolerow">
+              <span class="admin-muted" style="font-size:12px;">Role</span>
+              <select class="admin-input cohort-member-role" data-invite="${escapeAttr(m.invite_id)}" style="font-size:12px;padding:3px 8px;">
+                <option value=""${!m.role ? ' selected' : ''}>No role</option>
+                <option value="Manager"${m.role === 'Manager' ? ' selected' : ''}>Manager</option>
+                <option value="Senior Agent"${m.role === 'Senior Agent' ? ' selected' : ''}>Senior Agent</option>
+              </select>
             </div>
             ${m.url
               ? `<div class="admin-generated-url-row" style="margin-top:8px;">
@@ -4210,6 +4218,9 @@ function attachCohortsHandlers() {
   sec.querySelectorAll('.cohort-member-reset').forEach((btn) => {
     btn.addEventListener('click', () => onResetCohortMember(btn.dataset.invite, btn.dataset.scenario, btn.dataset.label));
   });
+  sec.querySelectorAll('.cohort-member-role').forEach((sel) => {
+    sel.addEventListener('change', () => onSetMemberRole(sel.dataset.invite, sel.value, sel));
+  });
   // "Add another person" appends a Name/Email row; the × removes one (keeping >=1).
   sec.querySelectorAll('.cohort-add-row').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -4278,6 +4289,25 @@ async function onCopyCohortAllLinks(cohortId, btn) {
     setTimeout(() => { btn.textContent = orig; }, 1600);
   } catch {
     alert('Copy failed. Links:\n\n' + links.join('\n'));
+  }
+}
+
+// Change a member's role inline (fix a mis-assignment without re-creating them).
+async function onSetMemberRole(inviteId, role, sel) {
+  if (!inviteId) return;
+  try {
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ op: 'set_role', invite_id: inviteId, role }),
+    });
+    if (!res.ok) { alert('Could not update role.'); return; }
+    // Keep local state in sync so a later re-render shows the saved role.
+    (state.cohorts || []).forEach((c) => (c.members || []).forEach((m) => { if (m.invite_id === inviteId) m.role = role; }));
+    if (sel) { sel.style.borderColor = 'var(--color-accent)'; setTimeout(() => { sel.style.borderColor = ''; }, 900); }
+  } catch {
+    alert('Network error.');
   }
 }
 

@@ -6028,6 +6028,7 @@ body[data-coaching] .app-header { display: none; }
 .cohort-mrow .cohort-m-name { flex: 1 1 130px; min-width: 0; }
 .cohort-mrow .cohort-m-email { flex: 2 1 200px; min-width: 0; }
 .cohort-mrow-del { flex: 0 0 auto; padding: 4px 11px !important; line-height: 1; }
+.cohort-member-rolerow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .admin-invite-recipient { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .admin-invite-name { font-weight: 600; font-size: 14px; color: var(--color-text-primary); }
 .admin-invite-email { font-size: 12.5px; color: var(--color-text-tertiary); }

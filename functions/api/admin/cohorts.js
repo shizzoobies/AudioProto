@@ -134,6 +134,7 @@ export async function onRequestPost({ request, env }) {
       case 'advance': return await advanceCohort(body, env);
       case 'set_stage': return await setStage(body, env);
       case 'assign': return await assignManagers(body, request, env);
+      case 'set_role': return await setMemberRole(body, env);
       case 'remove_member': return await removeMember(body, env);
       default: return jsonError('invalid_op', 400);
     }
@@ -307,6 +308,18 @@ async function assignManagers(body, request, env) {
   }
 
   return json({ assigned });
+}
+
+// Change one member's role label after assignment (fix a mistake without
+// re-creating them). Stored on the underlying invite; link is untouched.
+async function setMemberRole(body, env) {
+  const inviteId = typeof body?.invite_id === 'string' ? body.invite_id.trim() : '';
+  if (!inviteId) return jsonError('invite_id_required', 400);
+  const ROLE_SET = new Set(['Manager', 'Senior Agent', '']);
+  const role = typeof body?.role === 'string' && ROLE_SET.has(body.role.trim()) ? body.role.trim() : '';
+  try { await env.DB.prepare(`ALTER TABLE invites ADD COLUMN recipient_role TEXT`).run(); } catch {}
+  await env.DB.prepare(`UPDATE invites SET recipient_role = ? WHERE id = ?`).bind(role, inviteId).run();
+  return json({ ok: true, role });
 }
 
 async function removeMember(body, env) {
