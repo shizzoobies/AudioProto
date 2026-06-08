@@ -3933,7 +3933,7 @@ body[data-coaching] .app-header { display: none; }
 .coaching-journey-page .coaching-back { margin-bottom: 16px; }
 .coaching-preview-banner {
   margin: 0 0 18px;
-  padding: 11px 16px;
+  padding: 12px 16px;
   border-radius: 12px;
   background: #fff7ed;
   border: 1px solid #fdba74;
@@ -3942,11 +3942,22 @@ body[data-coaching] .app-header { display: none; }
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .coaching-preview-banner::before {
   content: "\1F9EA";
   font-size: 1rem;
+  flex: 0 0 auto;
+}
+.coaching-preview-banner-text {
+  flex: 1 1 240px;
+  line-height: 1.4;
+}
+.coaching-preview-reset {
+  flex: 0 0 auto;
+  border-color: #fdba74;
+  color: #9a3412;
 }
 .coaching-journey-hero {
   border-radius: 18px;

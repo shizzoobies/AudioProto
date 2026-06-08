@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260606-3 scenario-preview';
+const BUILD_ID = '20260606-4 preview-memory';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1285,7 +1285,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
     dom.root.innerHTML = `
       <section class="coaching-journey-page"${accentVar ? ` style="${accentVar}"` : ''}>
         ${backHtml}
-        ${preview ? '<div class="coaching-preview-banner">Preview — testing this scenario. Launch any call below; nothing is saved.</div>' : ''}
+        ${preview ? '<div class="coaching-preview-banner"><span class="coaching-preview-banner-text">Preview — testing this scenario. Every call is unlocked, and calls in this test remember each other so you can check the agent\'s memory. This sandbox is private and never seen by real participants.</span></div>' : ''}
         <header class="coaching-journey-hero${imgId ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
           <div class="cjh-inner">
             ${scenarioName ? `<p class="cjh-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
@@ -1423,7 +1423,11 @@ function renderCoachingDashboard(data) {
 
   dom.root.innerHTML = `
     <div class="coaching-dash">
-      ${isPreview ? '<div class="coaching-preview-banner">Preview — testing this scenario. Every week is unlocked; nothing you do here is saved.</div>' : ''}
+      ${isPreview ? `
+        <div class="coaching-preview-banner">
+          <span class="coaching-preview-banner-text">Preview — testing this scenario. Every week is unlocked, and calls in this test remember each other so you can check the agent's memory. This sandbox is private to this scenario and is never seen by real participants.</span>
+          <button type="button" class="coaching-preview-reset ghost-button">Start fresh test</button>
+        </div>` : ''}
       ${profileHtml}
       ${stripHtml}
       ${weekGroupsHtml}
@@ -1569,6 +1573,27 @@ function wireCoachingDashboard(data) {
   const exportBtn = root.querySelector('.dash-export-btn');
   if (exportBtn) {
     exportBtn.addEventListener('click', () => exportCoachingPlan(data));
+  }
+
+  // --- Preview: "Start fresh test" wipes THIS preview invite's memory/calls ---
+  // (server-side, scoped to the preview link only) and repaints the dashboard so
+  // the builder can re-run the journey from a clean slate without confusing the
+  // next test.
+  const resetBtn = root.querySelector('.coaching-preview-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', async () => {
+      if (!confirm('Clear this test\'s memory and recordings and start over? Only this preview is affected.')) return;
+      resetBtn.disabled = true;
+      const orig = resetBtn.textContent;
+      resetBtn.textContent = 'Resetting…';
+      try {
+        await fetch('/api/coaching/preview-reset', { method: 'POST', credentials: 'same-origin' });
+      } catch {
+        // best-effort — repaint regardless
+      }
+      await refreshRecipientStatus();
+      renderCoachingTest();
+    });
   }
 }
 
@@ -3668,7 +3693,12 @@ function renderCall(scenario, opts = {}) {
     // legacy coaching_practice keeps its localStorage follow-up memory.
     if (isCoaching) {
       if (scenario.id && scenario.id.startsWith('ca_')) {
-        if (messages.length >= 2 && !(state.recipient && state.recipient.coaching_preview)) {
+        // Preview calls DO save — but only ever to the throwaway per-scenario
+        // preview invite (a __cvprev__ sentinel link), which is isolated from
+        // real participants and from other scenarios. That isolation is what
+        // lets a builder run call 1 then call 2 and have the agent remember the
+        // first, while "Start fresh test" / re-launching wipes it clean.
+        if (messages.length >= 2) {
           try {
             await fetch('/api/coaching/progress', {
               method: 'POST',

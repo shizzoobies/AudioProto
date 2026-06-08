@@ -64,6 +64,18 @@ export async function onRequestPost({ request, env }) {
       .bind(inviteId, scenarioId)
       .run();
 
+    // Each launch starts a CLEAN test: wipe any memory/recordings/answers left on
+    // this preview invite by an earlier test run so they can't confuse this one.
+    // (The in-app "Start fresh test" button does the same mid-session.) Each
+    // delete is wrapped so a not-yet-created table can't fail the mint.
+    for (const sql of [
+      `DELETE FROM coaching_progress WHERE invite_id = ?`,
+      `DELETE FROM dashboard_calls WHERE invite_id = ?`,
+      `DELETE FROM dashboard_answers WHERE invite_id = ?`,
+    ]) {
+      try { await env.DB.prepare(sql).bind(inviteId).run(); } catch {}
+    }
+
     return json({ url: `${origin}/me/${token}` }, 201);
   } catch (e) {
     return jsonError('preview_failed', 500, String(e?.message || e));
