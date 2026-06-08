@@ -137,6 +137,19 @@ export async function onRequestPost({ request, env }) {
   if (isCoachingAgent) {
     const agentMode = COACHING_AGENT_MODES.includes(body?.mode) ? body.mode : 'coaching';
 
+    // Caller role drives role-conditional receptiveness (receptive_to gate).
+    // Normally it's the role assigned on the cohort invite ('Manager' / 'Senior
+    // Agent'). For a PREVIEW link ONLY (a __cvprev__ sentinel), honor a
+    // client-supplied as_role so a scenario builder can test both the matching
+    // and the wrong-role behavior. Real participants can never spoof their role.
+    let callerRole = (inviteScope && inviteScope.recipient_role) || '';
+    const isPreviewInvite =
+      typeof inviteScope?.recipient_email === 'string' &&
+      inviteScope.recipient_email.startsWith('__cvprev__');
+    if (isPreviewInvite && typeof body?.as_role === 'string' && body.as_role.trim()) {
+      callerRole = body.as_role.trim();
+    }
+
     // Server-side memory: IGNORE any client-sent prior_transcript. Load the saved
     // transcript for THIS manager (invite link) in THIS scenario from
     // coaching_progress, so the agent remembers every prior call regardless of
@@ -182,6 +195,7 @@ export async function onRequestPost({ request, env }) {
     const prompt = buildCoachingAgentPrompt(profileObj, {
       mode: agentMode,
       priorTranscript: agentPriorTranscript,
+      callerRole,
     });
     const firstMessage = openingLines[0]
       || (agentMode === 'followup' ? 'Hey... you wanted to talk again?' : 'Hey... you wanted to see me?');

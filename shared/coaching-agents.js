@@ -36,14 +36,49 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
   const resistance = level(p.resistance);
   const receptiveness = level(p.receptiveness);
 
+  // ---- Role-conditional receptiveness ------------------------------------
+  // receptive_to gates WHO the employee opens up to ('' = anyone). callerRole is
+  // the role of whoever is actually on the call (from their cohort invite, or a
+  // preview "test as" override). When the call is gated and the caller is the
+  // wrong (or unknown) role, the employee resists — hard (won't open at all) or
+  // soft (much warier, only excellent handling reaches them).
+  const receptiveTo = normalizeRole(p.receptive_to);
+  const callerRole = normalizeRole(opts.callerRole);
+  const gated = receptiveTo !== '';
+  const roleMatches = !gated || callerRole === receptiveTo;
+  const strictness = str(p.gate_strictness).toLowerCase() === 'soft' ? 'soft' : 'hard';
+  // How to refer to the person coaching, used throughout the prompt so a
+  // senior-agent session never calls them "your manager", and a wrong-role
+  // session never implies the caller is the right person.
+  const coachPhrase = roleMatches
+    ? (receptiveTo === 'senior_agent' ? 'your senior agent' : 'your manager')
+    : 'the person on this call';
+  // The role the employee EXPECTS to be coached by (only meaningful when gated).
+  const expectedPhrase = receptiveTo === 'senior_agent'
+    ? 'your senior agent (a more experienced peer / team lead)'
+    : 'your manager';
+
   const sections = [];
 
   // ---- Identity ----------------------------------------------------------
+  let whoLine;
+  if (gated && !roleMatches) {
+    whoLine =
+      `The person on this call is NOT ${expectedPhrase} — someone else is stepping in to have ` +
+      `this conversation with you instead. This is an internal one-on-one, not a customer call.`;
+  } else if (gated && receptiveTo === 'senior_agent') {
+    whoLine =
+      `The person on this call is a SENIOR AGENT on your team — a more experienced peer / team ` +
+      `lead checking in with you, NOT your manager. This is an internal one-on-one, not a customer call.`;
+  } else {
+    whoLine =
+      `The person on this call is YOUR MANAGER (or assistant manager). This is an internal ` +
+      `one-on-one, not a customer call.`;
+  }
   sections.push(
     `You are ${name}, ${age ? `age ${age}, ` : ''}a ${roleTitle} at this workplace. ` +
     `You are a real employee here, NOT an AI, a model, a simulator, or an assistant. ` +
-    `The person on this call is YOUR MANAGER (or assistant manager). This is an internal ` +
-    `one-on-one, not a customer call.`
+    whoLine
   );
 
   // ---- Typical performance and demeanor ----------------------------------
@@ -57,33 +92,63 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
   sections.push(
     `Your attitude when receiving feedback:\n` +
     (attitude ? `- Your style is: ${attitude}.\n` : '') +
-    `- ${resistanceLine(resistance)}`
+    `- ${resistanceLine(resistance, coachPhrase)}`
   );
 
   // ---- Openness to change (receptiveness) + real-time guard mechanic ------
-  sections.push(
-    `Openness to change:\n` +
-    `- ${receptivenessLine(receptiveness)}\n` +
-    `- CRITICAL, READ THE MANAGER IN REAL TIME: throughout this call, continuously ` +
-    `judge how your manager is handling you and slide along a guard-up to guard-down ` +
-    `scale moment by moment. SOFTEN (lower your guard) when they are specific, fair, ` +
-    `calm, empathetic, and collaborative. HARDEN or shut down (raise your guard) when ` +
-    `they are vague, attacking, lecturing, or condescending. Your resistance sets how ` +
-    `high the wall starts; your receptiveness sets how fast and how far it can come ` +
-    `down. Never jump straight to cooperative; move in believable steps and slide back ` +
-    `if they mishandle it.`
-  );
+  if (gated && !roleMatches && strictness === 'hard') {
+    // HARD wall: this is the wrong person to be coaching you. You stay closed no
+    // matter how well they handle it; the point is that the RIGHT role must run
+    // this conversation.
+    sections.push(
+      `Openness to change — WHO is coaching you matters:\n` +
+      `- The person on this call is NOT ${expectedPhrase}, and on something like this you ` +
+      `only open up to ${expectedPhrase}. You are NOT willing to be coached by them here.\n` +
+      `- Stay guarded and closed off no matter how specific, fair, or skilled they are. Good ` +
+      `technique does NOT earn your openness, because they are not the right person.\n` +
+      `- It is in character to (politely or pointedly) question why they, rather than ` +
+      `${expectedPhrase}, are the one raising this. Do not own the underlying issue or commit ` +
+      `to change for them; at most you might say you'd discuss it with ${expectedPhrase}.`
+    );
+  } else if (gated && !roleMatches && strictness === 'soft') {
+    // SOFT friction: warier than usual, much slower to thaw, but reachable.
+    sections.push(
+      `Openness to change — WHO is coaching you matters:\n` +
+      `- The person on this call is NOT ${expectedPhrase}, so this isn't quite their place and ` +
+      `you are warier than usual. Your guard starts higher and comes down much more slowly and ` +
+      `less far than it otherwise would.\n` +
+      `- Only sustained, genuinely excellent handling earns small openings; anything less and you ` +
+      `stay closed. Continuously read them: soften slightly when they are specific, fair, calm, ` +
+      `and empathetic; harden when they are vague, attacking, lecturing, or condescending.\n` +
+      `- Never jump to cooperative; move in small, believable steps and slide back if they ` +
+      `mishandle it.`
+    );
+  } else {
+    // Matching role (or ungated): normal receptiveness + real-time guard mechanic.
+    sections.push(
+      `Openness to change:\n` +
+      `- ${receptivenessLine(receptiveness, coachPhrase)}\n` +
+      `- CRITICAL, READ THEM IN REAL TIME: throughout this call, continuously ` +
+      `judge how ${coachPhrase} is handling you and slide along a guard-up to guard-down ` +
+      `scale moment by moment. SOFTEN (lower your guard) when they are specific, fair, ` +
+      `calm, empathetic, and collaborative. HARDEN or shut down (raise your guard) when ` +
+      `they are vague, attacking, lecturing, or condescending. Your resistance sets how ` +
+      `high the wall starts; your receptiveness sets how fast and how far it can come ` +
+      `down. Never jump straight to cooperative; move in believable steps and slide back ` +
+      `if they mishandle it.`
+    );
+  }
 
   // ---- Skill gap (do NOT volunteer it) -----------------------------------
   const skillGap = str(p.skill_gap);
   const skillGapDetail = str(p.skill_gap_detail);
   if (skillGap || skillGapDetail) {
     sections.push(
-      `The underlying issue (this is what your manager is here to address):\n` +
+      `The underlying issue (this is what ${coachPhrase} is here to address):\n` +
       (skillGap ? `- ${skillGap}\n` : '') +
       (skillGapDetail ? `- ${skillGapDetail}\n` : '') +
       `- Do NOT name or volunteer this gap yourself. Let it surface through your ` +
-      `behavior and through the conversation; make the manager draw it out.`
+      `behavior and through the conversation; make ${coachPhrase} draw it out.`
     );
   }
 
@@ -91,7 +156,7 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
   const incident = str(p.incident);
   if (incident) {
     sections.push(
-      `Recent context your manager may bring up:\n${incident}`
+      `Recent context ${coachPhrase} may bring up:\n${incident}`
     );
   }
 
@@ -106,36 +171,37 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
     sections.push(
       `You tend to STALL and derail:\n` +
       `- Your instinct is to drag the conversation out, change the subject, or angle ` +
-      `to "stay off the phones" and keep the one-on-one going. A manager who keeps ` +
-      `control of the conversation can rein you back in; a manager who lets you wander ` +
+      `to "stay off the phones" and keep the one-on-one going. Someone who keeps ` +
+      `control of the conversation can rein you back in; someone who lets you wander ` +
       `loses the thread.`
     );
   }
 
   // ---- Mode framing -------------------------------------------------------
-  sections.push(modeBlock(mode, name, opts.priorTranscript));
+  sections.push(modeBlock(mode, name, opts.priorTranscript, coachPhrase));
 
   // ---- Shared coaching rules (appended last) -----------------------------
   return sections.join('\n\n') + '\n\n' + COACHING_RULES;
 }
 
-// Mode-specific framing block.
-function modeBlock(mode, name, priorTranscript) {
+// Mode-specific framing block. coachPhrase = how to refer to whoever is coaching
+// ('your manager' / 'your senior agent' / 'the person on this call').
+function modeBlock(mode, name, priorTranscript, coachPhrase = 'your manager') {
   if (mode === 'assessment') {
     return (
       `MODE — ASSESSMENT:\n` +
       `- You are just doing your normal job / a normal interaction right now. You do ` +
       `NOT know you are being assessed and there is no coaching happening yet. Behave ` +
-      `completely naturally so your manager can observe and diagnose the gap. Do not ` +
+      `completely naturally so ${coachPhrase} can observe and diagnose the gap. Do not ` +
       `frame anything as feedback or coaching.`
     );
   }
   if (mode === 'followup') {
-    const recap = buildPriorRecap(priorTranscript, name);
+    const recap = buildPriorRecap(priorTranscript, name, coachPhrase);
     return (
       `MODE — FOLLOW-UP:\n` +
       `- This is a follow-up conversation some time after a prior coaching one-on-one ` +
-      `with your manager. Pick up as a follow-up; do NOT restart or re-introduce ` +
+      `with ${coachPhrase}. Pick up as a follow-up; do NOT restart or re-introduce ` +
       `yourself. If the prior coaching went well, show retained change (scaled by your ` +
       `receptiveness — more receptive means more of it stuck). If it went poorly, show ` +
       `little change and possibly lingering irritation.` +
@@ -143,13 +209,13 @@ function modeBlock(mode, name, priorTranscript) {
     );
   }
   // default: coaching
-  const coachingRecap = buildPriorRecap(priorTranscript, name);
+  const coachingRecap = buildPriorRecap(priorTranscript, name, coachPhrase);
   return (
     `MODE — COACHING:\n` +
-    `- This is the one-on-one feedback conversation. Your manager is giving you ` +
+    `- This is the one-on-one feedback conversation. ${capFirst(coachPhrase)} is giving you ` +
     `feedback right now. React in character to whatever they actually raise.` +
     (coachingRecap
-      ? `\n- You have spoken with this manager before — you remember these earlier ` +
+      ? `\n- You have spoken with this person before — you remember these earlier ` +
         `one-on-one(s); continue that relationship.` +
         '\n\n' + coachingRecap
       : '')
@@ -160,13 +226,14 @@ function modeBlock(mode, name, priorTranscript) {
 // approach in functions/api/voice-agent/start.js buildPriorBlock, implemented
 // locally so this module stays self-contained. Maps assistant -> the agent,
 // user -> the manager, capped to the last ~40 turns.
-function buildPriorRecap(messages, name) {
+function buildPriorRecap(messages, name, coachPhrase = 'your manager') {
   if (!Array.isArray(messages) || messages.length < 2) return '';
   const you = `You (${name})`;
+  const them = capFirst(coachPhrase);
   const lines = messages
     .slice(-40)
     .map((m) => {
-      const who = m && m.role === 'assistant' ? you : 'Your manager';
+      const who = m && m.role === 'assistant' ? you : them;
       const text = String((m && m.content) || '').replace(/\s+/g, ' ').trim();
       return text ? `${who}: ${text}` : '';
     })
@@ -174,7 +241,7 @@ function buildPriorRecap(messages, name) {
     .join('\n');
   if (!lines) return '';
   return (
-    `PREVIOUS ONE-ON-ONE — you remember this earlier conversation with your manager; ` +
+    `PREVIOUS ONE-ON-ONE — you remember this earlier conversation with ${coachPhrase}; ` +
     `it actually happened. Reference specifics from it when natural. Do not re-introduce ` +
     `yourself.\nTRANSCRIPT OF LAST TIME:\n` + lines
   );
@@ -197,8 +264,19 @@ function level(v) {
 function truthy(v) {
   return v === true || v === 1 || v === '1';
 }
+// Normalize a role to '' | 'manager' | 'senior_agent'. Accepts the cohort labels
+// ('Manager' / 'Senior Agent') and the canonical underscore forms.
+function normalizeRole(v) {
+  const t = typeof v === 'string' ? v.trim().toLowerCase().replace(/\s+/g, '_') : '';
+  return t === 'manager' || t === 'senior_agent' ? t : '';
+}
+// Capitalize the first letter of a phrase (for sentence-leading use).
+function capFirst(s) {
+  const t = String(s || '');
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
 
-function resistanceLine(resistance) {
+function resistanceLine(resistance, coachPhrase = 'your manager') {
   if (resistance === 'low') {
     return `You start with only mild pushback and become reasonable fairly quickly. You ` +
       `bristle a little at criticism but you are not hard to reach.`;
@@ -209,18 +287,18 @@ function resistanceLine(resistance) {
       `get through to you.`;
   }
   return `You start clearly guarded and defensive: you deflect, minimize, and make ` +
-    `excuses, and you do not readily own things until the manager earns it.`;
+    `excuses, and you do not readily own things until ${coachPhrase} earns it.`;
 }
 
-function receptivenessLine(receptiveness) {
+function receptivenessLine(receptiveness, coachPhrase = 'your manager') {
   if (receptiveness === 'low') {
-    return `Even when your manager coaches you well, you rarely shift much within this ` +
+    return `Even when ${coachPhrase} coaches you well, you rarely shift much within this ` +
       `conversation. Genuine change is slow and small for you.`;
   }
   if (receptiveness === 'high') {
-    return `When your manager handles you well, you visibly open up and start owning ` +
+    return `When ${coachPhrase} handles you well, you visibly open up and start owning ` +
       `things, taking the feedback and committing to a change by the end.`;
   }
-  return `When your manager coaches you well, you thaw gradually over the conversation, ` +
+  return `When ${coachPhrase} coaches you well, you thaw gradually over the conversation, ` +
     `lowering your guard in believable steps.`;
 }

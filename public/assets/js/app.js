@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260606-4 preview-memory';
+const BUILD_ID = '20260606-5 role-gated-receptiveness';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1343,6 +1343,15 @@ function renderCoachingDashboard(data) {
   // so they can exercise the whole journey, and nothing is persisted.
   const isPreview = !!(state.recipient && state.recipient.coaching_preview);
   const stage = isPreview ? Number.MAX_SAFE_INTEGER : (Number(data.stage) || 1);
+  // Preview "test as" role: default the toggle to the role the scenario is
+  // receptive to (so the open/matching path shows first), else Manager.
+  const previewExpectRole = (() => {
+    const sc = ((state.recipient && state.recipient.scenarios) || []).find((s) => s && s.id === agent.id);
+    return sc && sc.receptive_to === 'senior_agent' ? 'Senior Agent' : 'Manager';
+  })();
+  const asRoleOptionsHtml = ['Manager', 'Senior Agent']
+    .map((r) => `<option value="${r}"${r === previewExpectRole ? ' selected' : ''}>${r}</option>`)
+    .join('');
   const sections = Array.isArray(data.sections) ? data.sections : [];
   const fields = Array.isArray(data.fields) ? data.fields : [];
   const answers = (data && typeof data.answers === 'object' && data.answers) || {};
@@ -1426,6 +1435,9 @@ function renderCoachingDashboard(data) {
       ${isPreview ? `
         <div class="coaching-preview-banner">
           <span class="coaching-preview-banner-text">Preview — testing this scenario. Every week is unlocked, and calls in this test remember each other so you can check the agent's memory. This sandbox is private to this scenario and is never seen by real participants.</span>
+          <label class="coaching-preview-asrole-label">Test as
+            <select class="coaching-preview-asrole">${asRoleOptionsHtml}</select>
+          </label>
           <button type="button" class="coaching-preview-reset ghost-button">Start fresh test</button>
         </div>` : ''}
       ${profileHtml}
@@ -1565,7 +1577,11 @@ function wireCoachingDashboard(data) {
       const input = wrap ? wrap.querySelector('.dash-call-name-input') : null;
       const participant = input ? input.value.trim() : '';
       saveCoachingParticipant(participant);
-      startCall(data.agent.id, { mode: btn.dataset.mode, participant });
+      // In preview, the "Test as" toggle lets the builder spoof their role so
+      // they can exercise both the matching and wrong-role behavior. Honored
+      // server-side ONLY for preview links.
+      const asRole = root.querySelector('.coaching-preview-asrole')?.value || '';
+      startCall(data.agent.id, { mode: btn.dataset.mode, participant, asRole });
     });
   });
 
@@ -2350,6 +2366,7 @@ async function startCall(typeOrPersonaId, opts = {}) {
     coachingMode,
     priorTranscript,
     participant: typeof opts.participant === 'string' ? opts.participant : '',
+    asRole: typeof opts.asRole === 'string' ? opts.asRole : '',
   };
   // New start sequence: the pre-call modal opens over the FULL scenario shell,
   // blurred — so the trainee sees the call they're about to take, not the
@@ -3576,6 +3593,7 @@ function renderCall(scenario, opts = {}) {
       mode: scenario.coachingMode || 'fresh',
       priorTranscript: Array.isArray(scenario.priorTranscript) ? scenario.priorTranscript : [],
       participant: scenario.participant || '',
+      asRole: scenario.asRole || '',
       onStatus: (s) => {
         if (state.view !== 'call') return;
         if (s === 'connecting') setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');

@@ -98,6 +98,10 @@ export async function onRequestGet({ request, env }) {
           coaching: !!agent.mode_coaching,
           followup: !!agent.mode_followup,
         },
+        // Audience gate (who the employee opens up to) — lets the preview "test
+        // as" toggle default to the role the scenario expects. Server-side prompt
+        // logic still enforces it; this is a display/hint only.
+        receptive_to: agent.receptive_to || '',
         opening_lines: openingLines,
         progress,
       });

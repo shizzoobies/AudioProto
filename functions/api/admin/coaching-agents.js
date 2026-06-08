@@ -16,6 +16,12 @@ import { randomId, getAdminScope } from '../../../shared/auth.js';
 
 const FIELD_CAP = 4000;
 const LEVELS = new Set(['low', 'medium', 'high']);
+// Audience gate: which caller role the employee is receptive to. '' = anyone
+// (the default, ungated). 'manager' / 'senior_agent' match the cohort role labels
+// ('Manager' / 'Senior Agent') after normalization.
+const RECEPTIVE_TO = new Set(['', 'manager', 'senior_agent']);
+// How the employee reacts to the WRONG (or unknown) role when gated.
+const GATE_STRICTNESS = new Set(['hard', 'soft']);
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
@@ -55,6 +61,8 @@ export async function onRequestPost({ request, env }) {
       attitude: cleanStr(body?.attitude),
       resistance: level(body?.resistance),
       receptiveness: level(body?.receptiveness),
+      receptive_to: receptiveTo(body?.receptive_to),
+      gate_strictness: gateStrictness(body?.gate_strictness),
       skill_gap: cleanStr(body?.skill_gap),
       skill_gap_detail: cleanStr(body?.skill_gap_detail),
       demeanor: cleanStr(body?.demeanor),
@@ -89,7 +97,8 @@ export async function onRequestPost({ request, env }) {
         .prepare(
           `UPDATE coaching_agents SET
              scenario_name = ?, name = ?, age = ?, role_title = ?, voice_id = ?, attitude = ?,
-             resistance = ?, receptiveness = ?, skill_gap = ?, skill_gap_detail = ?,
+             resistance = ?, receptiveness = ?, receptive_to = ?, gate_strictness = ?,
+             skill_gap = ?, skill_gap_detail = ?,
              demeanor = ?, incident = ?, personality = ?, derails = ?,
              mode_assessment = ?, mode_coaching = ?, mode_followup = ?,
              opening_lines = ?, active = ?, image_id = ?, accent_color = ?,
@@ -98,7 +107,8 @@ export async function onRequestPost({ request, env }) {
         )
         .bind(
           fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
-          fields.resistance, fields.receptiveness, fields.skill_gap, fields.skill_gap_detail,
+          fields.resistance, fields.receptiveness, fields.receptive_to, fields.gate_strictness,
+          fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
           fields.opening_lines, fields.active, fields.image_id, fields.accent_color,
@@ -119,14 +129,16 @@ export async function onRequestPost({ request, env }) {
         .prepare(
           `INSERT INTO coaching_agents
              (id, scenario_name, name, age, role_title, voice_id, attitude, resistance, receptiveness,
+              receptive_to, gate_strictness,
               skill_gap, skill_gap_detail, demeanor, incident, personality, derails,
               mode_assessment, mode_coaching, mode_followup, opening_lines, active,
               image_id, accent_color, photo, incident_image, created_at, updated_at, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           id, fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
-          fields.resistance, fields.receptiveness, fields.skill_gap, fields.skill_gap_detail,
+          fields.resistance, fields.receptiveness, fields.receptive_to, fields.gate_strictness,
+          fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
           fields.opening_lines, fields.active, fields.image_id, fields.accent_color,
@@ -226,6 +238,15 @@ async function ensureCoachingAgentsTable(env) {
       // column already present
     }
   }
+  // Role-conditional receptiveness: who the employee opens up to, and how hard
+  // they resist the wrong role. Swallow dup-column on DBs that already have them.
+  for (const col of ['receptive_to TEXT', 'gate_strictness TEXT']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE coaching_agents ADD COLUMN ${col}`).run();
+    } catch {
+      // column already present
+    }
+  }
 }
 
 // Shape a DB row into the JSON an admin client expects: booleans coerced,
@@ -251,6 +272,8 @@ function rowToAgent(row) {
     attitude: row.attitude || '',
     resistance: row.resistance || 'medium',
     receptiveness: row.receptiveness || 'medium',
+    receptive_to: RECEPTIVE_TO.has(row.receptive_to) ? row.receptive_to : '',
+    gate_strictness: GATE_STRICTNESS.has(row.gate_strictness) ? row.gate_strictness : 'hard',
     skill_gap: row.skill_gap || '',
     skill_gap_detail: row.skill_gap_detail || '',
     demeanor: row.demeanor || '',
@@ -302,6 +325,16 @@ function toIntOrNull(v) {
 function level(v) {
   const t = typeof v === 'string' ? v.trim().toLowerCase() : '';
   return LEVELS.has(t) ? t : 'medium';
+}
+// Normalize an incoming receptive-to value (accepts 'manager'/'senior_agent' or
+// the cohort labels 'Manager'/'Senior Agent'); anything else -> '' (anyone).
+function receptiveTo(v) {
+  const t = typeof v === 'string' ? v.trim().toLowerCase().replace(/\s+/g, '_') : '';
+  return RECEPTIVE_TO.has(t) ? t : '';
+}
+function gateStrictness(v) {
+  const t = typeof v === 'string' ? v.trim().toLowerCase() : '';
+  return GATE_STRICTNESS.has(t) ? t : 'hard';
 }
 function toBit(v) {
   if (v === true || v === 1 || v === '1' || v === 'on' || v === 'true') return 1;

@@ -3959,6 +3959,24 @@ body[data-coaching] .app-header { display: none; }
   border-color: #fdba74;
   color: #9a3412;
 }
+.coaching-preview-asrole-label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #9a3412;
+}
+.coaching-preview-asrole {
+  font: inherit;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #fdba74;
+  background: #fff;
+  color: #9a3412;
+}
 .coaching-journey-hero {
   border-radius: 18px;
   padding: 44px 28px;

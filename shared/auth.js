@@ -264,6 +264,21 @@ export async function getInviteScope(request, env) {
     .all();
   const scenarios = new Set((sceneRes?.results || []).map((r) => r.scenario_id));
 
+  // The caller's role label, set when they were added to a cohort
+  // ('Manager' / 'Senior Agent'). Read defensively in its own query so a DB that
+  // predates the column (cohorts never used) can never break auth. Empty when
+  // unset. Drives role-conditional receptiveness in the coaching prompt.
+  let recipientRole = '';
+  try {
+    const rr = await env.DB
+      .prepare(`SELECT recipient_role FROM invites WHERE id = ? LIMIT 1`)
+      .bind(payload.invite_id)
+      .first();
+    if (rr && typeof rr.recipient_role === 'string') recipientRole = rr.recipient_role;
+  } catch {
+    recipientRole = '';
+  }
+
   // Expand the "all coaching agents" sentinel into concrete ca_ ids so the
   // downstream access checks (voice-agent/start, me/status) see real agent ids
   // rather than the sentinel. Keep the sentinel in the set too (harmless). Must
@@ -279,6 +294,7 @@ export async function getInviteScope(request, env) {
     invite_id: row.id,
     recipient_email: row.recipient_email,
     recipient_name: row.recipient_name,
+    recipient_role: recipientRole,
     expires_at: row.expires_at,
     scenarios,
   };

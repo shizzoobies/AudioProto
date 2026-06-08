@@ -17,6 +17,7 @@ export function createVoiceAgent(opts = {}) {
     mode = 'fresh',
     priorTranscript = [],
     participant = '',
+    asRole = '',
     onStatus = () => {},
     onUserText = () => {},
     onAgentText = () => {},
@@ -118,7 +119,7 @@ export function createVoiceAgent(opts = {}) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript, participant }),
+        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript, participant, as_role: asRole }),
       });
       data = await r.json().catch(() => null);
       if (!r.ok || !data?.signed_url) {

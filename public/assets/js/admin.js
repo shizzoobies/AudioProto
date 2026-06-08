@@ -3396,6 +3396,27 @@ function levelOptions(selected) {
     .join('');
 }
 
+// Audience gate: which caller role the employee opens up to. '' = anyone.
+function receptiveToOptions(selected) {
+  return [
+    ['', 'Anyone (no role gate)'],
+    ['manager', 'Manager only'],
+    ['senior_agent', 'Senior agent only'],
+  ]
+    .map(([v, label]) => `<option value="${v}"${v === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`)
+    .join('');
+}
+
+// How the employee reacts to the wrong/unknown role (only when gated).
+function strictnessOptions(selected) {
+  return [
+    ['hard', 'Hard wall (stays closed)'],
+    ['soft', 'Soft friction (warier, reachable)'],
+  ]
+    .map(([v, label]) => `<option value="${v}"${v === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`)
+    .join('');
+}
+
 // Dashboard pointer card — the full Coaching-agents editor lives on its own page
 // (admin-coaching.html) to keep the dashboard uncluttered.
 function renderCoachingAgentsLinkCard() {
@@ -3468,6 +3489,16 @@ function renderCoachingAgentsSection() {
         <div class="admin-field">
           <label class="admin-field-label" for="ca-receptiveness">Receptiveness (how far they soften)</label>
           <select id="ca-receptiveness" class="admin-select">${levelOptions('medium')}</select>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-receptive-to">Receptive to (audience)</label>
+          <select id="ca-receptive-to" class="admin-select">${receptiveToOptions('')}</select>
+          <span class="admin-field-hint">Who the employee will open up to. "Anyone" = no role gate. Roles come from each person's cohort assignment.</span>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-gate-strictness">When the wrong role calls</label>
+          <select id="ca-gate-strictness" class="admin-select">${strictnessOptions('hard')}</select>
+          <span class="admin-field-hint">Only applies when "Receptive to" is a specific role. Hard = won't open up no matter how good the coaching; Soft = warier and slower, but reachable.</span>
         </div>
         <div class="admin-field">
           <label class="admin-field-label" for="ca-skill-gap">Skill gap</label>
@@ -3673,6 +3704,8 @@ async function onSaveCoachingAgent(e) {
     attitude: val('ca-attitude'),
     resistance: val('ca-resistance'),
     receptiveness: val('ca-receptiveness'),
+    receptive_to: val('ca-receptive-to'),
+    gate_strictness: val('ca-gate-strictness'),
     skill_gap: val('ca-skill-gap'),
     skill_gap_detail: val('ca-skill-gap-detail'),
     demeanor: val('ca-demeanor'),
@@ -3740,6 +3773,8 @@ function populateCoachingAgentForm(agent) {
   set('ca-attitude', agent.attitude || COACHING_ATTITUDES[0]);
   set('ca-resistance', agent.resistance || 'medium');
   set('ca-receptiveness', agent.receptiveness || 'medium');
+  set('ca-receptive-to', agent.receptive_to || '');
+  set('ca-gate-strictness', agent.gate_strictness || 'hard');
   set('ca-skill-gap', agent.skill_gap);
   set('ca-skill-gap-detail', agent.skill_gap_detail);
   set('ca-demeanor', agent.demeanor);
