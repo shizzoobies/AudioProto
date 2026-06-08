@@ -3570,6 +3570,7 @@ function renderCoachingAgentsList(agents) {
           </div>
         </div>
         <div class="admin-ca-row-actions">
+          ${a.active ? `<button type="button" class="ghost-button" data-ca-test="${escapeAttr(a.id)}" title="Open a live preview to test this scenario">Test</button>` : ''}
           <button type="button" class="ghost-button" data-ca-edit="${escapeAttr(a.id)}">Edit</button>
           <button type="button" class="ghost-button" data-ca-delete="${escapeAttr(a.id)}">Delete</button>
         </div>
@@ -3601,6 +3602,9 @@ function attachCoachingAgentsHandlers() {
   });
   document.querySelectorAll('[data-ca-delete]').forEach((btn) => {
     btn.addEventListener('click', () => deleteCoachingAgent(btn.dataset.caDelete));
+  });
+  document.querySelectorAll('[data-ca-test]').forEach((btn) => {
+    btn.addEventListener('click', () => onTestScenario(btn.dataset.caTest, btn));
   });
 
   // Re-load the form if we were mid-edit when the section re-rendered.
@@ -3806,6 +3810,41 @@ async function deleteCoachingAgent(id) {
     refreshCoachingAgentsSection();
   } catch (err) {
     showCoachingAgentError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+// Open a live preview of a scenario so the builder can test it without assigning
+// it to a cohort. Mints a per-scenario preview link (cs_me on a __cvprev__
+// sentinel) and opens it in a new tab; the participant app renders it in preview
+// mode (every mode launchable, nothing saved). We open a blank tab synchronously
+// inside the click gesture so popup blockers don't eat the async navigation.
+async function onTestScenario(id, btn) {
+  if (!id) return;
+  showCoachingAgentError('');
+  const win = window.open('about:blank', '_blank');
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
+  try {
+    const res = await fetch('/api/admin/coaching-agent-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ scenario_id: id }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.url) {
+      if (win) win.close();
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCoachingAgentError(parts.length ? 'Could not open preview — ' + parts.join(' — ') : 'Could not open preview.');
+      return;
+    }
+    if (win) win.location.href = data.url;
+    else window.open(data.url, '_blank', 'noopener');
+  } catch (err) {
+    if (win) win.close();
+    showCoachingAgentError('Network error opening preview: ' + (err?.message || String(err)));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig || 'Test'; }
   }
 }
 

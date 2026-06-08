@@ -25,6 +25,7 @@ const COACHING_ADMIN_ALLOWED_PATHS = new Set([
   '/api/admin/elevenlabs-voices',
   '/api/admin/voice-preview',
   '/api/admin/coaching-access-session',
+  '/api/admin/coaching-agent-preview',
 ]);
 
 // Public paths skip auth entirely.

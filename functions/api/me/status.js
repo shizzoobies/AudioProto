@@ -136,6 +136,10 @@ export async function onRequestGet({ request, env }) {
   // The open coaching link uses a sentinel recipient_email just like demo/preview;
   // don't leak that internal address to the client either.
   const isCoachingSentinel = scope.recipient_email === COACHING_RECIPIENT_EMAIL;
+  // Per-scenario PREVIEW link (admin testing a scenario). Detected by the
+  // __cvprev__ sentinel email; the client renders the journey in preview mode
+  // (every mode directly launchable, nothing saved).
+  const isCoachingPreview = typeof scope.recipient_email === 'string' && scope.recipient_email.startsWith('__cvprev__');
 
   // Coaching-test invite? Read the invite's `mode` column directly. Queried
   // defensively (its own try/catch) so a DB that predates the column — i.e. no
@@ -175,10 +179,11 @@ export async function onRequestGet({ request, env }) {
     is_demo: isDemo,
     is_preview: isPreview,
     is_coaching: isCoaching,
+    coaching_preview: isCoachingPreview,
     coaching_landing: coachingLanding,
     // Don't surface the internal sentinel address to the client.
-    recipient_name: (isDemo || isPreview || isCoachingSentinel) ? null : (scope.recipient_name || null),
-    recipient_email: (isDemo || isPreview || isCoachingSentinel) ? null : scope.recipient_email,
+    recipient_name: (isDemo || isPreview || isCoachingSentinel || isCoachingPreview) ? null : (scope.recipient_name || null),
+    recipient_email: (isDemo || isPreview || isCoachingSentinel || isCoachingPreview) ? null : scope.recipient_email,
     expires_at: scope.expires_at,
     scenarios,
   });

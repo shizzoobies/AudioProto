@@ -7,7 +7,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260606-2 dashboard-stage-gate';
+const BUILD_ID = '20260606-3 scenario-preview';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1188,6 +1188,9 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   // order: each mode is available only once every earlier ENABLED mode has a
   // completed call. Legacy coaching_practice keeps its original simpler rule.
   const modesDone = agent.progress?.modes_done || {};
+  // Admin preview link: every mode is directly launchable (no gating) and the
+  // call isn't saved — for testing a scenario while building it.
+  const preview = !!(state.recipient && state.recipient.coaching_preview);
   const accent = (!legacy && agent.accent_color) ? agent.accent_color : '';
   const imgId = (!legacy && agent.image_id) ? agent.image_id : '';
   const modeDefs = legacy
@@ -1249,8 +1252,8 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
     // coach has unlocked it.
     const unlockedStage = Number(agent.progress?.unlocked_stage) || 1;
     const stepsHtml = modeDefs.map((def, i) => {
-      const prevAllDone = modeDefs.slice(0, i).every((d) => modesDone[d.mode]);
-      const adminAllowed = i < unlockedStage;
+      const prevAllDone = preview ? true : modeDefs.slice(0, i).every((d) => modesDone[d.mode]);
+      const adminAllowed = preview ? true : i < unlockedStage;
       let st;
       if (!prevAllDone) st = 'locked';        // must finish the previous call first
       else if (!adminAllowed) st = 'held';    // coach hasn't released this call yet
@@ -1258,7 +1261,8 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       else st = 'current';
       const clickable = st === 'done' || st === 'current';
       const node = st === 'done' ? '&#10003;' : st === 'current' ? String(i + 1) : st === 'held' ? '&#9203;' : '&#128274;';
-      const cta = st === 'done' ? 'Completed — retake'
+      const cta = preview ? 'Test this call &rarr;'
+        : st === 'done' ? 'Completed — retake'
         : st === 'current' ? 'Start now &rarr;'
         : st === 'held' ? 'Your coach will open this'
         : 'Locked';
@@ -1281,6 +1285,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
     dom.root.innerHTML = `
       <section class="coaching-journey-page"${accentVar ? ` style="${accentVar}"` : ''}>
         ${backHtml}
+        ${preview ? '<div class="coaching-preview-banner">Preview — testing this scenario. Launch any call below; nothing is saved.</div>' : ''}
         <header class="coaching-journey-hero${imgId ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
           <div class="cjh-inner">
             ${scenarioName ? `<p class="cjh-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
@@ -1334,7 +1339,10 @@ function dashAvatarHtml(agent) {
 
 function renderCoachingDashboard(data) {
   const agent = data.agent || {};
-  const stage = Number(data.stage) || 1;
+  // Preview mode (a scenario author testing without a cohort): unlock every week
+  // so they can exercise the whole journey, and nothing is persisted.
+  const isPreview = !!(state.recipient && state.recipient.coaching_preview);
+  const stage = isPreview ? Number.MAX_SAFE_INTEGER : (Number(data.stage) || 1);
   const sections = Array.isArray(data.sections) ? data.sections : [];
   const fields = Array.isArray(data.fields) ? data.fields : [];
   const answers = (data && typeof data.answers === 'object' && data.answers) || {};
@@ -1415,6 +1423,7 @@ function renderCoachingDashboard(data) {
 
   dom.root.innerHTML = `
     <div class="coaching-dash">
+      ${isPreview ? '<div class="coaching-preview-banner">Preview — testing this scenario. Every week is unlocked; nothing you do here is saved.</div>' : ''}
       ${profileHtml}
       ${stripHtml}
       ${weekGroupsHtml}
@@ -3659,7 +3668,7 @@ function renderCall(scenario, opts = {}) {
     // legacy coaching_practice keeps its localStorage follow-up memory.
     if (isCoaching) {
       if (scenario.id && scenario.id.startsWith('ca_')) {
-        if (messages.length >= 2) {
+        if (messages.length >= 2 && !(state.recipient && state.recipient.coaching_preview)) {
           try {
             await fetch('/api/coaching/progress', {
               method: 'POST',

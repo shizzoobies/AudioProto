@@ -3931,6 +3931,23 @@ body[data-coaching] .app-header { display: none; }
   animation: view-fade-in 0.3s ease;
 }
 .coaching-journey-page .coaching-back { margin-bottom: 16px; }
+.coaching-preview-banner {
+  margin: 0 0 18px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  font-size: 0.86rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.coaching-preview-banner::before {
+  content: "\1F9EA";
+  font-size: 1rem;
+}
 .coaching-journey-hero {
   border-radius: 18px;
   padding: 44px 28px;
