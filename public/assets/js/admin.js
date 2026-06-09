@@ -3417,6 +3417,17 @@ function strictnessOptions(selected) {
     .join('');
 }
 
+// Disruptive / poor-listener intensity. '' = off (normal listener).
+function disruptivenessOptions(selected) {
+  return [
+    ['', 'Off (normal listener)'],
+    ['mild', 'Mild (jumps in, half-listens)'],
+    ['heavy', 'Heavy (constantly cuts you off)'],
+  ]
+    .map(([v, label]) => `<option value="${v}"${v === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`)
+    .join('');
+}
+
 // Dashboard pointer card — the full Coaching-agents editor lives on its own page
 // (admin-coaching.html) to keep the dashboard uncluttered.
 function renderCoachingAgentsLinkCard() {
@@ -3499,6 +3510,11 @@ function renderCoachingAgentsSection() {
           <label class="admin-field-label" for="ca-gate-strictness">When the wrong role calls</label>
           <select id="ca-gate-strictness" class="admin-select">${strictnessOptions('hard')}</select>
           <span class="admin-field-hint">Only applies when "Receptive to" is a specific role. Hard = won't open up no matter how good the coaching; Soft = warier and slower, but reachable.</span>
+        </div>
+        <div class="admin-field">
+          <label class="admin-field-label" for="ca-disruptiveness">Disruptive (interrupts / poor listener)</label>
+          <select id="ca-disruptiveness" class="admin-select">${disruptivenessOptions('')}</select>
+          <span class="admin-field-hint">Talks over you and doesn't listen well. Mild = jumps in, half-listens, redirectable. Heavy = constantly cuts you off and dominates until the trainee takes firm control. Stacks with any attitude.</span>
         </div>
         <div class="admin-field">
           <label class="admin-field-label" for="ca-skill-gap">Skill gap</label>
@@ -3706,6 +3722,7 @@ async function onSaveCoachingAgent(e) {
     receptiveness: val('ca-receptiveness'),
     receptive_to: val('ca-receptive-to'),
     gate_strictness: val('ca-gate-strictness'),
+    disruptiveness: val('ca-disruptiveness'),
     skill_gap: val('ca-skill-gap'),
     skill_gap_detail: val('ca-skill-gap-detail'),
     demeanor: val('ca-demeanor'),
@@ -3775,6 +3792,7 @@ function populateCoachingAgentForm(agent) {
   set('ca-receptiveness', agent.receptiveness || 'medium');
   set('ca-receptive-to', agent.receptive_to || '');
   set('ca-gate-strictness', agent.gate_strictness || 'hard');
+  set('ca-disruptiveness', agent.disruptiveness || '');
   set('ca-skill-gap', agent.skill_gap);
   set('ca-skill-gap-detail', agent.skill_gap_detail);
   set('ca-demeanor', agent.demeanor);

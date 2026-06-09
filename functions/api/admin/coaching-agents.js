@@ -22,6 +22,10 @@ const LEVELS = new Set(['low', 'medium', 'high']);
 const RECEPTIVE_TO = new Set(['', 'manager', 'senior_agent']);
 // How the employee reacts to the WRONG (or unknown) role when gated.
 const GATE_STRICTNESS = new Set(['hard', 'soft']);
+// Disruptive trait: how much the employee interrupts / fails to listen.
+// '' = off (normal listener), 'mild' = jumps in & half-listens, 'heavy' =
+// constantly cuts you off and dominates.
+const DISRUPTIVENESS = new Set(['', 'mild', 'heavy']);
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
@@ -63,6 +67,7 @@ export async function onRequestPost({ request, env }) {
       receptiveness: level(body?.receptiveness),
       receptive_to: receptiveTo(body?.receptive_to),
       gate_strictness: gateStrictness(body?.gate_strictness),
+      disruptiveness: disruptLevel(body?.disruptiveness),
       skill_gap: cleanStr(body?.skill_gap),
       skill_gap_detail: cleanStr(body?.skill_gap_detail),
       demeanor: cleanStr(body?.demeanor),
@@ -98,7 +103,7 @@ export async function onRequestPost({ request, env }) {
           `UPDATE coaching_agents SET
              scenario_name = ?, name = ?, age = ?, role_title = ?, voice_id = ?, attitude = ?,
              resistance = ?, receptiveness = ?, receptive_to = ?, gate_strictness = ?,
-             skill_gap = ?, skill_gap_detail = ?,
+             disruptiveness = ?, skill_gap = ?, skill_gap_detail = ?,
              demeanor = ?, incident = ?, personality = ?, derails = ?,
              mode_assessment = ?, mode_coaching = ?, mode_followup = ?,
              opening_lines = ?, active = ?, image_id = ?, accent_color = ?,
@@ -108,7 +113,7 @@ export async function onRequestPost({ request, env }) {
         .bind(
           fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
           fields.resistance, fields.receptiveness, fields.receptive_to, fields.gate_strictness,
-          fields.skill_gap, fields.skill_gap_detail,
+          fields.disruptiveness, fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
           fields.opening_lines, fields.active, fields.image_id, fields.accent_color,
@@ -129,15 +134,15 @@ export async function onRequestPost({ request, env }) {
         .prepare(
           `INSERT INTO coaching_agents
              (id, scenario_name, name, age, role_title, voice_id, attitude, resistance, receptiveness,
-              receptive_to, gate_strictness,
+              receptive_to, gate_strictness, disruptiveness,
               skill_gap, skill_gap_detail, demeanor, incident, personality, derails,
               mode_assessment, mode_coaching, mode_followup, opening_lines, active,
               image_id, accent_color, photo, incident_image, created_at, updated_at, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           id, fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
-          fields.resistance, fields.receptiveness, fields.receptive_to, fields.gate_strictness,
+          fields.resistance, fields.receptiveness, fields.receptive_to, fields.gate_strictness, fields.disruptiveness,
           fields.skill_gap, fields.skill_gap_detail,
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
@@ -240,7 +245,7 @@ async function ensureCoachingAgentsTable(env) {
   }
   // Role-conditional receptiveness: who the employee opens up to, and how hard
   // they resist the wrong role. Swallow dup-column on DBs that already have them.
-  for (const col of ['receptive_to TEXT', 'gate_strictness TEXT']) {
+  for (const col of ['receptive_to TEXT', 'gate_strictness TEXT', 'disruptiveness TEXT']) {
     try {
       await env.DB.prepare(`ALTER TABLE coaching_agents ADD COLUMN ${col}`).run();
     } catch {
@@ -274,6 +279,7 @@ function rowToAgent(row) {
     receptiveness: row.receptiveness || 'medium',
     receptive_to: RECEPTIVE_TO.has(row.receptive_to) ? row.receptive_to : '',
     gate_strictness: GATE_STRICTNESS.has(row.gate_strictness) ? row.gate_strictness : 'hard',
+    disruptiveness: DISRUPTIVENESS.has(row.disruptiveness) ? row.disruptiveness : '',
     skill_gap: row.skill_gap || '',
     skill_gap_detail: row.skill_gap_detail || '',
     demeanor: row.demeanor || '',
@@ -335,6 +341,10 @@ function receptiveTo(v) {
 function gateStrictness(v) {
   const t = typeof v === 'string' ? v.trim().toLowerCase() : '';
   return GATE_STRICTNESS.has(t) ? t : 'hard';
+}
+function disruptLevel(v) {
+  const t = typeof v === 'string' ? v.trim().toLowerCase() : '';
+  return DISRUPTIVENESS.has(t) ? t : '';
 }
 function toBit(v) {
   if (v === true || v === 1 || v === '1' || v === 'on' || v === 'true') return 1;
