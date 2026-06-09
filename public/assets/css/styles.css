@@ -6005,6 +6005,17 @@ body[data-coaching] .app-header { display: none; }
 .admin-invite-card.is-revoked,
 .admin-invite-card.is-expired { opacity: 0.6; }
 
+/* Stacked variant: opt OUT of the 5-column invite grid for cards whose content
+   is a vertical block (title, description, status, actions, generated link)
+   rather than a single roster row. Without this the grid squeezes each child
+   into a narrow column and the text wraps one word per line. */
+.admin-invite-card.admin-card-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
 /* Coaching participant roster — stacked cards (NOT the 5-col invite grid). */
 .coaching-roster { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 .coaching-roster-card {

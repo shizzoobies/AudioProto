@@ -1298,7 +1298,7 @@ function renderCoachingAccessCard(def) {
     ? `<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">${def.activeNote}</span>`
     : `<span class="admin-muted">No ${def.label} link yet</span>`;
   return `
-    <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:12px;">
+    <div class="admin-invite-card is-active admin-card-stack">
       <div style="font-weight:600;font-size:14px;">${escapeHtml(def.title)}</div>
       <p class="admin-section-sub" style="margin:0;">${def.sub}</p>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">${statusHtml}</div>
