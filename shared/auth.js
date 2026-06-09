@@ -41,6 +41,13 @@ export const REVIEW_RECIPIENT_EMAIL = '__review__@simulation.local';
 // middleware allow-list.
 export const COACHING_ADMIN_RECIPIENT_EMAIL = '__coaching_admin__@simulation.local';
 
+// Sentinel recipient_email for the FULL coaching-editor link. Same cs_coaching_admin
+// cookie machinery, but getCoachingAdminScope returns level='full', which the
+// middleware uses to allow the entire coaching admin surface (landing, cohorts,
+// course config, link-minting, reset) — not just scenarios + voices. Distinct
+// sentinel so the two share-links can be generated/revoked independently.
+export const COACHING_FULL_RECIPIENT_EMAIL = '__coaching_full__@simulation.local';
+
 // Sentinel recipient_email marking the single open "coaching" link — the
 // open-link sibling of the per-email coaching invites. Like the demo, it reuses
 // the invites table: one row whose recipient_email is this constant, with
@@ -398,12 +405,17 @@ export async function getCoachingAdminScope(request, env) {
   // shared sentinel link, and per-person editor invites (mode='coaching_editor').
   const isSharedEditor = row.recipient_email === COACHING_ADMIN_RECIPIENT_EMAIL;
   const isPersonalEditor = row.mode === 'coaching_editor';
-  if (!isSharedEditor && !isPersonalEditor) return null;
+  // FULL-tier editor links (shared sentinel or per-person mode) grant the whole
+  // coaching admin surface; the scenarios-tier links grant scenarios + voices.
+  const isSharedFull = row.recipient_email === COACHING_FULL_RECIPIENT_EMAIL;
+  const isPersonalFull = row.mode === 'coaching_full_editor';
+  if (!isSharedEditor && !isPersonalEditor && !isSharedFull && !isPersonalFull) return null;
   if (row.token_hash !== payload.h) return null;
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return null;
 
-  return { invite_id: row.id, expires_at: row.expires_at };
+  const level = (isSharedFull || isPersonalFull) ? 'full' : 'scenarios';
+  return { invite_id: row.id, expires_at: row.expires_at, level };
 }
 
 // Resolves the identity behind a valid cs_admin cookie, or null. The cookie

@@ -40,10 +40,11 @@ const state = {
   lastReviewUrl: null, // last generated review-editor URL (shown once with a Copy button)
   reviewer: false,     // true when signed in via a scoped review link (rubric-only view)
   coachingEditor: false, // true when signed in via a scoped coaching-admin link (Scenarios-only view)
+  coachingFull: false,   // true when that scoped link is the FULL-editor tier (entire coaching admin)
   dashboardFields: [], // [{id, section_key, label, type, position, active}] — editable Development-Plan questions (full admin)
   cohorts: [],         // [{id, name, unlocked_stage, created_at, members:[...]}] — study groups (full admin)
-  coachingAccess: null,  // { active, created_at, last_click_at } — the scoped Scenarios-editor share link
-  lastCoachingAccessUrl: null, // last generated coaching-access URL (shown once with a Copy button)
+  coachingAccess: null,  // { active, ..., links: { scenarios:{...}, full:{...} } } — both share links' status
+  lastCoachingAccessUrl: {}, // { scenarios?, full? } last generated URL per kind (shown once with Copy)
 };
 
 init();
@@ -87,6 +88,7 @@ async function init() {
       const d = await ca.json().catch(() => null);
       if (d?.coaching_editor) {
         state.coachingEditor = true;
+        state.coachingFull = d.level === 'full';
         await renderCoachingPage();
         return;
       }
@@ -172,10 +174,11 @@ async function logout() {
   state.preview = null;
   state.lastPreviewUrl = null;
   state.coachingEditor = false;
+  state.coachingFull = false;
   state.dashboardFields = [];
   state.cohorts = [];
   state.coachingAccess = null;
-  state.lastCoachingAccessUrl = null;
+  state.lastCoachingAccessUrl = {};
   renderLogin();
 }
 
@@ -203,6 +206,9 @@ async function renderCoachingPage() {
       if (s.ok) { const d = await s.json(); state.admin = d.admin || null; }
     } catch (e) { console.warn('session load failed', e); }
   }
+  // Full admins AND full-tier editors get the entire coaching admin surface; a
+  // scenarios-tier editor loads only scenarios + voices (always loaded below).
+  const canManageAll = !!state.admin || state.coachingFull;
   try {
     const r = await fetch('/api/admin/coaching-agents', { credentials: 'same-origin' });
     if (r.ok) { const d = await r.json(); state.coachingAgents = d.agents || []; }
@@ -212,14 +218,14 @@ async function renderCoachingPage() {
     if (r.ok) { const d = await r.json(); state.coachingVoices = d.voices || []; }
   } catch (e) { console.warn('coaching voices load failed', e); }
   // Share-link status is full-admin only — the scoped editor would 401 on it.
-  if (!state.coachingEditor && state.admin) {
+  if (canManageAll) {
     try {
       const r = await fetch('/api/admin/coaching-access', { credentials: 'same-origin' });
       if (r.ok) { state.coachingAccess = await r.json(); }
     } catch (e) { console.warn('coaching access load failed', e); }
   }
   // Participant roster is full-admin only (it exposes each manager's live link).
-  if (!state.coachingEditor && state.admin) {
+  if (canManageAll) {
     try {
       const r = await fetch('/api/admin/coaching-participants', { credentials: 'same-origin' });
       if (r.ok) { const d = await r.json(); state.coachingParticipants = d.participants || []; }
@@ -227,28 +233,28 @@ async function renderCoachingPage() {
   }
   // Editor roster is full-admin only too (each editor link grants the Scenarios
   // editor scope, so editors must not be able to mint or see other editor links).
-  if (!state.coachingEditor && state.admin) {
+  if (canManageAll) {
     try {
       const r = await fetch('/api/admin/coaching-editors', { credentials: 'same-origin' });
       if (r.ok) { const d = await r.json(); state.coachingEditorInvites = d.editors || []; }
     } catch (e) { console.warn('coaching editors load failed', e); }
   }
   // Shared landing page content (full-admin only).
-  if (!state.coachingEditor && state.admin) {
+  if (canManageAll) {
     try {
       const r = await fetch('/api/admin/coaching-landing', { credentials: 'same-origin' });
       if (r.ok) { const d = await r.json(); state.coachingLanding = d.content || { hero: {}, sections: [] }; }
     } catch (e) { console.warn('coaching landing load failed', e); }
   }
   // Development-Plan questions editor (full-admin only — scoped editor 401s).
-  if (!state.coachingEditor && state.admin) {
+  if (canManageAll) {
     try {
       const r = await fetch('/api/admin/dashboard-fields', { credentials: 'same-origin' });
       if (r.ok) { const d = await r.json(); state.dashboardFields = d.fields || []; }
     } catch (e) { console.warn('dashboard fields load failed', e); }
   }
   // Cohorts / study groups (full-admin only — scoped editor 401s).
-  if (!state.coachingEditor && state.admin) {
+  if (canManageAll) {
     try {
       const r = await fetch('/api/admin/cohorts', { credentials: 'same-origin' });
       if (r.ok) { const d = await r.json(); state.cohorts = d.cohorts || []; }
@@ -261,10 +267,14 @@ function paintCoachingPage() {
   // The scoped Scenarios editor has no admin dashboard to return to, so hide the
   // back link for them; full admins keep it. The share-link section is full-admin
   // only (the scoped editor must never see — or be able to mint — access links).
+  // Scenarios-tier editors see only Voices + Scenarios. Full admins AND
+  // full-tier editors see the entire coaching admin (landing, cohorts, course
+  // config, link sharing). The back-to-dashboard link is hidden for any scoped
+  // editor (they have no /admin dashboard to return to).
+  const canManageAll = !!state.admin || state.coachingFull;
   const showBack = !state.coachingEditor;
-  const showAccess = !state.coachingEditor && !!state.admin;
-  // The roster exposes each participant's live link, so full admins only.
-  const showRoster = !state.coachingEditor && !!state.admin;
+  const showAccess = canManageAll;
+  const showRoster = canManageAll;
   root.innerHTML = `
     ${renderSignedInBar()}
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
@@ -1255,79 +1265,119 @@ function paintReviewGenerated() {
   });
 }
 
-// ---- Scenarios editor access (scoped share link) --------------------------
+// ---- Coaching editor access (scoped share links) --------------------------
 // A no-password link that opens ONLY this coaching Scenarios admin page (create/
 // manage scenarios + voices), not the rest of admin. Backed by the invites
 // sentinel pattern (like the review link): generate rotates the token, revoke
 // kills it instantly. Full-admin only — the scoped editor never sees this.
 
-function renderCoachingAccessSection() {
-  const r = state.coachingAccess;
-  const active = !!r?.active;
+// Two shareable coaching-editor links: a Scenarios-only tier and a FULL tier
+// (entire coaching admin). Each is rendered as its own card, keyed by `kind`.
+const COACHING_ACCESS_KINDS = [
+  {
+    kind: 'scenarios',
+    title: 'Scenarios + Voices only',
+    sub: 'Opens ONLY the scenario/voice authoring page — not the rest of admin. For someone who should author scenarios without broader access.',
+    activeNote: 'Opens the Scenarios + Voices editor only',
+    label: 'Scenarios-editor',
+  },
+  {
+    kind: 'full',
+    title: 'Full coaching editor (everything)',
+    sub: 'Opens the ENTIRE coaching admin: landing, cohorts &amp; participants, course config, scenarios, voices, reset, and link sharing — but nothing outside coaching. Same coaching powers you have here.',
+    activeNote: 'Opens the entire coaching admin',
+    label: 'Full-editor',
+  },
+];
+
+function renderCoachingAccessCard(def) {
+  const links = (state.coachingAccess && state.coachingAccess.links) || {};
+  const r = links[def.kind] || {};
+  const active = !!r.active;
   const statusHtml = active
-    ? '<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">Opens this Scenarios editor only</span>'
-    : '<span class="admin-muted">No Scenarios-editor link yet</span>';
+    ? `<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">${def.activeNote}</span>`
+    : `<span class="admin-muted">No ${def.label} link yet</span>`;
+  return `
+    <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:12px;">
+      <div style="font-weight:600;font-size:14px;">${escapeHtml(def.title)}</div>
+      <p class="admin-section-sub" style="margin:0;">${def.sub}</p>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">${statusHtml}</div>
+      <div class="admin-invite-actions" style="justify-content:flex-start;">
+        <button type="button" class="primary-button" data-ca-gen="${def.kind}">${active ? 'Regenerate link' : 'Generate link'}</button>
+        ${active ? `<button type="button" class="ghost-button" data-ca-revoke="${def.kind}">Revoke</button>` : ''}
+      </div>
+      <div class="admin-generated" data-ca-out="${def.kind}"></div>
+    </div>`;
+}
+
+function renderCoachingAccessSection() {
   return `
     <section class="admin-section" id="sec-coachingaccess">
       <header class="admin-section-head">
-        <p class="admin-eyebrow">Scenarios editor access</p>
-        <h2 class="admin-section-title">Share the Scenarios editor</h2>
-        <p class="admin-section-sub">A no-password link that opens ONLY this page (create/manage scenarios + voices), not the rest of admin. Share it with someone who should author scenarios without full admin access. Revoke any time.</p>
+        <p class="admin-eyebrow">Coaching editor access</p>
+        <h2 class="admin-section-title">Share the coaching editor</h2>
+        <p class="admin-section-sub">No-password links that open the coaching editor without full admin access. Pick how much to share. Revoke any time.</p>
       </header>
-      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">${statusHtml}</div>
-        <div class="admin-invite-actions" style="justify-content:flex-start;">
-          <button type="button" class="primary-button" id="admin-coaching-access-generate-btn">${active ? 'Regenerate link' : 'Generate link'}</button>
-          ${active ? '<button type="button" class="ghost-button" id="admin-coaching-access-revoke-btn">Revoke</button>' : ''}
-        </div>
-        <div id="admin-coaching-access-generated" class="admin-generated"></div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        ${COACHING_ACCESS_KINDS.map(renderCoachingAccessCard).join('')}
       </div>
     </section>
   `;
 }
 
 function attachCoachingAccessHandlers() {
-  const genBtn = document.getElementById('admin-coaching-access-generate-btn');
-  if (genBtn) genBtn.addEventListener('click', onGenerateCoachingAccess);
-  const revokeBtn = document.getElementById('admin-coaching-access-revoke-btn');
-  if (revokeBtn) revokeBtn.addEventListener('click', onRevokeCoachingAccess);
+  root.querySelectorAll('[data-ca-gen]').forEach((btn) => {
+    btn.addEventListener('click', () => onGenerateCoachingAccess(btn.dataset.caGen));
+  });
+  root.querySelectorAll('[data-ca-revoke]').forEach((btn) => {
+    btn.addEventListener('click', () => onRevokeCoachingAccess(btn.dataset.caRevoke));
+  });
   paintCoachingAccessGenerated();
 }
 
-async function onGenerateCoachingAccess() {
-  const btn = document.getElementById('admin-coaching-access-generate-btn');
-  const out = document.getElementById('admin-coaching-access-generated');
+async function onGenerateCoachingAccess(kind) {
+  kind = kind === 'full' ? 'full' : 'scenarios';
+  const btn = root.querySelector(`[data-ca-gen="${kind}"]`);
+  const out = root.querySelector(`[data-ca-out="${kind}"]`);
   if (out) out.innerHTML = '';
   if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
   try {
-    const res = await fetch('/api/admin/coaching-access', { method: 'POST', credentials: 'same-origin' });
+    const res = await fetch('/api/admin/coaching-access', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind }),
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
       const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Generate link'; }
       return;
     }
-    state.lastCoachingAccessUrl = data.url;
+    state.lastCoachingAccessUrl = { ...(state.lastCoachingAccessUrl || {}), [kind]: data.url };
     try {
       const r = await fetch('/api/admin/coaching-access', { credentials: 'same-origin' });
       if (r.ok) { state.coachingAccess = await r.json(); }
     } catch {}
     refreshCoachingAccessSection();
-    paintCoachingAccessGenerated();
   } catch (err) {
     if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate link'; }
   }
 }
 
-async function onRevokeCoachingAccess() {
-  if (!confirm('Revoke the Scenarios-editor link? Anyone holding it will lose access immediately.')) return;
-  const btn = document.getElementById('admin-coaching-access-revoke-btn');
+async function onRevokeCoachingAccess(kind) {
+  kind = kind === 'full' ? 'full' : 'scenarios';
+  const noun = kind === 'full' ? 'Full coaching editor' : 'Scenarios-editor';
+  if (!confirm(`Revoke the ${noun} link? Anyone holding it will lose access immediately.`)) return;
+  const btn = root.querySelector(`[data-ca-revoke="${kind}"]`);
   if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
   try {
-    const res = await fetch('/api/admin/coaching-access', { method: 'DELETE', credentials: 'same-origin' });
+    const res = await fetch(`/api/admin/coaching-access?kind=${encodeURIComponent(kind)}`, { method: 'DELETE', credentials: 'same-origin' });
     if (res.ok) {
-      state.lastCoachingAccessUrl = null;
+      if (state.lastCoachingAccessUrl) delete state.lastCoachingAccessUrl[kind];
       try {
         const r = await fetch('/api/admin/coaching-access', { credentials: 'same-origin' });
         if (r.ok) { state.coachingAccess = await r.json(); }
@@ -1347,7 +1397,7 @@ function refreshCoachingAccessSection() {
   const sections = root.querySelectorAll('.admin-section');
   for (const sec of sections) {
     const eyebrow = sec.querySelector('.admin-eyebrow');
-    if (eyebrow && eyebrow.textContent.trim() === 'Scenarios editor access') {
+    if (eyebrow && eyebrow.textContent.trim() === 'Coaching editor access') {
       const tmp = document.createElement('div');
       tmp.innerHTML = renderCoachingAccessSection();
       sec.replaceWith(tmp.firstElementChild);
@@ -1358,32 +1408,35 @@ function refreshCoachingAccessSection() {
 }
 
 function paintCoachingAccessGenerated() {
-  const out = document.getElementById('admin-coaching-access-generated');
-  if (!out) return;
-  if (!state.lastCoachingAccessUrl) { out.innerHTML = ''; return; }
-  out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Scenarios-editor link ready.</strong> It opens only this page — no password, no other admin access.</div>
-    <div class="admin-generated-list">
-      <div class="admin-generated-row">
-        <div class="admin-generated-url-row">
-          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastCoachingAccessUrl)}">
-          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastCoachingAccessUrl)}">Copy</button>
+  const urls = state.lastCoachingAccessUrl || {};
+  for (const def of COACHING_ACCESS_KINDS) {
+    const out = root.querySelector(`[data-ca-out="${def.kind}"]`);
+    if (!out) continue;
+    const url = urls[def.kind];
+    if (!url) { out.innerHTML = ''; continue; }
+    out.innerHTML = `
+      <div class="admin-alert admin-alert-success"><strong>${escapeHtml(def.title)} link ready.</strong> No password — share it directly.</div>
+      <div class="admin-generated-list">
+        <div class="admin-generated-row">
+          <div class="admin-generated-url-row">
+            <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
+            <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(url)}">Copy</button>
+          </div>
         </div>
-      </div>
-    </div>`;
-  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const url = btn.dataset.url;
-      try {
-        await navigator.clipboard.writeText(url);
-        const orig = btn.textContent;
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = orig; }, 1500);
-      } catch {
-        alert('Copy failed. Select the URL and copy it manually.');
-      }
+      </div>`;
+    out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(btn.dataset.url);
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+        } catch {
+          alert('Copy failed. Select the URL and copy it manually.');
+        }
+      });
     });
-  });
+  }
 }
 
 // The rubric-only view shown to someone who arrived via a scoped review link.

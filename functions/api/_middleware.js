@@ -15,10 +15,11 @@ const REVIEW_ALLOWED_PATHS = new Set([
   '/api/admin/review-session',
 ]);
 
-// Scoped coaching-admin links (cs_coaching_admin) may reach ONLY these admin
-// endpoints — the Scenarios + Voices editing surface and the identity probe.
-// The generator (/api/admin/coaching-access) and the manager-link
-// (/api/admin/coaching) are intentionally NOT here: those stay cs_admin-only.
+// Scoped coaching-admin links (cs_coaching_admin) come in two tiers.
+//
+// BASE tier (any coaching-editor link, scenarios OR full) may reach the
+// Scenarios + Voices editing surface and the identity probe. The manager-link
+// (/api/admin/coaching) is intentionally NOT here: it stays cs_admin-only.
 const COACHING_ADMIN_ALLOWED_PATHS = new Set([
   '/api/admin/coaching-agents',
   '/api/admin/coaching-voices',
@@ -26,6 +27,24 @@ const COACHING_ADMIN_ALLOWED_PATHS = new Set([
   '/api/admin/voice-preview',
   '/api/admin/coaching-access-session',
   '/api/admin/coaching-agent-preview',
+]);
+
+// FULL tier ONLY (getCoachingAdminScope level === 'full') may ALSO reach the
+// rest of the coaching admin surface — landing editor, course config,
+// cohorts/participants, recordings, reset, and the link generators. A
+// scenarios-tier editor stays limited to the base set above. Everything here is
+// still coaching-scoped: non-coaching /api/admin/* routes remain cs_admin-only.
+const COACHING_FULL_ALLOWED_PATHS = new Set([
+  '/api/admin/coaching-landing',
+  '/api/admin/coaching-landing-image',
+  '/api/admin/dashboard-fields',
+  '/api/admin/cohorts',
+  '/api/admin/cohort-recording',
+  '/api/admin/coaching-reset',
+  '/api/admin/coaching-participants',
+  '/api/admin/coaching-participant-meta',
+  '/api/admin/coaching-editors',
+  '/api/admin/coaching-access',
 ]);
 
 // Public paths skip auth entirely.
@@ -61,9 +80,12 @@ export async function onRequest(context) {
       const review = await getReviewScope(request, env);
       if (review) return next();
     }
-    if (COACHING_ADMIN_ALLOWED_PATHS.has(url.pathname)) {
+    const inBase = COACHING_ADMIN_ALLOWED_PATHS.has(url.pathname);
+    const inFull = COACHING_FULL_ALLOWED_PATHS.has(url.pathname);
+    if (inBase || inFull) {
       const ca = await getCoachingAdminScope(request, env);
-      if (ca) return next();
+      // Base paths: any coaching-editor tier. Full-only paths: 'full' tier only.
+      if (ca && (inBase || ca.level === 'full')) return next();
     }
     return jsonError('unauthorized', 401);
   }

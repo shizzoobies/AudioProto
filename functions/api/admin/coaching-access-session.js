@@ -8,7 +8,8 @@ import { getCoachingAdminScope } from '../../../shared/auth.js';
 
 export async function onRequestGet({ request, env }) {
   const scope = await getCoachingAdminScope(request, env);
-  return json({ coaching_editor: !!scope });
+  // level: 'full' (entire coaching admin) | 'scenarios' (scenarios + voices only).
+  return json({ coaching_editor: !!scope, level: scope ? scope.level : null });
 }
 
 export async function onRequestDelete({ request }) {

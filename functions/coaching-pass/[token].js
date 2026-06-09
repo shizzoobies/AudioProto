@@ -9,7 +9,7 @@
 // Not under /api, so the API middleware does not gate it. This is the public,
 // no-password entry point for the scoped Scenarios editor.
 
-import { signToken, sha256Hex, COACHING_ADMIN_RECIPIENT_EMAIL } from '../../shared/auth.js';
+import { signToken, sha256Hex, COACHING_ADMIN_RECIPIENT_EMAIL, COACHING_FULL_RECIPIENT_EMAIL } from '../../shared/auth.js';
 
 const COOKIE_TTL_SECONDS = 8 * 60 * 60;
 
@@ -29,10 +29,14 @@ export async function onRequest({ request, env, params }) {
     .first();
 
   if (!row) return errorPage();
-  // Accept BOTH the shared sentinel editor link and per-person editor invites
-  // (mode='coaching_editor'); both open the scoped Scenarios editor.
+  // Accept the scenarios-tier links (shared sentinel or mode='coaching_editor')
+  // AND the full-tier links (full sentinel or mode='coaching_full_editor'). All
+  // four open the coaching admin page; getCoachingAdminScope decides the tier.
   const isEditorLink =
-    row.recipient_email === COACHING_ADMIN_RECIPIENT_EMAIL || row.mode === 'coaching_editor';
+    row.recipient_email === COACHING_ADMIN_RECIPIENT_EMAIL ||
+    row.recipient_email === COACHING_FULL_RECIPIENT_EMAIL ||
+    row.mode === 'coaching_editor' ||
+    row.mode === 'coaching_full_editor';
   if (!isEditorLink) return errorPage();
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return errorPage();
