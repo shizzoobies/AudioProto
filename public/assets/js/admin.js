@@ -1772,7 +1772,7 @@ function renderDemoSection() {
 function renderDemoVoicesCard() {
   const rows = [
     { id: 'demo_sales', label: 'Robert — Sales (demo_sales)' },
-    { id: 'demo_service', label: 'Greg — Customer Service (demo_service)' },
+    { id: 'demo_service', label: 'Lauren — Customer Service (demo_service)' },
   ];
   return `
     <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;margin-top:14px;">

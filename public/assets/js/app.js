@@ -3,12 +3,12 @@ import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
 import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
-import { csToolHtml, wireCsTool } from './cs-tool.js?v=20260610-6';
+import { csToolHtml, wireCsTool } from './cs-tool.js?v=20260610-7';
 import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-13';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-6 cs-extension-story';
+const BUILD_ID = '20260610-7 cs-lauren';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2636,7 +2636,7 @@ function renderCall(scenario, opts = {}) {
     : 'Type your response...';
   const modeBadge = isPhone ? 'Phone call' : 'Chat';
   const isShowcaseCall = typeof scenario.id === 'string' && scenario.id.startsWith('showcase_');
-  // Customer Service demo (caller "Greg"): instead of the reservation POS this
+  // Customer Service demo (caller "Lauren"): instead of the reservation POS this
   // call renders a de-branded replica of the Meridian intranet Customer
   // Management flow (a 4-view client-side tool). The call header, dock, timer,
   // hold/end-call, and the voice-agent session are all shared with the POS path;

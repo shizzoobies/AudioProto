@@ -14,7 +14,7 @@ import { SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
 
 const AGENT_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/agents/';
 // Mirrors DEFAULT_AGENT_ID in functions/api/voice-agent/start.js — the demo
-// personas (Robert/Greg) run on this ElevenLabs agent on the main account.
+// personas (Robert/Lauren) run on this ElevenLabs agent on the main account.
 const DEMO_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
 
 export async function onRequestGet({ request, env }) {

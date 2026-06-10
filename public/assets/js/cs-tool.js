@@ -2,7 +2,7 @@
 // ----------------------------------------------------------------------------
 // A de-branded, static (client-side only) replica of the U-Haul intranet
 // customer-management flow the trainee navigates during the demo_service call
-// (caller "Greg Foster"). Extracted from app.js so BOTH the live app (app.js)
+// (caller "Lauren Foster"). Extracted from app.js so BOTH the live app (app.js)
 // and the static state gallery (preview.js) render the SAME markup + wiring,
 // with no risk of the two drifting apart.
 //
@@ -11,7 +11,7 @@
 //     opts.view   — which view starts visible: 'customer' (default) |
 //                   'contract' | 'receipts' | 'receipt'. Used by the preview
 //                   gallery to open the tool directly on a given screen.
-//     opts.loaded — render the customer view in its post-search state (Greg's
+//     opts.loaded — render the customer view in its post-search state (Lauren's
 //                   profile + past orders populated). Implied automatically
 //                   when opts.view is a deeper screen, so backing out of the
 //                   contract lands on a populated Customer Management.
@@ -19,13 +19,13 @@
 //
 // Four views live inside one .cs-tool container and are switched purely by
 // toggling [data-cs-view] panels (no re-render of the call):
-//   1. customer  — Customer Management (default; search → populate Greg)
+//   1. customer  — Customer Management (default; search → populate Lauren)
 //   2. contract  — Contract Lookup for MER-512874
 //   3. receipts  — Receipts list for the contract
 //   4. receipt   — the printed Return receipt (the payoff screen)
-// All data is hard-coded to tell one consistent charge story: quoted ~$70 at
-// extended two extra days (3 chargeable rental periods): he expected the
-// extension at $19.95/day but the Safe Move coverage ALSO bills $15.00/day, so
+// All data is hard-coded to tell one consistent charge story: Lauren extended
+// the rental two extra days (3 chargeable rental periods) expecting just the
+// $19.95/day truck rate, but the Safe Move coverage ALSO bills $15.00/day, so
 // the total came to $132.86 (truck $59.85 + Safe Move $45.00 + 24 mi @ $0.99 =
 // $23.76 + fees $2.20 + tax $2.05). Mileage and fuel are non-issues.
 // ============================================================================
@@ -92,7 +92,7 @@ export function csToolHtml(opts = {}) {
 
           <div class="cs-rail-results" data-cs-rail-results${loaded ? '' : ' hidden'}>
             <div class="cs-card">
-              <div class="cs-cust-name">Greg Foster <span class="cs-verified" title="Verified account">&#10003;</span></div>
+              <div class="cs-cust-name">Lauren Foster <span class="cs-verified" title="Verified account">&#10003;</span></div>
               <div class="cs-cust-rating"><span class="cs-stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9734;</span> <a class="cs-link">1 Review</a></div>
               <dl class="cs-facts">
                 <div><dt>Total Transactions:</dt><dd>2</dd></div>
@@ -107,7 +107,7 @@ export function csToolHtml(opts = {}) {
             <div class="cs-card">
               <div class="cs-card-label">Contact Information</div>
               <div class="cs-kv"><span class="cs-k">Phone:</span> (210) 555-7193 <span class="cs-tag">Primary</span></div>
-              <div class="cs-kv"><span class="cs-k">Email:</span> greg.foster.satx@gmail.com <span class="cs-tag">Primary</span></div>
+              <div class="cs-kv"><span class="cs-k">Email:</span> lauren.foster.satx@gmail.com <span class="cs-tag">Primary</span></div>
             </div>
 
             <div class="cs-card">
@@ -165,7 +165,7 @@ export function csToolHtml(opts = {}) {
       <div class="cs-contract-top">
         <div class="cs-plain-group">
           <div class="cs-kv"><span class="cs-k">Primary Phone:</span> (210) 555-7193</div>
-          <div class="cs-kv"><span class="cs-k">Email:</span> <a class="cs-link">greg.foster.satx@gmail.com</a></div>
+          <div class="cs-kv"><span class="cs-k">Email:</span> <a class="cs-link">lauren.foster.satx@gmail.com</a></div>
           <div class="cs-kv"><span class="cs-k">License:</span> TX - ********4471</div>
           <div class="cs-kv"><span class="cs-k">Entry Method:</span> Scan</div>
           <div class="cs-kv"><span class="cs-k">Birth Date:</span> 3/*/1987</div>
@@ -361,7 +361,7 @@ export function csToolHtml(opts = {}) {
       <div class="cs-receipt-layout">
         <aside class="cs-email-pane">
           <label class="cs-email-label" for="cs-email-input">Email Address</label>
-          <input class="cs-input" id="cs-email-input" type="email" value="greg.foster.satx@gmail.com">
+          <input class="cs-input" id="cs-email-input" type="email" value="lauren.foster.satx@gmail.com">
           <div class="cs-email-actions">
             <button type="button" class="cs-btn" data-cs-email>Email Receipt</button>
             <button type="button" class="cs-btn cs-btn-ghost" data-cs-email>Print</button>
@@ -390,7 +390,7 @@ export function csToolHtml(opts = {}) {
               <div class="cs-receipt-date">Monday, 6/8/2026 2:38 PM</div>
               <div class="cs-receipt-info-gap"></div>
               <div><span class="cs-k">Customer Name:</span></div>
-              <div>Greg Foster</div>
+              <div>Lauren Foster</div>
               <div>2317 Hunters Creek Dr</div>
               <div>San Antonio, TX 78231</div>
             </div>
@@ -406,12 +406,12 @@ export function csToolHtml(opts = {}) {
             <div class="cs-receipt-info-right">
               <div><span class="cs-k">Cust Ph - Email:</span></div>
               <div>(210) 555-7193</div>
-              <div>greg.foster.satx@gmail.com</div>
+              <div>lauren.foster.satx@gmail.com</div>
             </div>
           </div>
 
           <div class="cs-receipt-drivers">
-            <span class="cs-k">Authorized Driver(s):</span> Greg Foster
+            <span class="cs-k">Authorized Driver(s):</span> Lauren Foster
           </div>
           <div class="cs-receipt-dates">
             <span class="cs-k">Rental Date/Time:</span> 6/6/2026 8:52 AM
@@ -484,7 +484,7 @@ export function csToolHtml(opts = {}) {
 
           <ul class="cs-terms">${termsHtml}</ul>
 
-          <div class="cs-sign">X ________________ &nbsp; Greg Foster &mdash; e-Signature on file</div>
+          <div class="cs-sign">X ________________ &nbsp; Lauren Foster &mdash; e-Signature on file</div>
         </article>
       </div>
     </section>`;
@@ -508,7 +508,7 @@ export function csToolHtml(opts = {}) {
 
 // Wire the Customer Service tool: event delegation on the .cs-tool container.
 // View switching toggles [data-cs-view] panels (no call re-render). The search
-// form reveals Greg's profile + past orders; [data-cs-go] links jump between
+// form reveals Lauren's profile + past orders; [data-cs-go] links jump between
 // views; the receipt's Email/Print buttons flash a no-op "Sent" confirmation.
 export function wireCsTool(root) {
   if (!root) return;

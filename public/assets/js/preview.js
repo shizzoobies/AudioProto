@@ -1203,7 +1203,7 @@ function renderCallMultiTurn() {
   });
 }
 
-// ---- Customer Service in-call tool (the demo_service "Greg" flow) ----------
+// ---- Customer Service in-call tool (the demo_service "Lauren" flow) ----------
 // Wraps the shared csToolHtml() in the same call shell the live app uses for
 // the service demo (.call[data-cs="true"] > .call-header + .call-body), so the
 // CSS renders identically to the live call. All header controls are inert; the
@@ -1217,7 +1217,7 @@ function csCallShell(toolHtml) {
       <header class="call-header">
         <button class="ghost-button call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
-          <div class="call-customer-name">Greg</div>
+          <div class="call-customer-name">Lauren</div>
           <div class="call-scenario-title">Customer Service — Extension Charges <span class="call-mode-pill">Phone call</span></div>
         </div>
         <div class="call-actions">
@@ -1237,7 +1237,7 @@ function csCallShell(toolHtml) {
 // Per-screen entry points so each CS screen can be reviewed directly from the
 // state dropdown (and stacked in "Print all") without clicking through:
 //   full flow  — starts at the empty customer search (the live-call experience)
-//   customer   — Customer Management with Greg already loaded
+//   customer   — Customer Management with Lauren already loaded
 //   contract   — Contract Lookup
 //   receipts   — Receipts list
 //   receipt    — the printed Return receipt
@@ -1795,7 +1795,7 @@ const STATES = [
   { id: 'call-paused',           label: '4 · Call — Paused (timer frozen, form dimmed)', render: renderCallPaused },
   { id: 'call-multi-turn',       label: '4 · Call — Multi-turn transcript',    render: renderCallMultiTurn },
   { id: 'call-cs-tool',          label: '4 · Call — CS tool · full flow (start at search)', render: renderCallCsTool, wire: wireCsState },
-  { id: 'call-cs-customer',      label: '4 · Call — CS tool · Customer Management (Greg loaded)', render: renderCallCsCustomer, wire: wireCsState },
+  { id: 'call-cs-customer',      label: '4 · Call — CS tool · Customer Management (Lauren loaded)', render: renderCallCsCustomer, wire: wireCsState },
   { id: 'call-cs-contract',      label: '4 · Call — CS tool · Contract Lookup', render: renderCallCsContract, wire: wireCsState },
   { id: 'call-cs-receipts',      label: '4 · Call — CS tool · Receipts list', render: renderCallCsReceipts, wire: wireCsState },
   { id: 'call-cs-receipt',       label: '4 · Call — CS tool · Receipt document', render: renderCallCsReceipt, wire: wireCsState },

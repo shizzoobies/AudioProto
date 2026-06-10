@@ -1,5 +1,5 @@
 // Per-scenario voice override store for the DEMO callers (Robert = demo_sales,
-// Greg = demo_service). The admin picks a labeled voice from the demo ElevenLabs
+// Lauren = demo_service). The admin picks a labeled voice from the demo ElevenLabs
 // agent; we persist the raw voice_id here so the live call can resolve the
 // override. With no row, the call falls back to the persona's hardcoded
 // voice_id (the `defaults` below). This mirrors how the coaching framework lets
