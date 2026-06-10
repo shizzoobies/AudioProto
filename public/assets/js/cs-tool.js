@@ -24,8 +24,10 @@
 //   3. receipts  — Receipts list for the contract
 //   4. receipt   — the printed Return receipt (the payoff screen)
 // All data is hard-coded to tell one consistent charge story: quoted ~$70 at
-// reservation, actual $124.51 (drove 56 mi + $30 fuel fee for returning at
-// 7/16 vs 3/4 out). See the call prompt's DATA SANITY note.
+// extended two extra days (3 chargeable rental periods): he expected the
+// extension at $19.95/day but the Safe Move coverage ALSO bills $15.00/day, so
+// the total came to $132.86 (truck $59.85 + Safe Move $45.00 + 24 mi @ $0.99 =
+// $23.76 + fees $2.20 + tax $2.05). Mileage and fuel are non-issues.
 // ============================================================================
 
 // Local copy of app.js's HTML escaper so this module has no dependency on
@@ -61,7 +63,7 @@ export function csToolHtml(opts = {}) {
   // The Past Orders rows: injected on search at runtime (via the <template>
   // below), or rendered directly when the tool starts in the loaded state.
   const pastRowsHtml = `
-    <tr><td>06/06/2026</td><td>InTown</td><td><a class="cs-link" data-cs-go="contract">MER-512874</a></td><td>DC4821H</td><td>Received</td><td>$124.51</td></tr>
+    <tr><td>06/06/2026</td><td>InTown</td><td><a class="cs-link" data-cs-go="contract">MER-512874</a></td><td>DC4821H</td><td>Received</td><td>$132.86</td></tr>
     <tr><td>11/09/2025</td><td>InTown</td><td><span class="cs-link-muted">MER-417286</span></td><td>JH3308F</td><td>Received</td><td>$66.62</td></tr>`;
 
   const customerView = `
@@ -94,7 +96,7 @@ export function csToolHtml(opts = {}) {
               <div class="cs-cust-rating"><span class="cs-stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9734;</span> <a class="cs-link">1 Review</a></div>
               <dl class="cs-facts">
                 <div><dt>Total Transactions:</dt><dd>2</dd></div>
-                <div><dt>Total Amount:</dt><dd>$191.13</dd></div>
+                <div><dt>Total Amount:</dt><dd>$199.48</dd></div>
               </dl>
               <div class="cs-rail-links">
                 <a class="cs-link">Edit Profile and Vehicles</a>
@@ -240,8 +242,8 @@ export function csToolHtml(opts = {}) {
           <div class="cs-rdr-group">
             <div class="cs-kv"><span class="cs-k">Dispatch Date/Time:</span> 6/6/2026 8:52 AM</div>
             <div class="cs-kv"><span class="cs-k">Original Due Date/Time:</span> 6/6/2026 5:00 PM</div>
-            <div class="cs-kv"><span class="cs-k">Expected Due Date/Time:</span> 6/6/2026 5:00 PM</div>
-            <div class="cs-kv"><span class="cs-k">Contract period:</span> 8 Hours 8 Minutes</div>
+            <div class="cs-kv"><span class="cs-k">Expected Due Date/Time:</span> 6/8/2026 5:00 PM</div>
+            <div class="cs-kv"><span class="cs-k">Contract period:</span> 2 Days 5 Hours 46 Minutes</div>
             <div class="cs-kv"><span class="cs-k">Rental City/State:</span> <a class="cs-link">SAN ANTONIO, TX</a></div>
             <div class="cs-kv"><span class="cs-k">Dispatch Location:</span> <a class="cs-link">871078</a></div>
           </div>
@@ -263,17 +265,17 @@ export function csToolHtml(opts = {}) {
           </table>
           <div class="cs-kv cs-mileage-row"><span class="cs-k">Mileage Rate:</span> $0.99</div>
           <div class="cs-rdr-group">
-            <div class="cs-kv"><span class="cs-k">Return Date/Time:</span> 6/6/2026 2:38 PM</div>
-            <div class="cs-kv"><span class="cs-k">Days/Hours used:</span> 5 Hours 46 Minutes</div>
-            <div class="cs-kv"><span class="cs-k">Chargeable Rental Periods:</span> 1</div>
-            <div class="cs-kv"><span class="cs-k">Total miles used:</span> <strong>56</strong></div>
-            <div class="cs-kv"><span class="cs-k">Add'l miles used:</span> 26</div>
+            <div class="cs-kv"><span class="cs-k">Return Date/Time:</span> 6/8/2026 2:38 PM</div>
+            <div class="cs-kv"><span class="cs-k">Days/Hours used:</span> 2 Days 5 Hours 46 Minutes</div>
+            <div class="cs-kv"><span class="cs-k">Chargeable Rental Periods:</span> <strong>3</strong></div>
+            <div class="cs-kv"><span class="cs-k">Total miles used:</span> 24</div>
+            <div class="cs-kv"><span class="cs-k">Add'l miles used:</span> 0</div>
             <div class="cs-kv"><span class="cs-k">Rental City/State:</span> <a class="cs-link">SAN ANTONIO, TX</a></div>
             <div class="cs-kv"><span class="cs-k">Return location:</span> <a class="cs-link">871078</a></div>
           </div>
           <div class="cs-rdr-group">
-            <div class="cs-kv"><span class="cs-k">Return odometer:</span> 18,498.0</div>
-            <div class="cs-kv"><span class="cs-k">Return fuel level:</span> <strong>7/16</strong></div>
+            <div class="cs-kv"><span class="cs-k">Return odometer:</span> 18,466.0</div>
+            <div class="cs-kv"><span class="cs-k">Return fuel level:</span> 3/4</div>
           </div>
         </div>
       </div>
@@ -296,23 +298,23 @@ export function csToolHtml(opts = {}) {
             <td><a class="cs-link">871078</a></td>
             <td>Rental</td>
             <td>Visa<br><a class="cs-link">4539****6467</a></td>
-            <td>085203</td><td>$92.02</td><td>$52.02</td><td>$0.00</td>
+            <td>085203</td><td>$92.02</td><td>&mdash;</td><td>$0.00</td>
             <td><a class="cs-link" data-cs-go="receipts">View</a></td>
           </tr>
           <tr>
-            <td>6/6/2026<br>2:38 PM</td>
+            <td>6/8/2026<br>2:38 PM</td>
             <td><a class="cs-link">871078</a></td>
             <td>Return</td>
             <td>Visa<br><a class="cs-link">4539****6467</a></td>
-            <td>143807</td><td>&mdash;</td><td><strong>$124.51</strong></td><td>$0.00</td>
+            <td>143807</td><td>&mdash;</td><td><strong>$132.86</strong></td><td>$0.00</td>
             <td><a class="cs-link" data-cs-go="receipts">View</a></td>
           </tr>
           <tr class="cs-pay-total">
             <td colspan="5"></td>
             <td>$0.00</td>
-            <td>$124.51</td>
+            <td>$132.86</td>
             <td>$0.00</td>
-            <td><strong>Total Contract: $124.51</strong></td>
+            <td><strong>Total Contract: $132.86</strong></td>
           </tr>
         </tbody>
       </table>
@@ -331,7 +333,8 @@ export function csToolHtml(opts = {}) {
       <table class="cs-table">
         <thead><tr><th>Receipt</th><th>Date &#9662;</th><th>Description</th><th>Location</th></tr></thead>
         <tbody>
-          <tr><td><a class="cs-link" data-cs-go="receipt">View</a></td><td>6/6/2026 2:38:11 PM</td><td>&#128666; In-Town Return (IN)</td><td>871078</td></tr>
+          <tr><td><a class="cs-link" data-cs-go="receipt">View</a></td><td>6/8/2026 2:38:11 PM</td><td>&#128666; In-Town Return (IN)</td><td>871078</td></tr>
+          <tr><td><span class="cs-link-muted">View</span></td><td>6/7/2026 10:14:32 AM</td><td>In-Town Modify Rental</td><td>871078</td></tr>
           <tr><td><span class="cs-link-muted">View</span></td><td>6/6/2026 8:52:07 AM</td><td>In-Town Rental (OUT)</td><td>871078</td></tr>
           <tr><td><span class="cs-link-muted">View</span></td><td>6/5/2026 4:12:48 PM</td><td>In-Town Reservation</td><td>712044</td></tr>
         </tbody>
@@ -384,7 +387,7 @@ export function csToolHtml(opts = {}) {
           <div class="cs-receipt-info-row">
             <div class="cs-receipt-info-left">
               <div><strong>Contract No: MER-512874</strong></div>
-              <div class="cs-receipt-date">6/6/2026 2:38 PM</div>
+              <div class="cs-receipt-date">Monday, 6/8/2026 2:38 PM</div>
               <div class="cs-receipt-info-gap"></div>
               <div><span class="cs-k">Customer Name:</span></div>
               <div>Greg Foster</div>
@@ -413,10 +416,10 @@ export function csToolHtml(opts = {}) {
           <div class="cs-receipt-dates">
             <span class="cs-k">Rental Date/Time:</span> 6/6/2026 8:52 AM
             &nbsp;&nbsp;
-            <span class="cs-k">Return Date/Time:</span> 6/6/2026 2:38 PM
+            <span class="cs-k">Return Date/Time:</span> 6/8/2026 2:38 PM
           </div>
           <div class="cs-receipt-periods">
-            <span class="cs-k">Chargeable Rental Periods:</span> 1
+            <span class="cs-k">Chargeable Rental Periods:</span> 3
           </div>
 
           <!-- Equipment table: fixed layout, 10 columns, gray header -->
@@ -425,7 +428,7 @@ export function csToolHtml(opts = {}) {
               <th>Equipment</th><th>MI Out</th><th>MI In</th><th>MI Rate</th><th>MI Charge</th><th>Coverage</th><th>Missing/Damage Charge</th><th>Rental Rate</th><th>Rental Charge</th><th>Actual Charges</th>
             </tr></thead>
             <tbody><tr>
-              <td>DC4821H / TM15-204</td><td>18,442.0</td><td>18,498.0</td><td>$0.99 x 56.0 MI</td><td>$55.44</td><td>Safe Move: $15.00</td><td>$0.00</td><td>$19.95</td><td>$19.95</td><td>$90.39</td>
+              <td>DC4821H / TM15-204</td><td>18,442.0</td><td>18,466.0</td><td>$0.99 x 24.0 MI</td><td>$23.76</td><td>Safe Move: $45.00</td><td>$0.00</td><td>$19.95</td><td>$59.85</td><td>$128.61</td>
             </tr></tbody>
           </table>
 
@@ -437,14 +440,14 @@ export function csToolHtml(opts = {}) {
               <span class="cs-fuel-tick" style="left:50%"></span>
               <span class="cs-fuel-tick" style="left:75%"></span>
               <span class="cs-fuel-tick" style="left:100%"></span>
-              <span class="cs-fuel-marker" style="left:43.75%"></span>
+              <span class="cs-fuel-marker" style="left:75%"></span>
               <span class="cs-fuel-cap cs-fuel-cap-e">E</span>
               <span class="cs-fuel-cap cs-fuel-cap-q" style="left:25%">1/4</span>
               <span class="cs-fuel-cap cs-fuel-cap-h" style="left:50%">1/2</span>
               <span class="cs-fuel-cap cs-fuel-cap-t" style="left:75%">3/4</span>
               <span class="cs-fuel-cap cs-fuel-cap-f">F</span>
             </div>
-            <div class="cs-muted">Fuel level at return: 7/16 (out at 3/4)</div>
+            <div class="cs-muted">Fuel level at return: 3/4 (out at 3/4)</div>
           </div>
 
           <!-- Two-column: payment detail LEFT, charges RIGHT -->
@@ -464,19 +467,18 @@ export function csToolHtml(opts = {}) {
               <div><span class="cs-k">TVR:</span> 8000048000</div>
               <div><span class="cs-k">TSI:</span> 6800</div>
               <div class="cs-pay-gap"></div>
-              <div><strong>Credit Card Payment: $44.02</strong></div>
+              <div><strong>Credit Card Payment: $132.86</strong></div>
               <div class="cs-pay-gap"></div>
               <div>Verified By PIN</div>
             </div>
             <div class="cs-charges">
-              <div class="cs-charge"><span>Fuel Service Fee</span><span><strong>$30.00</strong></span></div>
               <div class="cs-charge"><span>Vehicle License Recovery Fee - TX Pickup/Van</span><span>$1.20</span></div>
               <div class="cs-charge"><span>Environmental Fee</span><span>$1.00</span></div>
-              <div class="cs-charge cs-charge-sub"><span>Subtotal</span><span><strong>$122.59</strong></span></div>
-              <div class="cs-charge"><span>Rental Tax</span><span>$1.92</span></div>
-              <div class="cs-charge cs-charge-sub"><span>Total Rental Charges</span><span><strong>$124.51</strong></span></div>
-              <div class="cs-charge"><span>Credit Card Payment</span><span>$124.51</span></div>
-              <div class="cs-charge cs-charge-net"><span>Net Paid Today</span><span><strong>$124.51</strong></span></div>
+              <div class="cs-charge cs-charge-sub"><span>Subtotal</span><span><strong>$130.81</strong></span></div>
+              <div class="cs-charge"><span>Rental Tax</span><span>$2.05</span></div>
+              <div class="cs-charge cs-charge-sub"><span>Total Rental Charges</span><span><strong>$132.86</strong></span></div>
+              <div class="cs-charge"><span>Credit Card Payment</span><span>$132.86</span></div>
+              <div class="cs-charge cs-charge-net"><span>Net Paid Today</span><span><strong>$132.86</strong></span></div>
             </div>
           </div>
 

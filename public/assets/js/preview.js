@@ -1218,7 +1218,7 @@ function csCallShell(toolHtml) {
         <button class="ghost-button call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
           <div class="call-customer-name">Greg</div>
-          <div class="call-scenario-title">Customer Service — Charge vs. Quote <span class="call-mode-pill">Phone call</span></div>
+          <div class="call-scenario-title">Customer Service — Extension Charges <span class="call-mode-pill">Phone call</span></div>
         </div>
         <div class="call-actions">
           <span class="call-number mono" title="Caller ID"><span class="call-number-dot" aria-hidden="true"></span>(210) 555-7193</span>
