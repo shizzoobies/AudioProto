@@ -1,7 +1,12 @@
 // preview.js — static state gallery for visual dial-in
 // No fetch(), no imports from app.js/admin.js, no API calls.
+// EXCEPTION: the shared ./cs-tool.js module is allowed — it's the same
+// Customer Service tool the live app uses, imported here so the interactive
+// CS state renders/behaves identically to the call (no duplicated markup).
 // All mock data is inline in the MOCK object below.
 // To add a new state: push an entry to STATES and add a render fn.
+
+import { csToolHtml, wireCsTool } from './cs-tool.js';
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -1198,6 +1203,37 @@ function renderCallMultiTurn() {
   });
 }
 
+// ---- Customer Service in-call tool (the demo_service "Greg" flow) ----------
+// Wraps the shared csToolHtml() in the same call shell the live app uses for
+// the service demo (.call[data-cs="true"] > .call-header + .call-body), so the
+// CSS renders identically to the live call. All header controls are inert; the
+// interactivity (search → contract → receipts → receipt) is wired separately
+// via wireCsTool() in the STATES entry's `wire` hook. The full call chrome
+// (buildCallShell) is POS-specific and intentionally not reused here — the
+// service demo replaces the entire call body with the CS tool.
+function renderCallCsTool() {
+  return `
+    <section class="call" data-call-mode="phone" data-cs="true">
+      <header class="call-header">
+        <button class="ghost-button call-back" type="button">Back to scenarios</button>
+        <div class="call-meta">
+          <div class="call-customer-name">Greg</div>
+          <div class="call-scenario-title">Customer Service — Charge vs. Quote <span class="call-mode-pill">Phone call</span></div>
+        </div>
+        <div class="call-actions">
+          <span class="call-number mono" title="Caller ID"><span class="call-number-dot" aria-hidden="true"></span>(210) 555-7193</span>
+          <span class="call-timer" role="timer" aria-label="Call duration" title="Call duration">03:42</span>
+          <button class="ghost-button call-pause" type="button" aria-pressed="false" title="Ask the caller's permission before placing them on a brief hold">Hold</button>
+          <button class="danger-button" type="button">End call</button>
+        </div>
+      </header>
+      <div class="call-body">
+        ${csToolHtml()}
+      </div>
+    </section>
+  `;
+}
+
 // ---- Pre-call modal + ring screen (the start-of-call sequence) ------------
 // Both are full-screen overlays in the real app; here they're contained in a
 // .preview-frame so they sit in flow and work in the stacked "print all" view.
@@ -1737,6 +1773,7 @@ const STATES = [
   { id: 'call-thinking',         label: '4 · Call — Customer thinking (clock frozen)', render: renderCallThinking },
   { id: 'call-paused',           label: '4 · Call — Paused (timer frozen, form dimmed)', render: renderCallPaused },
   { id: 'call-multi-turn',       label: '4 · Call — Multi-turn transcript',    render: renderCallMultiTurn },
+  { id: 'call-cs-tool',          label: '4 · Call — Customer Service tool (Greg, interactive)', render: renderCallCsTool, wire: (rootEl) => { const t = rootEl.querySelector('.cs-tool'); if (t) wireCsTool(t); } },
   // --- 5. The CSF reservation steps ---
   { id: 'call-step-details',     label: '5 · CSF — Step 1: Details',           render: renderCallStepDetails },
   { id: 'call-step-equipment',   label: '5 · CSF — Step 2: Equipment',         render: renderCallStepEquipment },
@@ -1782,6 +1819,10 @@ function showState(id) {
   root.innerHTML = s.render();
   sel.value = s.id;
 
+  // Some states are interactive (e.g. the Customer Service tool) and need
+  // event wiring after their markup is in the DOM.
+  if (s.wire) s.wire(root);
+
   // Auth login: temporarily override body class so auth styles apply
   const bodyOverride = root.querySelector('body-override');
   if (bodyOverride) {
@@ -1804,6 +1845,14 @@ function showAll() {
     <div class="preview-divider">${esc(s.id)} — ${esc(s.label)}</div>
     <div class="preview-state active" data-state="${esc(s.id)}">${s.render()}</div>
   `).join('');
+
+  // Wire any interactive states against their own stacked container so their
+  // event delegation is scoped correctly (each [data-state] wraps one render).
+  STATES.forEach((s) => {
+    if (!s.wire) return;
+    const container = root.querySelector(`[data-state="${s.id}"]`);
+    if (container) s.wire(container);
+  });
 }
 
 sel.addEventListener('change', () => showState(sel.value));
