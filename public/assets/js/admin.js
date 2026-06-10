@@ -4833,6 +4833,14 @@ function renderPreviewSection() {
         </div>
         <div id="admin-preview-generated" class="admin-generated"></div>
       </div>
+
+      <div class="admin-invite-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+          <strong style="font-size:13.5px;">UI state gallery</strong>
+          <span class="admin-muted" style="font-size:12.5px;">Click through every screen state (POS steps, the Customer Service tool, reports) with mock data — no voice or API usage.</span>
+        </div>
+        <a class="primary-button" href="/preview.html" target="_blank" rel="noopener">Open UI gallery &rarr;</a>
+      </div>
     </section>
   `;
 }
