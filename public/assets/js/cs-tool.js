@@ -175,7 +175,11 @@ export function csToolHtml(opts = {}) {
           <div class="cs-muted">Phone: (210) 555-7008</div>
         </div>
         <div class="cs-plain-group cs-action-links">
-          <a class="cs-link">&#9744; Add Customer Action Flag</a>
+          <a class="cs-link"><span class="cs-plus" aria-hidden="true">+</span> Add Customer to eAlert</a>
+          <a class="cs-link">Additional contracts for this customer</a>
+          <a class="cs-link" data-cs-go="receipts">Receipts for this contract</a>
+          <a class="cs-link">Customer Confirmation Emails</a>
+          <a class="cs-link"><span class="cs-plus" aria-hidden="true">+</span> Add Customer Action File</a>
           <a class="cs-link">Issue VIP</a>
           <a class="cs-link">$50.00 Reservation Guarantee (Field Use Only)</a>
           <a class="cs-link">Incidents/Claims associated with this contract</a>

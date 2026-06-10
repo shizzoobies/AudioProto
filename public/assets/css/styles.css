@@ -8048,6 +8048,23 @@ body[data-admin-page="coaching"] .admin-generated-url {
 }
 .cs-store-name { font-weight: 700; color: #111827; margin-bottom: 4px; font-size: 12.5px; }
 .cs-action-links { display: flex; flex-direction: column; gap: 4px; }
+/* The small blue plus-box glyph in front of "Add Customer to eAlert" /
+   "Add Customer Action File" (mirrors the reference's icon links). */
+.cs-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: -1px;
+  text-decoration: none;
+}
 
 /* "▾ Rental Information" section head */
 .cs-section-head {
