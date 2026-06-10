@@ -161,20 +161,21 @@ export function csToolHtml(opts = {}) {
       <h1 class="cs-h1">Contract Lookup &mdash; Contract MER-512874</h1>
 
       <div class="cs-contract-top">
-        <div class="cs-card">
+        <div class="cs-plain-group">
           <div class="cs-kv"><span class="cs-k">Primary Phone:</span> (210) 555-7193</div>
-          <div class="cs-kv"><span class="cs-k">Email:</span> greg.foster.satx@gmail.com</div>
+          <div class="cs-kv"><span class="cs-k">Email:</span> <a class="cs-link">greg.foster.satx@gmail.com</a></div>
           <div class="cs-kv"><span class="cs-k">License:</span> TX - ********4471</div>
           <div class="cs-kv"><span class="cs-k">Entry Method:</span> Scan</div>
           <div class="cs-kv"><span class="cs-k">Birth Date:</span> 3/*/1987</div>
         </div>
-        <div class="cs-card">
+        <div class="cs-plain-group">
           <div class="cs-store-name">MERIDIAN MOVING &amp; STORAGE OF NORTHWEST SAN ANTONIO</div>
-          <div class="cs-muted">8124 Culebra Rd, San Antonio, TX 78251</div>
+          <div class="cs-muted">SAN ANTONIO, TX</div>
+          <div class="cs-muted">78251</div>
           <div class="cs-muted">Phone: (210) 555-7008</div>
         </div>
-        <div class="cs-card cs-action-links">
-          <a class="cs-link">Add Customer Action Flag</a>
+        <div class="cs-plain-group cs-action-links">
+          <a class="cs-link">&#9744; Add Customer Action Flag</a>
           <a class="cs-link">Issue VIP</a>
           <a class="cs-link">$50.00 Reservation Guarantee (Field Use Only)</a>
           <a class="cs-link">Incidents/Claims associated with this contract</a>
@@ -184,68 +185,131 @@ export function csToolHtml(opts = {}) {
       </div>
 
       <div class="cs-section-head">&#9662; Rental Information</div>
-      <div class="cs-meta-row">Transaction: InTown &nbsp;|&nbsp; Status: Closed &nbsp;|&nbsp; Created Date: 6/5/2026 4:12 PM &nbsp;|&nbsp; Created by: 712044</div>
+      <div class="cs-meta-row">
+        <strong>Transaction:</strong> <a class="cs-link">InTown</a>
+        <span class="cs-meta-sep">|</span>
+        <strong>Status:</strong> Closed
+        <span class="cs-meta-sep">|</span>
+        <strong>Created Date:</strong> 6/5/2026 4:12 PM
+        <span class="cs-meta-sep">|</span>
+        <strong>Created by:</strong> 712044
+      </div>
 
       <div class="cs-rdr">
-        <div class="cs-card">
-          <div class="cs-card-label">Reservation</div>
-          <table class="cs-mini"><tbody>
-            <tr><td>Equipment DC</td><td>Rate $19.95</td></tr>
-            <tr><td>Coverage Safe Move</td><td>Rate $15.00</td></tr>
-          </tbody></table>
-          <div class="cs-kv"><span class="cs-k">Mileage Rate:</span> $0.99</div>
-          <div class="cs-kv"><span class="cs-k">Pickup Date/Time:</span> 6/6/2026 9:00 AM</div>
-          <div class="cs-kv"><span class="cs-k">Days/Hours requested:</span> 8 Hours</div>
-          <div class="cs-kv"><span class="cs-k">Estimated mileage:</span> 30</div>
-          <div class="cs-kv"><span class="cs-k">Rental City/State:</span> SAN ANTONIO, TX</div>
-          <div class="cs-kv"><span class="cs-k">Preferred Location:</span> 871078</div>
-          <div class="cs-kv"><span class="cs-k">Assigned Location:</span> 871078</div>
-          <div class="cs-kv"><span class="cs-k">Scheduled Date/Time:</span> 6/6/2026 9:00 AM</div>
-          <div class="cs-kv"><span class="cs-k">Scheduling location:</span> 871078</div>
+        <div class="cs-rdr-col">
+          <div class="cs-rdr-label">Reservation</div>
+          <table class="cs-mini cs-mini-headed">
+            <thead><tr>
+              <th>Equipment</th><th>Rate</th><th>Coverage</th><th>Rate</th>
+            </tr></thead>
+            <tbody><tr>
+              <td>DC</td><td>$19.95</td><td>Safe Move</td><td>$15.00</td>
+            </tr></tbody>
+          </table>
+          <div class="cs-kv cs-mileage-row"><span class="cs-k">Mileage Rate:</span> $0.99</div>
+          <div class="cs-rdr-group">
+            <div class="cs-kv"><span class="cs-k">Pickup Date/Time:</span> 6/6/2026 9:00 AM</div>
+            <div class="cs-kv"><span class="cs-k">Days/Hours requested:</span> 8 Hours</div>
+            <div class="cs-kv"><span class="cs-k">Estimated mileage:</span> 30</div>
+            <div class="cs-kv"><span class="cs-k">Rental City/State:</span> <a class="cs-link">SAN ANTONIO, TX</a></div>
+            <div class="cs-kv"><span class="cs-k">Preferred Location:</span> <a class="cs-link">871078</a></div>
+            <div class="cs-kv"><span class="cs-k">Assigned Location:</span> <a class="cs-link">871078</a></div>
+          </div>
+          <div class="cs-rdr-group">
+            <div class="cs-kv"><span class="cs-k">Scheduled Date/Time:</span> 6/6/2026 9:00 AM</div>
+            <div class="cs-kv"><span class="cs-k">Scheduling location:</span> <a class="cs-link">871078</a></div>
+            <div class="cs-kv"><span class="cs-k">Scheduled by:</span></div>
+          </div>
         </div>
-        <div class="cs-card">
-          <div class="cs-card-label">Dispatch</div>
-          <table class="cs-mini"><tbody>
-            <tr><td><span class="cs-link-muted">DC4821H</span></td><td>$19.95</td></tr>
-            <tr><td>Safe Move</td><td>$15.00</td></tr>
-          </tbody></table>
-          <div class="cs-kv"><span class="cs-k">Mileage Rate:</span> $0.99</div>
-          <div class="cs-kv"><span class="cs-k">Dispatch Date/Time:</span> 6/6/2026 8:52 AM</div>
-          <div class="cs-kv"><span class="cs-k">Original Due Date/Time:</span> 6/6/2026 5:00 PM</div>
-          <div class="cs-kv"><span class="cs-k">Expected Due Date/Time:</span> 6/6/2026 5:00 PM</div>
-          <div class="cs-kv"><span class="cs-k">Contract period:</span> 8 Hours 8 Minutes</div>
-          <div class="cs-kv"><span class="cs-k">Rental City/State:</span> SAN ANTONIO, TX</div>
-          <div class="cs-kv"><span class="cs-k">Dispatch Location:</span> 871078</div>
-          <div class="cs-kv"><span class="cs-k">Pickup odometer:</span> 18,442.0</div>
-          <div class="cs-kv"><span class="cs-k">Pickup fuel level:</span> 3/4</div>
+
+        <div class="cs-rdr-col">
+          <div class="cs-rdr-label">Dispatch</div>
+          <table class="cs-mini cs-mini-headed">
+            <thead><tr>
+              <th>Equipment</th><th>Rate</th><th>Coverage</th><th>Rate</th>
+            </tr></thead>
+            <tbody><tr>
+              <td><a class="cs-link">DC4821H</a></td><td>$19.95</td><td>Safe Move</td><td>$15.00</td>
+            </tr></tbody>
+          </table>
+          <div class="cs-kv cs-mileage-row"><span class="cs-k">Mileage Rate:</span> $0.99</div>
+          <div class="cs-rdr-group">
+            <div class="cs-kv"><span class="cs-k">Dispatch Date/Time:</span> 6/6/2026 8:52 AM</div>
+            <div class="cs-kv"><span class="cs-k">Original Due Date/Time:</span> 6/6/2026 5:00 PM</div>
+            <div class="cs-kv"><span class="cs-k">Expected Due Date/Time:</span> 6/6/2026 5:00 PM</div>
+            <div class="cs-kv"><span class="cs-k">Contract period:</span> 8 Hours 8 Minutes</div>
+            <div class="cs-kv"><span class="cs-k">Rental City/State:</span> <a class="cs-link">SAN ANTONIO, TX</a></div>
+            <div class="cs-kv"><span class="cs-k">Dispatch Location:</span> <a class="cs-link">871078</a></div>
+          </div>
+          <div class="cs-rdr-group">
+            <div class="cs-kv"><span class="cs-k">Pickup odometer:</span> 18,442.0</div>
+            <div class="cs-kv"><span class="cs-k">Pickup fuel level:</span> 3/4</div>
+          </div>
         </div>
-        <div class="cs-card">
-          <div class="cs-card-label">Return</div>
-          <table class="cs-mini"><tbody>
-            <tr><td>DC4821H</td><td></td></tr>
-          </tbody></table>
-          <div class="cs-kv"><span class="cs-k">Return Date/Time:</span> 6/6/2026 2:38 PM</div>
-          <div class="cs-kv"><span class="cs-k">Days/Hours used:</span> 5 Hours 46 Minutes</div>
-          <div class="cs-kv"><span class="cs-k">Chargeable Rental Periods:</span> 1</div>
-          <div class="cs-kv"><span class="cs-k">Total miles used:</span> <strong>56</strong></div>
-          <div class="cs-kv"><span class="cs-k">Add'l miles used:</span> 26</div>
-          <div class="cs-kv"><span class="cs-k">Rental City/State:</span> SAN ANTONIO, TX</div>
-          <div class="cs-kv"><span class="cs-k">Return location:</span> 871078</div>
-          <div class="cs-kv"><span class="cs-k">Return odometer:</span> 18,498.0</div>
-          <div class="cs-kv"><span class="cs-k">Return fuel level:</span> <strong>7/16</strong></div>
+
+        <div class="cs-rdr-col">
+          <div class="cs-rdr-label">Return</div>
+          <table class="cs-mini cs-mini-headed">
+            <thead><tr>
+              <th colspan="4">Equipment</th>
+            </tr></thead>
+            <tbody><tr>
+              <td colspan="4"><a class="cs-link">DC4821H</a></td>
+            </tr></tbody>
+          </table>
+          <div class="cs-kv cs-mileage-row"><span class="cs-k">Mileage Rate:</span> $0.99</div>
+          <div class="cs-rdr-group">
+            <div class="cs-kv"><span class="cs-k">Return Date/Time:</span> 6/6/2026 2:38 PM</div>
+            <div class="cs-kv"><span class="cs-k">Days/Hours used:</span> 5 Hours 46 Minutes</div>
+            <div class="cs-kv"><span class="cs-k">Chargeable Rental Periods:</span> 1</div>
+            <div class="cs-kv"><span class="cs-k">Total miles used:</span> <strong>56</strong></div>
+            <div class="cs-kv"><span class="cs-k">Add'l miles used:</span> 26</div>
+            <div class="cs-kv"><span class="cs-k">Rental City/State:</span> <a class="cs-link">SAN ANTONIO, TX</a></div>
+            <div class="cs-kv"><span class="cs-k">Return location:</span> <a class="cs-link">871078</a></div>
+          </div>
+          <div class="cs-rdr-group">
+            <div class="cs-kv"><span class="cs-k">Return odometer:</span> 18,498.0</div>
+            <div class="cs-kv"><span class="cs-k">Return fuel level:</span> <strong>7/16</strong></div>
+          </div>
         </div>
       </div>
 
       <div class="cs-section-head">&#9662; Payment Information</div>
       <table class="cs-table cs-pay-table">
         <thead><tr>
-          <th>Payment date</th><th>Payment Location</th><th>Transaction Type</th><th>Method of Payment</th><th>Auth Code</th><th>Pending/Hold Amount</th><th>Settled Amount</th><th>Balance Remaining</th><th>Receipts</th>
+          <th>Payment date</th><th>Payment Location</th><th>Transaction Type</th><th>Method of Payment &#9650;</th><th>Auth Code</th><th>Pending/Hold Amount</th><th>Settled Amount</th><th>Balance Remaining &#9650;</th><th>Receipts</th>
         </tr></thead>
         <tbody>
-          <tr><td>6/5/2026 4:12 PM</td><td>712044</td><td></td><td>Visa 4539****6467</td><td>&mdash;</td><td>&mdash;</td><td>$0.00</td><td>$0.00</td><td></td></tr>
-          <tr><td>6/6/2026 8:52 AM</td><td>871078</td><td>Rental</td><td>Visa 4539****6467</td><td>085203</td><td>$92.02</td><td>&mdash;</td><td>$0.00</td><td><a class="cs-link" data-cs-go="receipts">View</a></td></tr>
-          <tr><td>6/6/2026 2:38 PM</td><td>871078</td><td>Return</td><td>Visa 4539****6467</td><td>143807</td><td>&mdash;</td><td><strong>$124.51</strong></td><td>$0.00</td><td><a class="cs-link" data-cs-go="receipts">View</a></td></tr>
-          <tr class="cs-pay-total"><td colspan="6"></td><td colspan="2">Total Contract:</td><td><strong>$124.51</strong></td></tr>
+          <tr>
+            <td>6/5/2026<br>4:12 PM</td>
+            <td><a class="cs-link">712044</a></td>
+            <td></td>
+            <td>Visa<br><a class="cs-link">4539****6467</a></td>
+            <td>&mdash;</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td></td>
+          </tr>
+          <tr>
+            <td>6/6/2026<br>8:52 AM</td>
+            <td><a class="cs-link">871078</a></td>
+            <td>Rental</td>
+            <td>Visa<br><a class="cs-link">4539****6467</a></td>
+            <td>085203</td><td>$92.02</td><td>$52.02</td><td>$0.00</td>
+            <td><a class="cs-link" data-cs-go="receipts">View</a></td>
+          </tr>
+          <tr>
+            <td>6/6/2026<br>2:38 PM</td>
+            <td><a class="cs-link">871078</a></td>
+            <td>Return</td>
+            <td>Visa<br><a class="cs-link">4539****6467</a></td>
+            <td>143807</td><td>&mdash;</td><td><strong>$124.51</strong></td><td>$0.00</td>
+            <td><a class="cs-link" data-cs-go="receipts">View</a></td>
+          </tr>
+          <tr class="cs-pay-total">
+            <td colspan="5"></td>
+            <td>$0.00</td>
+            <td>$124.51</td>
+            <td>$0.00</td>
+            <td><strong>Total Contract: $124.51</strong></td>
+          </tr>
         </tbody>
       </table>
     </section>`;
@@ -299,27 +363,59 @@ export function csToolHtml(opts = {}) {
         </aside>
 
         <article class="cs-receipt">
+
+          <!-- Header row: wordmark+Receipt  |  barcode + In-Town + phone -->
           <div class="cs-receipt-head">
-            <div><span class="cs-wordmark">MERIDIAN</span> <span class="cs-receipt-kicker">Receipt</span></div>
+            <div class="cs-receipt-head-left">
+              <span class="cs-wordmark">MERIDIAN</span><span class="cs-receipt-kicker">Receipt</span>
+            </div>
             <div class="cs-receipt-head-right">
               <div class="cs-barcode" aria-hidden="true"></div>
-              <div class="cs-muted">In-Town Return In</div>
+              <div class="cs-receipt-intownlabel"><strong>In-Town Return In</strong></div>
               <div class="cs-muted">(210) 555-7008</div>
             </div>
           </div>
 
-          <div class="cs-receipt-meta">
-            <div><strong>Contract No: MER-512874</strong> &mdash; Saturday, 6/6/2026 2:38 PM</div>
-            <div class="cs-muted">MERIDIAN MOVING &amp; STORAGE OF NORTHWEST SAN ANTONIO 871078 &middot; 8124 Culebra Rd &middot; San Antonio, TX 78251</div>
+          <!-- Contract / store / customer 3-col meta block -->
+          <div class="cs-receipt-info-row">
+            <div class="cs-receipt-info-left">
+              <div><strong>Contract No: MER-512874</strong></div>
+              <div class="cs-receipt-date">6/6/2026 2:38 PM</div>
+              <div class="cs-receipt-info-gap"></div>
+              <div><span class="cs-k">Customer Name:</span></div>
+              <div>Greg Foster</div>
+              <div>2317 Hunters Creek Dr</div>
+              <div>San Antonio, TX 78231</div>
+            </div>
+            <div class="cs-receipt-info-mid">
+              <div>MERIDIAN MOVING &amp; STORAGE OF</div>
+              <div>LAKE CITY</div>
+              <div>CITY</div>
+              <div>571078</div>
+              <div class="cs-receipt-info-gap"></div>
+              <div>324 NW CENTURION CT</div>
+              <div>LAKE CITY, FL 32055</div>
+            </div>
+            <div class="cs-receipt-info-right">
+              <div><span class="cs-k">Cust Ph - Email:</span></div>
+              <div>(210) 555-7193</div>
+              <div>greg.foster.satx@gmail.com</div>
+            </div>
           </div>
 
-          <div class="cs-receipt-cust">
-            <div><span class="cs-k">Customer Name:</span> Greg Foster, 2317 Hunters Creek Dr, San Antonio, TX 78231</div>
-            <div><span class="cs-k">Cust Ph - Email:</span> (210) 555-7193 &middot; greg.foster.satx@gmail.com</div>
-            <div><span class="cs-k">Authorized Driver(s):</span> Greg Foster</div>
-            <div><span class="cs-k">Rental Date/Time:</span> 6/6/2026 8:52 AM &nbsp; <span class="cs-k">Return Date/Time:</span> 6/6/2026 2:38 PM &nbsp; <span class="cs-k">Chargeable Rental Periods:</span> 1</div>
+          <div class="cs-receipt-drivers">
+            <span class="cs-k">Authorized Driver(s):</span> Greg Foster
+          </div>
+          <div class="cs-receipt-dates">
+            <span class="cs-k">Rental Date/Time:</span> 6/6/2026 8:52 AM
+            &nbsp;&nbsp;
+            <span class="cs-k">Return Date/Time:</span> 6/6/2026 2:38 PM
+          </div>
+          <div class="cs-receipt-periods">
+            <span class="cs-k">Chargeable Rental Periods:</span> 1
           </div>
 
+          <!-- Equipment table: fixed layout, 10 columns, gray header -->
           <table class="cs-table cs-equip-table">
             <thead><tr>
               <th>Equipment</th><th>MI Out</th><th>MI In</th><th>MI Rate</th><th>MI Charge</th><th>Coverage</th><th>Missing/Damage Charge</th><th>Rental Rate</th><th>Rental Charge</th><th>Actual Charges</th>
@@ -329,6 +425,7 @@ export function csToolHtml(opts = {}) {
             </tr></tbody>
           </table>
 
+          <!-- Full-width fuel gauge ruler -->
           <div class="cs-fuel">
             <div class="cs-fuel-gauge" aria-hidden="true">
               <span class="cs-fuel-tick" style="left:0%"></span>
@@ -346,27 +443,37 @@ export function csToolHtml(opts = {}) {
             <div class="cs-muted">Fuel level at return: 7/16 (out at 3/4)</div>
           </div>
 
-          <div class="cs-charges">
-            <div class="cs-charge"><span>Fuel Service Fee:</span><span><strong>$30.00</strong></span></div>
-            <div class="cs-charge"><span>Vehicle License Recovery Fee - TX Pickup/Van:</span><span>$1.20</span></div>
-            <div class="cs-charge"><span>Environmental Fee:</span><span>$1.00</span></div>
-            <div class="cs-charge cs-charge-sub"><span>Subtotal:</span><span><strong>$122.59</strong></span></div>
-            <div class="cs-charge"><span>Rental Tax:</span><span>$1.92</span></div>
-            <div class="cs-charge cs-charge-sub"><span>Total Rental Charges:</span><span><strong>$124.51</strong></span></div>
-            <div class="cs-charge"><span>Credit Card Payment:</span><span>$124.51</span></div>
-            <div class="cs-charge cs-charge-net"><span>Net Paid Today:</span><span><strong>$124.51</strong></span></div>
-          </div>
-
-          <div class="cs-paymentblock mono">
-            <div>Card Type/Account: VISA xxxx-xxxx-xxxx-6467</div>
-            <div>Payment: 143807</div>
-            <div>Entry Method: Chip</div>
-            <div>Application Label: VISA CREDIT</div>
-            <div>Merchant ID: 1449M66582507</div>
-            <div>AID: A0000000031010</div>
-            <div>TVR: 8000048000</div>
-            <div>TSI: 6800</div>
-            <div>Verified By PIN</div>
+          <!-- Two-column: payment detail LEFT, charges RIGHT -->
+          <div class="cs-receipt-lower">
+            <div class="cs-paymentblock">
+              <div><span class="cs-k">Card Type:</span> US DEBIT</div>
+              <div><span class="cs-k">Account:</span> XXXX-XXXX-XXXX-2521</div>
+              <div><span class="cs-k">Type:</span> Payment</div>
+              <div><span class="cs-k">Ref No.:</span></div>
+              <div><span class="cs-k">Approved:</span> 085610</div>
+              <div class="cs-pay-gap"></div>
+              <div><span class="cs-k">Entry Method:</span> Chip</div>
+              <div><span class="cs-k">Application Label:</span></div>
+              <div>US DEBIT</div>
+              <div><span class="cs-k">Merchant ID:</span> 1449M66582507</div>
+              <div><span class="cs-k">AID:</span> A0000000098400</div>
+              <div><span class="cs-k">TVR:</span> 8000048000</div>
+              <div><span class="cs-k">TSI:</span> 6800</div>
+              <div class="cs-pay-gap"></div>
+              <div><strong>Credit Card Payment: $44.02</strong></div>
+              <div class="cs-pay-gap"></div>
+              <div>Verified By PIN</div>
+            </div>
+            <div class="cs-charges">
+              <div class="cs-charge"><span>Fuel Service Fee</span><span><strong>$30.00</strong></span></div>
+              <div class="cs-charge"><span>Vehicle License Recovery Fee - TX Pickup/Van</span><span>$1.20</span></div>
+              <div class="cs-charge"><span>Environmental Fee</span><span>$1.00</span></div>
+              <div class="cs-charge cs-charge-sub"><span>Subtotal</span><span><strong>$122.59</strong></span></div>
+              <div class="cs-charge"><span>Rental Tax</span><span>$1.92</span></div>
+              <div class="cs-charge cs-charge-sub"><span>Total Rental Charges</span><span><strong>$124.51</strong></span></div>
+              <div class="cs-charge"><span>Credit Card Payment</span><span>$124.51</span></div>
+              <div class="cs-charge cs-charge-net"><span>Net Paid Today</span><span><strong>$124.51</strong></span></div>
+            </div>
           </div>
 
           <ul class="cs-terms">${termsHtml}</ul>

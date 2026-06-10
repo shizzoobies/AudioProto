@@ -7844,9 +7844,9 @@ body[data-admin-page="coaching"] .admin-generated-url {
    A de-branded replica of the U-Haul intranet Customer Management flow, shown
    IN PLACE of the reservation POS for the demo_service call. Scoped under
    .call[data-cs] / .cs-tool. The look is a clean, dense, utilitarian internal
-   tool: white cards, thin gray borders, gray table headers, blue link anchors,
-   a dark navbar with an orange active tab + orange strip, a yellow Customize
-   button, a green email pane, and a paper-styled receipt with a shadow.
+   tool: plain white intranet page, thin gray borders, gray table headers, blue
+   link anchors, a dark navbar with an orange active tab + orange strip, a
+   yellow Customize button, a green email pane, and a paper-styled receipt.
    These orange/yellow/green accents are intentional replica-brand colors, so
    they're literal here rather than app tokens (the app's accent is maroon). */
 
@@ -7906,10 +7906,10 @@ body[data-admin-page="coaching"] .admin-generated-url {
 .cs-link {
   color: #1564c0;
   cursor: pointer;
-  text-decoration: none;
+  text-decoration: underline;
   font-size: 12.5px;
 }
-.cs-link:hover { text-decoration: underline; }
+.cs-link:hover { color: #0d47a0; }
 .cs-link-danger { color: #b3261e; }
 .cs-link-muted { color: #9aa1ac; font-size: 12.5px; }
 .cs-k { color: #374151; font-weight: 600; }
@@ -7924,7 +7924,7 @@ body[data-admin-page="coaching"] .admin-generated-url {
   margin-left: 4px;
 }
 
-/* ---- Cards ---- */
+/* ---- Cards (View 1 only — contract/receipt use plain groups) ---- */
 .cs-card {
   background: #fff;
   border: 1px solid #e1e4e8;
@@ -7939,6 +7939,11 @@ body[data-admin-page="coaching"] .admin-generated-url {
   letter-spacing: 0.4px;
   color: #6b7280;
   margin-bottom: 8px;
+}
+
+/* Plain groups: no border, no card — bare white intranet layout */
+.cs-plain-group {
+  padding: 0 0 8px;
 }
 
 /* ---- View 1 layout ---- */
@@ -8010,14 +8015,15 @@ body[data-admin-page="coaching"] .admin-generated-url {
 .cs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .cs-table th {
   text-align: left;
-  background: #f1f3f5;
+  background: #e8e9eb;
   color: #374151;
   font-weight: 600;
-  border: 1px solid #e1e4e8;
-  padding: 6px 8px;
-  white-space: nowrap;
+  border: 1px solid #cdd0d4;
+  padding: 5px 7px;
+  white-space: normal;
+  word-wrap: break-word;
 }
-.cs-table td { border: 1px solid #e1e4e8; padding: 6px 8px; vertical-align: top; }
+.cs-table td { border: 1px solid #cdd0d4; padding: 5px 7px; vertical-align: top; }
 .cs-table-empty { text-align: center; color: #9aa1ac; font-style: italic; }
 .cs-table-foot {
   display: flex;
@@ -8029,28 +8035,86 @@ body[data-admin-page="coaching"] .admin-generated-url {
 }
 .cs-pager { color: #1564c0; }
 
-/* ---- View 2: Contract ---- */
-.cs-back { display: inline-block; color: #1564c0; cursor: pointer; font-size: 12.5px; margin-bottom: 8px; }
-.cs-back:hover { text-decoration: underline; }
-.cs-contract-top { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 12px; }
-.cs-store-name { font-weight: 700; color: #111827; margin-bottom: 4px; }
-.cs-action-links { display: flex; flex-direction: column; gap: 5px; }
+/* ---- View 2: Contract — plain intranet layout (no card boxes) ---- */
+.cs-back { display: inline-block; color: #1564c0; cursor: pointer; font-size: 12.5px; margin-bottom: 8px; text-decoration: underline; }
+.cs-back:hover { color: #0d47a0; }
+
+/* Top 3-col block: contact info | store | action links — plain white, no card */
+.cs-contract-top {
+  display: grid;
+  grid-template-columns: 1.15fr 1.15fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.cs-store-name { font-weight: 700; color: #111827; margin-bottom: 4px; font-size: 12.5px; }
+.cs-action-links { display: flex; flex-direction: column; gap: 4px; }
+
+/* "▾ Rental Information" section head */
 .cs-section-head {
   font-weight: 700;
   color: #111827;
-  background: #eef1f4;
-  border: 1px solid #e1e4e8;
-  border-radius: 4px;
-  padding: 6px 10px;
-  margin: 14px 0 8px;
-  font-size: 13px;
+  font-size: 14px;
+  margin: 16px 0 6px;
 }
-.cs-meta-row { color: #374151; font-size: 12px; margin-bottom: 10px; }
-.cs-rdr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.cs-mini { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 11.5px; }
-.cs-mini td { border: 1px solid #e1e4e8; padding: 4px 6px; }
+
+/* Meta row: bold labels, pipe separators */
+.cs-meta-row {
+  color: #374151;
+  font-size: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+}
+.cs-meta-sep {
+  color: #9aa1ac;
+  margin: 0 4px;
+}
+
+/* RDR = Reservation / Dispatch / Return columns */
+.cs-rdr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.cs-rdr-col { min-width: 0; }
+.cs-rdr-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+/* Mini table with gray header row */
+.cs-mini {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2px;
+  font-size: 11.5px;
+}
+.cs-mini-headed th {
+  background: #e8e9eb;
+  color: #374151;
+  font-weight: 600;
+  border: 1px solid #cdd0d4;
+  padding: 4px 6px;
+  text-align: left;
+  white-space: normal;
+  word-wrap: break-word;
+}
+.cs-mini td { border: 1px solid #cdd0d4; padding: 4px 6px; background: #fff; }
+
+/* Mileage rate line sitting directly under the mini table */
+.cs-mileage-row { font-size: 12px; margin: 5px 0 8px; }
+
+/* Gap before the odometer / date sub-groups */
+.cs-rdr-group { margin-top: 10px; }
+
+/* Payment table */
 .cs-pay-table { margin-top: 4px; }
-.cs-pay-total td { background: #f7f9fb; font-weight: 600; }
+.cs-pay-total td {
+  background: #f7f9fb;
+  font-weight: 600;
+  border: 1px solid #cdd0d4;
+  padding: 5px 7px;
+}
 
 /* ---- View 3: Receipts list ---- */
 .cs-receipts-tools { display: flex; gap: 8px; margin: 4px 0 12px; max-width: 420px; }
@@ -8079,7 +8143,15 @@ body[data-admin-page="coaching"] .admin-generated-url {
 .cs-wordmark { font-weight: 800; letter-spacing: 1.5px; color: #2b2f36; }
 
 /* ---- View 4: Receipt document ---- */
-.cs-receipt-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
+/* Layout: green pane left | paper right; collapse below ~1000px */
+.cs-receipt-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.cs-receipt-layout > * { min-width: 0; }
+
 .cs-email-pane {
   background: #eef7ee;
   border: 1px solid #cfe6cf;
@@ -8104,33 +8176,110 @@ body[data-admin-page="coaching"] .admin-generated-url {
 .cs-btn-ghost { background: #fff; color: #2f7d33; }
 .cs-email-sent { color: #15803d; font-size: 12px; font-weight: 600; }
 
+/* Paper */
 .cs-receipt {
-  max-width: 720px;
+  max-width: 760px;
   background: #fff;
   border: 1px solid #e1e4e8;
   box-shadow: 0 4px 18px rgba(17, 24, 39, 0.12);
   border-radius: 4px;
-  padding: 22px 26px;
+  padding: 20px 24px;
   color: #1f2937;
+  overflow-x: hidden;
 }
-.cs-receipt-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2b2f36; padding-bottom: 10px; margin-bottom: 10px; }
-.cs-receipt-kicker { color: #ff7a00; font-weight: 700; font-size: 18px; margin-left: 4px; }
+
+/* Receipt header */
+.cs-receipt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #2b2f36;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.cs-receipt-head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.cs-receipt-kicker { color: #ff7a00; font-weight: 700; font-size: 18px; }
 .cs-receipt .cs-wordmark { font-size: 18px; }
 .cs-receipt-head-right { text-align: right; }
+.cs-receipt-intownlabel { font-size: 12px; color: #1f2937; margin-top: 2px; }
 .cs-barcode {
-  width: 150px;
-  height: 34px;
+  width: 160px;
+  height: 32px;
   margin-left: auto;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   background-image: repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 4px, #111 4px 5px, #fff 5px 9px, #111 9px 12px, #fff 12px 14px);
 }
-.cs-receipt-meta { margin-bottom: 10px; }
-.cs-receipt-cust { margin-bottom: 12px; }
-.cs-receipt-cust > div { margin: 2px 0; font-size: 12px; }
-.cs-equip-table { margin: 10px 0; font-size: 11px; }
-.cs-equip-table th { font-size: 10.5px; }
 
-.cs-fuel { margin: 14px 0; }
+/* Info 3-col row */
+.cs-receipt-info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  font-size: 11px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e1e4e8;
+  padding-bottom: 8px;
+}
+.cs-receipt-info-row > div { min-width: 0; }
+.cs-receipt-info-row > div > div { margin: 1px 0; }
+.cs-receipt-date { color: #6b7280; font-size: 10.5px; }
+.cs-receipt-info-gap { height: 6px; }
+
+/* Authorized drivers / dates / periods rows */
+.cs-receipt-drivers,
+.cs-receipt-dates,
+.cs-receipt-periods {
+  font-size: 11.5px;
+  margin: 2px 0;
+}
+
+/* Equipment table: fixed layout prevents overflow */
+.cs-equip-table {
+  table-layout: fixed;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 10px;
+}
+.cs-equip-table th {
+  font-size: 9.5px;
+  background: #e8e9eb;
+  padding: 4px 4px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+.cs-equip-table td {
+  padding: 4px 4px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+/* Column widths tuned to fit within the paper */
+.cs-equip-table th:nth-child(1),
+.cs-equip-table td:nth-child(1) { width: 13%; }
+.cs-equip-table th:nth-child(2),
+.cs-equip-table td:nth-child(2),
+.cs-equip-table th:nth-child(3),
+.cs-equip-table td:nth-child(3) { width: 8%; }
+.cs-equip-table th:nth-child(4),
+.cs-equip-table td:nth-child(4) { width: 13%; }
+.cs-equip-table th:nth-child(5),
+.cs-equip-table td:nth-child(5) { width: 8%; }
+.cs-equip-table th:nth-child(6),
+.cs-equip-table td:nth-child(6) { width: 16%; }
+.cs-equip-table th:nth-child(7),
+.cs-equip-table td:nth-child(7) { width: 10%; }
+.cs-equip-table th:nth-child(8),
+.cs-equip-table th:nth-child(9),
+.cs-equip-table td:nth-child(8),
+.cs-equip-table td:nth-child(9) { width: 8%; }
+.cs-equip-table th:nth-child(10),
+.cs-equip-table td:nth-child(10) { width: 8%; }
+
+/* Full-width fuel gauge ruler */
+.cs-fuel { margin: 10px 0 8px; }
 .cs-fuel-gauge {
   position: relative;
   height: 14px;
@@ -8138,31 +8287,60 @@ body[data-admin-page="coaching"] .admin-generated-url {
   border: 1px solid #b9c0c9;
   border-radius: 7px;
   margin: 0 0 22px;
-  max-width: 360px;
+  width: 100%;
 }
 .cs-fuel-tick { position: absolute; top: -3px; width: 1px; height: 20px; background: #4b5563; transform: translateX(-0.5px); }
-.cs-fuel-marker { position: absolute; top: -6px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid #111827; transform: translateX(-5px); }
+.cs-fuel-marker { position: absolute; top: -6px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid #c00; transform: translateX(-5px); }
 .cs-fuel-cap { position: absolute; top: 18px; font-size: 10px; color: #4b5563; transform: translateX(-50%); }
 .cs-fuel-cap-e { left: 0; transform: none; }
 .cs-fuel-cap-f { right: 0; transform: none; }
 
-.cs-charges { margin: 12px 0; max-width: 420px; margin-left: auto; }
-.cs-charge { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; font-size: 12.5px; }
-.cs-charge-sub { border-top: 1px solid #d1d5db; padding-top: 4px; margin-top: 2px; }
-.cs-charge-net { border-top: 2px solid #2b2f36; padding-top: 5px; margin-top: 3px; font-size: 13.5px; }
+/* Two-column lower area: payment detail | charges */
+.cs-receipt-lower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 12px 0;
+  align-items: start;
+}
+.cs-receipt-lower > * { min-width: 0; }
 
-.cs-paymentblock { margin: 14px 0; font-size: 11px; color: #374151; border-top: 1px dashed #cbd2da; padding-top: 10px; }
-.cs-paymentblock > div { margin: 1px 0; }
+/* Payment block (left) */
+.cs-paymentblock {
+  font-size: 10.5px;
+  color: #374151;
+  border-top: 1px dashed #cbd2da;
+  padding-top: 8px;
+}
+.cs-paymentblock > div { margin: 1.5px 0; }
+.cs-pay-gap { height: 6px; }
+
+/* Charges list (right) */
+.cs-charges { font-size: 11.5px; border-top: 1px dashed #cbd2da; padding-top: 8px; }
+.cs-charge { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.cs-charge > span:first-child { flex: 1; }
+.cs-charge > span:last-child { white-space: nowrap; }
+.cs-charge-sub { border-top: 1px solid #d1d5db; padding-top: 3px; margin-top: 2px; }
+.cs-charge-net { border-top: 2px solid #2b2f36; padding-top: 4px; margin-top: 3px; font-size: 12px; }
+
 .cs-terms { margin: 12px 0; padding-left: 16px; }
-.cs-terms li { font-size: 10.5px; color: #4b5563; margin: 5px 0; line-height: 1.4; }
-.cs-sign { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e1e4e8; font-size: 12px; }
+.cs-terms li { font-size: 9px; color: #4b5563; margin: 4px 0; line-height: 1.4; text-align: justify; }
+.cs-sign { margin-top: 14px; padding-top: 8px; border-top: 1px solid #e1e4e8; font-size: 11.5px; }
 
-/* ---- Responsive (don't break ~1100px) ---- */
+/* ---- Responsive ---- */
 @media (max-width: 1100px) {
   .cs-layout { grid-template-columns: 1fr; }
   .cs-contract-top { grid-template-columns: 1fr; }
   .cs-rdr { grid-template-columns: 1fr; }
+}
+@media (max-width: 1000px) {
   .cs-receipt-layout { grid-template-columns: 1fr; }
+  .cs-receipt-lower { grid-template-columns: 1fr; }
+  .cs-receipt-info-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+  .cs-receipt-info-row { grid-template-columns: 1fr; }
+  .cs-rdr { grid-template-columns: 1fr; }
 }
 
 /* ===== End: Customer Service demo — Meridian intranet tool ================ */
