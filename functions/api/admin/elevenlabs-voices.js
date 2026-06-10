@@ -13,13 +13,26 @@
 import { SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
 
 const AGENT_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/agents/';
+// Mirrors DEFAULT_AGENT_ID in functions/api/voice-agent/start.js — the demo
+// personas (Robert/Greg) run on this ElevenLabs agent on the main account.
+const DEMO_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
 
-export async function onRequestGet({ env }) {
+export async function onRequestGet({ request, env }) {
+  // ?account=demo pulls the labeled voices off the DEMO agent (main EL account);
+  // any other value (or none) keeps the original COACHING behavior exactly.
+  const account = (new URL(request.url).searchParams.get('account') || '').trim();
+  const isDemo = account === 'demo';
+
   // Coaching lives on its own ElevenLabs account — use the coaching key when set.
-  const apiKey = env.COACHING_ELEVENLABS_API_KEY || env.ELEVENLABS_API_KEY;
+  // The demo agent lives on the main account, so it uses the main key only.
+  const apiKey = isDemo
+    ? env.ELEVENLABS_API_KEY
+    : (env.COACHING_ELEVENLABS_API_KEY || env.ELEVENLABS_API_KEY);
   if (!apiKey) return jsonError('elevenlabs_key_missing', 500);
   try {
-    const agentId = env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID;
+    const agentId = isDemo
+      ? (env.ELEVENLABS_AGENT_ID || DEMO_AGENT_ID)
+      : (env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID);
     const r = await fetch(`${AGENT_ENDPOINT}${agentId}`, {
       headers: { 'xi-api-key': apiKey },
     });

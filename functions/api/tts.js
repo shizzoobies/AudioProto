@@ -50,6 +50,15 @@ export async function onRequestPost({ request, env }) {
     const scenario = getScenario(body.scenario_id);
     if (!scenario) return jsonError('unknown_scenario', 400);
     voiceId = scenario.voice_id;
+    // Demo voice override: if the admin picked a labeled voice for this scenario
+    // (scenario_voices table), use it. Read-only and defensive — a missing table
+    // or row silently falls back to the persona's hardcoded voice_id.
+    if (env.DB) {
+      try {
+        const r = await env.DB.prepare(`SELECT voice_id FROM scenario_voices WHERE scenario_id = ?`).bind(body.scenario_id).first();
+        if (r && r.voice_id) voiceId = r.voice_id;
+      } catch { /* table missing -> default */ }
+    }
     if (scenario.voice_settings) {
       voiceSettings = { ...DEFAULT_VOICE_SETTINGS, ...scenario.voice_settings };
     }

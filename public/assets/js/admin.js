@@ -26,6 +26,7 @@ const state = {
   lastAdminInvite: null, // { id, email, name, url, email_sent, email_error?, reused }
   demo: null,          // { active, scenarios:[{id,customer_name,tagline}], created_at }
   lastDemoUrl: null,   // last generated demo URL (shown once with a Copy button)
+  demoVoices: null,    // { assignments:{<scenario_id>:{voice_id,label}}, defaults:{demo_sales,demo_service} } — per-caller voice overrides
   coaching: null,      // { active, created_at } — the open coaching-test share link
   lastCoachingUrl: null, // last generated coaching URL (shown once with a Copy button)
   coachingAgents: [],  // [{id, name, role_title, attitude, resistance, receptiveness, ...}] — authored coachable agents
@@ -164,6 +165,7 @@ async function logout() {
   state.lastAdminInvite = null;
   state.demo = null;
   state.lastDemoUrl = null;
+  state.demoVoices = null;
   state.coaching = null;
   state.lastCoachingUrl = null;
   state.coachingAgents = [];
@@ -479,6 +481,15 @@ async function loadData() {
     }
   } catch (e) {
     console.warn('demo load failed', e);
+  }
+
+  try {
+    const r = await fetch('/api/admin/demo-voices', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.demoVoices = await r.json();
+    }
+  } catch (e) {
+    console.warn('demo voices load failed', e);
   }
 
   try {
@@ -1749,7 +1760,54 @@ function renderDemoSection() {
         </div>
         <div id="admin-demo-generated" class="admin-generated"></div>
       </div>
+
+      ${renderDemoVoicesCard()}
     </section>
+  `;
+}
+
+// The "Demo voices" card: pick which ElevenLabs voice each demo caller uses.
+// Each row's <select> starts with ONLY the current selection; "Load voices from
+// ElevenLabs" populates both selects with the labeled voices off the demo agent.
+function renderDemoVoicesCard() {
+  const rows = [
+    { id: 'demo_sales', label: 'Robert — Sales (demo_sales)' },
+    { id: 'demo_service', label: 'Greg — Customer Service (demo_service)' },
+  ];
+  return `
+    <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;margin-top:14px;">
+      <div>
+        <h3 class="admin-section-title" style="font-size:15px;margin:0;">Demo voices</h3>
+        <p class="admin-section-sub" style="margin:4px 0 0;">Pick which ElevenLabs voice each demo caller uses. Voices must be added (with labels) to the demo agent in ElevenLabs first.</p>
+      </div>
+      <div>
+        <button type="button" class="primary-button" id="admin-demo-voices-load">Load voices from ElevenLabs</button>
+        <span id="admin-demo-voices-loadnote" class="admin-muted" style="margin-left:8px;font-size:12px;"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${rows.map((r) => renderDemoVoiceRow(r.id, r.label)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderDemoVoiceRow(scenarioId, label) {
+  const dv = state.demoVoices || {};
+  const assigned = (dv.assignments && dv.assignments[scenarioId]) || null;
+  // Initially the select holds only the current selection: the assigned label
+  // (override) or "Default voice (built-in)" when there is no override.
+  const optionHtml = assigned && assigned.voice_id
+    ? `<option value="${escapeAttr(assigned.voice_id)}" selected>${escapeHtml(assigned.label || ('Custom (' + assigned.voice_id + ')'))}</option>`
+    : `<option value="" selected>Default voice (built-in)</option>`;
+  return `
+    <div class="admin-demo-voice-row" data-scenario="${escapeAttr(scenarioId)}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="min-width:230px;font-size:13px;font-weight:600;">${escapeHtml(label)}</span>
+      <select class="admin-input" id="demo-voice-${escapeAttr(scenarioId)}" data-scenario="${escapeAttr(scenarioId)}" style="max-width:280px;">
+        ${optionHtml}
+      </select>
+      <button type="button" class="ghost-button" data-demo-voice-preview="${escapeAttr(scenarioId)}">&#9654; Preview</button>
+      <span class="admin-muted" data-demo-voice-note="${escapeAttr(scenarioId)}" style="font-size:12px;"></span>
+    </div>
   `;
 }
 
@@ -1760,6 +1818,103 @@ function attachDemoHandlers() {
   if (revokeBtn) revokeBtn.addEventListener('click', onRevokeDemo);
   // Re-render the last generated URL (if any) so a paintDashboard re-run keeps it.
   paintDemoGenerated();
+  attachDemoVoicesHandlers();
+}
+
+function attachDemoVoicesHandlers() {
+  const loadBtn = document.getElementById('admin-demo-voices-load');
+  if (loadBtn) loadBtn.addEventListener('click', onLoadDemoVoices);
+  for (const sel of document.querySelectorAll('select[id^="demo-voice-"]')) {
+    sel.addEventListener('change', () => onDemoVoiceChange(sel));
+  }
+  for (const btn of document.querySelectorAll('[data-demo-voice-preview]')) {
+    btn.addEventListener('click', () => {
+      const scenarioId = btn.getAttribute('data-demo-voice-preview');
+      const sel = document.getElementById('demo-voice-' + scenarioId);
+      // On "" (default) preview the persona's hardcoded default voice.
+      let voiceId = sel ? sel.value : '';
+      if (!voiceId) {
+        const defaults = (state.demoVoices && state.demoVoices.defaults) || {};
+        voiceId = defaults[scenarioId] || '';
+      }
+      playVoicePreview(voiceId, btn, 'demo');
+    });
+  }
+}
+
+// Fetch the labeled voices off the demo ElevenLabs agent and populate BOTH
+// selects: a "Default voice (built-in)" option plus one per labeled voice. The
+// current assignment is preserved as selected (a "Custom (<id>)" option is
+// prepended if the assigned id isn't in the returned list).
+async function onLoadDemoVoices() {
+  const btn = document.getElementById('admin-demo-voices-load');
+  const note = document.getElementById('admin-demo-voices-loadnote');
+  if (note) note.textContent = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+  try {
+    const r = await fetch('/api/admin/elevenlabs-voices?account=demo', { credentials: 'same-origin' });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) {
+      const parts = [d?.error, d?.detail].filter(Boolean);
+      if (note) note.textContent = "Couldn't reach ElevenLabs: " + (parts.length ? parts.join(' — ') : (r.statusText || 'failed'));
+      return;
+    }
+    const voices = Array.isArray(d?.voices) ? d.voices : [];
+    if (!voices.length) {
+      if (note) note.textContent = 'No labeled voices found on the demo agent.';
+      return;
+    }
+    const dv = state.demoVoices || {};
+    for (const scenarioId of ['demo_sales', 'demo_service']) {
+      const sel = document.getElementById('demo-voice-' + scenarioId);
+      if (!sel) continue;
+      const assigned = (dv.assignments && dv.assignments[scenarioId]) || null;
+      const assignedId = assigned && assigned.voice_id ? assigned.voice_id : '';
+      const opts = ['<option value="">Default voice (built-in)</option>'];
+      const haveAssigned = voices.some((v) => v && v.voice_id === assignedId);
+      if (assignedId && !haveAssigned) {
+        opts.push(`<option value="${escapeAttr(assignedId)}" selected>${escapeHtml(assigned.label || ('Custom (' + assignedId + ')'))}</option>`);
+      }
+      for (const v of voices) {
+        if (!v || !v.voice_id) continue;
+        const isSel = v.voice_id === assignedId ? ' selected' : '';
+        opts.push(`<option value="${escapeAttr(v.voice_id)}"${isSel}>${escapeHtml(v.label || v.voice_id)}</option>`);
+      }
+      sel.innerHTML = opts.join('');
+    }
+    if (note) note.textContent = `Loaded ${voices.length} voice(s).`;
+  } catch (err) {
+    if (note) note.textContent = 'Network error: ' + (err?.message || String(err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Load voices from ElevenLabs'; }
+  }
+}
+
+// Persist a per-caller voice pick. Empty value clears to the built-in default.
+async function onDemoVoiceChange(sel) {
+  const scenarioId = sel.dataset.scenario;
+  const note = document.querySelector(`[data-demo-voice-note="${scenarioId}"]`);
+  const voiceId = sel.value || '';
+  const opt = sel.options[sel.selectedIndex];
+  const label = voiceId ? (opt ? opt.textContent : '') : '';
+  if (note) note.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/admin/demo-voices', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario_id: scenarioId, voice_id: voiceId, label }),
+    });
+    if (!res.ok) { if (note) note.textContent = 'Save failed'; return; }
+    // Keep local state in sync so a re-render preserves the pick.
+    if (!state.demoVoices) state.demoVoices = { assignments: {}, defaults: {} };
+    if (!state.demoVoices.assignments) state.demoVoices.assignments = {};
+    if (voiceId) state.demoVoices.assignments[scenarioId] = { voice_id: voiceId, label };
+    else delete state.demoVoices.assignments[scenarioId];
+    if (note) note.textContent = 'Saved ✓';
+  } catch {
+    if (note) note.textContent = 'Network error';
+  }
 }
 
 async function onGenerateDemo() {
@@ -3276,7 +3431,7 @@ function stopVoicePreview() {
   if (voicePreviewAudio) { try { voicePreviewAudio.pause(); } catch {} voicePreviewAudio = null; }
   if (voicePreviewBtn) { voicePreviewBtn.innerHTML = voicePreviewBtn.dataset.label || '&#9654; Preview'; voicePreviewBtn = null; }
 }
-function playVoicePreview(voiceId, btn) {
+function playVoicePreview(voiceId, btn, account) {
   if (!voiceId) {
     if (btn) { const orig = btn.innerHTML; btn.textContent = 'Pick a voice first'; setTimeout(() => { btn.innerHTML = orig; }, 1400); }
     return;
@@ -3284,7 +3439,9 @@ function playVoicePreview(voiceId, btn) {
   const wasThis = voicePreviewBtn === btn;
   stopVoicePreview();
   if (wasThis) return; // second click on the same button = stop
-  const audio = new Audio('/api/admin/voice-preview?voice_id=' + encodeURIComponent(voiceId));
+  // Demo voices live on the main EL account, so they need the demo-scoped lookup.
+  const acctParam = account === 'demo' ? '&account=demo' : '';
+  const audio = new Audio('/api/admin/voice-preview?voice_id=' + encodeURIComponent(voiceId) + acctParam);
   voicePreviewAudio = audio;
   voicePreviewBtn = btn;
   if (btn) { btn.dataset.label = btn.innerHTML; btn.textContent = 'Loading…'; }

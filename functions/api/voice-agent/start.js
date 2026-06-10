@@ -225,6 +225,18 @@ export async function onRequestPost({ request, env }) {
   // Robert's move date stays current (about two weekends out), computed now.
   const dateBlock = scenarioId === 'demo_sales' ? '\n\n' + demoSalesDateBlock(new Date()) : '';
 
+  // Demo voice override: the admin may have picked a labeled ElevenLabs voice for
+  // this demo caller (scenario_voices table). Read-only here — if the table is
+  // missing or has no row, we silently fall back to the persona's hardcoded
+  // voice_id. Coaching never hits this (it returns above / uses its agent voice).
+  let demoVoiceOverride = null;
+  if (env.DB) {
+    try {
+      const r = await env.DB.prepare(`SELECT voice_id FROM scenario_voices WHERE scenario_id = ?`).bind(scenarioId).first();
+      if (r && r.voice_id) demoVoiceOverride = r.voice_id;
+    } catch { /* table missing -> default */ }
+  }
+
   return json({
     signed_url: signedUrl,
     user_id: userId,
@@ -237,8 +249,9 @@ export async function onRequestPost({ request, env }) {
         : '',
       language: 'en',
       // Coaching uses its own dedicated agent — let that agent's configured voice
-      // play (no override). Demo personas still override to their persona voice.
-      voice_id: scenarioId === 'coaching_practice' ? null : (scenario.voice_id || null),
+      // play (no override). Demo personas use the admin-picked override if set,
+      // else fall back to their hardcoded persona voice.
+      voice_id: scenarioId === 'coaching_practice' ? null : (demoVoiceOverride || scenario.voice_id || null),
     },
     scenario: {
       id: scenarioId,

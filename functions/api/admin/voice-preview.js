@@ -10,10 +10,16 @@
 const VOICE_ENDPOINT = 'https://api.elevenlabs.io/v1/voices/';
 
 export async function onRequestGet({ request, env }) {
-  const apiKey = env.COACHING_ELEVENLABS_API_KEY || env.ELEVENLABS_API_KEY;
+  const params = new URL(request.url).searchParams;
+  // The voice lookup endpoint is account-scoped, so demo voices must use the
+  // demo (main) key; coaching (default) keeps the coaching key when set.
+  const isDemo = (params.get('account') || '').trim() === 'demo';
+  const apiKey = isDemo
+    ? env.ELEVENLABS_API_KEY
+    : (env.COACHING_ELEVENLABS_API_KEY || env.ELEVENLABS_API_KEY);
   if (!apiKey) return jsonError('elevenlabs_key_missing', 500);
 
-  const voiceId = (new URL(request.url).searchParams.get('voice_id') || '').trim();
+  const voiceId = (params.get('voice_id') || '').trim();
   if (!voiceId) return jsonError('voice_id_required', 400);
 
   try {
