@@ -7839,3 +7839,330 @@ body[data-admin-page="coaching"] .admin-generated-url {
 }
 
 /* ===== End: Coaching admin — Editorial Warm theme ========================= */
+
+/* ===== Begin: Customer Service demo — Meridian intranet tool ==============
+   A de-branded replica of the U-Haul intranet Customer Management flow, shown
+   IN PLACE of the reservation POS for the demo_service call. Scoped under
+   .call[data-cs] / .cs-tool. The look is a clean, dense, utilitarian internal
+   tool: white cards, thin gray borders, gray table headers, blue link anchors,
+   a dark navbar with an orange active tab + orange strip, a yellow Customize
+   button, a green email pane, and a paper-styled receipt with a shadow.
+   These orange/yellow/green accents are intentional replica-brand colors, so
+   they're literal here rather than app tokens (the app's accent is maroon). */
+
+.call[data-cs] .call-body { padding-bottom: var(--space-4); }
+
+/* The tool replaces the POS as the scrolling work surface. It owns the scroll
+   exactly like .pos-stage does, so the call page scroll behavior is unchanged. */
+.cs-tool {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.cs-tool::-webkit-scrollbar { width: 8px; }
+.cs-tool::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
+.cs-tool [hidden] { display: none !important; }
+
+/* ---- Intranet top bar ---- */
+.cs-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #2b2f36;
+  color: #fff;
+  padding: 7px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex-wrap: wrap;
+}
+.cs-nav-brand { font-weight: 700; font-size: 12px; letter-spacing: 0.2px; }
+.cs-nav-items { display: flex; flex-wrap: wrap; gap: 14px; }
+.cs-nav-item {
+  color: #d7dade;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.cs-nav-item:hover { color: #fff; }
+.cs-nav-item.is-active { color: #ff7a00; font-weight: 600; }
+.cs-nav-accent { height: 3px; background: #ff7a00; }
+
+.cs-body { padding: 18px 20px 28px; }
+
+/* ---- Typographic primitives ---- */
+.cs-h1 { font-size: 19px; font-weight: 700; color: #111827; margin: 0 0 14px; }
+.cs-sub { color: #6b7280; margin: -8px 0 14px; font-size: 12.5px; }
+.cs-muted { color: #6b7280; font-size: 12.5px; margin: 2px 0; }
+.cs-link {
+  color: #1564c0;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 12.5px;
+}
+.cs-link:hover { text-decoration: underline; }
+.cs-link-danger { color: #b3261e; }
+.cs-link-muted { color: #9aa1ac; font-size: 12.5px; }
+.cs-k { color: #374151; font-weight: 600; }
+.cs-kv { margin: 3px 0; }
+.cs-tag {
+  display: inline-block;
+  background: #eef2f7;
+  color: #4b5563;
+  border-radius: 3px;
+  font-size: 10.5px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
+
+/* ---- Cards ---- */
+.cs-card {
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.cs-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+/* ---- View 1 layout ---- */
+.cs-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+.cs-rail { min-width: 0; }
+.cs-main { min-width: 0; }
+
+.cs-search { display: flex; gap: 0; margin-bottom: 10px; }
+.cs-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid #cbd2da;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  color: #111827;
+  background: #fff;
+}
+.cs-search .cs-input { border-radius: 4px 0 0 4px; }
+.cs-search-btn {
+  border: 1px solid #d9620a;
+  background: #ff7a00;
+  color: #fff;
+  border-radius: 0 4px 4px 0;
+  padding: 0 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.cs-search-btn:hover { background: #ec6f00; }
+.cs-rail-links { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+
+.cs-cust-name { font-size: 15px; font-weight: 700; color: #111827; }
+.cs-verified { color: #15803d; font-weight: 700; }
+.cs-cust-rating { margin: 4px 0 8px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.cs-stars { color: #f6a609; letter-spacing: 1px; }
+.cs-facts { margin: 0; }
+.cs-facts > div { display: flex; gap: 6px; margin: 2px 0; }
+.cs-facts dt { color: #374151; font-weight: 600; }
+.cs-facts dd { margin: 0; }
+
+/* ---- Tabs / pills ---- */
+.cs-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 6px 0 12px;
+  border-bottom: 1px solid #e1e4e8;
+  margin-bottom: 14px;
+}
+.cs-subtab { color: #1564c0; font-size: 12px; cursor: pointer; }
+.cs-subtab:hover { text-decoration: underline; }
+.cs-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+.cs-pill {
+  display: inline-block;
+  border: 1px solid #d6dbe1;
+  background: #f3f5f8;
+  color: #4b5563;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.cs-pill.is-active { background: #fff; color: #111827; border-color: #b9c0c9; font-weight: 600; box-shadow: inset 0 -2px 0 #ff7a00; }
+
+.cs-orders-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* ---- Tables ---- */
+.cs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cs-table th {
+  text-align: left;
+  background: #f1f3f5;
+  color: #374151;
+  font-weight: 600;
+  border: 1px solid #e1e4e8;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+.cs-table td { border: 1px solid #e1e4e8; padding: 6px 8px; vertical-align: top; }
+.cs-table-empty { text-align: center; color: #9aa1ac; font-style: italic; }
+.cs-table-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: #6b7280;
+  padding: 6px 2px;
+}
+.cs-pager { color: #1564c0; }
+
+/* ---- View 2: Contract ---- */
+.cs-back { display: inline-block; color: #1564c0; cursor: pointer; font-size: 12.5px; margin-bottom: 8px; }
+.cs-back:hover { text-decoration: underline; }
+.cs-contract-top { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 12px; }
+.cs-store-name { font-weight: 700; color: #111827; margin-bottom: 4px; }
+.cs-action-links { display: flex; flex-direction: column; gap: 5px; }
+.cs-section-head {
+  font-weight: 700;
+  color: #111827;
+  background: #eef1f4;
+  border: 1px solid #e1e4e8;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin: 14px 0 8px;
+  font-size: 13px;
+}
+.cs-meta-row { color: #374151; font-size: 12px; margin-bottom: 10px; }
+.cs-rdr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cs-mini { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 11.5px; }
+.cs-mini td { border: 1px solid #e1e4e8; padding: 4px 6px; }
+.cs-pay-table { margin-top: 4px; }
+.cs-pay-total td { background: #f7f9fb; font-weight: 600; }
+
+/* ---- View 3: Receipts list ---- */
+.cs-receipts-tools { display: flex; gap: 8px; margin: 4px 0 12px; max-width: 420px; }
+.cs-customize-btn {
+  border: 1px solid #d6b00a;
+  background: #ffd84d;
+  color: #4a3b00;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cs-customize-btn:hover { background: #ffd02e; }
+.cs-page-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 1px solid #e1e4e8;
+  font-size: 11.5px;
+  color: #6b7280;
+}
+.cs-foot-links a { font-size: 11.5px; }
+.cs-wordmark { font-weight: 800; letter-spacing: 1.5px; color: #2b2f36; }
+
+/* ---- View 4: Receipt document ---- */
+.cs-receipt-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
+.cs-email-pane {
+  background: #eef7ee;
+  border: 1px solid #cfe6cf;
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cs-email-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #38663a; }
+.cs-email-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cs-btn {
+  border: 1px solid #2f7d33;
+  background: #3a8c3f;
+  color: #fff;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cs-btn:hover { background: #347a38; }
+.cs-btn-ghost { background: #fff; color: #2f7d33; }
+.cs-email-sent { color: #15803d; font-size: 12px; font-weight: 600; }
+
+.cs-receipt {
+  max-width: 720px;
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  box-shadow: 0 4px 18px rgba(17, 24, 39, 0.12);
+  border-radius: 4px;
+  padding: 22px 26px;
+  color: #1f2937;
+}
+.cs-receipt-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2b2f36; padding-bottom: 10px; margin-bottom: 10px; }
+.cs-receipt-kicker { color: #ff7a00; font-weight: 700; font-size: 18px; margin-left: 4px; }
+.cs-receipt .cs-wordmark { font-size: 18px; }
+.cs-receipt-head-right { text-align: right; }
+.cs-barcode {
+  width: 150px;
+  height: 34px;
+  margin-left: auto;
+  margin-bottom: 4px;
+  background-image: repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 4px, #111 4px 5px, #fff 5px 9px, #111 9px 12px, #fff 12px 14px);
+}
+.cs-receipt-meta { margin-bottom: 10px; }
+.cs-receipt-cust { margin-bottom: 12px; }
+.cs-receipt-cust > div { margin: 2px 0; font-size: 12px; }
+.cs-equip-table { margin: 10px 0; font-size: 11px; }
+.cs-equip-table th { font-size: 10.5px; }
+
+.cs-fuel { margin: 14px 0; }
+.cs-fuel-gauge {
+  position: relative;
+  height: 14px;
+  background: linear-gradient(90deg, #e85d5d, #f1c84b 45%, #6fbf73);
+  border: 1px solid #b9c0c9;
+  border-radius: 7px;
+  margin: 0 0 22px;
+  max-width: 360px;
+}
+.cs-fuel-tick { position: absolute; top: -3px; width: 1px; height: 20px; background: #4b5563; transform: translateX(-0.5px); }
+.cs-fuel-marker { position: absolute; top: -6px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid #111827; transform: translateX(-5px); }
+.cs-fuel-cap { position: absolute; top: 18px; font-size: 10px; color: #4b5563; transform: translateX(-50%); }
+.cs-fuel-cap-e { left: 0; transform: none; }
+.cs-fuel-cap-f { right: 0; transform: none; }
+
+.cs-charges { margin: 12px 0; max-width: 420px; margin-left: auto; }
+.cs-charge { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; font-size: 12.5px; }
+.cs-charge-sub { border-top: 1px solid #d1d5db; padding-top: 4px; margin-top: 2px; }
+.cs-charge-net { border-top: 2px solid #2b2f36; padding-top: 5px; margin-top: 3px; font-size: 13.5px; }
+
+.cs-paymentblock { margin: 14px 0; font-size: 11px; color: #374151; border-top: 1px dashed #cbd2da; padding-top: 10px; }
+.cs-paymentblock > div { margin: 1px 0; }
+.cs-terms { margin: 12px 0; padding-left: 16px; }
+.cs-terms li { font-size: 10.5px; color: #4b5563; margin: 5px 0; line-height: 1.4; }
+.cs-sign { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e1e4e8; font-size: 12px; }
+
+/* ---- Responsive (don't break ~1100px) ---- */
+@media (max-width: 1100px) {
+  .cs-layout { grid-template-columns: 1fr; }
+  .cs-contract-top { grid-template-columns: 1fr; }
+  .cs-rdr { grid-template-columns: 1fr; }
+  .cs-receipt-layout { grid-template-columns: 1fr; }
+}
+
+/* ===== End: Customer Service demo — Meridian intranet tool ================ */
