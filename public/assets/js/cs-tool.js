@@ -7,7 +7,14 @@
 // with no risk of the two drifting apart.
 //
 // Exports:
-//   csToolHtml()   — returns the 4-view .cs-tool markup as an HTML string.
+//   csToolHtml(opts)  — returns the 4-view .cs-tool markup as an HTML string.
+//     opts.view   — which view starts visible: 'customer' (default) |
+//                   'contract' | 'receipts' | 'receipt'. Used by the preview
+//                   gallery to open the tool directly on a given screen.
+//     opts.loaded — render the customer view in its post-search state (Greg's
+//                   profile + past orders populated). Implied automatically
+//                   when opts.view is a deeper screen, so backing out of the
+//                   contract lands on a populated Customer Management.
 //   wireCsTool(root) — event-delegated view switching + customer search.
 //
 // Four views live inside one .cs-tool container and are switched purely by
@@ -30,7 +37,12 @@ function escapeHtml(s) {
   );
 }
 
-export function csToolHtml() {
+export function csToolHtml(opts = {}) {
+  const VIEWS = ['customer', 'contract', 'receipts', 'receipt'];
+  const startView = VIEWS.includes(opts.view) ? opts.view : 'customer';
+  // Starting on a deeper screen implies the customer search already happened.
+  const loaded = !!opts.loaded || startView !== 'customer';
+
   // Persistent intranet top bar (mirrors uhaul.net's internal navbar). Tools is
   // the active section; the orange strip under the dark bar is CSS.
   const navItems = ['Reports', 'Equipment', 'Publications', 'Multimedia', 'Tools', 'HR', 'Links', 'Boards', 'Sustainability', 'Cross contact'];
@@ -46,15 +58,21 @@ export function csToolHtml() {
     `<span class="cs-pill${on ? ' is-active' : ''}">${escapeHtml(t)}</span>`
   ).join('');
 
+  // The Past Orders rows: injected on search at runtime (via the <template>
+  // below), or rendered directly when the tool starts in the loaded state.
+  const pastRowsHtml = `
+    <tr><td>06/06/2026</td><td>InTown</td><td><a class="cs-link" data-cs-go="contract">MER-512874</a></td><td>DC4821H</td><td>Received</td><td>$124.51</td></tr>
+    <tr><td>11/09/2025</td><td>InTown</td><td><span class="cs-link-muted">MER-417286</span></td><td>JH3308F</td><td>Received</td><td>$66.62</td></tr>`;
+
   const customerView = `
-    <section class="cs-view" data-cs-view="customer">
+    <section class="cs-view" data-cs-view="customer"${startView === 'customer' ? '' : ' hidden'}>
       <h1 class="cs-h1">Customer Management</h1>
       <div class="cs-layout">
         <aside class="cs-rail">
           <div class="cs-card cs-search-card">
             <div class="cs-card-label">Customer Search</div>
             <form class="cs-search" data-cs-search>
-              <input class="cs-input" type="text" data-cs-query placeholder="Name, phone, or confirmation #" aria-label="Customer search">
+              <input class="cs-input" type="text" data-cs-query placeholder="Name, phone, or confirmation #" aria-label="Customer search"${loaded ? ' value="(210) 555-7193"' : ''}>
               <button type="submit" class="cs-search-btn" aria-label="Search">
                 <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
               </button>
@@ -66,11 +84,11 @@ export function csToolHtml() {
             </div>
           </div>
 
-          <div class="cs-rail-empty" data-cs-rail-empty>
+          <div class="cs-rail-empty" data-cs-rail-empty${loaded ? ' hidden' : ''}>
             <p class="cs-muted">Search for a customer to view their profile.</p>
           </div>
 
-          <div class="cs-rail-results" data-cs-rail-results hidden>
+          <div class="cs-rail-results" data-cs-rail-results${loaded ? '' : ' hidden'}>
             <div class="cs-card">
               <div class="cs-cust-name">Greg Foster <span class="cs-verified" title="Verified account">&#10003;</span></div>
               <div class="cs-cust-rating"><span class="cs-stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9734;</span> <a class="cs-link">1 Review</a></div>
@@ -125,24 +143,20 @@ export function csToolHtml() {
             <table class="cs-table">
               <thead><tr><th>Date &#9662;</th><th>Type</th><th>Contract/Reservation/Receipt</th><th>Equipment</th><th>Status</th><th>Total Paid</th></tr></thead>
               <tbody data-cs-past-body>
-                <tr><td colspan="6" class="cs-table-empty">No data available in table</td></tr>
+                ${loaded ? pastRowsHtml : '<tr><td colspan="6" class="cs-table-empty">No data available in table</td></tr>'}
               </tbody>
             </table>
-            <div class="cs-table-foot" data-cs-past-foot><span>Showing 0 to 0 of 0 entries</span><span class="cs-pager">Previous Next</span></div>
+            <div class="cs-table-foot" data-cs-past-foot>${loaded
+              ? '<span>Showing 1 to 2 of 2 entries</span><span class="cs-pager">Previous 1 Next</span>'
+              : '<span>Showing 0 to 0 of 0 entries</span><span class="cs-pager">Previous Next</span>'}</div>
           </div>
         </div>
       </div>
     </section>`;
 
-  // The Past Orders rows are injected on search (kept out of the static markup
-  // so the pre-search empty state reads correctly).
-  const pastRowsHtml = `
-    <tr><td>06/06/2026</td><td>InTown</td><td><a class="cs-link" data-cs-go="contract">MER-512874</a></td><td>DC4821H</td><td>Received</td><td>$124.51</td></tr>
-    <tr><td>11/09/2025</td><td>InTown</td><td><span class="cs-link-muted">MER-417286</span></td><td>JH3308F</td><td>Received</td><td>$66.62</td></tr>`;
-
   // ---- View 2: Contract Lookup ---------------------------------------------
   const contractView = `
-    <section class="cs-view" data-cs-view="contract" hidden>
+    <section class="cs-view" data-cs-view="contract"${startView === 'contract' ? '' : ' hidden'}>
       <a class="cs-back" data-cs-go="customer">&#8249; Customer Management</a>
       <h1 class="cs-h1">Contract Lookup &mdash; Contract MER-512874</h1>
 
@@ -238,7 +252,7 @@ export function csToolHtml() {
 
   // ---- View 3: Receipts list -----------------------------------------------
   const receiptsView = `
-    <section class="cs-view" data-cs-view="receipts" hidden>
+    <section class="cs-view" data-cs-view="receipts"${startView === 'receipts' ? '' : ' hidden'}>
       <a class="cs-back" data-cs-go="contract">&#8249; Back to Contract</a>
       <h1 class="cs-h1">Contract Search</h1>
       <p class="cs-sub">Original receipts for Contract MER-512874</p>
@@ -271,7 +285,7 @@ export function csToolHtml() {
   const termsHtml = terms.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
 
   const receiptView = `
-    <section class="cs-view" data-cs-view="receipt" hidden>
+    <section class="cs-view" data-cs-view="receipt"${startView === 'receipt' ? '' : ' hidden'}>
       <a class="cs-back" data-cs-go="receipts">&#8249; Back to Receipts</a>
       <div class="cs-receipt-layout">
         <aside class="cs-email-pane">
@@ -363,7 +377,7 @@ export function csToolHtml() {
     </section>`;
 
   return `
-    <div class="cs-tool" data-cs-current="customer">
+    <div class="cs-tool" data-cs-current="${startView}">
       <template data-cs-past-rows>${pastRowsHtml}</template>
       <nav class="cs-nav">
         <span class="cs-nav-brand">meridian.net</span>

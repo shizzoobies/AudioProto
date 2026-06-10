@@ -1211,7 +1211,7 @@ function renderCallMultiTurn() {
 // via wireCsTool() in the STATES entry's `wire` hook. The full call chrome
 // (buildCallShell) is POS-specific and intentionally not reused here — the
 // service demo replaces the entire call body with the CS tool.
-function renderCallCsTool() {
+function csCallShell(toolHtml) {
   return `
     <section class="call" data-call-mode="phone" data-cs="true">
       <header class="call-header">
@@ -1228,11 +1228,32 @@ function renderCallCsTool() {
         </div>
       </header>
       <div class="call-body">
-        ${csToolHtml()}
+        ${toolHtml}
       </div>
     </section>
   `;
 }
+
+// Per-screen entry points so each CS screen can be reviewed directly from the
+// state dropdown (and stacked in "Print all") without clicking through:
+//   full flow  — starts at the empty customer search (the live-call experience)
+//   customer   — Customer Management with Greg already loaded
+//   contract   — Contract Lookup
+//   receipts   — Receipts list
+//   receipt    — the printed Return receipt
+// Every state is wired with wireCsTool, so navigation still works from any.
+// Shared `wire` hook for every CS state: wires the .cs-tool inside THIS state's
+// container (so each stacked copy in "Print all" is independently interactive).
+function wireCsState(rootEl) {
+  const t = rootEl.querySelector('.cs-tool');
+  if (t) wireCsTool(t);
+}
+
+function renderCallCsTool() { return csCallShell(csToolHtml()); }
+function renderCallCsCustomer() { return csCallShell(csToolHtml({ view: 'customer', loaded: true })); }
+function renderCallCsContract() { return csCallShell(csToolHtml({ view: 'contract' })); }
+function renderCallCsReceipts() { return csCallShell(csToolHtml({ view: 'receipts' })); }
+function renderCallCsReceipt() { return csCallShell(csToolHtml({ view: 'receipt' })); }
 
 // ---- Pre-call modal + ring screen (the start-of-call sequence) ------------
 // Both are full-screen overlays in the real app; here they're contained in a
@@ -1773,7 +1794,11 @@ const STATES = [
   { id: 'call-thinking',         label: '4 · Call — Customer thinking (clock frozen)', render: renderCallThinking },
   { id: 'call-paused',           label: '4 · Call — Paused (timer frozen, form dimmed)', render: renderCallPaused },
   { id: 'call-multi-turn',       label: '4 · Call — Multi-turn transcript',    render: renderCallMultiTurn },
-  { id: 'call-cs-tool',          label: '4 · Call — Customer Service tool (Greg, interactive)', render: renderCallCsTool, wire: (rootEl) => { const t = rootEl.querySelector('.cs-tool'); if (t) wireCsTool(t); } },
+  { id: 'call-cs-tool',          label: '4 · Call — CS tool · full flow (start at search)', render: renderCallCsTool, wire: wireCsState },
+  { id: 'call-cs-customer',      label: '4 · Call — CS tool · Customer Management (Greg loaded)', render: renderCallCsCustomer, wire: wireCsState },
+  { id: 'call-cs-contract',      label: '4 · Call — CS tool · Contract Lookup', render: renderCallCsContract, wire: wireCsState },
+  { id: 'call-cs-receipts',      label: '4 · Call — CS tool · Receipts list', render: renderCallCsReceipts, wire: wireCsState },
+  { id: 'call-cs-receipt',       label: '4 · Call — CS tool · Receipt document', render: renderCallCsReceipt, wire: wireCsState },
   // --- 5. The CSF reservation steps ---
   { id: 'call-step-details',     label: '5 · CSF — Step 1: Details',           render: renderCallStepDetails },
   { id: 'call-step-equipment',   label: '5 · CSF — Step 2: Equipment',         render: renderCallStepEquipment },
