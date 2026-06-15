@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-9 no-em-dash';
+const BUILD_ID = '20260610-11 devbydesign-5week';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1378,6 +1378,12 @@ function renderCoachingDashboard(data) {
               <dd>${escapeHtml(val)}</dd>
             </div>`).join('')}
         </dl>
+        ${agent.incident ? `
+          <div class="dash-profile-incident">
+            <p class="dash-profile-incident-h">A recent incident</p>
+            ${paragraphsHtml(agent.incident)}
+            ${agent.incident_image ? `<img class="dash-incident-img" src="${escapeAttr(agent.incident_image)}" alt="">` : ''}
+          </div>` : ''}
       </div>
     </div>`;
 
@@ -1387,22 +1393,35 @@ function renderCoachingDashboard(data) {
   for (const s of sections) {
     if (stage >= Number(s.stage) && Number(s.week) > unlockedWeek) unlockedWeek = Number(s.week);
   }
-  const weeks = [1, 2, 3];
+  // Friendly heading per week + the Final group (mirrors WEEK_TITLES in
+  // shared/coaching-dashboard.js; app.js can't import the server module).
+  const WEEK_LABELS = {
+    1: 'Week 1 · Intentional Development',
+    2: 'Week 2 · Diagnosis',
+    3: 'Week 3 · Strategy for Growth',
+    4: 'Week 4 · The Performance Conversation',
+    5: 'Week 5 · Follow-Up & Reinforcement',
+    6: 'Final · Real-World Case Study',
+  };
+  const stripWeeks = [1, 2, 3, 4, 5];
   const stripHtml = `
     <div class="dash-strip" role="list">
-      ${weeks.map((w) => `
+      ${stripWeeks.map((w) => `
         <span class="dash-strip-week${w <= unlockedWeek ? ' is-on' : ' is-dim'}" role="listitem">Week ${w}</span>`).join('<span class="dash-strip-sep" aria-hidden="true">·</span>')}
+      <span class="dash-strip-sep" aria-hidden="true">·</span>
+      <span class="dash-strip-week${unlockedWeek >= 6 ? ' is-on' : ' is-dim'}" role="listitem">Final</span>
     </div>`;
 
-  // ---- 3. Sections grouped by week ----
+  // ---- 3. Sections grouped by week (weeks 1-5, then the Final assignment) ----
   const sectionHtml = (section) => {
     const unlocked = stage >= Number(section.stage);
     if (!unlocked) {
+      const where = Number(section.week) >= 6 ? 'the Final' : `Week ${escapeHtml(String(section.week))}`;
       return `
         <div class="dash-section is-locked">
           <div class="dash-section-head">
             <h3 class="dash-section-title">${escapeHtml(section.title || '')}</h3>
-            <span class="dash-lock-chip">🔒 Unlocks in Week ${escapeHtml(String(section.week))}</span>
+            <span class="dash-lock-chip">🔒 Unlocks in ${where}</span>
           </div>
         </div>`;
     }
@@ -1415,12 +1434,14 @@ function renderCoachingDashboard(data) {
       </div>`;
   };
 
-  const weekGroupsHtml = weeks.map((w) => {
+  const weekGroupsHtml = [1, 2, 3, 4, 5, 6].map((w) => {
     const inWeek = sections.filter((s) => Number(s.week) === w);
     if (!inWeek.length) return '';
+    const isFinal = w === 6;
     return `
-      <section class="dash-week-group">
-        <h2 class="dash-week">Week ${w}</h2>
+      <section class="dash-week-group${isFinal ? ' dash-week-final' : ''}">
+        <h2 class="dash-week">${escapeHtml(WEEK_LABELS[w] || ('Week ' + w))}</h2>
+        ${isFinal ? '<p class="dash-week-intro">Apply the Development by Design process with one of your own team members.</p>' : ''}
         ${inWeek.map(sectionHtml).join('')}
       </section>`;
   }).join('');
@@ -1428,7 +1449,7 @@ function renderCoachingDashboard(data) {
   // ---- 4. Export button (acts on the live form fields) ----
   const exportHtml = `
     <div class="dash-export">
-      <button class="primary-button dash-export-btn" type="button">Export Development Plan (PDF)</button>
+      <button class="primary-button dash-export-btn" type="button">Export Workbook (PDF)</button>
     </div>`;
 
   dom.root.innerHTML = `
@@ -1652,7 +1673,7 @@ function exportCoachingPlan(data) {
 
   host.innerHTML = `
     <header class="print-header">
-      <h1 class="print-title">Development Plan</h1>
+      <h1 class="print-title">Development by Design Workbook</h1>
       <p class="print-sub">${escapeHtml(agent.name || '')}${agent.role_title ? ` · ${escapeHtml(agent.role_title)}` : ''}</p>
     </header>
     ${groupsHtml || '<p>No development-plan answers yet.</p>'}`;

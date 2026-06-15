@@ -4128,19 +4128,30 @@ function refreshCoachingAgentsSection() {
 // /api/admin/dashboard-fields (GET/POST upsert/DELETE). Mirrors the voices
 // panel's add/list/delete handler style; re-renders the section in place.
 
+// The form-question groups, one per course form section_key (mirrors
+// DASHBOARD_SECTIONS in shared/coaching-dashboard.js).
 const DEVPLAN_GROUPS = [
-  { key: 'devplan1', title: 'Part 1', sub: 'Week 1 (before/at the assessment call)' },
-  { key: 'devplan2', title: 'Part 2', sub: 'Week 1 homework (after the assessment)' },
-  { key: 'devplan3', title: 'Part 3', sub: 'Week 2 (after the coaching call)' },
+  { key: 'diagnosis',        title: 'Week 1 · Diagnosis', sub: 'After the assessment call' },
+  { key: 'devplan',          title: 'Week 2 · Development Plan', sub: 'Strategy + rationale' },
+  { key: 'callprep',         title: 'Week 3 · Coaching-Call Prep', sub: 'Key points, opening, agent notes, skill gap/root cause' },
+  { key: 'followupplan',     title: 'Week 4 · Follow-Up Plan', sub: 'After the coaching call' },
+  { key: 'casestudyprep',    title: 'Week 5 · Case-Study Prep', sub: 'Preparing the real-world case study' },
+  { key: 'cs_diagnosis',     title: 'Final · Diagnosis', sub: 'Real-world case study' },
+  { key: 'cs_devplan',       title: 'Final · Development Plan', sub: 'Real-world case study' },
+  { key: 'cs_perfconvo',     title: 'Final · Performance Conversation', sub: 'Real-world case study' },
+  { key: 'cs_followup',      title: 'Final · Follow-Up Strategy', sub: 'Real-world case study' },
+  { key: 'cs_documentation', title: 'Final · Documentation', sub: 'Real-world case study' },
+  { key: 'cs_playbook',      title: 'Final · Personal Playbook', sub: 'Real-world case study' },
 ];
 
-const MAX_STAGE = 5;
+const MAX_STAGE = 6;
 const STAGE_LABELS = {
-  1: 'Week 1 meeting (Incident + Dev-Plan Pt.1 + Assessment call)',
-  2: 'Week 1 homework (Dev-Plan Pt.2) unlocked',
-  3: 'Week 2 (Coaching call + Dev-Plan Pt.3) unlocked',
-  4: 'Week 3 (Follow-up call) unlocked',
-  5: 'Follow-Up Activities unlocked',
+  1: 'Week 1 · Intentional Development (assessment call + diagnosis)',
+  2: 'Week 2 · Diagnosis (development plan)',
+  3: 'Week 3 · Strategy for Growth (coaching-call prep)',
+  4: 'Week 4 · The Performance Conversation (coaching call + follow-up plan)',
+  5: 'Week 5 · Follow-Up & Reinforcement (case-study prep)',
+  6: 'Final · Real-World Case Study',
 };
 
 function renderDashboardFieldsSection() {
@@ -4170,8 +4181,8 @@ function renderDashboardFieldsSection() {
     <section class="admin-section" id="sec-dashboard-fields">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
-        <h2 class="admin-section-title">Development Plan questions</h2>
-        <p class="admin-section-sub">The questions managers answer in each Development-Plan part. Edit the label, toggle a question on/off, or remove it. Inactive questions are hidden from managers but kept here.</p>
+        <h2 class="admin-section-title">Course questions</h2>
+        <p class="admin-section-sub">The questions participants answer in each form section across the five weeks and the Final case study. Edit the label, toggle a question on/off, or remove it. Inactive questions are hidden from participants but kept here.</p>
       </header>
       <div id="admin-df-alert"></div>
       <div class="admin-df-groups">${groups}</div>

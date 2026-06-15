@@ -9,7 +9,7 @@
 // constants live in the pure shared/coaching-dashboard.js.
 
 import { randomId } from './auth.js';
-import { DEFAULT_DASHBOARD_FIELDS, MAX_STAGE } from './coaching-dashboard.js';
+import { DEFAULT_DASHBOARD_FIELDS, MAX_STAGE, SEED_VERSION } from './coaching-dashboard.js';
 
 // Resolve the effective unlocked stage for a manager (by their invite_id). A
 // cohort member is gated to their cohort's unlocked_stage; an ad-hoc (non-cohort)
@@ -130,20 +130,55 @@ export async function ensureDashboardTables(env) {
     // table already present or a benign race — safe to ignore
   }
 
-  // Seed the default Development-Plan fields the first time the table is empty.
+  // dashboard_meta: tiny key/value store for migration bookkeeping (the applied
+  // seed version), so a course redesign can re-seed exactly once on deploy.
   try {
-    const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM dashboard_fields`).first();
-    if (!countRow || Number(countRow.n) === 0) {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS dashboard_meta (
+         key   TEXT PRIMARY KEY,
+         value TEXT
+       )`
+    ).run();
+  } catch {
+    // table already present — safe to ignore
+  }
+
+  // Seed (or RE-seed on a SEED_VERSION bump) the default form fields. On a bump
+  // we wipe the old fields + now-orphaned answers and reset cohort gates to the
+  // new scale, then seed the new fields — a clean rollout of a course redesign
+  // with no manual migration. Runs exactly once per version. Scoped to the
+  // coaching dashboard only (scenarios / voices / invites are untouched).
+  try {
+    const verRow = await env.DB
+      .prepare(`SELECT value FROM dashboard_meta WHERE key = 'seed_version'`)
+      .first();
+    const applied = Number(verRow?.value) || 0;
+    if (applied !== SEED_VERSION) {
       const now = Math.floor(Date.now() / 1000);
-      for (const f of DEFAULT_DASHBOARD_FIELDS) {
-        await env.DB
-          .prepare(
-            `INSERT INTO dashboard_fields (id, section_key, label, type, position, active, created_at)
-             VALUES (?, ?, ?, ?, ?, 1, ?)`
-          )
-          .bind('df_' + randomId(), f.section_key, f.label, f.type || 'textarea', f.position || 0, now)
-          .run();
+      if (applied > 0) {
+        // Upgrading from an earlier course: clean reset of dashboard state.
+        try { await env.DB.prepare(`DELETE FROM dashboard_fields`).run(); } catch {}
+        try { await env.DB.prepare(`DELETE FROM dashboard_answers`).run(); } catch {}
+        try { await env.DB.prepare(`UPDATE cohorts SET unlocked_stage = 1`).run(); } catch {}
       }
+      // Seed only when empty (covers both a fresh DB and a post-wipe reseed).
+      const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM dashboard_fields`).first();
+      if (!countRow || Number(countRow.n) === 0) {
+        for (const f of DEFAULT_DASHBOARD_FIELDS) {
+          await env.DB
+            .prepare(
+              `INSERT INTO dashboard_fields (id, section_key, label, type, position, active, created_at)
+               VALUES (?, ?, ?, ?, ?, 1, ?)`
+            )
+            .bind('df_' + randomId(), f.section_key, f.label, f.type || 'textarea', f.position || 0, now)
+            .run();
+        }
+      }
+      await env.DB
+        .prepare(`INSERT INTO dashboard_meta (key, value) VALUES ('seed_version', ?)
+                  ON CONFLICT (key) DO UPDATE SET value = excluded.value`)
+        .bind(String(SEED_VERSION))
+        .run();
     }
   } catch {
     // seed failed (table contention / partial state) — non-fatal, callers degrade
