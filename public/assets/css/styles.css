@@ -4779,30 +4779,44 @@ body[data-coaching] .app-header { display: none; }
   opacity: 0.55;
   transition: width 0.42s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.3s ease;
 }
+/* The detail is an OPAQUE floating card anchored under its line — NOT an inline
+   expansion. Inline growth fed into the hero's centered slack and ran into the
+   "lines" section below (and the old translucent panel let that text bleed
+   through). As an absolute, opaque popover it never inflates layout and cleanly
+   occludes whatever's behind it instead of mixing with it. */
 .demo-tenet-reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
+  position: absolute;
+  top: calc(100% - 8px);
+  left: clamp(6px, 0.8vw, 14px);
+  right: clamp(6px, 0.8vw, 14px);
+  z-index: 5;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.2, 0.7, 0.2, 1),
+              visibility 0s linear 0.28s;
+  pointer-events: none;
 }
 .demo-tenet-detail {
-  overflow: hidden;
-  min-height: 0;
-  opacity: 0;
-  transform: translateY(-3px);
+  display: block;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 22px 48px rgba(16, 18, 22, 0.18), 0 2px 6px rgba(16, 18, 22, 0.08);
   font-family: var(--font-ui);
   font-size: 14.5px;
   line-height: 1.55;
   color: var(--color-text-secondary);
   text-wrap: pretty;
-  transition: opacity 0.32s ease, transform 0.32s ease;
+  text-align: left;
 }
-/* Active = pinned (click) or keyboard focus. Desktop hover is layered below. */
+/* Active = pinned (click), keyboard focus, or (below) hover. The line lifts a
+   touch and colors; the opaque detail card slides in beneath it. */
 .demo-tenet.is-open,
 .demo-tenet:focus-visible {
-  z-index: 2;
-  background: rgba(255, 255, 255, 0.66);
-  box-shadow: 0 26px 56px rgba(242, 101, 34, 0.2);
-  transform: scale(1.08) translateY(-18px);
+  z-index: 5;
+  transform: translateY(-4px);
 }
 .demo-tenet.is-open .demo-tenet-line,
 .demo-tenet:focus-visible .demo-tenet-line {
@@ -4815,28 +4829,39 @@ body[data-coaching] .app-header { display: none; }
 }
 .demo-tenet.is-open .demo-tenet-reveal,
 .demo-tenet:focus-visible .demo-tenet-reveal {
-  grid-template-rows: 1fr;
-}
-.demo-tenet.is-open .demo-tenet-detail,
-.demo-tenet:focus-visible .demo-tenet-detail {
   opacity: 1;
+  visibility: visible;
   transform: none;
-  padding-top: 12px;
+  pointer-events: auto;
+  transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.2, 0.7, 0.2, 1),
+              visibility 0s;
+}
+/* While a tenet is active, lift the whole hero stage above the "lines" section
+   so the opaque card paints cleanly over it (both default to z-index:1, and the
+   later-in-DOM lines would otherwise win the paint order). */
+.demo-stage:has(.demo-tenet.is-open),
+.demo-stage:has(.demo-tenet:focus-visible) {
+  z-index: 3;
 }
 @media (hover: hover) {
   /* Spotlight: hovering one tenet dims the others. */
   .demo-tenets:hover .demo-tenet { opacity: 0.45; }
   .demo-tenets:hover .demo-tenet:hover { opacity: 1; }
+  .demo-stage:has(.demo-tenet:hover) { z-index: 3; }
   .demo-tenet:hover {
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.66);
-    box-shadow: 0 26px 56px rgba(242, 101, 34, 0.2);
-    transform: scale(1.08) translateY(-18px);
+    z-index: 5;
+    transform: translateY(-4px);
   }
   .demo-tenet:hover .demo-tenet-line { color: var(--tenet-accent); }
   .demo-tenet:hover .demo-tenet-line::after { width: 100%; opacity: 1; }
-  .demo-tenet:hover .demo-tenet-reveal { grid-template-rows: 1fr; }
-  .demo-tenet:hover .demo-tenet-detail { opacity: 1; transform: none; padding-top: 12px; }
+  .demo-tenet:hover .demo-tenet-reveal {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.2, 0.7, 0.2, 1),
+                visibility 0s;
+  }
 }
 @media (max-width: 720px) {
   .demo-tenets {
@@ -4844,9 +4869,35 @@ body[data-coaching] .app-header { display: none; }
     max-width: 32ch;
     gap: 4px;
   }
-  /* Stacked: skip the scale so an open tenet never overruns the column. */
+  /* Stacked column: drop the float and expand in-flow so an open tenet pushes
+     the next one down instead of overlaying it. */
   .demo-tenet.is-open,
-  .demo-tenet:focus-visible { transform: none; }
+  .demo-tenet:focus-visible,
+  .demo-tenet:hover { transform: none; }
+  .demo-tenet-reveal {
+    position: static;
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    transition: grid-template-rows 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .demo-tenet-detail {
+    overflow: hidden;
+    min-height: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .demo-tenet.is-open .demo-tenet-reveal,
+  .demo-tenet:focus-visible .demo-tenet-reveal,
+  .demo-tenet:hover .demo-tenet-reveal { grid-template-rows: 1fr; }
+  .demo-tenet.is-open .demo-tenet-detail,
+  .demo-tenet:focus-visible .demo-tenet-detail,
+  .demo-tenet:hover .demo-tenet-detail { padding-top: 10px; }
 }
 
 /* =========================================================================
