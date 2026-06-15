@@ -118,6 +118,22 @@ export async function onRequestGet({ request, env }) {
       };
     }
 
+    // --- Shared course syllabus (Pre-Week 1, read-only) ----------------------
+    // Authored by admins; shown collapsed at the top of the dashboard. Read
+    // defensively so a missing table (none saved yet) just yields null.
+    let syllabus = null;
+    try {
+      const row = await env.DB
+        .prepare(`SELECT content FROM coaching_syllabus WHERE id = 'default'`)
+        .first();
+      if (row?.content) {
+        const parsed = JSON.parse(row.content);
+        if (parsed && typeof parsed === 'object') syllabus = parsed;
+      }
+    } catch {
+      syllabus = null;
+    }
+
     return json({
       active: true,
       stage,
@@ -127,6 +143,7 @@ export async function onRequestGet({ request, env }) {
       fields,
       answers,
       calls,
+      syllabus,
     });
   } catch (e) {
     return jsonError('dashboard_failed', 500, String(e?.message || e));

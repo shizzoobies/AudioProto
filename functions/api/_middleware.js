@@ -37,6 +37,7 @@ const COACHING_ADMIN_ALLOWED_PATHS = new Set([
 const COACHING_FULL_ALLOWED_PATHS = new Set([
   '/api/admin/coaching-landing',
   '/api/admin/coaching-landing-image',
+  '/api/admin/coaching-syllabus',
   '/api/admin/dashboard-fields',
   '/api/admin/cohorts',
   '/api/admin/cohort-recording',

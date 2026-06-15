@@ -248,6 +248,13 @@ async function renderCoachingPage() {
       if (r.ok) { const d = await r.json(); state.coachingLanding = d.content || { hero: {}, sections: [] }; }
     } catch (e) { console.warn('coaching landing load failed', e); }
   }
+  // Shared course syllabus (Pre-Week 1 content).
+  if (canManageAll) {
+    try {
+      const r = await fetch('/api/admin/coaching-syllabus', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.coachingSyllabus = d.content || { title: '', sections: [] }; }
+    } catch (e) { console.warn('coaching syllabus load failed', e); }
+  }
   // Development-Plan questions editor (full-admin only — scoped editor 401s).
   if (canManageAll) {
     try {
@@ -281,6 +288,7 @@ function paintCoachingPage() {
     ${renderSignedInBar()}
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
     ${showRoster ? renderCoachingLandingSection() : ''}
+    ${showRoster ? renderCoachingSyllabusSection() : ''}
     ${showRoster ? renderCohortsSection() : ''}
     ${showRoster ? renderCoachingEditorsSection() : ''}
     ${renderCoachingVoicesSection()}
@@ -289,6 +297,7 @@ function paintCoachingPage() {
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
   if (showRoster) attachCoachingLandingHandlers();
+  if (showRoster) attachCoachingSyllabusHandlers();
   if (showRoster) attachCohortsHandlers();
   if (showRoster) attachCoachingEditorsHandlers();
   attachCoachingVoicesHandlers();
@@ -4120,6 +4129,127 @@ function refreshCoachingAgentsSection() {
     sec.replaceWith(tmp.firstElementChild);
   }
   attachCoachingAgentsHandlers();
+}
+
+// ---- Course syllabus editor (full admin / full coaching editor) -----------
+// The Pre-Week 1 program syllabus shown collapsed at the top of every
+// participant dashboard: a title + ordered heading/body sections. One shared
+// document, backed by /api/admin/coaching-syllabus (GET/POST). Add/remove read
+// the live DOM first so unsaved typing survives a re-render.
+function syllabusState() {
+  const s = state.coachingSyllabus && typeof state.coachingSyllabus === 'object' ? state.coachingSyllabus : {};
+  return {
+    title: typeof s.title === 'string' ? s.title : '',
+    sections: Array.isArray(s.sections) ? s.sections : [],
+  };
+}
+
+function renderCoachingSyllabusSection() {
+  const syl = syllabusState();
+  const rowsHtml = syl.sections.length
+    ? syl.sections.map((s, i) => `
+        <div class="admin-syl-row" data-syl-row="${i}">
+          <div class="admin-syl-row-head">
+            <input class="admin-input admin-syl-heading" placeholder="Section heading (e.g. Overview)" value="${escapeAttr(s.heading || '')}">
+            <button type="button" class="ghost-button admin-syl-del" data-syl-del="${i}">Remove</button>
+          </div>
+          <textarea class="admin-input admin-syl-body" rows="4" placeholder="Section text...">${escapeHtml(s.body || '')}</textarea>
+        </div>`).join('')
+    : '<div class="admin-empty">No syllabus sections yet. Add one below.</div>';
+  return `
+    <section class="admin-section" id="sec-coaching-syllabus">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Syllabus</h2>
+        <p class="admin-section-sub">The program syllabus shown collapsed at the top of every participant's dashboard (Pre-Week 1). Add titled sections such as overview, schedule, and expectations. Leave the whole thing empty to hide the panel.</p>
+      </header>
+      <div id="admin-syl-alert"></div>
+      <div class="admin-field">
+        <label class="admin-field-label" for="admin-syl-title">Panel title</label>
+        <input type="text" id="admin-syl-title" class="admin-input" placeholder="Program Syllabus" value="${escapeAttr(syl.title || '')}">
+      </div>
+      <div class="admin-syl-rows">${rowsHtml}</div>
+      <div class="admin-syl-actions">
+        <button type="button" class="ghost-button" id="admin-syl-add">+ Add section</button>
+        <button type="button" class="primary-button" id="admin-syl-save">Save syllabus</button>
+      </div>
+    </section>
+  `;
+}
+
+// Read the live DOM into the canonical { title, sections } shape. Keeps EVERY
+// row (even empty ones) so add/remove indices stay aligned; the server drops
+// empty sections on save.
+function collectSyllabusFromDom() {
+  const title = (document.getElementById('admin-syl-title')?.value || '').trim();
+  const sections = [];
+  document.querySelectorAll('#sec-coaching-syllabus .admin-syl-row').forEach((row) => {
+    const heading = (row.querySelector('.admin-syl-heading')?.value || '').trim();
+    const body = (row.querySelector('.admin-syl-body')?.value || '').trim();
+    sections.push({ heading, body });
+  });
+  return { title, sections };
+}
+
+function refreshCoachingSyllabusSection() {
+  const sec = document.getElementById('sec-coaching-syllabus');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderCoachingSyllabusSection();
+    sec.replaceWith(tmp.firstElementChild);
+  }
+  attachCoachingSyllabusHandlers();
+}
+
+function attachCoachingSyllabusHandlers() {
+  const addBtn = document.getElementById('admin-syl-add');
+  if (addBtn) addBtn.addEventListener('click', () => {
+    const cur = collectSyllabusFromDom();
+    cur.sections.push({ heading: '', body: '' });
+    state.coachingSyllabus = cur;
+    refreshCoachingSyllabusSection();
+  });
+  document.querySelectorAll('#sec-coaching-syllabus [data-syl-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const cur = collectSyllabusFromDom();
+      const i = Number(btn.dataset.sylDel);
+      if (Number.isInteger(i)) cur.sections.splice(i, 1);
+      state.coachingSyllabus = cur;
+      refreshCoachingSyllabusSection();
+    });
+  });
+  const saveBtn = document.getElementById('admin-syl-save');
+  if (saveBtn) saveBtn.addEventListener('click', onSaveCoachingSyllabus);
+}
+
+async function onSaveCoachingSyllabus() {
+  const btn = document.getElementById('admin-syl-save');
+  const alert = document.getElementById('admin-syl-alert');
+  const payload = collectSyllabusFromDom();
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (alert) alert.innerHTML = '';
+  try {
+    const res = await fetch('/api/admin/coaching-syllabus', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      if (alert) alert.innerHTML = `<div class="admin-alert admin-alert-error">${escapeHtml(parts.length ? parts.join(' - ') : 'Save failed')}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Save syllabus'; }
+      return;
+    }
+    state.coachingSyllabus = data.content || payload;
+    refreshCoachingSyllabusSection();
+    const a2 = document.getElementById('admin-syl-alert');
+    if (a2) a2.innerHTML = '<div class="admin-alert admin-alert-success">Syllabus saved.</div>';
+  } catch (err) {
+    if (alert) alert.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save syllabus'; }
+  }
 }
 
 // ---- Development-Plan questions editor (full admin only) -------------------

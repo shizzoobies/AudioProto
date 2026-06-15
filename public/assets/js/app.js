@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-13 reservation-notes-report';
+const BUILD_ID = '20260610-14 syllabus';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1452,6 +1452,24 @@ function renderCoachingDashboard(data) {
       <button class="primary-button dash-export-btn" type="button">Export Workbook (PDF)</button>
     </div>`;
 
+  // ---- Syllabus (Pre-Week 1): admin-authored, read-only, collapsed by default.
+  const syl = (data.syllabus && typeof data.syllabus === 'object') ? data.syllabus : null;
+  const sylSections = syl && Array.isArray(syl.sections) ? syl.sections : [];
+  const syllabusHtml = (syl && (syl.title || sylSections.length)) ? `
+    <details class="dash-syllabus">
+      <summary class="dash-syllabus-summary">
+        <span class="dash-syllabus-label">${escapeHtml(syl.title || 'Program Syllabus')}</span>
+        <span class="dash-syllabus-hint">View</span>
+      </summary>
+      <div class="dash-syllabus-body">
+        ${sylSections.map((s) => `
+          <section class="dash-syllabus-section">
+            ${s.heading ? `<h3 class="dash-syllabus-h">${escapeHtml(s.heading)}</h3>` : ''}
+            ${s.body ? paragraphsHtml(s.body) : ''}
+          </section>`).join('')}
+      </div>
+    </details>` : '';
+
   dom.root.innerHTML = `
     <div class="coaching-dash">
       ${isPreview ? `
@@ -1462,6 +1480,7 @@ function renderCoachingDashboard(data) {
           </label>
           <button type="button" class="coaching-preview-reset ghost-button">Start fresh test</button>
         </div>` : ''}
+      ${syllabusHtml}
       ${profileHtml}
       ${stripHtml}
       ${weekGroupsHtml}
