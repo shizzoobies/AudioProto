@@ -263,7 +263,9 @@ body[data-demo] .app-main {
    coaching report can be taller than the viewport and must scroll normally.
    renderCall/renderReport set body[data-view] accordingly. */
 body[data-demo][data-view="home"] {
-  overflow: hidden;
+  /* Clip horizontal bleed only; let the page scroll vertically when the home is
+     taller than the viewport (zoom / short monitors) so nothing overlaps. */
+  overflow-x: hidden;
 }
 /* Demo in-call / report views get their page padding back (the home zeroes it). */
 body[data-demo][data-view="call"] .app-main,
@@ -4433,10 +4435,13 @@ body[data-coaching] .app-header { display: none; }
   margin-left: calc(-1 * var(--space-5));
   margin-right: calc(-1 * var(--space-5));
   padding: clamp(16px, 3vw, 40px) 0 0;
-  /* Single non-scrolling screen: exactly the viewport tall, content fits, and
-     the dark footer ends at the bottom. Overflow is clipped so nothing scrolls. */
-  height: 100vh;
-  height: 100dvh;
+  /* One screen when it fits (footer ends at the bottom); when it DOESN'T fit
+     (browser zoom, short/scaled monitors) the home grows and the PAGE scrolls
+     instead of the sections collapsing into and overlapping each other. Uses
+     min-height (not a fixed height) + non-shrinking children for that. Overflow
+     stays clipped to hide the oversized orb field and the full-bleed sides. */
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   gap: clamp(12px, 2.2vw, 28px);
@@ -4462,9 +4467,10 @@ body[data-coaching] .app-header { display: none; }
   margin-right: auto;
   padding: clamp(16px, 3vw, 32px) clamp(24px, 5vw, 48px) clamp(8px, 1.5vw, 18px);
   text-align: center;
-  /* Absorb the slack so the hero centers in the space above the tiles + footer
-     and the whole demo fits one screen without scrolling. */
-  flex: 1 1 auto;
+  /* Grow to absorb slack so the hero centers in the space above the tiles +
+     footer, but NEVER shrink below its own content (flex-shrink:0) — shrinking
+     was letting the centered hero spill out and overlap the tiles below. */
+  flex: 1 0 auto;
   min-height: 0;
 }
 
@@ -4909,6 +4915,9 @@ body[data-coaching] .app-header { display: none; }
 .demo-lines {
   position: relative;
   z-index: 1;
+  /* Keep their natural height in the column so they're never compressed under
+     the hero — the page scrolls instead if everything can't fit one screen. */
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 2.4vw, 24px);
@@ -5219,6 +5228,7 @@ body[data-coaching] .app-header { display: none; }
   position: relative;
   z-index: 1;
   margin-top: auto;
+  flex-shrink: 0;
   background: #000;
   padding: clamp(13px, 1.9vw, 24px) clamp(24px, 5vw, 48px);
 }
