@@ -44,7 +44,7 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
             <td style="padding:36px 36px 32px;">
               <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">Your simulation is ready${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
               <p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">
-                You've been invited to practice sales conversations on Meridian's call simulator. Click the button below to get started — no account needed.
+                You've been invited to practice sales conversations on Meridian's call simulator. Click the button below to get started. No account needed.
               </p>
 
               <!-- CTA button — real <a> so Outlook renders it -->
@@ -73,7 +73,7 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
           <!-- Footer -->
           <tr>
             <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations &mdash; this email was sent by your simulation administrator.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations. This email was sent by your simulation administrator.</p>
             </td>
           </tr>
 
@@ -86,13 +86,13 @@ export async function sendInviteEmail(env, { to, name, url, expiresAt }) {
 
   const text = `Your Meridian simulation is ready${displayName && displayName !== to ? ', ' + displayName : ''}.
 
-You've been invited to practice sales conversations on Meridian's call simulator. Follow the link below to get started — no account needed.
+You've been invited to practice sales conversations on Meridian's call simulator. Follow the link below to get started. No account needed.
 
 ${url}
 ${expiryText}
 
 ---
-Meridian Simulations — this email was sent by your simulation administrator.`;
+Meridian Simulations. This email was sent by your simulation administrator.`;
 
   try {
     const res = await fetch(RESEND_API, {
@@ -153,7 +153,7 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
             <td style="padding:36px 36px 32px;">
               <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">You've been given admin access${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
               <p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">
-                You can now manage simulation invites on Meridian's call simulator — send invites, pick scenarios, and track usage. Click the button below to open the admin dashboard. No password needed; this link signs you in.
+                You can now manage simulation invites on Meridian's call simulator: send invites, pick scenarios, and track usage. Click the button below to open the admin dashboard. No password needed; this link signs you in.
               </p>
 
               <!-- CTA button — real <a> so Outlook renders it -->
@@ -180,7 +180,7 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
           <!-- Footer -->
           <tr>
             <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations &mdash; this email was sent by a call simulator administrator.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations. This email was sent by a call simulator administrator.</p>
             </td>
           </tr>
 
@@ -193,12 +193,12 @@ export async function sendAdminInviteEmail(env, { to, name, url }) {
 
   const text = `You've been given admin access${displayName && displayName !== to ? ', ' + displayName : ''}.
 
-You can now manage simulation invites on Meridian's call simulator — send invites, pick scenarios, and track usage. Follow the link below to open the admin dashboard. No password needed; this link signs you in.
+You can now manage simulation invites on Meridian's call simulator: send invites, pick scenarios, and track usage. Follow the link below to open the admin dashboard. No password needed; this link signs you in.
 
 ${url}
 
 ---
-Meridian Simulations — this email was sent by a call simulator administrator.`;
+Meridian Simulations. This email was sent by a call simulator administrator.`;
 
   try {
     const res = await fetch(RESEND_API, {
@@ -255,7 +255,7 @@ export async function sendCoachingEditorEmail(env, { to, name, url }) {
             <td style="padding:36px 36px 32px;">
               <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">You can now author coaching scenarios${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
               <p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">
-                You've been given access to the Scenarios editor — create and manage the coachable employee personas managers practice on. Click below to open it. No password needed; this link signs you in. It opens ONLY the Scenarios editor, nothing else.
+                You've been given access to the Scenarios editor. Create and manage the coachable employee personas managers practice on. Click below to open it. No password needed; this link signs you in. It opens ONLY the Scenarios editor, nothing else.
               </p>
               <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                 <tr>
@@ -276,7 +276,7 @@ export async function sendCoachingEditorEmail(env, { to, name, url }) {
           </tr>
           <tr>
             <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations &mdash; this email was sent by a simulation administrator.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Meridian Simulations. This email was sent by a simulation administrator.</p>
             </td>
           </tr>
         </table>
@@ -288,12 +288,12 @@ export async function sendCoachingEditorEmail(env, { to, name, url }) {
 
   const text = `You can now author coaching scenarios${displayName && displayName !== to ? ', ' + displayName : ''}.
 
-You've been given access to the Scenarios editor — create and manage the coachable employee personas managers practice on. Follow the link below to open it. No password needed; this link signs you in. It opens ONLY the Scenarios editor.
+You've been given access to the Scenarios editor. Create and manage the coachable employee personas managers practice on. Follow the link below to open it. No password needed; this link signs you in. It opens ONLY the Scenarios editor.
 
 ${url}
 
 ---
-Meridian Simulations — this email was sent by a simulation administrator.`;
+Meridian Simulations. This email was sent by a simulation administrator.`;
 
   try {
     const res = await fetch(RESEND_API, {

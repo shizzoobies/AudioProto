@@ -127,7 +127,7 @@ export function renderLandingContentHtml(content) {
   const eyebrow = hero.eyebrow || 'Coaching Practice';
   const title = hero.title || 'Practice the conversations that matter.';
   const intro = hero.intro
-    || 'Step into real coaching scenarios with team members who remember every conversation you have with them. Take them at your own pace — your progress is saved.';
+    || 'Step into real coaching scenarios with team members who remember every conversation you have with them. Take them at your own pace. Your progress is saved.';
   const rowsHtml = migrateRows(landing).map(renderRow).join('');
 
   const heroFont = fontStack(hero.font);

@@ -64,11 +64,11 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
   let whoLine;
   if (gated && !roleMatches) {
     whoLine =
-      `The person on this call is NOT ${expectedPhrase} — someone else is stepping in to have ` +
+      `The person on this call is NOT ${expectedPhrase}. Someone else is stepping in to have ` +
       `this conversation with you instead. This is an internal one-on-one, not a customer call.`;
   } else if (gated && receptiveTo === 'senior_agent') {
     whoLine =
-      `The person on this call is a SENIOR AGENT on your team — a more experienced peer / team ` +
+      `The person on this call is a SENIOR AGENT on your team, a more experienced peer / team ` +
       `lead checking in with you, NOT your manager. This is an internal one-on-one, not a customer call.`;
   } else {
     whoLine =
@@ -101,7 +101,7 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
     // matter how well they handle it; the point is that the RIGHT role must run
     // this conversation.
     sections.push(
-      `Openness to change — WHO is coaching you matters:\n` +
+      `Openness to change (WHO is coaching you matters):\n` +
       `- The person on this call is NOT ${expectedPhrase}, and on something like this you ` +
       `only open up to ${expectedPhrase}. You are NOT willing to be coached by them here.\n` +
       `- Stay guarded and closed off no matter how specific, fair, or skilled they are. Good ` +
@@ -113,7 +113,7 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
   } else if (gated && !roleMatches && strictness === 'soft') {
     // SOFT friction: warier than usual, much slower to thaw, but reachable.
     sections.push(
-      `Openness to change — WHO is coaching you matters:\n` +
+      `Openness to change (WHO is coaching you matters):\n` +
       `- The person on this call is NOT ${expectedPhrase}, so this isn't quite their place and ` +
       `you are warier than usual. Your guard starts higher and comes down much more slowly and ` +
       `less far than it otherwise would.\n` +
@@ -186,26 +186,26 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
     sections.push(
       `You are a bit of a poor listener:\n` +
       `- You sometimes jump in before ${coachPhrase} finishes, talk over the start of their ` +
-      `points, or only half-listen — you miss details and occasionally ask about something ` +
+      `points, or only half-listen. You miss details and occasionally ask about something ` +
       `they already said. Keep a fair number of your replies short and quick, like you are ` +
       `impatient to respond rather than taking it in.\n` +
-      `- This is manageable: when they stay calm and structured — or gently name it and ask ` +
-      `you to let them finish — you settle and engage. If they let it slide, you keep ` +
+      `- This is manageable: when they stay calm and structured, or gently name it and ask ` +
+      `you to let them finish, you settle and engage. If they let it slide, you keep ` +
       `stepping on them.`
     );
   } else if (disrupt === 'heavy') {
     sections.push(
-      `You are disruptive and a poor listener — this is a core behavior to play:\n` +
+      `You are disruptive and a poor listener. This is a core behavior to play:\n` +
       `- You frequently cut ${coachPhrase} off mid-sentence, finish their sentences for them, ` +
       `and steamroll their points before they land. You change the subject, jump ahead, and ` +
       `dominate the airtime. You clearly are not really listening: you mishear or skip what ` +
       `they said, react to what you assume they mean, and ask about things they already ` +
       `covered.\n` +
-      `- Keep your replies short, fast, and clipped — quick barge-in style ("yeah—yeah—", ` +
-      `"right, anyway—", "hold on, no—") rather than waiting and giving measured answers.\n` +
-      `- This is exactly what they have to manage. ONLY when they take firm control — ` +
+      `- Keep your replies short, fast, and clipped. Quick barge-in style ("yeah, yeah,", ` +
+      `"right, anyway,", "hold on, no") rather than waiting and giving measured answers.\n` +
+      `- This is exactly what they have to manage. ONLY when they take firm control, ` +
       `explicitly name the interrupting, set a ground rule ("let me finish", "I need you to ` +
-      `hear this"), and hold it — do you actually slow down and listen, and even then only in ` +
+      `hear this"), and hold it, do you actually slow down and listen, and even then only in ` +
       `steps. If they are passive, vague, or rushed, you steamroll them and keep talking over ` +
       `them.`
     );
@@ -223,7 +223,7 @@ export function buildCoachingAgentPrompt(profile, opts = {}) {
 function modeBlock(mode, name, priorTranscript, coachPhrase = 'your manager') {
   if (mode === 'assessment') {
     return (
-      `MODE — ASSESSMENT:\n` +
+      `MODE: ASSESSMENT:\n` +
       `- You are just doing your normal job / a normal interaction right now. You do ` +
       `NOT know you are being assessed and there is no coaching happening yet. Behave ` +
       `completely naturally so ${coachPhrase} can observe and diagnose the gap. Do not ` +
@@ -233,11 +233,11 @@ function modeBlock(mode, name, priorTranscript, coachPhrase = 'your manager') {
   if (mode === 'followup') {
     const recap = buildPriorRecap(priorTranscript, name, coachPhrase);
     return (
-      `MODE — FOLLOW-UP:\n` +
+      `MODE: FOLLOW-UP:\n` +
       `- This is a follow-up conversation some time after a prior coaching one-on-one ` +
       `with ${coachPhrase}. Pick up as a follow-up; do NOT restart or re-introduce ` +
       `yourself. If the prior coaching went well, show retained change (scaled by your ` +
-      `receptiveness — more receptive means more of it stuck). If it went poorly, show ` +
+      `receptiveness: more receptive means more of it stuck). If it went poorly, show ` +
       `little change and possibly lingering irritation.` +
       (recap ? '\n\n' + recap : '')
     );
@@ -245,11 +245,11 @@ function modeBlock(mode, name, priorTranscript, coachPhrase = 'your manager') {
   // default: coaching
   const coachingRecap = buildPriorRecap(priorTranscript, name, coachPhrase);
   return (
-    `MODE — COACHING:\n` +
+    `MODE: COACHING:\n` +
     `- This is the one-on-one feedback conversation. ${capFirst(coachPhrase)} is giving you ` +
     `feedback right now. React in character to whatever they actually raise.` +
     (coachingRecap
-      ? `\n- You have spoken with this person before — you remember these earlier ` +
+      ? `\n- You have spoken with this person before. You remember these earlier ` +
         `one-on-one(s); continue that relationship.` +
         '\n\n' + coachingRecap
       : '')
@@ -275,7 +275,7 @@ function buildPriorRecap(messages, name, coachPhrase = 'your manager') {
     .join('\n');
   if (!lines) return '';
   return (
-    `PREVIOUS ONE-ON-ONE — you remember this earlier conversation with ${coachPhrase}; ` +
+    `PREVIOUS ONE-ON-ONE: you remember this earlier conversation with ${coachPhrase}; ` +
     `it actually happened. Reference specifics from it when natural. Do not re-introduce ` +
     `yourself.\nTRANSCRIPT OF LAST TIME:\n` + lines
   );

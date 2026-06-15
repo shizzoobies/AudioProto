@@ -588,11 +588,11 @@ function paintDashboard() {
           </div>
           <label class="admin-all-scenarios">
             <input type="checkbox" id="admin-all-scenarios">
-            <span class="admin-all-scenarios-text"><strong>Entire library</strong> — give this person every scenario. Set an expiry below to keep it temporary.</span>
+            <span class="admin-all-scenarios-text"><strong>Entire library</strong>: give this person every scenario. Set an expiry below to keep it temporary.</span>
           </label>
           <label class="admin-all-scenarios">
             <input type="checkbox" id="admin-mode-coaching">
-            <span class="admin-all-scenarios-text"><strong>Coaching practice page</strong> — this invite opens the coaching home with the scenarios you grant below.</span>
+            <span class="admin-all-scenarios-text"><strong>Coaching practice page</strong>: this invite opens the coaching home with the scenarios you grant below.</span>
           </label>
           <div class="admin-coaching-picker" id="admin-coaching-picker" hidden>
             ${renderCoachingAgentPicker(state.coachingAgents)}
@@ -843,7 +843,7 @@ function renderRubricItem(it, sections = []) {
   const custom = !!it.is_custom;
   return `
     <div class="admin-rubric-item${it.enabled ? '' : ' is-off'}" data-key="${escapeAttr(it.key)}">
-      <label class="admin-rubric-toggle" title="${it.enabled ? 'Showing — uncheck to turn off' : 'Off — check to turn on'}">
+      <label class="admin-rubric-toggle" title="${it.enabled ? 'Showing (uncheck to turn off)' : 'Off (check to turn on)'}">
         <input type="checkbox" data-toggle ${it.enabled ? 'checked' : ''}>
       </label>
       <div class="admin-rubric-main">
@@ -858,7 +858,7 @@ function renderRubricItem(it, sections = []) {
               <button type="button" class="primary-button" data-save>Save changes</button>
               ${custom
                 ? '<button type="button" class="ghost-button admin-rubric-del" data-delete>Delete</button>'
-                : '<span class="admin-rubric-note">Default item — uncheck above to turn it off.</span>'}
+                : '<span class="admin-rubric-note">Default item: uncheck above to turn it off.</span>'}
             </div>
           </div>
         </details>
@@ -988,7 +988,7 @@ async function rubricOp(payload) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      alert(`Rubric update failed: ${parts.join(' — ') || res.status}`);
+      alert(`Rubric update failed: ${parts.join(': ') || res.status}`);
       return;
     }
   } catch (err) {
@@ -1090,8 +1090,8 @@ function buildReviewPreview(rubric) {
   enabled.forEach((it, i) => {
     scores[it.key] = {
       score: cycle[i % cycle.length],
-      evidence: `Sample evidence for "${it.label}" — a short quote from the call would appear here.`,
-      suggestion: 'Sample suggestion — one concrete thing to try next time would appear here.',
+      evidence: `Sample evidence for "${it.label}": a short quote from the call would appear here.`,
+      suggestion: 'Sample suggestion: one concrete thing to try next time would appear here.',
     };
   });
   const vals = Object.values(scores).map((s) => s.score);
@@ -1101,16 +1101,16 @@ function buildReviewPreview(rubric) {
     overall_score: Math.round(overall * 10) / 10,
     scores,
     rubric: display,
-    strengths: ['Sample strength — a real one from the call would appear here.', 'Sample strength — clear, confident close.'],
-    growth_areas: ['Sample growth area — something to tighten next time.', 'Sample growth area — confirm details back more often.'],
+    strengths: ['Sample strength: a real one from the call would appear here.', 'Sample strength: clear, confident close.'],
+    growth_areas: ['Sample growth area: something to tighten next time.', 'Sample growth area: confirm details back more often.'],
     one_thing_to_try_next_time: 'This is sample coaching text. The single most impactful thing to try next time would appear here.',
     final_mood: 'satisfied',
-    final_mood_note: 'Sample note — how the customer felt at the end of the call.',
+    final_mood_note: 'Sample note: how the customer felt at the end of the call.',
   };
 }
 
 function openReviewPreview() {
-  if (!state.rubric) { alert('Rubric is still loading — try again in a moment.'); return; }
+  if (!state.rubric) { alert('Rubric is still loading. Try again in a moment.'); return; }
   const report = buildReviewPreview(state.rubric);
   const scenario = { title: 'Call Review preview', customer_name: 'Sample Customer' };
   const node = renderReportHtml(scenario, report, { onNewCall: closeReviewPreview, onRetry: closeReviewPreview });
@@ -1200,7 +1200,7 @@ async function onGenerateReviewLink() {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -1252,7 +1252,7 @@ function paintReviewGenerated() {
   if (!out) return;
   if (!state.lastReviewUrl) { out.innerHTML = ''; return; }
   out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Review link ready.</strong> It opens only the Call Review editor — no password, no other admin access.</div>
+    <div class="admin-alert admin-alert-success"><strong>Review link ready.</strong> It opens only the Call Review editor (no password, no other admin access).</div>
     <div class="admin-generated-list">
       <div class="admin-generated-row">
         <div class="admin-generated-url-row">
@@ -1288,14 +1288,14 @@ const COACHING_ACCESS_KINDS = [
   {
     kind: 'scenarios',
     title: 'Scenarios + Voices only',
-    sub: 'Opens ONLY the scenario/voice authoring page — not the rest of admin. For someone who should author scenarios without broader access.',
+    sub: 'Opens ONLY the scenario/voice authoring page, not the rest of admin. For someone who should author scenarios without broader access.',
     activeNote: 'Opens the Scenarios + Voices editor only',
     label: 'Scenarios-editor',
   },
   {
     kind: 'full',
     title: 'Full coaching editor (everything)',
-    sub: 'Opens the ENTIRE coaching admin: landing, cohorts &amp; participants, course config, scenarios, voices, reset, and link sharing — but nothing outside coaching. Same coaching powers you have here.',
+    sub: 'Opens the ENTIRE coaching admin: landing, cohorts &amp; participants, course config, scenarios, voices, reset, and link sharing. Nothing outside coaching. Same coaching powers you have here.',
     activeNote: 'Opens the entire coaching admin',
     label: 'Full-editor',
   },
@@ -1362,7 +1362,7 @@ async function onGenerateCoachingAccess(kind) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       if (btn) { btn.disabled = false; btn.textContent = 'Generate link'; }
       return;
@@ -1426,7 +1426,7 @@ function paintCoachingAccessGenerated() {
     const url = urls[def.kind];
     if (!url) { out.innerHTML = ''; continue; }
     out.innerHTML = `
-      <div class="admin-alert admin-alert-success"><strong>${escapeHtml(def.title)} link ready.</strong> No password — share it directly.</div>
+      <div class="admin-alert admin-alert-success"><strong>${escapeHtml(def.title)} link ready.</strong> No password. Share it directly.</div>
       <div class="admin-generated-list">
         <div class="admin-generated-row">
           <div class="admin-generated-url-row">
@@ -1517,7 +1517,7 @@ function renderCoachingAgentPicker(agents) {
   if (!list.length) {
     return `
       <div class="admin-coaching-picker-empty">
-        <p class="admin-muted">No scenarios authored yet — this invite will use the built-in coaching practice (Taylor).</p>
+        <p class="admin-muted">No scenarios authored yet. This invite will use the built-in coaching practice (Taylor).</p>
         <p class="admin-muted"><a href="/admin-coaching" target="_blank" rel="noopener">Create scenarios →</a></p>
       </div>`;
   }
@@ -1532,7 +1532,7 @@ function renderCoachingAgentPicker(agents) {
   return `
     <label class="admin-coaching-agent-opt admin-coaching-agent-all">
       <input type="checkbox" id="admin-coaching-all" name="coaching_agent_id" value="__all_coaching__">
-      <span class="admin-coaching-agent-text"><strong>All scenarios</strong> — grant every active scenario, including ones added later.</span>
+      <span class="admin-coaching-agent-text"><strong>All scenarios</strong>: grant every active scenario, including ones added later.</span>
     </label>
     <div class="admin-coaching-agent-rows">${rows}</div>`;
 }
@@ -1627,7 +1627,7 @@ function renderInviteList(invites) {
         <div class="admin-invite-meta">
           <div class="admin-invite-meta-line"><strong>${inv.total_calls || 0}</strong> ${inv.total_calls === 1 ? 'call' : 'calls'} · ${escapeHtml(usageText)}</div>
           <div class="admin-invite-meta-line">${escapeHtml(expiresText)}</div>
-          <div class="admin-invite-meta-line">Created by ${escapeHtml(inv.created_by || '—')}</div>
+          <div class="admin-invite-meta-line">Created by ${escapeHtml(inv.created_by || '-')}</div>
         </div>
         <span class="admin-pill admin-pill-${status.tag}">${status.label}</span>
         <div class="admin-invite-actions">
@@ -1681,7 +1681,7 @@ function attachInviteListHandlers() {
   root.querySelectorAll('[data-resend]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.resend;
-      if (!confirm('Resend this invite? This generates a fresh link — the previous link will stop working.')) return;
+      if (!confirm('Resend this invite? This generates a fresh link. The previous link will stop working.')) return;
       btn.disabled = true;
       btn.textContent = 'Resending…';
       try {
@@ -1747,7 +1747,7 @@ function renderDemoSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Demo</p>
         <h2 class="admin-section-title">Demo link</h2>
-        <p class="admin-section-sub">One shareable link to the Sales + Customer Service demo scenarios. No password — anyone with the link can try it.</p>
+        <p class="admin-section-sub">One shareable link to the Sales + Customer Service demo scenarios. No password: anyone with the link can try it.</p>
       </header>
 
       <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
@@ -1771,8 +1771,8 @@ function renderDemoSection() {
 // ElevenLabs" populates both selects with the labeled voices off the demo agent.
 function renderDemoVoicesCard() {
   const rows = [
-    { id: 'demo_sales', label: 'Robert — Sales (demo_sales)' },
-    { id: 'demo_service', label: 'Lauren — Customer Service (demo_service)' },
+    { id: 'demo_sales', label: 'Robert (Sales / demo_sales)' },
+    { id: 'demo_service', label: 'Lauren (Customer Service / demo_service)' },
   ];
   return `
     <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;margin-top:14px;">
@@ -1856,7 +1856,7 @@ async function onLoadDemoVoices() {
     const d = await r.json().catch(() => null);
     if (!r.ok) {
       const parts = [d?.error, d?.detail].filter(Boolean);
-      if (note) note.textContent = "Couldn't reach ElevenLabs: " + (parts.length ? parts.join(' — ') : (r.statusText || 'failed'));
+      if (note) note.textContent = "Couldn't reach ElevenLabs: " + (parts.length ? parts.join(': ') : (r.statusText || 'failed'));
       return;
     }
     const voices = Array.isArray(d?.voices) ? d.voices : [];
@@ -1927,7 +1927,7 @@ async function onGenerateDemo() {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -1981,7 +1981,7 @@ function paintDemoGenerated() {
   if (!out) return;
   if (!state.lastDemoUrl) { out.innerHTML = ''; return; }
   out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Demo link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-alert admin-alert-success"><strong>Demo link ready.</strong> Share it with anyone. No password needed.</div>
     <div class="admin-generated-list">
       <div class="admin-generated-row">
         <div class="admin-generated-url-row">
@@ -2148,7 +2148,7 @@ function renderCoachingLandingSection() {
           </span>
         </div>
         <div class="cl-preview-stage"><iframe id="cl-preview" class="cl-preview-frame" title="Landing live preview" scrolling="no"></iframe></div>
-        <p class="admin-muted" style="font-size:12px;margin:8px 0 0;">Scaled to the selected screen width — what participants actually see. Your scenario cards appear below this on the real page.</p>
+        <p class="admin-muted" style="font-size:12px;margin:8px 0 0;">Scaled to the selected screen width (what participants actually see). Your scenario cards appear below this on the real page.</p>
       </div>
     </section>
   `;
@@ -2553,7 +2553,7 @@ async function saveCoachingLanding() {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      if (saved) { saved.textContent = `Save failed${data?.error ? ' — ' + data.error : ''}.`; saved.style.color = 'var(--color-danger)'; }
+      if (saved) { saved.textContent = `Save failed${data?.error ? ': ' + data.error : ''}.`; saved.style.color = 'var(--color-danger)'; }
       return;
     }
     state.coachingLanding = data.content || state.coachingLanding;
@@ -2579,7 +2579,7 @@ function renderCoachingParticipantsSection() {
   const list = Array.isArray(state.coachingParticipants) ? state.coachingParticipants : [];
   let body;
   if (!list.length) {
-    body = `<p class="admin-muted" style="margin:0;">No coaching participants yet. Use the <strong>Invite a participant</strong> form below — they'll appear here grouped by cohort, each with their link.</p>`;
+    body = `<p class="admin-muted" style="margin:0;">No coaching participants yet. Use the <strong>Invite a participant</strong> form below. They'll appear here grouped by cohort, each with their link.</p>`;
   } else {
     // Group by cohort; "No cohort" last.
     const groups = new Map();
@@ -2651,7 +2651,7 @@ function renderParticipantScenarioRow(p, ps) {
   return `
     <div class="coaching-roster-progress-row coaching-roster-scn">
       <div class="cl-scn-head">
-        <span class="coaching-roster-progress-label">${escapeHtml(ps.label)} <span class="admin-muted">— ${n} call${n === 1 ? '' : 's'}</span></span>
+        <span class="coaching-roster-progress-label">${escapeHtml(ps.label)}<span class="admin-muted">, ${n} call${n === 1 ? '' : 's'}</span></span>
         <button type="button" class="ghost-button admin-progress-reset" data-invite="${inv}" data-scenario="${scn}" data-label="${escapeAttr(ps.label)}">Reset</button>
       </div>
       ${stages.length ? `<div class="cl-stage-pills">${pills}</div>` : ''}
@@ -2681,7 +2681,7 @@ function renderParticipantCard(p) {
          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(p.url)}">
          <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(p.url)}">Copy</button>
        </div>`
-    : `<p class="coaching-roster-nolink">Link not stored for this invite yet — re-send it (form below) to generate a copyable link.</p>`;
+    : `<p class="coaching-roster-nolink">Link not stored for this invite yet. Re-send it (form below) to generate a copyable link.</p>`;
 
   // Per-scenario progress: the journey stages, the unlock gate, and Reset.
   const progressRows = (p.progress_scenarios || []).length
@@ -2903,7 +2903,7 @@ function renderCoachingInviteSection() {
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <label style="flex:1 1 180px;display:flex;flex-direction:column;gap:4px;font-size:13px;">
             <span class="admin-muted">Cohort</span>
-            <input class="admin-input" id="coaching-invite-cohort" list="coaching-cohort-list" placeholder="e.g. March 2026 — type a new one or pick existing" autocomplete="off">
+            <input class="admin-input" id="coaching-invite-cohort" list="coaching-cohort-list" placeholder="e.g. March 2026 (type a new one or pick existing)" autocomplete="off">
             <datalist id="coaching-cohort-list">${coachingCohortOptions()}</datalist>
           </label>
           <label style="flex:0 0 auto;display:flex;flex-direction:column;gap:4px;font-size:13px;">
@@ -3003,7 +3003,7 @@ async function onSendCoachingInvite(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -3012,7 +3012,7 @@ async function onSendCoachingInvite(e) {
     const url = inv && inv.url ? inv.url : '';
     if (out) {
       out.innerHTML = `
-        <div class="admin-alert admin-alert-success"><strong>Invite ${inv && inv.reused ? 'updated' : 'created'}.</strong> ${emailOk ? 'Email sent.' : 'Email not sent — copy the link below and share it manually.'}</div>
+        <div class="admin-alert admin-alert-success"><strong>Invite ${inv && inv.reused ? 'updated' : 'created'}.</strong> ${emailOk ? 'Email sent.' : 'Email not sent. Copy the link below and share it manually.'}</div>
         ${url ? `<div class="admin-generated-list"><div class="admin-generated-row"><div class="admin-generated-url-row">
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
           <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(url)}">Copy</button>
@@ -3048,7 +3048,7 @@ function renderCoachingEditorsSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Scenario editors${activeCount ? ` <span class="admin-muted" style="font-weight:400;">(${activeCount})</span>` : ''}</h2>
-        <p class="admin-section-sub">People who can author scenarios. Each gets their own link that opens ONLY the Scenarios editor — no calls, no participant data. Revoke any one without affecting the others.</p>
+        <p class="admin-section-sub">People who can author scenarios. Each gets their own link that opens ONLY the Scenarios editor (no calls, no participant data). Revoke any one without affecting the others.</p>
       </header>
       ${roster}
       <form id="coaching-editor-form" class="admin-invite-card" style="display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:12px;">
@@ -3083,7 +3083,7 @@ function renderEditorCard(ed) {
          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(ed.url)}">
          <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(ed.url)}">Copy</button>
        </div>`
-    : (ed.revoked ? '' : `<p class="coaching-roster-nolink">Link not available — re-invite to generate one.</p>`);
+    : (ed.revoked ? '' : `<p class="coaching-roster-nolink">Link not available. Re-invite to generate one.</p>`);
 
   const revokeBtn = ed.revoked
     ? ''
@@ -3137,7 +3137,7 @@ async function onSendCoachingEditor(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -3146,7 +3146,7 @@ async function onSendCoachingEditor(e) {
     const url = ed && ed.url ? ed.url : '';
     if (out) {
       out.innerHTML = `
-        <div class="admin-alert admin-alert-success"><strong>Editor ${ed && ed.reused ? 'updated' : 'invited'}.</strong> ${emailOk ? 'Email sent.' : 'Email not sent — copy the link below and share it manually.'}</div>
+        <div class="admin-alert admin-alert-success"><strong>Editor ${ed && ed.reused ? 'updated' : 'invited'}.</strong> ${emailOk ? 'Email sent.' : 'Email not sent. Copy the link below and share it manually.'}</div>
         ${url ? `<div class="admin-generated-list"><div class="admin-generated-row"><div class="admin-generated-url-row">
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
           <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(url)}">Copy</button>
@@ -3207,7 +3207,7 @@ function renderCoachingSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Coaching link</h2>
-        <p class="admin-section-sub">One shareable link to the live coaching test. No password — anyone with the link can practice.</p>
+        <p class="admin-section-sub">One shareable link to the live coaching test. No password: anyone with the link can practice.</p>
       </header>
 
       <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
@@ -3243,7 +3243,7 @@ async function onGenerateCoaching() {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -3297,7 +3297,7 @@ function paintCoachingGenerated() {
   if (!out) return;
   if (!state.lastCoachingUrl) { out.innerHTML = ''; return; }
   out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Coaching link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-alert admin-alert-success"><strong>Coaching link ready.</strong> Share it with anyone. No password needed.</div>
     <div class="admin-generated-list">
       <div class="admin-generated-row">
         <div class="admin-generated-url-row">
@@ -3332,7 +3332,7 @@ function renderCoachingVoicesSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Voices</h2>
-        <p class="admin-section-sub">The voices your scenarios can use. The easiest way: add voices (with labels) to the shared ElevenLabs agent, then click <strong>Import from ElevenLabs</strong> below to pull them in by name — no voice IDs to copy. You can also add one manually.</p>
+        <p class="admin-section-sub">The voices your scenarios can use. The easiest way: add voices (with labels) to the shared ElevenLabs agent, then click <strong>Import from ElevenLabs</strong> below to pull them in by name (no voice IDs to copy). You can also add one manually.</p>
       </header>
 
       <div class="admin-cv-toolbar">
@@ -3468,7 +3468,7 @@ async function onImportElevenLabsVoices() {
     const d = await r.json().catch(() => null);
     if (!r.ok) {
       const parts = [d?.error, d?.detail].filter(Boolean);
-      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">Couldn't reach ElevenLabs: ${escapeHtml(parts.length ? parts.join(' — ') : (r.statusText || 'failed'))}</div>`;
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">Couldn't reach ElevenLabs: ${escapeHtml(parts.length ? parts.join(': ') : (r.statusText || 'failed'))}</div>`;
       return;
     }
     const incoming = Array.isArray(d?.voices) ? d.voices : [];
@@ -3528,7 +3528,7 @@ async function onAddCoachingVoice(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">${escapeHtml(parts.length ? parts.join(' — ') : (res.statusText || 'Add failed'))}</div>`;
+      if (alertEl) alertEl.innerHTML = `<div class="admin-alert admin-alert-error">${escapeHtml(parts.length ? parts.join(': ') : (res.statusText || 'Add failed'))}</div>`;
       if (btn) { btn.disabled = false; btn.textContent = 'Add voice'; }
       return;
     }
@@ -3555,7 +3555,7 @@ async function deleteCoachingVoice(id) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      alert('Delete failed: ' + (parts.length ? parts.join(' — ') : res.statusText));
+      alert('Delete failed: ' + (parts.length ? parts.join(': ') : res.statusText));
       return;
     }
     await reloadCoachingVoices();
@@ -3807,7 +3807,7 @@ function renderCoachingAgentsList(agents) {
       a.mode_assessment ? 'Assessment' : '',
       a.mode_coaching ? 'Coaching' : '',
       a.mode_followup ? 'Follow-up' : '',
-    ].filter(Boolean).join(', ') || '—';
+    ].filter(Boolean).join(', ') || '-';
     const statusPill = a.active
       ? '<span class="admin-pill admin-pill-active">Active</span>'
       : '<span class="admin-pill">Inactive</span>';
@@ -3962,7 +3962,7 @@ async function onSaveCoachingAgent(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCoachingAgentError(parts.length ? parts.join(' — ') : (res.statusText || 'Save failed'));
+      showCoachingAgentError(parts.length ? parts.join(': ') : (res.statusText || 'Save failed'));
       if (btn) { btn.disabled = false; btn.textContent = 'Save scenario'; }
       return;
     }
@@ -4065,7 +4065,7 @@ async function deleteCoachingAgent(id) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCoachingAgentError(parts.length ? parts.join(' — ') : 'Delete failed');
+      showCoachingAgentError(parts.length ? parts.join(': ') : 'Delete failed');
       return;
     }
     if (state.editingCoachingAgentId === id) state.editingCoachingAgentId = null;
@@ -4098,7 +4098,7 @@ async function onTestScenario(id, btn) {
     if (!res.ok || !data || !data.url) {
       if (win) win.close();
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCoachingAgentError(parts.length ? 'Could not open preview — ' + parts.join(' — ') : 'Could not open preview.');
+      showCoachingAgentError(parts.length ? 'Could not open preview: ' + parts.join(': ') : 'Could not open preview.');
       return;
     }
     if (win) win.location.href = data.url;
@@ -4129,9 +4129,9 @@ function refreshCoachingAgentsSection() {
 // panel's add/list/delete handler style; re-renders the section in place.
 
 const DEVPLAN_GROUPS = [
-  { key: 'devplan1', title: 'Part 1', sub: 'Week 1 — before/at the assessment call' },
-  { key: 'devplan2', title: 'Part 2', sub: 'Week 1 homework — after the assessment' },
-  { key: 'devplan3', title: 'Part 3', sub: 'Week 2 — after the coaching call' },
+  { key: 'devplan1', title: 'Part 1', sub: 'Week 1 (before/at the assessment call)' },
+  { key: 'devplan2', title: 'Part 2', sub: 'Week 1 homework (after the assessment)' },
+  { key: 'devplan3', title: 'Part 3', sub: 'Week 2 (after the coaching call)' },
 ];
 
 const MAX_STAGE = 5;
@@ -4255,7 +4255,7 @@ async function onAddDashboardField(e, sectionKey) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showDashboardFieldsError(parts.length ? parts.join(' — ') : (res.statusText || 'Add failed'));
+      showDashboardFieldsError(parts.length ? parts.join(': ') : (res.statusText || 'Add failed'));
       if (btn) { btn.disabled = false; btn.textContent = 'Add question'; }
       return;
     }
@@ -4284,7 +4284,7 @@ async function onEditDashboardField(id) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showDashboardFieldsError(parts.length ? parts.join(' — ') : 'Save failed');
+      showDashboardFieldsError(parts.length ? parts.join(': ') : 'Save failed');
       return;
     }
     await reloadDashboardFields();
@@ -4307,7 +4307,7 @@ async function onToggleDashboardField(id) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showDashboardFieldsError(parts.length ? parts.join(' — ') : 'Toggle failed');
+      showDashboardFieldsError(parts.length ? parts.join(': ') : 'Toggle failed');
       return;
     }
     await reloadDashboardFields();
@@ -4327,7 +4327,7 @@ async function onDeleteDashboardField(id) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showDashboardFieldsError(parts.length ? parts.join(' — ') : 'Delete failed');
+      showDashboardFieldsError(parts.length ? parts.join(': ') : 'Delete failed');
       return;
     }
     await reloadDashboardFields();
@@ -4344,7 +4344,7 @@ async function onDeleteDashboardField(id) {
 
 function stageLabel(stage) {
   const s = Math.max(1, Math.min(Number(stage) || 1, MAX_STAGE));
-  return `Stage ${s} of ${MAX_STAGE} — ${STAGE_LABELS[s] || ''}`;
+  return `Stage ${s} of ${MAX_STAGE}: ${STAGE_LABELS[s] || ''}`;
 }
 
 function renderCohortsSection() {
@@ -4357,7 +4357,7 @@ function renderCohortsSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
         <h2 class="admin-section-title">Cohorts</h2>
-        <p class="admin-section-sub"><strong>1.</strong> Create a cohort · <strong>2.</strong> Assign people (choose role + scenario pool — each is drawn a scenario &amp; gets their own link) · <strong>3.</strong> <strong>Copy all links</strong> to send them out · <strong>4.</strong> Deliver your lesson, then <strong>Advance to next stage</strong> to open the next call for everyone. Each member's call recordings appear in their row.</p>
+        <p class="admin-section-sub"><strong>1.</strong> Create a cohort · <strong>2.</strong> Assign people (choose role + scenario pool; each is drawn a scenario &amp; gets their own link) · <strong>3.</strong> <strong>Copy all links</strong> to send them out · <strong>4.</strong> Deliver your lesson, then <strong>Advance to next stage</strong> to open the next call for everyone. Each member's call recordings appear in their row.</p>
       </header>
       <div id="admin-cohort-alert"></div>
       <form id="admin-cohort-create" class="admin-cv-form" autocomplete="off">
@@ -4417,7 +4417,7 @@ function renderCohortCard(c) {
     ? members.map((m) => `
         <div class="admin-ca-row" data-cohort-member="${escapeAttr(m.invite_id)}">
           <div class="admin-ca-row-main">
-            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '—')}</div>
+            <div class="admin-ca-row-name">${escapeHtml(m.member_name || m.member_email || '-')}</div>
             <div class="admin-ca-row-meta">
               ${m.member_email ? `<span>${escapeHtml(m.member_email)}</span>` : ''}
               ${m.scenario_name ? `<span>${escapeHtml(m.scenario_name)}</span>` : ''}
@@ -4435,7 +4435,7 @@ function renderCohortCard(c) {
                   <input class="admin-input admin-generated-url" readonly value="${escapeAttr(m.url)}">
                   <button type="button" class="ghost-button admin-participant-copy" data-url="${escapeAttr(m.url)}">Copy</button>
                 </div>`
-              : `<div class="admin-muted" style="font-size:12px;margin-top:6px;">Link unavailable (revoked) — re-assign to mint a fresh one.</div>`}
+              : `<div class="admin-muted" style="font-size:12px;margin-top:6px;">Link unavailable (revoked). Re-assign to mint a fresh one.</div>`}
             ${cohortMemberCallsHtml(m)}
           </div>
           <div class="admin-ca-row-actions">
@@ -4452,7 +4452,7 @@ function renderCohortCard(c) {
         const label = (a.scenario_name && a.scenario_name.trim()) || a.name || a.id;
         return `<label class="admin-ca-check"><input type="checkbox" class="cohort-scenario-pick" value="${escapeAttr(a.id)}" checked> ${escapeHtml(label)}</label>`;
       }).join('')
-    : '<span class="admin-field-hint">No active scenarios — create one in the Scenarios panel above.</span>';
+    : '<span class="admin-field-hint">No active scenarios. Create one in the Scenarios panel above.</span>';
 
   return `
     <div class="admin-cohort-card" data-cohort-id="${escapeAttr(c.id)}">
@@ -4470,7 +4470,7 @@ function renderCohortCard(c) {
       <div class="admin-cohort-roster">${roster}</div>
       <form class="admin-cohort-assign" data-cohort-assign="${escapeAttr(c.id)}" autocomplete="off">
         <div class="admin-field admin-ca-wide">
-          <label class="admin-field-label">People to add <span class="admin-field-hint">name (optional) + email — add a row per person</span></label>
+          <label class="admin-field-label">People to add <span class="admin-field-hint">name (optional) + email, one row per person</span></label>
           <div class="cohort-mrows">${cohortMemberRowHtml()}${cohortMemberRowHtml()}${cohortMemberRowHtml()}</div>
           <button type="button" class="ghost-button cohort-add-row">+ Add another person</button>
         </div>
@@ -4649,7 +4649,7 @@ async function onCreateCohort(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCohortError(parts.length ? parts.join(' — ') : 'Create failed');
+      showCohortError(parts.length ? parts.join(': ') : 'Create failed');
       if (btn) { btn.disabled = false; btn.textContent = 'Create cohort'; }
       return;
     }
@@ -4673,7 +4673,7 @@ async function onAdvanceCohort(cohortId) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCohortError(parts.length ? parts.join(' — ') : 'Advance failed');
+      showCohortError(parts.length ? parts.join(': ') : 'Advance failed');
       return;
     }
     await reloadCohorts();
@@ -4694,7 +4694,7 @@ async function onDeleteCohort(cohortId) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCohortError(parts.length ? parts.join(' — ') : 'Delete failed');
+      showCohortError(parts.length ? parts.join(': ') : 'Delete failed');
       return;
     }
     await reloadCohorts();
@@ -4717,7 +4717,7 @@ async function onRemoveCohortMember(cohortId, inviteId) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCohortError(parts.length ? parts.join(' — ') : 'Remove failed');
+      showCohortError(parts.length ? parts.join(': ') : 'Remove failed');
       return;
     }
     await reloadCohorts();
@@ -4757,7 +4757,7 @@ async function onAssignCohortManagers(e, cohortId) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      showCohortError(parts.length ? parts.join(' — ') : 'Assign failed');
+      showCohortError(parts.length ? parts.join(': ') : 'Assign failed');
       if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
       return;
     }
@@ -4804,7 +4804,7 @@ function renderAssignedLinks(assigned) {
   const rows = assigned.map((a) => `
     <div class="admin-ca-row">
       <div class="admin-ca-row-main">
-        <div class="admin-ca-row-name">${escapeHtml(a.name || a.email || '—')}</div>
+        <div class="admin-ca-row-name">${escapeHtml(a.name || a.email || '-')}</div>
         <div class="admin-ca-row-meta">
           ${a.email ? `<span>${escapeHtml(a.email)}</span>` : ''}
           ${a.scenario_name ? `<span>${escapeHtml(a.scenario_name)}</span>` : ''}
@@ -4816,7 +4816,7 @@ function renderAssignedLinks(assigned) {
       </div>
     </div>`).join('');
   return `
-    <div class="admin-alert admin-alert-success">Assigned ${assigned.length} manager(s). These links are shown once — copy and distribute them now.</div>
+    <div class="admin-alert admin-alert-success">Assigned ${assigned.length} manager(s). These links are shown once, so copy and distribute them now.</div>
     ${rows}
   `;
 }
@@ -4846,7 +4846,7 @@ function renderChartsSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Charts</p>
         <h2 class="admin-section-title">Charts link</h2>
-        <p class="admin-section-sub">One shareable link to the standalone Cost &amp; ROI charts page. No password — anyone with the link can view it.</p>
+        <p class="admin-section-sub">One shareable link to the standalone Cost &amp; ROI charts page. No password: anyone with the link can view it.</p>
       </header>
 
       <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
@@ -4881,7 +4881,7 @@ async function onGenerateCharts() {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -4933,7 +4933,7 @@ function paintChartsGenerated() {
   if (!out) return;
   if (!state.lastChartsUrl) { out.innerHTML = ''; return; }
   out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Charts link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-alert admin-alert-success"><strong>Charts link ready.</strong> Share it with anyone. No password needed.</div>
     <div class="admin-generated-list">
       <div class="admin-generated-row">
         <div class="admin-generated-url-row">
@@ -4977,7 +4977,7 @@ function renderPreviewSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Preview</p>
         <h2 class="admin-section-title">Full library link</h2>
-        <p class="admin-section-sub">One shareable link to the whole library — every scenario, the random call, the showcase. No password. (The demo placeholders and the charts page are not included.)</p>
+        <p class="admin-section-sub">One shareable link to the whole library: every scenario, the random call, the showcase. No password. (The demo placeholders and the charts page are not included.)</p>
       </header>
 
       <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
@@ -4994,7 +4994,7 @@ function renderPreviewSection() {
       <div class="admin-invite-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;">
         <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
           <strong style="font-size:13.5px;">UI state gallery</strong>
-          <span class="admin-muted" style="font-size:12.5px;">Click through every screen state (POS steps, the Customer Service tool, reports) with mock data — no voice or API usage.</span>
+          <span class="admin-muted" style="font-size:12.5px;">Click through every screen state (POS steps, the Customer Service tool, reports) with mock data. No voice or API usage.</span>
         </div>
         <a class="primary-button" href="/preview.html" target="_blank" rel="noopener">Open UI gallery &rarr;</a>
       </div>
@@ -5020,7 +5020,7 @@ async function onGeneratePreview() {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -5072,7 +5072,7 @@ function paintPreviewGenerated() {
   if (!out) return;
   if (!state.lastPreviewUrl) { out.innerHTML = ''; return; }
   out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Library link ready.</strong> Share it with anyone — no password needed.</div>
+    <div class="admin-alert admin-alert-success"><strong>Library link ready.</strong> Share it with anyone. No password needed.</div>
     <div class="admin-generated-list">
       <div class="admin-generated-row">
         <div class="admin-generated-url-row">
@@ -5163,7 +5163,7 @@ async function onGenerate(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -5212,10 +5212,10 @@ function paintGenerated() {
     const detailNote = firstDetail
       ? `<div class="admin-muted" style="margin-top:8px;font-size:11.5px;word-break:break-word;">${escapeHtml(firstDetail)}</div>`
       : '';
-    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invite ready.</strong> Email delivery failed — copy the link below and send it manually.${errorNote}${detailNote}</div>`;
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invite ready.</strong> Email delivery failed. Copy the link below and send it manually.${errorNote}${detailNote}</div>`;
   } else {
     // Partial — some sent, some didn't.
-    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invites ready.</strong> Some emails sent — check each link below and send manually where needed.</div>`;
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Invites ready.</strong> Some emails sent. Check each link below and send manually where needed.</div>`;
   }
 
   const rows = state.lastGenerated.map((g) => `
@@ -5286,7 +5286,7 @@ function renderUsageEmptyState(reason) {
         </div>
       </div>`;
   }
-  return `<div class="admin-empty">No API calls logged yet — take a simulation to populate this.</div>`;
+  return `<div class="admin-empty">No API calls logged yet. Take a simulation to populate this.</div>`;
 }
 
 function renderUsagePanel(data) {
@@ -5342,7 +5342,7 @@ function computeStats(chatRow, coachRow) {
 }
 
 function renderStatCard(title, s) {
-  const hitRateStr = s.hitRate !== null ? (s.hitRate * 100).toFixed(1) + '%' : '—';
+  const hitRateStr = s.hitRate !== null ? (s.hitRate * 100).toFixed(1) + '%' : '-';
   const savingsStr = formatDollars(s.savings);
   return `
     <div class="admin-invite-card" style="flex:1;min-width:0;">
@@ -5378,7 +5378,7 @@ function renderRecentTable(rows) {
   const tableRows = rows.slice(0, 10).map((r) => {
     const hitRate = (() => {
       const total = (r.input_tokens || 0) + (r.cache_creation_input_tokens || 0) + (r.cache_read_input_tokens || 0);
-      if (!total) return '—';
+      if (!total) return '-';
       return ((r.cache_read_input_tokens || 0) / total * 100).toFixed(0) + '%';
     })();
     return `
@@ -5457,7 +5457,7 @@ function renderTeamSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Team</p>
         <h2 class="admin-section-title">Admins</h2>
-        <p class="admin-section-sub">Give a teammate admin access by email. They get a magic link that signs them in — no shared password. Revoke access any time; it takes effect immediately.</p>
+        <p class="admin-section-sub">Give a teammate admin access by email. They get a magic link that signs them in (no shared password). Revoke access any time; it takes effect immediately.</p>
       </header>
 
       <form id="admin-add-form" autocomplete="off">
@@ -5576,7 +5576,7 @@ async function onAddAdmin(e) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const parts = [data?.error, data?.detail].filter(Boolean);
-      const errMsg = parts.length ? parts.join(' — ') : (res.statusText || 'no message');
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
       out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
       return;
     }
@@ -5613,7 +5613,7 @@ function paintAdminGenerated() {
     const detailNote = g.email_error_detail
       ? `<div class="admin-muted" style="margin-top:8px;font-size:11.5px;word-break:break-word;">${escapeHtml(g.email_error_detail)}</div>`
       : '';
-    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Admin ${g.reused ? 'link refreshed' : 'added'}.</strong> Email delivery failed — copy the sign-in link below and send it manually.${errorNote}${detailNote}</div>`;
+    alertHtml = `<div class="admin-alert admin-alert-success"><strong>Admin ${g.reused ? 'link refreshed' : 'added'}.</strong> Email delivery failed. Copy the sign-in link below and send it manually.${errorNote}${detailNote}</div>`;
   }
 
   out.innerHTML = `${alertHtml}
@@ -5649,11 +5649,11 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 function fmtDate(ts) {
-  if (!ts) return '—';
+  if (!ts) return '-';
   try {
     return new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
-    return '—';
+    return '-';
   }
 }
 function fmtRelative(ts, now) {

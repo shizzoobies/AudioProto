@@ -138,7 +138,7 @@ const SCORE_ENTRY_SCHEMA = {
   properties: {
     applicable: {
       type: 'boolean',
-      description: 'Whether this item actually applied to THIS call. Set false ONLY when the situation genuinely never arose or could not apply given the context (for example: personalizing a greeting with the customer\'s name on a brand-new inbound call where the name is not yet known; a returning-customer step on a first-time caller; an advisory or disclosure that did not apply to this move). Do NOT set false just because the agent skipped or fumbled something they SHOULD have done — that is a low score, not Not Applicable. When false, the item is marked Not Applicable and excluded from scoring; it never counts against the agent.',
+      description: 'Whether this item actually applied to THIS call. Set false ONLY when the situation genuinely never arose or could not apply given the context (for example: personalizing a greeting with the customer\'s name on a brand-new inbound call where the name is not yet known; a returning-customer step on a first-time caller; an advisory or disclosure that did not apply to this move). Do NOT set false just because the agent skipped or fumbled something they SHOULD have done. That is a low score, not Not Applicable. When false, the item is marked Not Applicable and excluded from scoring; it never counts against the agent.',
     },
     score: {
       type: 'integer',

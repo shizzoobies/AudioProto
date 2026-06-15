@@ -18,14 +18,14 @@ const MOCK = {
     { id: 'price_shopper',   title: 'The Price Shopper',      difficulty: 'easy',   persona_count: 5, description: 'On a budget, comparing quotes from three companies.' },
     { id: 'first_time',      title: 'The First-Time Mover',   difficulty: 'easy',   persona_count: 5, description: 'Never rented a truck. Needs hand-holding through every step.' },
     { id: 'damage_dispute',  title: 'The Damage Dispute',     difficulty: 'medium', persona_count: 5, description: 'Claims the truck scratched their furniture on the last rental.' },
-    { id: 'last_minute',     title: 'The Last-Minute Caller', difficulty: 'medium', persona_count: 5, description: 'Needs a truck tomorrow morning — is there anything available?' },
+    { id: 'last_minute',     title: 'The Last-Minute Caller', difficulty: 'medium', persona_count: 5, description: 'Needs a truck tomorrow morning. Is there anything available?' },
     { id: 'overpacker',      title: 'The Overpacker',         difficulty: 'hard',   persona_count: 5, description: 'Rented a 10\' last time, swears it was big enough, but it wasn\'t.' },
   ],
 
   // Personas for the persona picker (inside "The Damage Dispute")
   personas: [
     { id: 'patricia_w',  customer_name: 'Patricia Williams', customer_short: 'Retired teacher, methodical', tagline: 'Has photos. Wants a case number.', premium: false },
-    { id: 'robert_c',    customer_name: 'Robert Chen',       customer_short: 'Small-business owner',        tagline: 'Calm but firm — this is the third call.', premium: false },
+    { id: 'robert_c',    customer_name: 'Robert Chen',       customer_short: 'Small-business owner',        tagline: 'Calm but firm. This is the third call.', premium: false },
     { id: 'sarah_m',     customer_name: 'Sarah Mitchell',    customer_short: 'Young professional',          tagline: 'Emotional, just moved across town.', premium: true  },
     { id: 'james_t',     customer_name: 'James Trevino',     customer_short: 'Retired military',            tagline: 'Wants to speak to a manager right away.', premium: false },
     { id: 'linda_k',     customer_name: 'Linda Kowalski',    customer_short: 'Stay-at-home parent',         tagline: 'Nervous about confrontation, but won\'t drop it.', premium: true  },
@@ -43,9 +43,9 @@ const MOCK = {
     { kind: 'customer', label: 'Alex Anderson', text: 'Hi, I need to rent a truck for the Fourth of July weekend. We\'re moving from a two-bedroom here in Gainesville to a three-bedroom apartment.' },
     { kind: 'agent',    label: 'You',           text: 'Happy to help! For a two-bedroom into a three-bedroom, most families do great with our 20-foot truck. Does that sound about right for what you\'re moving?' },
     { kind: 'customer', label: 'Alex Anderson', text: 'Yeah, that sounds about right. We\'ve got a decent amount of furniture.' },
-    { kind: 'agent',    label: 'You',           text: 'Perfect. The 20-foot is $39.95 plus $1.19 a mile. Most families need about 8 hours with it — will that work for you?' },
+    { kind: 'agent',    label: 'You',           text: 'Perfect. The 20-foot is $39.95 plus $1.19 a mile. Most families need about 8 hours with it. Will that work for you?' },
     { kind: 'customer', label: 'Alex Anderson', text: 'Eight hours should be plenty, we\'re only going a few miles across town.' },
-    { kind: 'agent',    label: 'You',           text: 'Great. Families who rent the 20-foot also find a utility dolly and a dozen furniture pads make the move a lot easier — can I add those for $17.00?' },
+    { kind: 'agent',    label: 'You',           text: 'Great. Families who rent the 20-foot also find a utility dolly and a dozen furniture pads make the move a lot easier. Can I add those for $17.00?' },
   ],
 
   // In-progress reservation used across the POS step previews (steps 2-5).
@@ -101,7 +101,7 @@ const MOCK = {
     ],
     growth_areas: [
       'Did not ask for the reservation at the end of the call.',
-      'Missed the upsell opportunity on furniture pads — customer mentioned a sectional.',
+      'Missed the upsell opportunity on furniture pads; the customer mentioned a sectional.',
     ],
     one_thing_to_try_next_time: 'After you\'ve handled the price objection, move straight to the close: "Can I go ahead and get that Saturday reservation locked in for you?" Don\'t wait for the customer to ask.',
     scores: {
@@ -202,7 +202,7 @@ const MOCK = {
       scenarios: [
         { customer_name: 'James Trevino', tagline: 'Wants to speak to a manager right away.' },
         { customer_name: 'Linda Kowalski', tagline: "Nervous about confrontation, but won't drop it." },
-        { customer_name: 'Robert Chen',   tagline: 'Calm but firm — this is the third call.' },
+        { customer_name: 'Robert Chen',   tagline: 'Calm but firm. This is the third call.' },
       ],
       expires_at: null,
       last_click_at: Math.floor(Date.now() / 1000) - 86400 * 1,
@@ -225,7 +225,7 @@ function esc(s) {
 function fmtDate(ts) {
   if (!ts) return 'never expires';
   try { return new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
-  catch { return '—'; }
+  catch { return '-'; }
 }
 
 function fmtRelative(ts) {
@@ -1146,7 +1146,7 @@ function renderCallYourTurn() {
     timer: '01:48',
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Pause for a beat when you finish and your reply sends.',
   });
 }
@@ -1198,7 +1198,7 @@ function renderCallMultiTurn() {
     timer: '03:48',
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Pause for a beat when you finish and your reply sends.',
   });
 }
@@ -1218,7 +1218,7 @@ function csCallShell(toolHtml) {
         <button class="ghost-button call-back" type="button">Back to scenarios</button>
         <div class="call-meta">
           <div class="call-customer-name">Lauren</div>
-          <div class="call-scenario-title">Customer Service — Extension Charges <span class="call-mode-pill">Phone call</span></div>
+          <div class="call-scenario-title">Customer Service: Extension Charges <span class="call-mode-pill">Phone call</span></div>
         </div>
         <div class="call-actions">
           <span class="call-number mono" title="Caller ID"><span class="call-number-dot" aria-hidden="true"></span>(210) 555-7193</span>
@@ -1319,7 +1319,7 @@ function renderCallStepDetails() {
     showRightRail: false,
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 1)),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Pause for a beat when you finish and your reply sends.',
   });
 }
@@ -1332,7 +1332,7 @@ function renderCallStepEquipment() {
     showRightRail: true,
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 4)),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Walk them through the truck that fits.',
   });
 }
@@ -1345,7 +1345,7 @@ function renderCallStepLocation() {
     showRightRail: true,
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 4)),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Confirm where they are loading.',
   });
 }
@@ -1358,7 +1358,7 @@ function renderCallStepTime() {
     showRightRail: true,
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript.slice(0, 4)),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Lock in a pickup time.',
   });
 }
@@ -1371,7 +1371,7 @@ function renderCallStepCheckout() {
     showRightRail: true,
     transcriptHtml: transcriptHtmlFrom(MOCK.transcript),
     phoneStatusState: 'your_turn',
-    phoneStatusText: 'Your turn — just talk.',
+    phoneStatusText: 'Your turn. Just talk.',
     phoneStatusHint: 'Ask for the business and confirm contact info.',
   });
 }
@@ -1482,7 +1482,7 @@ function renderReportGenerating() {
 function renderReportShown() {
   const r = MOCK.report;
   const RUBRIC = [
-    { label: 'Beginning — Greeting the Customer', items: [
+    { label: 'Beginning: Greeting the Customer', items: [
       { key: 'beginning_greeting', label: 'Branded greeting & self-intro' },
       { key: 'beginning_offer', label: 'Offer to help & set the tone' },
     ] },
@@ -1778,43 +1778,43 @@ function renderAdminDashboard() {
 // report. Non-scenario surfaces (kiosk/auth/admin) trail at the end.
 const STATES = [
   // --- 1. Start page: choose a scenario ---
-  { id: 'home-welcome',          label: '1 · Start — Education & Development landing', render: renderHomeWelcome },
-  { id: 'picker-type',           label: '1 · Start — Scenario type grid',      render: renderPickerType },
-  { id: 'picker-persona',        label: '1 · Start — Persona list (Damage Dispute)', render: renderPickerPersona },
-  { id: 'picker-random',         label: '1 · Start — Random "surprise me" card', render: renderPickerRandom },
-  { id: 'recipient-home',        label: '1 · Start — Recipient / invite home',  render: renderRecipientHome },
+  { id: 'home-welcome',          label: '1 · Start · Education & Development landing', render: renderHomeWelcome },
+  { id: 'picker-type',           label: '1 · Start · Scenario type grid',      render: renderPickerType },
+  { id: 'picker-persona',        label: '1 · Start · Persona list (Damage Dispute)', render: renderPickerPersona },
+  { id: 'picker-random',         label: '1 · Start · Random "surprise me" card', render: renderPickerRandom },
+  { id: 'recipient-home',        label: '1 · Start · Recipient / invite home',  render: renderRecipientHome },
   // --- 2. Start-of-call sequence ---
-  { id: 'precall-modal',         label: '2 · Pre-call — Modal over blurred call', render: renderPrecallModal },
-  { id: 'ring-screen',           label: '3 · Ring — Incoming call (answer/decline)', render: renderRingScreen },
+  { id: 'precall-modal',         label: '2 · Pre-call · Modal over blurred call', render: renderPrecallModal },
+  { id: 'ring-screen',           label: '3 · Ring · Incoming call (answer/decline)', render: renderRingScreen },
   // --- 4. Live call phases ---
-  { id: 'call-idle',             label: '4 · Call — Connecting / answered',    render: renderCallIdle },
-  { id: 'call-customer-speaking', label: '4 · Call — Customer speaking',       render: renderCallCustomerSpeaking },
-  { id: 'call-listening',        label: '4 · Call — Listening to you',         render: renderCallListening },
-  { id: 'call-your-turn',        label: '4 · Call — Your turn',                render: renderCallYourTurn },
-  { id: 'call-thinking',         label: '4 · Call — Customer thinking (clock frozen)', render: renderCallThinking },
-  { id: 'call-paused',           label: '4 · Call — Paused (timer frozen, form dimmed)', render: renderCallPaused },
-  { id: 'call-multi-turn',       label: '4 · Call — Multi-turn transcript',    render: renderCallMultiTurn },
-  { id: 'call-cs-tool',          label: '4 · Call — CS tool · full flow (start at search)', render: renderCallCsTool, wire: wireCsState },
-  { id: 'call-cs-customer',      label: '4 · Call — CS tool · Customer Management (Lauren loaded)', render: renderCallCsCustomer, wire: wireCsState },
-  { id: 'call-cs-contract',      label: '4 · Call — CS tool · Contract Lookup', render: renderCallCsContract, wire: wireCsState },
-  { id: 'call-cs-receipts',      label: '4 · Call — CS tool · Receipts list', render: renderCallCsReceipts, wire: wireCsState },
-  { id: 'call-cs-receipt',       label: '4 · Call — CS tool · Receipt document', render: renderCallCsReceipt, wire: wireCsState },
+  { id: 'call-idle',             label: '4 · Call · Connecting / answered',    render: renderCallIdle },
+  { id: 'call-customer-speaking', label: '4 · Call · Customer speaking',       render: renderCallCustomerSpeaking },
+  { id: 'call-listening',        label: '4 · Call · Listening to you',         render: renderCallListening },
+  { id: 'call-your-turn',        label: '4 · Call · Your turn',                render: renderCallYourTurn },
+  { id: 'call-thinking',         label: '4 · Call · Customer thinking (clock frozen)', render: renderCallThinking },
+  { id: 'call-paused',           label: '4 · Call · Paused (timer frozen, form dimmed)', render: renderCallPaused },
+  { id: 'call-multi-turn',       label: '4 · Call · Multi-turn transcript',    render: renderCallMultiTurn },
+  { id: 'call-cs-tool',          label: '4 · Call · CS tool · full flow (start at search)', render: renderCallCsTool, wire: wireCsState },
+  { id: 'call-cs-customer',      label: '4 · Call · CS tool · Customer Management (Lauren loaded)', render: renderCallCsCustomer, wire: wireCsState },
+  { id: 'call-cs-contract',      label: '4 · Call · CS tool · Contract Lookup', render: renderCallCsContract, wire: wireCsState },
+  { id: 'call-cs-receipts',      label: '4 · Call · CS tool · Receipts list', render: renderCallCsReceipts, wire: wireCsState },
+  { id: 'call-cs-receipt',       label: '4 · Call · CS tool · Receipt document', render: renderCallCsReceipt, wire: wireCsState },
   // --- 5. The CSF reservation steps ---
-  { id: 'call-step-details',     label: '5 · CSF — Step 1: Details',           render: renderCallStepDetails },
-  { id: 'call-step-equipment',   label: '5 · CSF — Step 2: Equipment',         render: renderCallStepEquipment },
-  { id: 'call-step-location',    label: '5 · CSF — Step 3: Location',          render: renderCallStepLocation },
-  { id: 'call-step-time',        label: '5 · CSF — Step 4: Scheduling',        render: renderCallStepTime },
-  { id: 'call-step-checkout',    label: '5 · CSF — Step 5: Checkout',          render: renderCallStepCheckout },
-  { id: 'call-pos-script-hint',  label: '5 · CSF — POS script hint cards',     render: renderCallPosHint },
+  { id: 'call-step-details',     label: '5 · CSF · Step 1: Details',           render: renderCallStepDetails },
+  { id: 'call-step-equipment',   label: '5 · CSF · Step 2: Equipment',         render: renderCallStepEquipment },
+  { id: 'call-step-location',    label: '5 · CSF · Step 3: Location',          render: renderCallStepLocation },
+  { id: 'call-step-time',        label: '5 · CSF · Step 4: Scheduling',        render: renderCallStepTime },
+  { id: 'call-step-checkout',    label: '5 · CSF · Step 5: Checkout',          render: renderCallStepCheckout },
+  { id: 'call-pos-script-hint',  label: '5 · CSF · POS script hint cards',     render: renderCallPosHint },
   // --- 6. End of call: reservation complete, then coaching ---
-  { id: 'reservation-complete',  label: '6 · CSF — Reservation Complete screen', render: renderReservationComplete },
-  { id: 'report-generating',     label: '6 · Report — Generating spinner',     render: renderReportGenerating },
-  { id: 'report-shown',          label: '6 · Report — Full coaching report',   render: renderReportShown },
+  { id: 'reservation-complete',  label: '6 · CSF · Reservation Complete screen', render: renderReservationComplete },
+  { id: 'report-generating',     label: '6 · Report · Generating spinner',     render: renderReportGenerating },
+  { id: 'report-shown',          label: '6 · Report · Full coaching report',   render: renderReportShown },
   // --- Other surfaces ---
-  { id: 'kiosk-splash',          label: '· Kiosk — Mic disclaimer splash',     render: renderKioskSplash },
-  { id: 'auth-login',            label: '· Auth — Login splash',               render: renderAuthLogin },
-  { id: 'admin-login',           label: '· Admin — Login card',                render: renderAdminLogin },
-  { id: 'admin-dashboard',       label: '· Admin — Dashboard (invites + scenarios)', render: renderAdminDashboard },
+  { id: 'kiosk-splash',          label: '· Kiosk · Mic disclaimer splash',     render: renderKioskSplash },
+  { id: 'auth-login',            label: '· Auth · Login splash',               render: renderAuthLogin },
+  { id: 'admin-login',           label: '· Admin · Login card',                render: renderAdminLogin },
+  { id: 'admin-dashboard',       label: '· Admin · Dashboard (invites + scenarios)', render: renderAdminDashboard },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1867,7 +1867,7 @@ function showAll() {
   printToggle.textContent = 'Exit print all';
 
   root.innerHTML = STATES.map((s) => `
-    <div class="preview-divider">${esc(s.id)} — ${esc(s.label)}</div>
+    <div class="preview-divider">${esc(s.id)} · ${esc(s.label)}</div>
     <div class="preview-state active" data-state="${esc(s.id)}">${s.render()}</div>
   `).join('');
 

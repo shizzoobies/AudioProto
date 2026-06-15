@@ -3,12 +3,12 @@ import { requestCoachingReport, renderReportHtml } from './coach.js';
 import { AudioPlayer, attachVisualizer, synthesizeSentence, ContinuousRecorder, transcribeAudio } from './audio.js';
 import { createDemoOrb } from './demo-orb.js';
 import { createVoiceAgent } from './voice-agent.js?v=20260603-7';
-import { csToolHtml, wireCsTool } from './cs-tool.js?v=20260610-7';
-import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260604-13';
+import { csToolHtml, wireCsTool } from './cs-tool.js?v=20260610-9';
+import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-9';
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-7 cs-lauren';
+const BUILD_ID = '20260610-9 no-em-dash';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -693,11 +693,11 @@ function renderLivingVoiceShell({ entriesHtml = '', linesLabel = '', entriesModi
           </button>
           <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#D2541A">
             <span class="demo-tenet-line">Safe enough to fail.</span>
-            <span class="demo-tenet-reveal"><span class="demo-tenet-detail">Risk-free, fully controlled scenarios. Fumble the open, try the bold line, blow the close — never a real customer, never real trust on the line.</span></span>
+            <span class="demo-tenet-reveal"><span class="demo-tenet-detail">Risk-free, fully controlled scenarios. Fumble the open, try the bold line, blow the close, never a real customer, never real trust on the line.</span></span>
           </button>
           <button class="demo-tenet" type="button" aria-expanded="false" style="--tenet-accent:#1b1f2a">
             <span class="demo-tenet-line">Fast enough to fix it.</span>
-            <span class="demo-tenet-reveal"><span class="demo-tenet-detail">The moment you hang up, a scored, customizable coaching report is waiting — so the very next call is already sharper.</span></span>
+            <span class="demo-tenet-reveal"><span class="demo-tenet-detail">The moment you hang up, a scored, customizable coaching report is waiting, so the very next call is already sharper.</span></span>
           </button>
         </div>
       </div>
@@ -1220,7 +1220,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       const cls = isFollow ? 'ghost-button' : 'primary-button';
       const locked = isFollow ? !hasPrior : false;
       const hint = (isFollow && !hasPrior)
-        ? `<span class="coaching-opt-hint">Available after you finish a call — then ${escapeHtml(name)} will remember it.</span>`
+        ? `<span class="coaching-opt-hint">Available after you finish a call. Then ${escapeHtml(name)} will remember it.</span>`
         : '';
       return `<button class="${cls} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" type="button"${locked ? ' disabled' : ''}>
           <span class="coaching-opt-label">${escapeHtml(def.label)}</span>${hint}
@@ -1244,9 +1244,9 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
   } else {
     // Authored scenario → the connected-path journey.
     const descFor = (mode) =>
-      mode === 'assessment' ? `Meet ${name} on a normal day — observe and diagnose before any coaching.`
+      mode === 'assessment' ? `Meet ${name} on a normal day, observe and diagnose before any coaching.`
       : mode === 'coaching' ? `Your one-on-one. Give feedback and coach ${name} through it.`
-      : mode === 'followup' ? `Reconnect later — see what stuck and how ${name} has changed.`
+      : mode === 'followup' ? `Reconnect later and see what stuck and how ${name} has changed.`
       : '';
     // How many stages the coach has released (admin gate). Default 1 = only the
     // first call. A stage is available only if the prior call is done AND the
@@ -1263,7 +1263,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       const clickable = st === 'done' || st === 'current';
       const node = st === 'done' ? '&#10003;' : st === 'current' ? String(i + 1) : st === 'held' ? '&#9203;' : '&#128274;';
       const cta = preview ? 'Test this call &rarr;'
-        : st === 'done' ? 'Completed — retake'
+        : st === 'done' ? 'Completed: retake'
         : st === 'current' ? 'Start now &rarr;'
         : st === 'held' ? 'Your coach will open this'
         : 'Locked';
@@ -1286,7 +1286,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
     dom.root.innerHTML = `
       <section class="coaching-journey-page"${accentVar ? ` style="${accentVar}"` : ''}>
         ${backHtml}
-        ${preview ? '<div class="coaching-preview-banner"><span class="coaching-preview-banner-text">Preview — testing this scenario. Every call is unlocked, and calls in this test remember each other so you can check the agent\'s memory. This sandbox is private and never seen by real participants.</span></div>' : ''}
+        ${preview ? '<div class="coaching-preview-banner"><span class="coaching-preview-banner-text">Preview: testing this scenario. Every call is unlocked, and calls in this test remember each other so you can check the agent\'s memory. This sandbox is private and never seen by real participants.</span></div>' : ''}
         <header class="coaching-journey-hero${imgId ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
           <div class="cjh-inner">
             ${scenarioName ? `<p class="cjh-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
@@ -1435,7 +1435,7 @@ function renderCoachingDashboard(data) {
     <div class="coaching-dash">
       ${isPreview ? `
         <div class="coaching-preview-banner">
-          <span class="coaching-preview-banner-text">Preview — testing this scenario. Every week is unlocked, and calls in this test remember each other so you can check the agent's memory. This sandbox is private to this scenario and is never seen by real participants.</span>
+          <span class="coaching-preview-banner-text">Preview: testing this scenario. Every week is unlocked, and calls in this test remember each other so you can check the agent's memory. This sandbox is private to this scenario and is never seen by real participants.</span>
           <label class="coaching-preview-asrole-label">Test as
             <select class="coaching-preview-asrole">${asRoleOptionsHtml}</select>
           </label>
@@ -1499,7 +1499,7 @@ function dashSectionBody(section, ctx) {
         <div class="dash-call dash-call-done" data-mode="${escapeAttr(mode)}">
           <p class="dash-call-label">Recording</p>
           <audio class="dash-rec-audio" controls preload="none" src="/api/coaching/recording?mode=${encodeURIComponent(mode)}"></audio>
-          <p class="dash-rec-err" hidden>Recording is still processing — check back in a minute. <button type="button" class="ghost-button dash-rec-retry">Retry</button></p>
+          <p class="dash-rec-err" hidden>Recording is still processing. Check back in a minute. <button type="button" class="ghost-button dash-rec-retry">Retry</button></p>
           <div class="dash-call-foot">
             <a class="ghost-button dash-rec-download" href="/api/coaching/recording?mode=${encodeURIComponent(mode)}&download=1">Download recording</a>
             ${takenBy ? `<span class="dash-call-takenby">Taken by: ${escapeHtml(takenBy)}</span>` : ''}
@@ -1518,7 +1518,7 @@ function dashSectionBody(section, ctx) {
   }
 
   if (type === 'activities') {
-    return '<p class="dash-activities">Follow-up activities — games, a book club, and a workbook — coming soon.</p>';
+    return '<p class="dash-activities">Follow-up activities (games, a book club, and a workbook) coming soon.</p>';
   }
 
   return '';
@@ -1641,7 +1641,7 @@ function exportCoachingPlan(data) {
     const qa = mine.map((f) => `
       <div class="print-qa">
         <p class="print-q">${escapeHtml(f.label || '')}</p>
-        <div class="print-a">${paragraphsHtml(liveVal(f.key)) || '<p class="print-empty">—</p>'}</div>
+        <div class="print-a">${paragraphsHtml(liveVal(f.key)) || '<p class="print-empty">-</p>'}</div>
       </div>`).join('');
     return `
       <section class="print-section">
@@ -1892,7 +1892,7 @@ function setupMicTest(root) {
     if (fill) fill.style.width = `${pct}%`;
     if (pct > 8 && !gotSignal) {
       gotSignal = true;
-      setStatus('Looking good — your microphone is working.', 'ok');
+      setStatus('Looking good, your microphone is working.', 'ok');
     }
     raf = requestAnimationFrame(tick);
   };
@@ -1924,7 +1924,7 @@ function setupMicTest(root) {
     try {
       const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStatus('Microphone connected — say something to see the level move.', '');
+      setStatus('Microphone connected. Say something to see the level move.', '');
       const AC = window.AudioContext || window.webkitAudioContext;
       audioCtx = new AC();
       // Contexts created outside a direct gesture start suspended; resume so the
@@ -3057,7 +3057,7 @@ function renderCall(scenario, opts = {}) {
                       </div>
                       <label class="pos-check"><input type="checkbox" data-rsv-flag="send_to_traffic" checked> Send to Traffic</label>
                       <div class="csf-sched-advisory">
-                        <div class="csf-sched-advisory-head">IMPORTANT &mdash; READ TO CUSTOMER!</div>
+                        <div class="csf-sched-advisory-head">IMPORTANT: READ TO CUSTOMER!</div>
                         <div class="csf-script-row">${SCRIPT_ICON}<p class="csf-script-text">A local Meridian representative will call you by 6:00 PM on <span id="sched-advisory-date">the day before your pickup</span> to get your agreement on and schedule available location, time, and equipment.</p></div>
                         <label class="pos-check"><input type="checkbox" data-rsv-flag="advisory_read"> I have READ the above advisories to the customer</label>
                       </div>
@@ -3560,7 +3560,7 @@ function renderCall(scenario, opts = {}) {
     if (useVoiceAgent) {
       startAgentSession();
     } else if (!isShowcaseCall) {
-      setPhoneState('your_turn', 'Your turn — greet the caller.', 'They just picked up. Say hello and introduce yourself.');
+      setPhoneState('your_turn', 'Your turn: greet the caller.', 'They just picked up. Say hello and introduce yourself.');
       startListening();
     }
   } else {
@@ -3607,7 +3607,7 @@ function renderCall(scenario, opts = {}) {
       onStatus: (s) => {
         if (state.view !== 'call') return;
         if (s === 'connecting') setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');
-        else if (s === 'live') setPhoneState('your_turn', 'On the line — just talk.', 'The line is open. Speak naturally and pause when you finish.');
+        else if (s === 'live') setPhoneState('your_turn', 'On the line: just talk.', 'The line is open. Speak naturally and pause when you finish.');
         else if (s === 'mic_denied') setPhoneState('error', 'Mic access denied', 'Reload the page and allow the mic, or switch to Chat mode.');
       },
       onUserText: (t) => { if (state.view === 'call') appendMessage(transcript, 'agent', 'You', t); },
@@ -3637,7 +3637,7 @@ function renderCall(scenario, opts = {}) {
       }
       console.warn('voice agent failed; falling back to turn-based', err);
       if (state.view === 'call' && !state.callPaused) {
-        setPhoneState('your_turn', 'Your turn — greet the caller.', 'They just picked up. Say hello and introduce yourself.');
+        setPhoneState('your_turn', 'Your turn: greet the caller.', 'They just picked up. Say hello and introduce yourself.');
         startListening();
       }
     });
@@ -3855,7 +3855,7 @@ function renderCall(scenario, opts = {}) {
     } else {
       if (usingAgent) {
         // The agent kept the WebSocket open; just restore the live status.
-        if (isPhone) setPhoneState('your_turn', 'On the line — just talk.', 'The line is open. Speak naturally and pause when you finish.');
+        if (isPhone) setPhoneState('your_turn', 'On the line: just talk.', 'The line is open. Speak naturally and pause when you finish.');
       } else if (isPhone) {
         if (!conversation.isStreaming()) {
           setPhoneState('your_turn', 'Your turn.', 'Just start talking. The line auto-detects your pause.');
@@ -4140,8 +4140,8 @@ function renderCall(scenario, opts = {}) {
       if (oneWay) {
         const ow = oneWayQuote(truck, miles);
         posEquipRate.textContent = miles > 0
-          ? `${fmtMoney(ow.amount)} — includes ${ow.days} days and ${ow.miles} miles`
-          : 'One-way rate is distance-based — enter the miles to see it';
+          ? `${fmtMoney(ow.amount)} (includes ${ow.days} days and ${ow.miles} miles)`
+          : 'One-way rate is distance-based, enter the miles to see it';
         if (rateEl) rateEl.textContent = miles > 0
           ? `The rate for the ${truck.label} I recommend is ${fmtMoney(ow.amount)} plus a ${fmtMoney(ENV_FEE)} environmental fee and a ${fmtMoney(VLRF)} Vehicle License Recovery Fee, plus local taxes.`
           : `For a one-way ${truck.label}, the rate is based on the distance and already includes the days and miles you'll need. About how far is the move?`;
@@ -4350,7 +4350,7 @@ function renderCall(scenario, opts = {}) {
     posEquipTableBody.innerHTML = rows.join('') || '<tr><td colspan="2" class="pos-eq-empty">No equipment matches the current filters.</td></tr>';
     if (posEquipAvailName) {
       posEquipAvailName.textContent = branch
-        ? `Available Equipment — Meridian Moving & Storage of ${branch.name}`
+        ? `Available Equipment: Meridian Moving & Storage of ${branch.name}`
         : 'Available Equipment';
     }
     if (posEquipFoot) posEquipFoot.hidden = !anyUnavailable;

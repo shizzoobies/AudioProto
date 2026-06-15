@@ -160,7 +160,7 @@ export function csToolHtml(opts = {}) {
   const contractView = `
     <section class="cs-view" data-cs-view="contract"${startView === 'contract' ? '' : ' hidden'}>
       <a class="cs-back" data-cs-go="customer">&#8249; Customer Management</a>
-      <h1 class="cs-h1">Contract Lookup &mdash; Contract MER-512874</h1>
+      <h1 class="cs-h1">Contract Lookup: Contract MER-512874</h1>
 
       <div class="cs-contract-top">
         <div class="cs-plain-group">
@@ -291,14 +291,14 @@ export function csToolHtml(opts = {}) {
             <td><a class="cs-link">712044</a></td>
             <td></td>
             <td>Visa<br><a class="cs-link">4539****6467</a></td>
-            <td>&mdash;</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td></td>
+            <td>-</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td></td>
           </tr>
           <tr>
             <td>6/6/2026<br>8:52 AM</td>
             <td><a class="cs-link">871078</a></td>
             <td>Rental</td>
             <td>Visa<br><a class="cs-link">4539****6467</a></td>
-            <td>085203</td><td>$92.02</td><td>&mdash;</td><td>$0.00</td>
+            <td>085203</td><td>$92.02</td><td>-</td><td>$0.00</td>
             <td><a class="cs-link" data-cs-go="receipts">View</a></td>
           </tr>
           <tr>
@@ -306,7 +306,7 @@ export function csToolHtml(opts = {}) {
             <td><a class="cs-link">871078</a></td>
             <td>Return</td>
             <td>Visa<br><a class="cs-link">4539****6467</a></td>
-            <td>143807</td><td>&mdash;</td><td><strong>$132.86</strong></td><td>$0.00</td>
+            <td>143807</td><td>-</td><td><strong>$132.86</strong></td><td>$0.00</td>
             <td><a class="cs-link" data-cs-go="receipts">View</a></td>
           </tr>
           <tr class="cs-pay-total">
@@ -484,7 +484,7 @@ export function csToolHtml(opts = {}) {
 
           <ul class="cs-terms">${termsHtml}</ul>
 
-          <div class="cs-sign">X ________________ &nbsp; Lauren Foster &mdash; e-Signature on file</div>
+          <div class="cs-sign">X ________________ &nbsp; Lauren Foster (e-Signature on file)</div>
         </article>
       </div>
     </section>`;

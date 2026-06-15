@@ -14,11 +14,11 @@ export const MAX_STAGE = 5;
 // The fixed 3-week / 8-section course skeleton. Content is data-driven; structure is fixed.
 export const DASHBOARD_SECTIONS = [
   { key: 'incident',   week: 1, stage: 1, type: 'incident',   title: 'A Recent Incident' },
-  { key: 'devplan1',   week: 1, stage: 1, type: 'form',       title: 'Development Plan — Part 1', section_key: 'devplan1' },
+  { key: 'devplan1',   week: 1, stage: 1, type: 'form',       title: 'Development Plan: Part 1', section_key: 'devplan1' },
   { key: 'assessment', week: 1, stage: 1, type: 'call',       title: 'Assessing the Agent', mode: 'assessment' },
-  { key: 'devplan2',   week: 1, stage: 2, type: 'form',       title: 'Development Plan — Part 2', section_key: 'devplan2' },
+  { key: 'devplan2',   week: 1, stage: 2, type: 'form',       title: 'Development Plan: Part 2', section_key: 'devplan2' },
   { key: 'coaching',   week: 2, stage: 3, type: 'call',       title: 'Coaching', mode: 'coaching' },
-  { key: 'devplan3',   week: 2, stage: 3, type: 'form',       title: 'Development Plan — Part 3', section_key: 'devplan3' },
+  { key: 'devplan3',   week: 2, stage: 3, type: 'form',       title: 'Development Plan: Part 3', section_key: 'devplan3' },
   { key: 'followup',   week: 3, stage: 4, type: 'call',       title: 'Follow-up', mode: 'followup' },
   { key: 'activities', week: 3, stage: 5, type: 'activities', title: 'Follow-Up Activities' },
 ];
@@ -40,7 +40,7 @@ export function stageForMode(mode) {
 export const DEFAULT_DASHBOARD_FIELDS = [
   { section_key:'devplan1', label:'What skill gaps do you suspect from the incident?', type:'textarea', position:0 },
   { section_key:'devplan1', label:'How will you diagnose the skill gap on the assessment call?', type:'textarea', position:1 },
-  { section_key:'devplan2', label:'Skill gaps you diagnosed — list and prioritize them', type:'textarea', position:0 },
+  { section_key:'devplan2', label:'Skill gaps you diagnosed: list and prioritize them', type:'textarea', position:0 },
   { section_key:'devplan2', label:'Your plan to address the top gap in ~15 minutes', type:'textarea', position:1 },
   { section_key:'devplan2', label:"Account for the agent's personal quirks", type:'textarea', position:2 },
   { section_key:'devplan3', label:'What you addressed and how receptive the agent was', type:'textarea', position:0 },

@@ -274,7 +274,7 @@ function buildPriorBlock(messages) {
     .filter(Boolean)
     .join('\n');
   if (!lines) return '';
-  return '\n\nPREVIOUS ONE-ON-ONE — you remember this earlier conversation with your manager; it actually happened. THIS CALL IS A FOLLOW-UP. Do not restart or re-introduce yourself; pick up as if some time has passed since then. React based on how it went: if your manager coached you well last time you can be a little less guarded now; if it went poorly you may still be irritated or skeptical. Reference specifics from last time when it is natural. Stay in character as Taylor.\nTRANSCRIPT OF LAST TIME:\n' + lines;
+  return '\n\nPREVIOUS ONE-ON-ONE: you remember this earlier conversation with your manager; it actually happened. THIS CALL IS A FOLLOW-UP. Do not restart or re-introduce yourself; pick up as if some time has passed since then. React based on how it went: if your manager coached you well last time you can be a little less guarded now; if it went poorly you may still be irritated or skeptical. Reference specifics from last time when it is natural. Stay in character as Taylor.\nTRANSCRIPT OF LAST TIME:\n' + lines;
 }
 
 async function safeText(res) {
