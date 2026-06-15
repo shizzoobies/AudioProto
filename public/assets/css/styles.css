@@ -6128,6 +6128,15 @@ body[data-coaching] .app-header { display: none; }
 .admin-syl-row-head .admin-syl-heading { flex: 1 1 auto; }
 .admin-syl-del { flex: 0 0 auto; }
 .admin-syl-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-syl-welcome {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-syl-welcome .admin-df-group-title { margin: 0; }
 
 /* Coaching participant roster — stacked cards (NOT the 5-col invite grid). */
 .coaching-roster { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }

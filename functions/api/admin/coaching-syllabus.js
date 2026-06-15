@@ -15,6 +15,7 @@ const TITLE_CAP = 200;
 const HEADING_CAP = 200;
 const BODY_CAP = 8000;
 const MAX_SECTIONS = 40;
+const WELCOME_INTRO_CAP = 6000;
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
@@ -101,7 +102,12 @@ function normalizeContent(input) {
       body: bodyText,
     });
   }
-  return { title, sections };
+  // Pre-Week 1 welcome-email settings live in the same Launch document.
+  // welcome_intro '' means "use the default branded copy"; welcome_embed_syllabus
+  // controls whether the syllabus sections are appended to the email.
+  const welcome_intro = cap(src.welcome_intro, WELCOME_INTRO_CAP);
+  const welcome_embed_syllabus = !!src.welcome_embed_syllabus;
+  return { title, sections, welcome_intro, welcome_embed_syllabus };
 }
 
 function cap(v, n) {

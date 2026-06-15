@@ -318,7 +318,131 @@ Meridian Simulations. This email was sent by a simulation administrator.`;
   }
 }
 
+// Sends the Pre-Week 1 "welcome to the program" email to a coaching participant.
+// Branded for Development by Design. Uses the admin's custom intro when provided
+// (falls back to a default), their personal dashboard link, and optionally embeds
+// the syllabus sections. Mirrors the others: never throws, degrades to
+// { ok:false, error:'no_api_key' } without RESEND_API_KEY.
+//
+// sendCoachingWelcomeEmail(env, { to, name, url, intro, syllabus })
+//   intro    : string|'' custom intro (HTML-escaped + paragraphed); '' = default
+//   syllabus : { title, sections:[{heading,body}] } | null to embed, else omitted
+export async function sendCoachingWelcomeEmail(env, { to, name, url, intro, syllabus }) {
+  const apiKey = env?.RESEND_API_KEY;
+  if (!apiKey) return { ok: false, error: 'no_api_key' };
+
+  const from = env?.INVITE_FROM_ADDRESS || 'Meridian Simulations <training@ka-testing.com>';
+  const subject = 'Welcome to your Development by Design program';
+  const displayName = name || to;
+
+  const defaultIntro =
+    'Welcome to Development by Design, a five-week journey in coaching your team with intention. ' +
+    'Everything you need (your weekly assignments and your simulated team member) lives on your personal ' +
+    'dashboard. Click below to get started.';
+  const introHtml = intro && intro.trim() ? emailParas(intro) : `<p style="margin:0 0 28px 0;font-size:15px;color:#4b5563;line-height:1.6;">${escapeHtml(defaultIntro)}</p>`;
+
+  const sylSections = syllabus && Array.isArray(syllabus.sections) ? syllabus.sections : [];
+  const syllabusHtml = (syllabus && (syllabus.title || sylSections.length)) ? `
+    <div style="margin:28px 0 0;padding:20px 0 0;border-top:1px solid #f3f4f6;">
+      <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">${escapeHtml(syllabus.title || 'Syllabus')}</p>
+      ${sylSections.map((s) => `
+        ${s.heading ? `<h2 style="margin:14px 0 4px;font-size:15px;font-weight:700;color:#111827;">${escapeHtml(s.heading)}</h2>` : ''}
+        ${s.body ? emailParas(s.body, '0 0 8px') : ''}`).join('')}
+    </div>` : '';
+  const syllabusText = (syllabus && (syllabus.title || sylSections.length))
+    ? `\n\n${syllabus.title || 'Syllabus'}\n` + sylSections.map((s) => `${s.heading ? s.heading + '\n' : ''}${s.body || ''}`).join('\n\n')
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:#8c1d2b;padding:20px 36px;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#f9c8cc;">DEVELOPMENT BY DESIGN</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 36px 32px;">
+              <h1 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">Welcome${displayName && displayName !== to ? ', ' + escapeHtml(displayName) : ''}.</h1>
+              ${introHtml}
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">
+                <tr>
+                  <td style="border-radius:8px;background:#8c1d2b;">
+                    <a href="${escapeAttr(url)}"
+                       target="_blank"
+                       style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;background:#8c1d2b;">
+                      Open my dashboard
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              ${syllabusHtml}
+              <p style="margin:24px 0 0 0;font-size:12px;color:#9ca3af;">
+                If the button doesn't work, copy this link into your browser:<br>
+                <a href="${escapeAttr(url)}" style="color:#8c1d2b;word-break:break-all;">${escapeHtml(url)}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 36px 24px;border-top:1px solid #f3f4f6;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Development by Design. This email was sent by your program administrator.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const introText = intro && intro.trim() ? intro.trim() : defaultIntro;
+  const text = `Welcome${displayName && displayName !== to ? ', ' + displayName : ''}.
+
+${introText}
+
+${url}${syllabusText}
+
+---
+Development by Design. This email was sent by your program administrator.`;
+
+  try {
+    const res = await fetch(RESEND_API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: [to], subject, html, text }),
+    });
+    const body = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: `resend_${res.status}`, detail: body.slice(0, 500) };
+    }
+    let parsed;
+    try { parsed = JSON.parse(body); } catch { parsed = {}; }
+    return { ok: true, id: parsed.id || null };
+  } catch (e) {
+    return { ok: false, error: 'network', detail: String(e) };
+  }
+}
+
 // ---- helpers ----------------------------------------------------------------
+
+// Render plain text into inline-styled email paragraphs: blank lines split
+// paragraphs, single newlines become <br>. Each chunk is HTML-escaped.
+function emailParas(text, margin = '0 0 16px') {
+  return String(text || '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p style="margin:${margin};font-size:15px;color:#4b5563;line-height:1.6;">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
 
 function fmtExpiry(ts) {
   try {

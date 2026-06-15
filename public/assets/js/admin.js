@@ -4141,6 +4141,8 @@ function syllabusState() {
   return {
     title: typeof s.title === 'string' ? s.title : '',
     sections: Array.isArray(s.sections) ? s.sections : [],
+    welcome_intro: typeof s.welcome_intro === 'string' ? s.welcome_intro : '',
+    welcome_embed_syllabus: !!s.welcome_embed_syllabus,
   };
 }
 
@@ -4160,8 +4162,8 @@ function renderCoachingSyllabusSection() {
     <section class="admin-section" id="sec-coaching-syllabus">
       <header class="admin-section-head">
         <p class="admin-eyebrow">Coaching</p>
-        <h2 class="admin-section-title">Syllabus</h2>
-        <p class="admin-section-sub">The program syllabus shown collapsed at the top of every participant's dashboard (Pre-Week 1). Add titled sections such as overview, schedule, and expectations. Leave the whole thing empty to hide the panel.</p>
+        <h2 class="admin-section-title">Syllabus &amp; welcome email</h2>
+        <p class="admin-section-sub">The program syllabus shown collapsed at the top of every participant's dashboard (Pre-Week 1), plus the Pre-Week 1 welcome email. Add titled sections such as overview, schedule, and expectations. Leave the syllabus empty to hide the dashboard panel.</p>
       </header>
       <div id="admin-syl-alert"></div>
       <div class="admin-field">
@@ -4169,9 +4171,19 @@ function renderCoachingSyllabusSection() {
         <input type="text" id="admin-syl-title" class="admin-input" placeholder="Program Syllabus" value="${escapeAttr(syl.title || '')}">
       </div>
       <div class="admin-syl-rows">${rowsHtml}</div>
+      <div class="admin-syl-welcome">
+        <h3 class="admin-df-group-title">Welcome email (Pre-Week 1)</h3>
+        <p class="admin-field-hint">Sent from a cohort with the "Send welcome emails" button. Each member gets their own dashboard link automatically.</p>
+        <div class="admin-field">
+          <label class="admin-field-label" for="admin-syl-welcome-intro">Welcome message (optional)</label>
+          <textarea id="admin-syl-welcome-intro" class="admin-input" rows="4" placeholder="Leave blank to use the default welcome copy.">${escapeHtml(syl.welcome_intro || '')}</textarea>
+          <span class="admin-field-hint">Shown above the dashboard link in the welcome email. Blank uses the default branded copy.</span>
+        </div>
+        <label class="admin-ca-check"><input type="checkbox" id="admin-syl-welcome-embed"${syl.welcome_embed_syllabus ? ' checked' : ''}> Include the syllabus sections in the welcome email</label>
+      </div>
       <div class="admin-syl-actions">
         <button type="button" class="ghost-button" id="admin-syl-add">+ Add section</button>
-        <button type="button" class="primary-button" id="admin-syl-save">Save syllabus</button>
+        <button type="button" class="primary-button" id="admin-syl-save">Save</button>
       </div>
     </section>
   `;
@@ -4188,7 +4200,9 @@ function collectSyllabusFromDom() {
     const body = (row.querySelector('.admin-syl-body')?.value || '').trim();
     sections.push({ heading, body });
   });
-  return { title, sections };
+  const welcome_intro = (document.getElementById('admin-syl-welcome-intro')?.value || '').trim();
+  const welcome_embed_syllabus = !!document.getElementById('admin-syl-welcome-embed')?.checked;
+  return { title, sections, welcome_intro, welcome_embed_syllabus };
 }
 
 function refreshCoachingSyllabusSection() {
@@ -4580,6 +4594,7 @@ function renderCohortCard(c) {
             ${cohortMemberCallsHtml(m)}
           </div>
           <div class="admin-ca-row-actions">
+            ${m.url ? `<button type="button" class="ghost-button cohort-member-welcome" data-cohort-id="${escapeAttr(c.id)}" data-invite="${escapeAttr(m.invite_id)}">Send welcome</button>` : ''}
             <button type="button" class="ghost-button cohort-member-reset" data-invite="${escapeAttr(m.invite_id)}" data-scenario="${escapeAttr(m.scenario_id || '')}" data-label="${escapeAttr(m.member_name || m.member_email || '')}">Reset</button>
             <button type="button" class="ghost-button" data-cohort-remove="${escapeAttr(m.invite_id)}">Remove</button>
           </div>
@@ -4601,6 +4616,7 @@ function renderCohortCard(c) {
         <h3 class="admin-cohort-name">${escapeHtml(c.name || 'Untitled cohort')}</h3>
         <div class="admin-cohort-actions">
           ${members.some((m) => m.url) ? `<button type="button" class="ghost-button cohort-copy-all" data-cohort-id="${escapeAttr(c.id)}">Copy all links</button>` : ''}
+          ${members.some((m) => m.url) ? `<button type="button" class="ghost-button cohort-send-welcome" data-cohort-id="${escapeAttr(c.id)}">Send welcome emails</button>` : ''}
           <button type="button" class="ghost-button" data-cohort-delete="${escapeAttr(c.id)}">Delete cohort</button>
         </div>
       </div>
@@ -4657,6 +4673,12 @@ function attachCohortsHandlers() {
   wireCopyButtons(sec);
   sec.querySelectorAll('.cohort-copy-all').forEach((btn) => {
     btn.addEventListener('click', () => onCopyCohortAllLinks(btn.dataset.cohortId, btn));
+  });
+  sec.querySelectorAll('.cohort-send-welcome').forEach((btn) => {
+    btn.addEventListener('click', () => onSendCohortWelcome(btn.dataset.cohortId, btn));
+  });
+  sec.querySelectorAll('.cohort-member-welcome').forEach((btn) => {
+    btn.addEventListener('click', () => onSendCohortWelcome(btn.dataset.cohortId, btn, btn.dataset.invite));
   });
   sec.querySelectorAll('.cohort-member-reset').forEach((btn) => {
     btn.addEventListener('click', () => onResetCohortMember(btn.dataset.invite, btn.dataset.scenario, btn.dataset.label));
@@ -4732,6 +4754,52 @@ async function onCopyCohortAllLinks(cohortId, btn) {
     setTimeout(() => { btn.textContent = orig; }, 1600);
   } catch {
     alert('Copy failed. Links:\n\n' + links.join('\n'));
+  }
+}
+
+// Send the Pre-Week 1 welcome email to a whole cohort (or one member when
+// inviteId is given). Reports how many sent + surfaces failures (e.g. email not
+// configured). Uses the shared welcome/syllabus content authored in the Syllabus
+// section.
+async function onSendCohortWelcome(cohortId, btn, inviteId) {
+  if (!cohortId) return;
+  const scopeLabel = inviteId ? 'this member' : 'everyone in this cohort';
+  if (!confirm(`Send the welcome email to ${scopeLabel}? Each person gets their own dashboard link.`)) return;
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  try {
+    const payload = { op: 'send_welcome', cohort_id: cohortId };
+    if (inviteId) payload.invite_id = inviteId;
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      alert('Send failed' + (parts.length ? ': ' + parts.join(' - ') : '.'));
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+      return;
+    }
+    const sent = data.sent || 0;
+    const total = data.total || 0;
+    const fails = (data.results || []).filter((r) => !r.ok);
+    if (fails.length) {
+      const noKey = fails.some((f) => f.error === 'no_api_key');
+      const detail = noKey
+        ? 'Email is not configured on the server (RESEND_API_KEY is missing), so nothing was sent.'
+        : fails.map((f) => `${f.email || '?'}: ${f.error}`).join('\n');
+      alert(`Sent ${sent} of ${total}. ${fails.length} did not send:\n\n` + detail);
+    }
+    if (btn) {
+      btn.textContent = fails.length ? `Sent ${sent}/${total}` : `Sent ${sent}`;
+      setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 2500);
+    }
+  } catch (err) {
+    alert('Network error: ' + (err?.message || String(err)));
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
   }
 }
 

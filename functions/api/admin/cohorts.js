@@ -16,6 +16,7 @@
 import { randomId, randomToken, sha256Hex, getAdminScope } from '../../../shared/auth.js';
 import { ensureDashboardTables } from '../../../shared/dashboard-store.js';
 import { MAX_STAGE } from '../../../shared/coaching-dashboard.js';
+import { sendCoachingWelcomeEmail } from '../../../shared/email.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -136,6 +137,7 @@ export async function onRequestPost({ request, env }) {
       case 'assign': return await assignManagers(body, request, env);
       case 'set_role': return await setMemberRole(body, env);
       case 'remove_member': return await removeMember(body, env);
+      case 'send_welcome': return await sendWelcomeEmails(body, request, env);
       default: return jsonError('invalid_op', 400);
     }
   } catch (e) {
@@ -340,6 +342,69 @@ async function removeMember(body, env) {
     // revoked column / row absent — non-fatal
   }
   return json({ ok: true });
+}
+
+// Send the Pre-Week 1 welcome email to a cohort's members (or one member when
+// invite_id is given). Pulls each member's personal /me link + the shared
+// welcome/syllabus content, sends sequentially, and returns per-member results.
+// A single failure never blocks the rest; with no email creds every row reports
+// no_api_key so the admin sees why nothing went out.
+async function sendWelcomeEmails(body, request, env) {
+  const cohortId = typeof body?.cohort_id === 'string' ? body.cohort_id.trim() : '';
+  if (!cohortId) return jsonError('cohort_id_required', 400);
+  const onlyInvite = typeof body?.invite_id === 'string' ? body.invite_id.trim() : '';
+  const origin = env.INVITE_PUBLIC_URL || new URL(request.url).origin;
+
+  // Shared Launch content: welcome intro + whether to embed the syllabus.
+  let welcome = { welcome_intro: '', welcome_embed_syllabus: false, title: '', sections: [] };
+  try {
+    const row = await env.DB.prepare(`SELECT content FROM coaching_syllabus WHERE id = 'default'`).first();
+    if (row?.content) {
+      const p = JSON.parse(row.content);
+      if (p && typeof p === 'object') welcome = { ...welcome, ...p };
+    }
+  } catch {
+    // no syllabus saved yet — use defaults
+  }
+  const syllabus = welcome.welcome_embed_syllabus
+    ? { title: welcome.title || '', sections: Array.isArray(welcome.sections) ? welcome.sections : [] }
+    : null;
+
+  // The members to email, joined to their invite for the link + identity.
+  let sql = `SELECT cm.invite_id, cm.member_name, cm.member_email,
+                    i.token_plain, i.recipient_email, i.recipient_name, i.revoked
+             FROM cohort_members cm JOIN invites i ON i.id = cm.invite_id
+             WHERE cm.cohort_id = ?`;
+  const binds = [cohortId];
+  if (onlyInvite) { sql += ` AND cm.invite_id = ?`; binds.push(onlyInvite); }
+  let rows;
+  try {
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    rows = res?.results || [];
+  } catch (e) {
+    return jsonError('member_lookup_failed', 500, String(e?.message || e));
+  }
+
+  const results = [];
+  let sent = 0;
+  for (const r of rows) {
+    const email = (r.recipient_email || r.member_email || '').trim();
+    const name = r.recipient_name || r.member_name || '';
+    if (!email) { results.push({ email: email || null, ok: false, error: 'no_email' }); continue; }
+    if (r.revoked || !r.token_plain) { results.push({ email, ok: false, error: 'no_active_link' }); continue; }
+    const url = `${origin}/me/${r.token_plain}`;
+    const out = await sendCoachingWelcomeEmail(env, {
+      to: email,
+      name,
+      url,
+      intro: welcome.welcome_intro || '',
+      syllabus,
+    });
+    if (out.ok) sent += 1;
+    results.push({ email, ok: !!out.ok, error: out.ok ? null : (out.error || 'send_failed') });
+  }
+
+  return json({ ok: true, sent, total: results.length, results });
 }
 
 export async function onRequestDelete({ request, env }) {
