@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-12 reservation-notes';
+const BUILD_ID = '20260610-13 reservation-notes-report';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -3734,6 +3734,11 @@ function renderCall(scenario, opts = {}) {
     // Voice-agent calls carry their transcript on the agent; turn-based calls on
     // the conversation. teardownAudio() stops the agent.
     const messages = state.voiceAgent ? state.voiceAgent.getTranscript() : conversation.getMessages();
+    // Snapshot whatever the agent typed into the reservation Callback Notes (POS
+    // scenarios only) so it can be shown back in the coaching report. Local memory
+    // only, never persisted; empty string for non-POS scenarios where the field
+    // does not exist. Read before teardown while the POS DOM is still mounted.
+    state.reservationNotes = (document.getElementById('pos-callback-notes')?.value || '').trim();
     conversation.cancel();
     teardownAudio();
     // Coaching practice has NO scored report — it's an open soft-skills rehearsal.
@@ -5413,6 +5418,7 @@ function renderReport(scenario, report) {
   const node = renderReportHtml(scenario, report, {
     onNewCall,
     onRetry: () => startCall(scenario.id),
+    reservationNotes: state.reservationNotes,
   });
   dom.root.replaceChildren(node);
 }

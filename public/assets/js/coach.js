@@ -41,12 +41,22 @@ export async function requestCoachingReport(scenarioId, transcript, openingLine)
   return res.json();
 }
 
-export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) {
+export function renderReportHtml(scenario, report, { onNewCall, onRetry, reservationNotes } = {}) {
   const root = document.createElement('section');
   root.className = 'report';
 
   const mood = sanitizeMood(report.final_mood);
   const moodNote = (report.final_mood_note || '').trim();
+
+  // What the agent jotted into the reservation Callback Notes during the call,
+  // shown back so they can see what they documented. Only rendered when present.
+  const notes = (reservationNotes || '').trim();
+  const notesBlock = notes ? `
+    <div class="report-notes">
+      <h2 class="report-notes-title">Your reservation notes</h2>
+      <p class="report-notes-text">${escapeHtml(notes)}</p>
+    </div>
+  ` : '';
 
   root.innerHTML = `
     <header class="report-header">
@@ -93,6 +103,7 @@ export function renderReportHtml(scenario, report, { onNewCall, onRetry } = {}) 
       <p class="report-pullquote-text">${escapeHtml(report.one_thing_to_try_next_time || '')}</p>
     </blockquote>
 
+    ${notesBlock}
     <h2 class="report-section-title">Call Review</h2>
     <div class="report-scorecard">
       ${(Array.isArray(report.rubric) && report.rubric.length ? report.rubric : RUBRIC_DISPLAY)

@@ -2014,6 +2014,34 @@ body[data-demo] .report {
   background: var(--color-accent);
 }
 
+/* Agent's own reservation notes, captured from the POS Callback Notes field and
+   echoed back in the report so they can see what they documented. pre-wrap keeps
+   the line breaks they typed. */
+.report-notes {
+  max-width: 760px;
+  margin: 0 auto var(--space-5);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+.report-notes-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.report-notes-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+
 .report-pullquote {
   margin: 0;
   padding: var(--space-5);
