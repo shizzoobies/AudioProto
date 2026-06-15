@@ -3119,6 +3119,14 @@ body[data-demo] .report {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-muted);
 }
+/* Editable reservation/callback notes: a real textarea the agent types into
+   during the call. Inherits the .pos-input look; just sizes + lets it grow. */
+.pos-notes-input {
+  margin-top: 4px;
+  min-height: 58px;
+  line-height: 1.45;
+  resize: vertical;
+}
 
 .pos-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 

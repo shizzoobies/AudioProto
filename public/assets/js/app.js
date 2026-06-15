@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-11 devbydesign-5week';
+const BUILD_ID = '20260610-12 reservation-notes';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -2909,7 +2909,7 @@ function renderCall(scenario, opts = {}) {
                 <div class="csf-notes-label">Customer Notes</div>
                 <p class="csf-notes-text pos-note-text" id="pos-customer-notes">No cautionary notes</p>
                 <div class="csf-notes-label">Callback Notes</div>
-                <p class="csf-notes-text pos-note-text">None on file</p>
+                <textarea class="pos-input pos-notes-input" id="pos-callback-notes" rows="3" placeholder="Add a note about this reservation..." aria-label="Callback notes"></textarea>
               </div>
             </section>
           </aside>
