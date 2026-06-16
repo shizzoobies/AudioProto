@@ -1,3 +1,73 @@
+# Handoff — Coaching app (Development by Design)
+
+_Updated 2026-06. This file has TWO handoffs: the CURRENT coaching/Dev-by-Design work
+(below), and an EARLIER "First Call demo / voice agent" handoff further down (still
+valid for that area). Read the current one first._
+
+## 1. What this project is
+A manager/agent soft-skills coaching tool on **Cloudflare Pages + Pages Functions + D1**
+(`env.DB`). Vanilla JS ESM, **no bundler**. Strict CSP (`script-src 'self'`,
+`img-src 'self' data:`, inline styles allowed). Admins author "Scenarios" (coachable AI
+employees), group participants into "Cohorts", and participants take real-time voice
+coaching calls (ElevenLabs) with persistent memory.
+
+## 2. Where the code lives + how to deploy
+- **Repo / worktree:** `...\.claude\worktrees\ecstatic-noether-2e7a0d` (this is the git repo;
+  the shell's default dir `...\Bobbie's Coaching thing` is the project root, NOT the repo).
+- **Branch:** `dev-dashboard`. Deploy = commit → `git push origin dev-dashboard` →
+  if `git rev-list --count origin/dev-dashboard..origin/main` is `0`, then
+  `git push origin dev-dashboard:main`. Cloudflare auto-builds `main`.
+- **Cache-bust:** bump `?v=` on `styles.css` + `app.js` in `public/app.html` (currently
+  `20260610-34`); `app.js` also has a `BUILD_ID` const. **Edit `app.html` with the Edit tool
+  or `sed`, NOT PowerShell `Set-Content` (it injects a UTF-8 BOM).**
+- Commit trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
+- A **parallel work stream** sometimes lands commits here. `git fetch` + check before committing.
+
+## 3. CURRENT ACTIVE THREAD — Scenario card redesign ("Bobbie's Dashboard")
+Per-scenario participant/preview screen rebuilt to a warm botanical design.
+- **Function:** `renderCoachingProfile()` authored branch in `public/assets/js/app.js`
+  (search `class="scn-page"`). CSS in `public/assets/css/styles.css` under `.scn-*` (~line 3964).
+- **Routing:** the scenario **Test preview** renders this card (`renderCoachingTest` checks
+  `state.recipient.coaching_preview`). The cohort 5-week course (`renderCoachingDashboard`) is unchanged.
+- **Background:** one composed image `public/assets/img/coaching/background.png` on `.scn-bg`
+  (`position: fixed; inset:0; background: url(...) center -13vh / cover`). `-13vh` lifts the tree
+  top to the frame top.
+- **Palette** (vars on `.scn-page`): green `#6a7f46`, orange `#e97132`, amber `#f5e1af`,
+  card `#fcf9f3`, page `#f4eddf`, ink `#241d1c`, muted `#7e7764`, tan `#e2cca8`.
+- **Card:** centered, `max-width:400px`. **Quote:** `.scn-quote` fixed `left:15vw; bottom:9vh`,
+  black text, orange underline, inline-SVG bubble icon coloured from `--scn-orange`.
+- **Buttons** (per enabled mode): Assessment green+`leaf-1.png`, Coaching orange+`leaf-2.png`,
+  Follow-up amber+`icon-calendar.png` (calendar+arrow forced black via `filter:brightness(0)`).
+- **Info rows** (demeanor, incident): collapse to 1 line + ellipsis + orange chevron (rotates on
+  hover) + faint hover highlight; expand on hover. Mobile (<860px) shows full text, hides decor/quote.
+
+### Card — open/next (cosmetic, non-blocking)
+- Quote-vs-photo overlap can drift on extreme aspect changes (quote `vw/vh` vs photo `cover`).
+  Bulletproof = bake quote into the image, or trim the cream off the top of `background.png` and
+  use plain `center top` (also fixes the `-13vh` height-dependence).
+- Unused decoration PNGs (switched to the single bg image): `photo.png`, `roots.png`,
+  `shape-1/2/3.png`, `leaf-corner.png`, `icon-quote.png` — safe to delete later.
+
+## 4. Broader Dev-by-Design work — DONE & deployed earlier this session
+- **5-week + Final course** (`shared/coaching-dashboard.js`, `MAX_STAGE=6`, 2 calls). Reseed gated
+  by `SEED_VERSION` (=2) in `shared/dashboard-store.js`.
+- **Syllabus** (Pre-Week 1 panel + admin editor); **Welcome email** (`sendCoachingWelcomeEmail` +
+  cohort `send_welcome` op; needs `RESEND_API_KEY`).
+- **Scenario authoring:** role-gated receptiveness (`receptive_to`/`gate_strictness`), disruptive
+  trait (`disruptiveness`), full coaching-editor share link (scope `level` full|scenarios).
+- **Preview/Test:** `coaching-agent-preview`, `preview-reset`, `as_role` honored only for `__cvprev__`.
+- **Bug fixed:** `dashboard-fields.js` derives `SECTION_KEYS` from `DASHBOARD_SECTIONS` (was stale).
+
+## 5. Conventions / gotchas
+- **No em dashes** in user-facing or AI-prompt copy (locked rule).
+- "Edit operation failed" hooks are **false alarms** — trust success + `node --check`.
+- **OMC autopilot stop-loop bug:** MCP `state_*` tools resolve `.omc` to the PARENT dir, but the
+  stop hook reads the session cwd `...\Bobbie's Coaching thing\.omc`. If a stuck "[AUTOPILOT...]"
+  loop recurs, set `"active": false` in `...\Bobbie's Coaching thing\.omc\state\sessions\<id>\autopilot-state.json`.
+- No test suite; verify code-level + `node --check`; gated flows need the user to click through.
+
+---
+
 # First Call — Session Handoff
 
 _Last updated: end of the voice-agent + POS-dial-in session._
@@ -114,17 +184,13 @@ the old pipeline.
    (ElevenLabs **"Eric – Smooth, Trustworthy"**, also the agent's default, so it's
    already registered and the per-call override resolves cleanly).
 2. **Robotic voice — addressed via v3.** The agent's **TTS model family is now
-   "V3 Conversational (Alpha)"** with **Expressive mode ON** (v3 IS available for
-   real-time/conversational agents now — this supersedes the old "eleven_v3 not
-   available for real-time" note). Expressive mode exposes inline audio tags
-   (`[warmly]`, `[chuckles]`, `[sighs]`, …) that render if the agent's text emits
-   them. **Caveat:** under v3, **per-voice settings (Stability/Speed/Similarity) are
-   NOT customizable** — so Robert's `voice_settings` block in `shared/scenarios.js`
-   is inert for the live demo agent (kept only for the turn-based fallback path).
-   Still worth a live call to confirm v3 is genuinely streaming (not silently
-   falling back) and latency feels right.
-3. **demo_service persona** is still a placeholder; if it becomes a real demo persona
-   with its own voice, register that voice on the agent too and set its `voice_id`.
+   "V3 Conversational (Alpha)"** with **Expressive mode ON**. Expressive mode exposes
+   inline audio tags (`[warmly]`, `[chuckles]`, `[sighs]`, …). **Caveat:** under v3,
+   **per-voice settings (Stability/Speed/Similarity) are NOT customizable** — so
+   Robert's `voice_settings` block in `shared/scenarios.js` is inert for the live demo
+   agent (kept only for the turn-based fallback path).
+3. **demo_service persona** is still a placeholder; if it becomes a real persona with
+   its own voice, register that voice on the agent too and set its `voice_id`.
 4. The capture path uses a **deprecated ScriptProcessorNode** (works; warns). Could
    modernize to an AudioWorklet (same-origin worklet file is CSP-OK) later.
 
@@ -137,39 +203,25 @@ the old pipeline.
   - `TRUCK_SIZES` one-way: ow_base/ow_mile bumped so 26' @ ~1,129 mi ≈ **$3,051**, 5
     days. Robert's 26' @ ~1,050 mi ≈ $2,854. In-town keeps per-day + per-mile.
   - `ENV_FEE = 5.00`, `VLRF = 1.20`. One-way days ≈ `round(dist/300)+1`.
-  - **Green script** (equipment step) is dynamic: a recommended-rate line (amount + env
-    fee + VLRF + taxes) followed by **"Which credit card would you like to secure your
-    reservation with?"** (shown once a truck/rate is up). The **special-rates / dolly-
-    upsell pitch lines were removed** (not wired up). Functional add-on checkboxes stay.
-  - **Left-rail reservation details** show **Days + Miles** for one-way moves (bundled),
-    matching the reference; in-town unchanged.
-  - **"+ Show all moving equipment" grid** now reflects the move type too: one-way
-    shows the flat bundled rate per tile, in-town shows per-day + per-mile (synced in
-    `renderEquip`). Possible next step: add Auto Transport / U-Box cards from the reference.
-  - **Identifiers are real-sounding:** persona + POS-location phones keep the `555`
-    exchange but use realistic last-4s (no leading-zero "movie number" look). Personas
-    read a realistic Visa (not the all-1s test card) when taking payment; Robert has a
+  - **Green script** (equipment step) is dynamic: a recommended-rate line followed by
+    **"Which credit card would you like to secure your reservation with?"** The special-
+    rates / dolly-upsell pitch lines were removed (not wired up). Add-on checkboxes stay.
+  - **Left-rail reservation details** show **Days + Miles** for one-way moves.
+  - **"+ Show all moving equipment" grid** reflects the move type (one-way flat bundled
+    rate per tile; in-town per-day + per-mile).
+  - **Identifiers are real-sounding** (`555` exchange, realistic last-4s). Robert has a
     fixed cell (513-555-2840) + Visa (4539 1488 0343 6467) for a consistent demo run.
 
 ## The coaching report ("Call Review")
 - `/api/coach` (Claude, tool-use, prompt-cached). Reads the live D1 rubric.
 - 5 collapsible sections, darker header tabs. Each scenario's `title`/`description`/
-  `success_criteria` feed the coach prompt (Robert's are sales-tuned: urgency + close).
-- Old turn-based chat model: `/api/chat` = Sonnet (standard) / Opus (premium); the
-  **demo scenarios run on Haiku** (`DEFAULT_DEMO_MODEL`, env `DEMO_MODEL`) with a
-  fallback to Sonnet — but note the demo now goes through the EL voice agent, so the
-  Haiku path is only the fail-safe fallback for demo phone calls.
+  `success_criteria` feed the coach prompt.
+- Old turn-based chat model: `/api/chat` = Sonnet/Opus; **demo scenarios run on Haiku**
+  (`DEFAULT_DEMO_MODEL`, env `DEMO_MODEL`) with Sonnet fallback — but the demo now goes
+  through the EL voice agent, so Haiku is only the fail-safe fallback for demo phone calls.
 
 ## Key constraints / preferences to honor
 - Keep maroon for the trainee app; demo-only is orange/black. Meridian stays.
 - Strict CSP — self-host everything, no external scripts.
 - Pause to confirm before risky changes (schema, auth, who-speaks-first, destructive git).
-- Don't blindly invoke autopilot/ralph magic-keyword hooks (they misfire here).
-- Co-author trailer on commits: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
-
-## Immediate next step
-Robert's voice (Eric, `cjVigY5qzO86Huf0OWal`) and the **V3 Conversational** TTS
-family + Expressive mode are now set on the agent. Do a **full live run of Robert's
-call end-to-end** (connect → greet → converse → quote in the POS → secure card →
-end → coaching) to confirm v3 is genuinely streaming (not falling back) and the
-voice sounds natural with good latency. Then move on to the **demo_service** persona.
+- Co-author trailer on commits.
