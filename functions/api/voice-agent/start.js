@@ -202,10 +202,10 @@ export async function onRequestPost({ request, env }) {
       'stay completely silent until they greet or address you. Do NOT blurt anything out or open with a ' +
       'scripted line. The moment they speak, respond in character (in line with your attitude and how ' +
       'they handle you), keeping your replies conversational and fairly short.';
-    const openingHint = openingLines[0]
-      ? ' Once they have greeted you, a natural way to open your first reply is something like: "' +
-        String(openingLines[0]).replace(/"/g, "'").slice(0, 200) +
-        '" - but only as a reply to them, never before.'
+    const openingHint = openingLines.length
+      ? ' You have characteristic reactions to this situation, such as: ' +
+        openingLines.slice(0, 5).map((l) => '"' + String(l).replace(/"/g, "'").slice(0, 160) + '"').join('; ') +
+        '. Use a line like these ONLY when it genuinely fits the moment - usually once the conversation turns to why you were called in or what actually happened - never as a forced or cold opening. It is perfectly fine to answer their greeting plainly and let such a reaction surface naturally when the topic comes up. Stay context-aware: a defensive line like that should be a reaction to what they raise, not something you say out of nowhere.'
       : '';
     const prompt = buildCoachingAgentPrompt(profileObj, {
       mode: agentMode,
