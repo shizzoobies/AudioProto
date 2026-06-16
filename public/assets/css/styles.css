@@ -4063,6 +4063,9 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
 .scn-action-orange:hover { background: var(--scn-orange-dark); }
 .scn-action-amber { background: var(--scn-amber); color: var(--scn-ink); }
 .scn-action-amber:hover { background: #eed79b; }
+/* Follow-up (amber): force the calendar + arrow PNGs to black to match the text. */
+.scn-action-amber .scn-action-icon,
+.scn-action-amber .scn-action-arrow { filter: brightness(0); }
 .scn-action-locked { background: var(--scn-amber); color: var(--scn-ink); cursor: default; }
 .scn-action-locked:hover { transform: none; box-shadow: none; }
 .scn-action-body { display: flex; flex-direction: column; }
