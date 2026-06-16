@@ -3849,6 +3849,135 @@ body[data-coaching] .app-header { display: none; }
 .call[data-coaching] .call-dock-body { flex-direction: column; gap: 14px; }
 .call[data-coaching] .call-dock-aside { width: 100%; order: -1; }
 .call[data-coaching] .call-dock-convo { min-height: 140px; }
+
+/* ---- Coaching call: warm "Bobbie's Dashboard" theme ----------------------
+   Dress the live coaching call (header bar + centered voice dock) in the same
+   botanical palette as the scenario card so the call reads as the same world.
+   Everything here is scoped to .call[data-coaching]; demo + trainee calls are
+   untouched. Palette mirrors .scn-page. */
+.call[data-coaching] {
+  --scn-green: #6a7f46;
+  --scn-green-dark: #586b3a;
+  --scn-orange: #e7a23d;
+  --scn-orange-dark: #d8902c;
+  --scn-amber: #f5e1af;
+  --scn-tan: #e2cca8;
+  --scn-card: #fcf9f3;
+  --scn-page: #f4eddf;
+  --scn-ink: #241d1c;
+  --scn-muted: #7e7764;
+  position: relative;
+}
+/* Warm botanical backdrop, softened so the call cards stay the focus. */
+.call[data-coaching]::before {
+  content: "";
+  position: fixed; inset: 0;
+  background: url('/assets/img/coaching/background.png') center -13vh / cover no-repeat, var(--scn-page);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+body:has(.call[data-coaching]) { background: var(--scn-page, #f4eddf); }
+/* Lift the call chrome above the backdrop. */
+.call[data-coaching] > * { position: relative; z-index: 1; }
+
+/* Header bar -> cream card, tan border, serif name. */
+.call[data-coaching] .call-header {
+  background: var(--scn-card);
+  border-color: var(--scn-tan);
+  box-shadow: 0 10px 30px rgba(60, 45, 20, 0.10);
+}
+.call[data-coaching] .call-customer-name {
+  font-family: var(--font-display);
+  color: var(--scn-ink);
+}
+.call[data-coaching] .call-scenario-title { color: var(--scn-muted); }
+.call[data-coaching] .call-timer {
+  background: rgba(231, 162, 61, 0.14);
+  color: var(--scn-ink);
+}
+.call[data-coaching][data-paused="true"] .call-timer { color: var(--scn-muted); }
+/* Hold -> green outline; End call -> warm terracotta (still clearly "stop"). */
+.call[data-coaching] .call-pause {
+  border-color: var(--scn-green);
+  color: var(--scn-green-dark);
+  background: transparent;
+}
+.call[data-coaching] .call-pause:hover:not(:disabled) {
+  border-color: var(--scn-green-dark);
+  color: var(--scn-green-dark);
+  background: rgba(106, 127, 70, 0.08);
+}
+.call[data-coaching] .call-pause.is-paused {
+  border-color: var(--scn-orange);
+  color: var(--scn-orange-dark);
+}
+.call[data-coaching] .danger-button {
+  background: rgba(176, 70, 47, 0.10);
+  border-color: rgba(176, 70, 47, 0.42);
+  color: #9a3b22;
+}
+.call[data-coaching] .danger-button:hover {
+  background: rgba(176, 70, 47, 0.16);
+  border-color: rgba(176, 70, 47, 0.6);
+  color: #9a3b22;
+}
+
+/* The centered voice dock -> warm cream card. */
+.call[data-coaching] .call-dock {
+  background: var(--scn-card);
+  border-color: var(--scn-tan);
+  box-shadow: 0 24px 56px rgba(60, 45, 20, 0.16);
+}
+.call[data-coaching] .call-dock-head {
+  background: rgba(245, 225, 175, 0.32);
+  border-bottom-color: var(--scn-tan);
+}
+.call[data-coaching] .call-dock-dot { background: var(--scn-green); }
+.call[data-coaching] .call-dock-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--scn-ink);
+}
+
+/* Visualizer + status panels -> cream surfaces with warm accents. */
+.call[data-coaching] .visualizer-wrap {
+  background: #fffdf8;
+  border-color: var(--scn-tan);
+}
+.call[data-coaching] .visualizer-wrap[data-active="true"] {
+  border-color: rgba(231, 162, 61, 0.5);
+  box-shadow: 0 0 0 4px rgba(231, 162, 61, 0.16);
+}
+.call[data-coaching] .phone-status {
+  background: #fffdf8;
+  border-color: var(--scn-tan);
+}
+.call[data-coaching] .phone-status-text { color: var(--scn-ink); }
+.call[data-coaching] .phone-status-hint { color: var(--scn-muted); }
+.call[data-coaching] .phone-status-dot { background: var(--scn-muted); }
+/* State accents, kept in-palette: employee talking = orange, your turn /
+   listening = green, on hold = amber. */
+.call[data-coaching] .phone-status[data-state="connecting"] .phone-status-dot { background: var(--scn-green); }
+.call[data-coaching] .phone-status[data-state="customer_talking"] { border-color: rgba(231, 162, 61, 0.5); }
+.call[data-coaching] .phone-status[data-state="customer_talking"] .phone-status-dot {
+  background: var(--scn-orange); box-shadow: 0 0 0 4px rgba(231, 162, 61, 0.20);
+}
+.call[data-coaching] .phone-status[data-state="your_turn"] { border-color: rgba(106, 127, 70, 0.5); }
+.call[data-coaching] .phone-status[data-state="your_turn"] .phone-status-dot {
+  background: var(--scn-green); box-shadow: 0 0 0 4px rgba(106, 127, 70, 0.20);
+}
+.call[data-coaching] .phone-status[data-state="listening"] {
+  border-color: rgba(106, 127, 70, 0.5); background: rgba(106, 127, 70, 0.06);
+}
+.call[data-coaching] .phone-status[data-state="listening"] .phone-status-dot {
+  background: var(--scn-green); box-shadow: 0 0 0 4px rgba(106, 127, 70, 0.20);
+}
+.call[data-coaching] .phone-status[data-state="paused"] {
+  border-color: var(--scn-tan); background: rgba(245, 225, 175, 0.35);
+}
+.call[data-coaching] .phone-status[data-state="paused"] .phone-status-dot { background: var(--scn-orange); }
+
 /* ---- Elevated coaching landing (splash + content sections + scenario cards) */
 .coaching-landing {
   max-width: 860px;

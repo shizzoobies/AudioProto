@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-26 scenario-followup-cal';
+const BUILD_ID = '20260616-27 coaching-call-theme';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -3405,7 +3405,13 @@ function renderCall(scenario, opts = {}) {
         return audioPlayer.getAnalyser();
       },
       {
-        getColor: () => state.continuousRecorder?.isSpeaking() ? '#60a5fa' : '#f5a524',
+        getColor: () => {
+          const speaking = state.continuousRecorder?.isSpeaking();
+          // Coaching calls wear the warm botanical palette (green = you, orange =
+          // the employee); demo/trainee calls keep the original blue/amber.
+          if (isCoaching) return speaking ? '#6a7f46' : '#e7a23d';
+          return speaking ? '#60a5fa' : '#f5a524';
+        },
       }
     );
   }
