@@ -3995,7 +3995,7 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
    only the quote + card overlaid. */
 .scn-bg {
   position: fixed; inset: 0;
-  background: url('/assets/img/coaching/background.png') center top / cover no-repeat, var(--scn-page);
+  background: url('/assets/img/coaching/background.png') center -13vh / cover no-repeat, var(--scn-page);
   pointer-events: none; z-index: 0;
 }
 .scn-quote { position: fixed; left: 12vw; bottom: 16vh; max-width: 360px; display: flex; gap: 14px; align-items: flex-start; color: var(--scn-ink); z-index: 1; }
