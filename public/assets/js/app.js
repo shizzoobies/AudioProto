@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-14 syllabus';
+const BUILD_ID = '20260610-15 scenario-card';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -991,10 +991,19 @@ function renderCoachingTest(selectedId) {
     return;
   }
 
-  // Top-level coaching home. Managers with an assigned AUTHORED agent (ca_) get
-  // the 3-week coaching DASHBOARD; everyone else (legacy coaching_practice,
-  // empty state) keeps the existing landing. We fetch /api/coaching/dashboard:
-  // a non-null `agent` ⇒ dashboard; `agent:null` (or any failure) ⇒ legacy.
+  // Scenario PREVIEW (a builder testing via the Test button): show the single
+  // scenario card directly, NOT the cohort course dashboard. The preview invite
+  // carries exactly one authored scenario.
+  const isPreview = !!(state.recipient && state.recipient.coaching_preview);
+  if (isPreview) {
+    const previewAgent = agents.find((a) => a && a.kind === 'coaching_agent') || agents[0];
+    if (previewAgent) { renderCoachingProfile(previewAgent, { multi: false }); return; }
+  }
+
+  // Top-level coaching home. Cohort managers with an assigned AUTHORED agent (ca_)
+  // get the Development by Design course DASHBOARD; everyone else (legacy
+  // coaching_practice, empty state) keeps the existing landing. We fetch
+  // /api/coaching/dashboard: a non-null `agent` ⇒ dashboard; else ⇒ legacy.
   renderCoachingLanding(agents); // optimistic legacy paint; replaced if a dashboard loads
   fetchCoachingDashboard();
 }
@@ -1242,62 +1251,108 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       </section>
     `;
   } else {
-    // Authored scenario → the connected-path journey.
-    const descFor = (mode) =>
-      mode === 'assessment' ? `Meet ${name} on a normal day, observe and diagnose before any coaching.`
-      : mode === 'coaching' ? `Your one-on-one. Give feedback and coach ${name} through it.`
-      : mode === 'followup' ? `Reconnect later and see what stuck and how ${name} has changed.`
-      : '';
+    // Authored scenario → the "growth" scenario card (mockup: Bobbie's Dashboard).
     // How many stages the coach has released (admin gate). Default 1 = only the
     // first call. A stage is available only if the prior call is done AND the
-    // coach has unlocked it.
+    // coach has unlocked it. Preview ungates everything.
     const unlockedStage = Number(agent.progress?.unlocked_stage) || 1;
-    const stepsHtml = modeDefs.map((def, i) => {
+    const accentVar = accent ? `--scn-accent:${accent}` : '';
+
+    // Inline SVG icons (CSP-safe). Swap these for client-supplied art later.
+    const SVG = {
+      leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13C4 8 8 4 18 4C18 14 14 18 11 20Z"/><path d="M5 19C7 14 10 11 16 8"/></svg>',
+      person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5C5.5 15.9 8.4 14 12 14C15.6 14 18.5 15.9 18.5 19.5"/></svg>',
+      help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 9.2C9.2 7.4 10.5 6.2 12 6.2C13.6 6.2 14.9 7.3 14.9 8.9C14.9 11 12 11 12 13.4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor"/></svg>',
+      cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M4 10H20M8 3.5V7M16 3.5V7"/></svg>',
+      arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12H19M13 6L19 12L13 18"/></svg>',
+      quote: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 7C7 7 5 9.2 5 12.3C5 15 6.7 17 9.1 17C9.7 17 10.2 16.9 10.6 16.6C9.9 18.4 8.3 19.6 6.6 20L7.4 21.6C10.6 20.6 12.8 17.7 12.8 13.6C12.8 9.7 11.6 7 10 7ZM18.4 7C15.4 7 13.4 9.2 13.4 12.3C13.4 15 15.1 17 17.5 17C18.1 17 18.6 16.9 19 16.6C18.3 18.4 16.7 19.6 15 20L15.8 21.6C19 20.6 21.2 17.7 21.2 13.6C21.2 9.7 20 7 18.4 7Z"/></svg>',
+    };
+
+    // One action per ENABLED mode. assessment=green, coaching=orange, follow-up=
+    // amber; a call that isn't available yet renders as a muted locked tile.
+    const actionsHtml = modeDefs.map((def, i) => {
       const prevAllDone = preview ? true : modeDefs.slice(0, i).every((d) => modesDone[d.mode]);
       const adminAllowed = preview ? true : i < unlockedStage;
-      let st;
-      if (!prevAllDone) st = 'locked';        // must finish the previous call first
-      else if (!adminAllowed) st = 'held';    // coach hasn't released this call yet
-      else if (modesDone[def.mode]) st = 'done';
-      else st = 'current';
-      const clickable = st === 'done' || st === 'current';
-      const node = st === 'done' ? '&#10003;' : st === 'current' ? String(i + 1) : st === 'held' ? '&#9203;' : '&#128274;';
-      const cta = preview ? 'Test this call &rarr;'
-        : st === 'done' ? 'Completed: retake'
-        : st === 'current' ? 'Start now &rarr;'
-        : st === 'held' ? 'Your coach will open this'
-        : 'Locked';
+      const available = prevAllDone && adminAllowed;
+      const done = !preview && !!modesDone[def.mode];
+      const tone = def.mode === 'assessment' ? 'green' : def.mode === 'coaching' ? 'orange' : 'amber';
+      if (!available) {
+        const why = !prevAllDone ? 'Available after you finish a call.' : 'Your coach will open this.';
+        return `
+          <div class="scn-action scn-action-locked">
+            <span class="scn-action-icon">${SVG.cal}</span>
+            <span class="scn-action-body">
+              <span class="scn-action-label">${escapeHtml(def.label)}</span>
+              <span class="scn-action-hint">${why}</span>
+            </span>
+          </div>`;
+      }
+      const label = preview ? `Test ${def.label}` : done ? `${def.label} &middot; retake` : def.label;
       return `
-        <li class="journey-step is-${st}${clickable ? ' coaching-test-mode' : ''}"${clickable ? ` data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}" role="button" tabindex="0"` : ''}>
-          <div class="journey-rail"><span class="journey-line"></span><span class="journey-node" aria-hidden="true">${node}</span><span class="journey-line"></span></div>
-          <div class="journey-content">
-            <span class="journey-step-stage">Step ${i + 1}</span>
-            <span class="journey-step-label">${escapeHtml(def.label)}</span>
-            <span class="journey-step-desc">${escapeHtml(descFor(def.mode))}</span>
-            <span class="journey-step-cta">${cta}</span>
-          </div>
-        </li>`;
+        <button type="button" class="scn-action scn-action-${tone} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}">
+          <span class="scn-action-icon">${SVG.leaf}</span>
+          <span class="scn-action-label">${label}</span>
+          <span class="scn-action-arrow">${SVG.arrow}</span>
+        </button>`;
     }).join('');
 
-    const heroStyle = [];
-    if (imgId) heroStyle.push(`background-image:linear-gradient(180deg, rgba(15,15,20,0.30), rgba(15,15,20,0.72)), url('/coaching-image/${encodeURIComponent(imgId)}')`);
-    const accentVar = accent ? `--accent:${accent}` : '';
+    const rowHtml = (icon, label, text) => `
+      <div class="scn-row">
+        <span class="scn-row-icon">${icon}</span>
+        <div class="scn-row-body">
+          <span class="scn-row-label">${escapeHtml(label)}</span>
+          <p class="scn-row-text">${escapeHtml(text)}</p>
+        </div>
+      </div>`;
+
+    // Preview affordances: a "test as" role toggle (defaults to the role the
+    // scenario opens up to) + a "start fresh test" reset, mirroring the dashboard.
+    const previewRole = agent.receptive_to === 'senior_agent' ? 'Senior Agent' : 'Manager';
+    const asRoleOpts = ['Manager', 'Senior Agent']
+      .map((r) => `<option value="${r}"${r === previewRole ? ' selected' : ''}>${r}</option>`).join('');
 
     dom.root.innerHTML = `
-      <section class="coaching-journey-page"${accentVar ? ` style="${accentVar}"` : ''}>
+      <section class="scn-page"${accentVar ? ` style="${accentVar}"` : ''}>
+        <div class="scn-decor" aria-hidden="true">
+          <span class="scn-blob scn-blob-tl"></span>
+          <span class="scn-blob scn-blob-tr"></span>
+          <span class="scn-blob scn-blob-br"></span>
+          <span class="scn-photo"></span>
+          <svg class="scn-roots" viewBox="0 0 120 220" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M60 96V70"/>
+            <path d="M60 78C60 70 52 64 46 62C52 64 56 70 60 78Z"/>
+            <path d="M60 84C60 76 68 70 74 68C68 70 64 76 60 84Z"/>
+            <path d="M60 96C54 110 44 120 36 150C32 168 30 188 28 208"/>
+            <path d="M60 96C66 110 76 120 84 150C88 168 90 188 92 208"/>
+            <path d="M60 96V210"/>
+            <path d="M48 130C40 138 34 150 32 168"/>
+            <path d="M72 130C80 138 86 150 88 168"/>
+            <path d="M56 150C50 160 46 176 46 196"/>
+            <path d="M64 150C70 160 74 176 74 196"/>
+          </svg>
+          <div class="scn-quote">${SVG.quote}<p>Great managers grow people, not just performance.</p></div>
+        </div>
         ${backHtml}
-        ${preview ? '<div class="coaching-preview-banner"><span class="coaching-preview-banner-text">Preview: testing this scenario. Every call is unlocked, and calls in this test remember each other so you can check the agent\'s memory. This sandbox is private and never seen by real participants.</span></div>' : ''}
-        <header class="coaching-journey-hero${imgId ? ' has-image' : ''}"${heroStyle.length ? ` style="${heroStyle.join(';')}"` : ''}>
-          <div class="cjh-inner">
-            ${scenarioName ? `<p class="cjh-eyebrow">${escapeHtml(scenarioName)}</p>` : ''}
-            <h1 class="cjh-title">${escapeHtml(name)}</h1>
-            <p class="cjh-sub">${escapeHtml([role, age ? `age ${age}` : ''].filter(Boolean).join(' · '))}</p>
-            ${callCount > 0 ? `<p class="cjh-progress">${callCount} call${callCount === 1 ? '' : 's'} taken</p>` : ''}
-          </div>
-        </header>
-        ${demeanor ? `<p class="coaching-journey-about">${escapeHtml(demeanor)}</p>` : ''}
-        ${nameFieldHtml}
-        <ol class="coaching-journey">${stepsHtml}</ol>
+        ${preview ? `
+          <div class="scn-preview">
+            <span class="scn-preview-text">Preview: testing this scenario. Calls remember each other so you can check the agent's memory. Nothing here is saved for real participants.</span>
+            <label class="scn-preview-role">Test as
+              <select class="coaching-preview-asrole">${asRoleOpts}</select>
+            </label>
+            <button type="button" class="ghost-button coaching-preview-reset">Start fresh test</button>
+          </div>` : ''}
+        <div class="scn-card">
+          <span class="scn-avatar">${escapeHtml(coachingInitials(name))}</span>
+          <p class="scn-eyebrow">${escapeHtml(scenarioName || 'Scenario')}</p>
+          <h1 class="scn-name">${escapeHtml(name)}</h1>
+          <p class="scn-sub">${escapeHtml([role, age ? `Age ${age}` : ''].filter(Boolean).join('  •  '))}</p>
+          ${callCount > 0 && !preview ? `<p class="scn-progress">${callCount} call${callCount === 1 ? '' : 's'} taken</p>` : ''}
+          ${demeanor ? rowHtml(SVG.person, 'Typical performance & demeanor', demeanor) : ''}
+          ${(demeanor && incident) ? '<div class="scn-divider"></div>' : ''}
+          ${incident ? rowHtml(SVG.help, 'What happened', incident) : ''}
+          ${nameFieldHtml}
+          <div class="scn-actions">${actionsHtml}</div>
+        </div>
       </section>
     `;
   }
@@ -1308,13 +1363,28 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       if (btn.disabled) return;
       const participant = nameInput ? nameInput.value.trim() : '';
       saveCoachingParticipant(participant);
-      startCall(btn.dataset.personaId, { mode: btn.dataset.mode, participant });
+      // In preview, the "Test as" toggle lets the builder spoof their role to
+      // exercise role-gated scenarios. Honored server-side only for preview links.
+      const asRole = (state.recipient && state.recipient.coaching_preview)
+        ? (dom.root.querySelector('.coaching-preview-asrole')?.value || '')
+        : '';
+      startCall(btn.dataset.personaId, { mode: btn.dataset.mode, participant, asRole });
     };
     btn.addEventListener('click', go);
     btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
   const back = dom.root.querySelector('.coaching-back');
   if (back) back.addEventListener('click', () => renderCoachingTest());
+  // Preview: wipe this preview invite's memory/recordings and repaint the card.
+  const resetBtn = dom.root.querySelector('.coaching-preview-reset');
+  if (resetBtn) resetBtn.addEventListener('click', async () => {
+    if (!confirm('Clear this test\'s memory and recordings and start over? Only this preview is affected.')) return;
+    resetBtn.disabled = true;
+    resetBtn.textContent = 'Resetting...';
+    try { await fetch('/api/coaching/preview-reset', { method: 'POST', credentials: 'same-origin' }); } catch {}
+    await refreshRecipientStatus();
+    renderCoachingTest();
+  });
 }
 
 // ---- Coaching DASHBOARD (the 3-week / 8-section manager course view) -------

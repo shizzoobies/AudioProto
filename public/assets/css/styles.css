@@ -3961,6 +3961,122 @@ body[data-coaching] .app-header { display: none; }
 .coaching-scn-card.has-image .coaching-scn-status { color: rgba(255, 255, 255, 0.86); }
 .coaching-scn-card.has-image:hover { border: none; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22); }
 
+/* ---- Scenario "growth" card (Bobbie's Dashboard mockup) ------------------- */
+/* Decorative blobs/photo/roots are CSS placeholders; swap the .scn-photo /
+   .scn-roots / blob backgrounds for client-supplied art when provided. */
+.scn-page {
+  --scn-green: #5e7a37;
+  --scn-green-dark: #4d672c;
+  --scn-orange: #e07a36;
+  --scn-orange-dark: #cc6a29;
+  --scn-amber: #ecca78;
+  --scn-cream: #fbf7ef;
+  --scn-page: #efe7d6;
+  --scn-ink: #36412b;
+  --scn-muted: #8b8a72;
+  --scn-label: #7c8a58;
+  position: relative;
+  min-height: 100vh;
+  padding: 44px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--scn-page);
+  overflow: hidden;
+  animation: view-fade-in 0.3s ease;
+}
+.scn-decor { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.scn-blob { position: absolute; opacity: 0.85; }
+.scn-blob-tl {
+  width: 46vw; max-width: 520px; height: 48vh; left: -8vw; top: -6vh;
+  background: radial-gradient(circle at 40% 40%, #8fae5e, #5f7a3a);
+  border-radius: 48% 52% 60% 40% / 50% 45% 55% 50%; opacity: 0.45;
+}
+.scn-blob-tr {
+  width: 200px; height: 200px; right: 7%; top: -64px; background: #54702f;
+  border-radius: 60% 40% 50% 50% / 55% 50% 50% 45%; opacity: 0.85;
+}
+.scn-blob-br {
+  width: 60vw; height: 42vh; right: -12vw; bottom: -16vh;
+  background: radial-gradient(circle at 60% 40%, #ddcaa0, #cdb88c);
+  border-radius: 50% 50% 46% 54% / 55% 48% 52% 45%; opacity: 0.7;
+}
+.scn-photo {
+  position: absolute; left: -4vw; bottom: 9vh; width: 30vw; max-width: 360px; height: 36vh;
+  border-radius: 50% 50% 46% 54% / 55% 48% 52% 45%;
+  background: linear-gradient(150deg, #9cbf6a, #5f8038); opacity: 0.85;
+}
+.scn-roots { position: absolute; right: 6%; top: 14%; width: 128px; height: 236px; color: #5f7a3a; opacity: 0.5; }
+.scn-quote { position: absolute; left: 3vw; bottom: 7vh; max-width: 220px; display: flex; gap: 10px; color: var(--scn-ink); }
+.scn-quote svg { width: 22px; height: 22px; color: var(--scn-green); flex: 0 0 auto; }
+.scn-quote p { position: relative; margin: 0; padding-bottom: 9px; font-size: 14px; font-style: italic; line-height: 1.5; }
+.scn-quote p::after { content: ""; position: absolute; left: 0; bottom: 0; width: 34px; height: 3px; background: var(--scn-orange); border-radius: 2px; }
+
+.scn-page .coaching-back { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: left; margin-bottom: 12px; }
+.scn-preview {
+  position: relative; z-index: 1; width: 100%; max-width: 400px;
+  margin: 0 0 14px; padding: 12px 16px; border-radius: 14px;
+  background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; font-weight: 600;
+}
+.scn-preview-text { flex: 1 1 200px; line-height: 1.4; }
+.scn-preview-role { display: inline-flex; align-items: center; gap: 6px; }
+.scn-preview-role select { font: inherit; font-weight: 600; padding: 3px 8px; border-radius: 8px; border: 1px solid #fdba74; background: #fff; color: #9a3412; }
+
+.scn-card {
+  position: relative; z-index: 1; width: 100%; max-width: 400px;
+  background: var(--scn-cream); border-radius: 22px;
+  box-shadow: 0 20px 50px rgba(60, 50, 25, 0.18);
+  padding: 34px 30px 30px; text-align: center;
+}
+.scn-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--scn-green); color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 12px;
+}
+.scn-eyebrow { margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--scn-label); }
+.scn-name { margin: 0 0 4px; font-family: 'Playfair Display', Georgia, serif; font-size: 30px; font-weight: 700; color: var(--scn-ink); line-height: 1.15; }
+.scn-sub { margin: 0 0 18px; font-size: 14px; color: var(--scn-muted); }
+.scn-progress { margin: -10px 0 16px; font-size: 12px; color: var(--scn-green); font-weight: 600; }
+.scn-row { display: flex; gap: 12px; text-align: left; padding: 4px 0; }
+.scn-row-icon { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: rgba(94,122,55,0.12); color: var(--scn-green); display: inline-flex; align-items: center; justify-content: center; }
+.scn-row-icon svg { width: 17px; height: 17px; }
+.scn-row-body { min-width: 0; }
+.scn-row-label { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--scn-label); }
+.scn-row-text { margin: 2px 0 0; font-size: 14px; color: var(--scn-ink); line-height: 1.45; }
+.scn-divider { height: 1px; background: rgba(80,70,40,0.12); margin: 12px 4px; }
+.scn-card .coaching-test-name { display: block; text-align: left; margin: 18px 0 14px; }
+.scn-card .coaching-test-name-label { display: block; font-size: 12px; font-weight: 600; color: var(--scn-ink); margin-bottom: 6px; }
+.scn-card .coaching-test-name-input {
+  width: 100%; box-sizing: border-box; padding: 11px 14px;
+  border: 1px solid rgba(80,70,40,0.18); border-radius: 12px; background: #fff; font-size: 14px; color: var(--scn-ink);
+}
+.scn-card .coaching-test-name-input::placeholder { color: #b3ad98; }
+.scn-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.scn-action {
+  display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box;
+  padding: 15px 18px; border: none; border-radius: 14px; font: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; text-align: left; color: #fff;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.scn-action:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(60,50,25,0.18); }
+.scn-action-icon { flex: 0 0 auto; width: 22px; height: 22px; display: inline-flex; }
+.scn-action-icon svg { width: 22px; height: 22px; }
+.scn-action-label { flex: 1 1 auto; }
+.scn-action-arrow { flex: 0 0 auto; width: 20px; height: 20px; opacity: 0.9; }
+.scn-action-arrow svg { width: 20px; height: 20px; }
+.scn-action-green { background: var(--scn-green); }
+.scn-action-green:hover { background: var(--scn-green-dark); }
+.scn-action-orange { background: var(--scn-orange); }
+.scn-action-orange:hover { background: var(--scn-orange-dark); }
+.scn-action-amber { background: var(--scn-amber); color: var(--scn-ink); }
+.scn-action-amber:hover { background: #e6c069; }
+.scn-action-locked { background: #f1e8d2; color: #9a906f; cursor: default; }
+.scn-action-locked:hover { transform: none; box-shadow: none; }
+.scn-action-locked .scn-action-icon { color: #b6a982; }
+.scn-action-body { display: flex; flex-direction: column; }
+.scn-action-hint { font-size: 12px; font-weight: 500; color: #a99e7c; }
+
 /* ---- Scenario journey (the elevated, per-scenario mode picker) ------------- */
 .coaching-journey-page {
   max-width: 760px;
