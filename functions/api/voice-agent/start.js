@@ -192,13 +192,28 @@ export async function onRequestPost({ request, env }) {
       mode_followup: !!agentProfile.mode_followup,
     };
 
+    // Voice-call turn-taking: the agent WAITS to be greeted (empty first message)
+    // instead of blurting its opening line - the manager speaks first, like a real
+    // one-on-one. An authored opening line, if any, is offered as a natural first
+    // REPLY (after the greeting), never a cold open.
+    const turnTaking =
+      '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about greeting first): ' +
+      'This is a one-on-one that the other person called you into. WAIT for them to speak first - ' +
+      'stay completely silent until they greet or address you. Do NOT blurt anything out or open with a ' +
+      'scripted line. The moment they speak, respond in character (in line with your attitude and how ' +
+      'they handle you), keeping your replies conversational and fairly short.';
+    const openingHint = openingLines[0]
+      ? ' Once they have greeted you, a natural way to open your first reply is something like: "' +
+        String(openingLines[0]).replace(/"/g, "'").slice(0, 200) +
+        '" - but only as a reply to them, never before.'
+      : '';
     const prompt = buildCoachingAgentPrompt(profileObj, {
       mode: agentMode,
       priorTranscript: agentPriorTranscript,
       callerRole,
-    });
-    const firstMessage = openingLines[0]
-      || (agentMode === 'followup' ? 'Hey... you wanted to talk again?' : 'Hey... you wanted to see me?');
+    }) + turnTaking + openingHint;
+    // Empty => the ElevenLabs agent stays quiet until the manager speaks first.
+    const firstMessage = '';
 
     return json({
       signed_url: signedUrl,
