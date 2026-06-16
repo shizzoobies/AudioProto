@@ -3975,30 +3975,37 @@ body[data-coaching] .app-header { display: none; }
   --scn-muted: #7e7764;
   --scn-label: #6a7f46;
   position: relative;
+  width: 100%;
   min-height: 100vh;
-  padding: 44px 20px 70px;
+  min-height: 100dvh;
+  padding: 4vh 20px 4vh;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   background: var(--scn-page);
   overflow: hidden;
   animation: view-fade-in 0.3s ease;
 }
+/* Full-bleed: the scenario card view breaks out of .app-main's padding so the
+   warm background reaches every screen edge with no gaps. */
+.app-main:has(> .scn-page) { padding: 0; }
+body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
 .scn-decor { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
 .scn-d { position: absolute; display: block; height: auto; }
-.scn-d-photo { left: -3vw; top: 4vh; width: min(34vw, 360px); }
-.scn-d-leaf { right: 9vw; top: -4vh; width: min(13vw, 140px); }
-.scn-d-roots { right: 5vw; top: 12vh; width: min(15vw, 160px); }
-.scn-d-tan { right: 1vw; bottom: -7vh; width: min(26vw, 280px); }
-.scn-d-green { right: -7vw; bottom: -15vh; width: min(20vw, 215px); }
+.scn-d-photo { left: -2vw; top: 6vh; width: min(38vw, 460px); }
+.scn-d-leaf { right: 8vw; top: -3vh; width: min(15vw, 190px); }
+.scn-d-roots { right: 5vw; top: 12vh; width: min(17vw, 220px); }
+.scn-d-tan { right: 0; bottom: -6vh; width: min(32vw, 380px); }
+.scn-d-green { right: -6vw; bottom: -14vh; width: min(26vw, 320px); }
 .scn-quote { position: absolute; left: 3vw; bottom: 8vh; max-width: 220px; display: flex; gap: 10px; align-items: flex-start; color: var(--scn-ink); }
 .scn-quote img { width: 30px; height: 30px; flex: 0 0 auto; }
 .scn-quote p { position: relative; margin: 4px 0 0; padding-bottom: 9px; font-size: 14px; font-weight: 500; line-height: 1.5; }
 .scn-quote p::after { content: ""; position: absolute; left: 0; bottom: 0; width: 34px; height: 3px; background: var(--scn-orange); border-radius: 2px; }
 
-.scn-page .coaching-back { position: relative; z-index: 1; width: 100%; max-width: 380px; text-align: left; margin-bottom: 12px; }
+.scn-page .coaching-back { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: left; margin-bottom: 12px; }
 .scn-preview {
-  position: relative; z-index: 2; width: 100%; max-width: 380px;
+  position: relative; z-index: 2; width: 100%; max-width: 400px;
   margin: 0 0 14px; padding: 12px 16px; border-radius: 14px;
   background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; font-weight: 600;
@@ -4008,7 +4015,7 @@ body[data-coaching] .app-header { display: none; }
 .scn-preview-role select { font: inherit; font-weight: 600; padding: 3px 8px; border-radius: 8px; border: 1px solid #fdba74; background: #fff; color: #9a3412; }
 
 .scn-card {
-  position: relative; z-index: 1; width: 100%; max-width: 380px;
+  position: relative; z-index: 1; width: 100%; max-width: 400px;
   background: var(--scn-card); border-radius: 22px;
   box-shadow: 0 24px 56px rgba(60, 45, 20, 0.16);
   padding: 32px 30px 28px; text-align: center;
