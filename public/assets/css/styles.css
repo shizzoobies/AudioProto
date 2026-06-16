@@ -3978,7 +3978,7 @@ body[data-coaching] .app-header { display: none; }
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 4vh 20px 4vh;
+  padding: 8vh 20px 4vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3995,7 +3995,7 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
    only the quote + card overlaid. */
 .scn-bg {
   position: fixed; inset: 0;
-  background: url('/assets/img/coaching/background.png') center center / contain no-repeat, var(--scn-page);
+  background: url('/assets/img/coaching/background.png') center top / cover no-repeat, var(--scn-page);
   pointer-events: none; z-index: 0;
 }
 .scn-quote { position: fixed; left: 19vw; bottom: 23vh; max-width: 360px; display: flex; gap: 14px; align-items: flex-start; color: var(--scn-ink); z-index: 1; }
