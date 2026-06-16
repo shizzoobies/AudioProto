@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-21 scenario-bg-image';
+const BUILD_ID = '20260610-22 scenario-quote';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1313,7 +1313,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
             <button type="button" class="ghost-button coaching-preview-reset">Start fresh test</button>
           </div>` : ''}
         <div class="scn-bg" aria-hidden="true"></div>
-        <div class="scn-quote"><img src="${IMG}/icon-quote.png" alt="" aria-hidden="true"><p>Great managers grow people, not just performance.</p></div>
+        <div class="scn-quote"><img src="${IMG}/icon-quote.png" alt="" aria-hidden="true"><p>Great managers grow people,<br>not just performance.</p></div>
         <div class="scn-card">
           <span class="scn-avatar">${escapeHtml(coachingInitials(name))}</span>
           <p class="scn-eyebrow">${escapeHtml(scenarioName || 'Scenario')}</p>

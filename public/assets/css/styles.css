@@ -3998,10 +3998,10 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
   background: url('/assets/img/coaching/background.png') center center / cover no-repeat, var(--scn-page);
   pointer-events: none; z-index: 0;
 }
-.scn-quote { position: fixed; left: 4vw; bottom: 6vh; max-width: 220px; display: flex; gap: 10px; align-items: flex-start; color: var(--scn-ink); z-index: 1; }
-.scn-quote img { width: 30px; height: 30px; flex: 0 0 auto; }
-.scn-quote p { position: relative; margin: 4px 0 0; padding-bottom: 9px; font-size: 14px; font-weight: 500; line-height: 1.5; }
-.scn-quote p::after { content: ""; position: absolute; left: 0; bottom: 0; width: 34px; height: 3px; background: var(--scn-orange); border-radius: 2px; }
+.scn-quote { position: fixed; left: 4vw; bottom: 7vh; max-width: 360px; display: flex; gap: 14px; align-items: flex-start; color: var(--scn-orange); z-index: 1; }
+.scn-quote img { width: 42px; height: 42px; flex: 0 0 auto; }
+.scn-quote p { position: relative; margin: 5px 0 0; padding-bottom: 13px; font-size: 20px; font-weight: 600; line-height: 1.4; color: var(--scn-orange); }
+.scn-quote p::after { content: ""; position: absolute; left: 0; bottom: 0; width: 46px; height: 4px; background: var(--scn-orange); border-radius: 2px; }
 
 .scn-page .coaching-back { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: left; margin-bottom: 12px; }
 .scn-preview {
