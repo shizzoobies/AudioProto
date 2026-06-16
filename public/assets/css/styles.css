@@ -4029,15 +4029,23 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
 .scn-name { margin: 0 0 5px; font-family: 'Playfair Display', Georgia, serif; font-size: 30px; font-weight: 700; color: var(--scn-ink); line-height: 1.12; }
 .scn-sub { margin: 0 0 18px; font-size: 14px; color: var(--scn-muted); }
 .scn-progress { margin: -10px 0 16px; font-size: 12px; color: var(--scn-green); font-weight: 600; }
-.scn-row { display: flex; gap: 12px; text-align: left; padding: 5px 0; align-items: flex-start; }
+.scn-row { display: flex; gap: 12px; text-align: left; padding: 6px 8px; margin: 0 -8px; border-radius: 10px; align-items: flex-start; cursor: pointer; transition: background 0.2s ease; }
+.scn-row:hover { background: rgba(106, 127, 70, 0.07); }
 .scn-row-icon { flex: 0 0 auto; width: 32px; height: 32px; display: block; }
 .scn-row-body { min-width: 0; }
 .scn-row-label { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--scn-label); }
-/* Collapsed to the first line by default; expands on hover/focus so the card
-   reads cleanly until you want the detail. */
-.scn-row-text { margin: 2px 0 0; font-size: 14px; color: var(--scn-ink); line-height: 1.45; max-height: 1.5em; overflow: hidden; transition: max-height 0.4s ease; }
+/* Chevron next to the label hints the row expands; rotates on hover. */
+.scn-row-label::after { content: "⌄"; display: inline-block; margin-left: 6px; color: var(--scn-orange); font-weight: 700; transition: transform 0.3s ease; }
+.scn-row:hover .scn-row-label::after { transform: rotate(180deg); }
+/* Collapsed to the first line (with an ellipsis) by default; expands smoothly on
+   hover/focus so the card reads cleanly until you want the detail. */
+.scn-row-text {
+  margin: 2px 0 0; font-size: 14px; color: var(--scn-ink); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  max-height: 1.5em; overflow: hidden; transition: max-height 0.4s ease;
+}
 .scn-row:hover .scn-row-text,
-.scn-row:focus-within .scn-row-text { max-height: 40em; }
+.scn-row:focus-within .scn-row-text { -webkit-line-clamp: 999; max-height: 40em; }
 .scn-divider { height: 1px; background: rgba(36,29,28,0.10); margin: 10px 2px; }
 .scn-card .coaching-test-name { display: block; text-align: left; margin: 18px 0 14px; }
 .scn-card .coaching-test-name-label { display: block; font-size: 12px; font-weight: 600; color: var(--scn-ink); margin-bottom: 6px; }
@@ -4076,6 +4084,11 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
   .scn-bg { background: var(--scn-page); }
   .scn-quote { display: none; }
   .scn-page { padding: 3vh 16px 6vh; }
+  /* No hover on touch: show the full text and drop the expand cues. */
+  .scn-row-text { -webkit-line-clamp: unset; max-height: none; }
+  .scn-row { cursor: default; }
+  .scn-row:hover { background: transparent; }
+  .scn-row-label::after { display: none; }
 }
 
 /* ---- Scenario journey (the elevated, per-scenario mode picker) ------------- */
