@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-16 scenario-card-assets';
+const BUILD_ID = '20260610-19 scenario-stage';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1303,14 +1303,6 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
 
     dom.root.innerHTML = `
       <section class="scn-page"${accentVar ? ` style="${accentVar}"` : ''}>
-        <div class="scn-decor" aria-hidden="true">
-          <img class="scn-d scn-d-photo" src="${IMG}/photo.png" alt="">
-          <img class="scn-d scn-d-leaf" src="${IMG}/leaf-corner.png" alt="">
-          <img class="scn-d scn-d-roots" src="${IMG}/roots.png" alt="">
-          <img class="scn-d scn-d-tan" src="${IMG}/shape-2.png" alt="">
-          <img class="scn-d scn-d-green" src="${IMG}/shape-3.png" alt="">
-          <div class="scn-quote"><img src="${IMG}/icon-quote.png" alt="" aria-hidden="true"><p>Great managers grow people, not just performance.</p></div>
-        </div>
         ${backHtml}
         ${preview ? `
           <div class="scn-preview">
@@ -1320,17 +1312,27 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
             </label>
             <button type="button" class="ghost-button coaching-preview-reset">Start fresh test</button>
           </div>` : ''}
-        <div class="scn-card">
-          <span class="scn-avatar">${escapeHtml(coachingInitials(name))}</span>
-          <p class="scn-eyebrow">${escapeHtml(scenarioName || 'Scenario')}</p>
-          <h1 class="scn-name">${escapeHtml(name)}</h1>
-          <p class="scn-sub">${escapeHtml([role, age ? `Age ${age}` : ''].filter(Boolean).join('  •  '))}</p>
-          ${callCount > 0 && !preview ? `<p class="scn-progress">${callCount} call${callCount === 1 ? '' : 's'} taken</p>` : ''}
-          ${demeanor ? rowHtml('icon-profile.png', 'Typical performance & demeanor', demeanor) : ''}
-          ${(demeanor && incident) ? '<div class="scn-divider"></div>' : ''}
-          ${incident ? rowHtml('icon-help.png', 'What happened', incident) : ''}
-          ${nameFieldHtml}
-          <div class="scn-actions">${actionsHtml}</div>
+        <div class="scn-stage">
+          <div class="scn-decor" aria-hidden="true">
+            <img class="scn-d scn-d-photo" src="${IMG}/photo.png" alt="">
+            <img class="scn-d scn-d-leaf" src="${IMG}/leaf-corner.png" alt="">
+            <img class="scn-d scn-d-roots" src="${IMG}/roots.png" alt="">
+            <img class="scn-d scn-d-tan" src="${IMG}/shape-2.png" alt="">
+            <img class="scn-d scn-d-green" src="${IMG}/shape-3.png" alt="">
+            <div class="scn-quote"><img src="${IMG}/icon-quote.png" alt="" aria-hidden="true"><p>Great managers grow people, not just performance.</p></div>
+          </div>
+          <div class="scn-card">
+            <span class="scn-avatar">${escapeHtml(coachingInitials(name))}</span>
+            <p class="scn-eyebrow">${escapeHtml(scenarioName || 'Scenario')}</p>
+            <h1 class="scn-name">${escapeHtml(name)}</h1>
+            <p class="scn-sub">${escapeHtml([role, age ? `Age ${age}` : ''].filter(Boolean).join('  •  '))}</p>
+            ${callCount > 0 && !preview ? `<p class="scn-progress">${callCount} call${callCount === 1 ? '' : 's'} taken</p>` : ''}
+            ${demeanor ? rowHtml('icon-profile.png', 'Typical performance & demeanor', demeanor) : ''}
+            ${(demeanor && incident) ? '<div class="scn-divider"></div>' : ''}
+            ${incident ? rowHtml('icon-help.png', 'What happened', incident) : ''}
+            ${nameFieldHtml}
+            <div class="scn-actions">${actionsHtml}</div>
+          </div>
         </div>
       </section>
     `;
