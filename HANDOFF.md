@@ -18,7 +18,7 @@ coaching calls (ElevenLabs) with persistent memory.
   if `git rev-list --count origin/dev-dashboard..origin/main` is `0`, then
   `git push origin dev-dashboard:main`. Cloudflare auto-builds `main`.
 - **Cache-bust:** bump `?v=` on `styles.css` + `app.js` in `public/app.html` (currently
-  `20260610-34`); `app.js` also has a `BUILD_ID` const. **Edit `app.html` with the Edit tool
+  `20260610-35`); `app.js` also has a `BUILD_ID` const. **Edit `app.html` with the Edit tool
   or `sed`, NOT PowerShell `Set-Content` (it injects a UTF-8 BOM).**
 - Commit trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 - A **parallel work stream** sometimes lands commits here. `git fetch` + check before committing.
@@ -32,7 +32,7 @@ Per-scenario participant/preview screen rebuilt to a warm botanical design.
 - **Background:** one composed image `public/assets/img/coaching/background.png` on `.scn-bg`
   (`position: fixed; inset:0; background: url(...) center -13vh / cover`). `-13vh` lifts the tree
   top to the frame top.
-- **Palette** (vars on `.scn-page`): green `#6a7f46`, orange `#e97132`, amber `#f5e1af`,
+- **Palette** (vars on `.scn-page`): green `#6a7f46`, orange `#e7a23d`, amber `#f5e1af`,
   card `#fcf9f3`, page `#f4eddf`, ink `#241d1c`, muted `#7e7764`, tan `#e2cca8`.
 - **Card:** centered, `max-width:400px`. **Quote:** `.scn-quote` fixed `left:15vw; bottom:9vh`,
   black text, orange underline, inline-SVG bubble icon coloured from `--scn-orange`.
@@ -57,6 +57,11 @@ Per-scenario participant/preview screen rebuilt to a warm botanical design.
   trait (`disruptiveness`), full coaching-editor share link (scope `level` full|scenarios).
 - **Preview/Test:** `coaching-agent-preview`, `preview-reset`, `as_role` honored only for `__cvprev__`.
 - **Bug fixed:** `dashboard-fields.js` derives `SECTION_KEYS` from `DASHBOARD_SECTIONS` (was stale).
+- **Voice turn-taking** (`functions/api/voice-agent/start.js`, authored `ca_` branch): agents now
+  **wait to be greeted** — `first_message` is `''` and a turn-taking directive is appended to the
+  prompt. Authored `opening_lines` are reframed as **context-aware reactions** (voiced only when the
+  conversation reaches the topic, e.g. the incident), never a cold open. Legacy `coaching_practice`
+  (Taylor) still greets first and is untouched (deprecated).
 
 ## 5. Conventions / gotchas
 - **No em dashes** in user-facing or AI-prompt copy (locked rule).
