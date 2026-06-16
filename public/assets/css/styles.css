@@ -3991,18 +3991,26 @@ body[data-coaching] .app-header { display: none; }
    warm background reaches every screen edge with no gaps. */
 .app-main:has(> .scn-page) { padding: 0; }
 body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
-/* The composition is a centered, fixed-width "stage" so the art frames the card
-   at any screen width (cream fills the rest). Decorations are positioned as % of
-   the stage and may bleed past it; .scn-page clips at the real screen edge. */
-.scn-stage { position: relative; z-index: 1; width: 100%; max-width: 980px; margin: 0 auto; display: flex; justify-content: center; }
-.scn-decor { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: visible; }
+/* Full-viewport composition: the card stays centered (~400px) and the art fills
+   the gap from each SCREEN edge to the card, bleeding off the edges like the
+   mockup. The decor layer is one viewport tall and clips at the screen edges; the
+   card sits above it. Sizes scale with the viewport so the art stays large. */
+.scn-decor {
+  position: absolute; top: 0; left: 0; width: 100%;
+  height: 100vh; height: 100dvh;
+  pointer-events: none; z-index: 0; overflow: hidden;
+}
 .scn-d { position: absolute; display: block; height: auto; }
-.scn-d-photo { left: -7%; top: 6%; width: 36%; }
-.scn-d-leaf { right: 19%; top: -3%; width: 16%; }
-.scn-d-roots { right: 0; top: 4%; width: 22%; }
-.scn-d-tan { right: -6%; bottom: -5%; width: 32%; }
-.scn-d-green { right: -11%; bottom: -14%; width: 27%; }
-.scn-quote { position: absolute; left: -7%; bottom: 3%; max-width: 200px; display: flex; gap: 10px; align-items: flex-start; color: var(--scn-ink); }
+/* Photo: from the screen-left edge toward the card, large. */
+.scn-d-photo { left: 0; top: 10vh; width: clamp(320px, calc(50vw - 140px), 760px); }
+/* Roots: tall plant on the right, near the right edge. */
+.scn-d-roots { right: 2vw; top: 5vh; width: clamp(220px, calc(42vw - 150px), 460px); }
+/* Leaf tucked behind the card's top-right corner (peeks out past it). */
+.scn-d-leaf { right: calc(50% - 250px); top: 3vh; width: clamp(150px, 17vw, 240px); }
+/* Tan + green blobs bleed off the bottom-right corner, large. */
+.scn-d-tan { right: 0; bottom: -8vh; width: clamp(320px, 36vw, 560px); }
+.scn-d-green { right: -5vw; bottom: -20vh; width: clamp(280px, 32vw, 500px); }
+.scn-quote { position: absolute; left: 4vw; bottom: 6vh; max-width: 220px; display: flex; gap: 10px; align-items: flex-start; color: var(--scn-ink); z-index: 1; }
 .scn-quote img { width: 30px; height: 30px; flex: 0 0 auto; }
 .scn-quote p { position: relative; margin: 4px 0 0; padding-bottom: 9px; font-size: 14px; font-weight: 500; line-height: 1.5; }
 .scn-quote p::after { content: ""; position: absolute; left: 0; bottom: 0; width: 34px; height: 3px; background: var(--scn-orange); border-radius: 2px; }
