@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-22 scenario-quote';
+const BUILD_ID = '20260610-24 scenario-quote-icon';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1313,7 +1313,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
             <button type="button" class="ghost-button coaching-preview-reset">Start fresh test</button>
           </div>` : ''}
         <div class="scn-bg" aria-hidden="true"></div>
-        <div class="scn-quote"><img src="${IMG}/icon-quote.png" alt="" aria-hidden="true"><p>Great managers grow people,<br>not just performance.</p></div>
+        <div class="scn-quote"><svg class="scn-quote-ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="5" width="38" height="30" rx="9" fill="currentColor"/><path d="M14 32 L14 44 L26 33 Z" fill="currentColor"/><path d="M15 14 h8 v7 c0 4 -2.5 6.5 -6.2 7.6 l-1.3 -2.6 c2.1 -0.7 3.3 -1.8 3.5 -3.2 H15 Z" fill="#fcf9f3"/><path d="M25 14 h8 v7 c0 4 -2.5 6.5 -6.2 7.6 l-1.3 -2.6 c2.1 -0.7 3.3 -1.8 3.5 -3.2 H25 Z" fill="#fcf9f3"/></svg><p>Great managers grow people,<br>not just performance.</p></div>
         <div class="scn-card">
           <span class="scn-avatar">${escapeHtml(coachingInitials(name))}</span>
           <p class="scn-eyebrow">${escapeHtml(scenarioName || 'Scenario')}</p>
