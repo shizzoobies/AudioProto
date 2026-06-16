@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-15 scenario-card';
+const BUILD_ID = '20260610-16 scenario-card-assets';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1251,25 +1251,15 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       </section>
     `;
   } else {
-    // Authored scenario → the "growth" scenario card (mockup: Bobbie's Dashboard).
-    // How many stages the coach has released (admin gate). Default 1 = only the
-    // first call. A stage is available only if the prior call is done AND the
-    // coach has unlocked it. Preview ungates everything.
+    // Authored scenario → the "growth" scenario card (Bobbie's Dashboard assets).
     const unlockedStage = Number(agent.progress?.unlocked_stage) || 1;
     const accentVar = accent ? `--scn-accent:${accent}` : '';
+    const IMG = '/assets/img/coaching';
+    const leafFor = (mode) => mode === 'coaching' ? `${IMG}/leaf-2.png` : `${IMG}/leaf-1.png`;
 
-    // Inline SVG icons (CSP-safe). Swap these for client-supplied art later.
-    const SVG = {
-      leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13C4 8 8 4 18 4C18 14 14 18 11 20Z"/><path d="M5 19C7 14 10 11 16 8"/></svg>',
-      person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5C5.5 15.9 8.4 14 12 14C15.6 14 18.5 15.9 18.5 19.5"/></svg>',
-      help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 9.2C9.2 7.4 10.5 6.2 12 6.2C13.6 6.2 14.9 7.3 14.9 8.9C14.9 11 12 11 12 13.4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor"/></svg>',
-      cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M4 10H20M8 3.5V7M16 3.5V7"/></svg>',
-      arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12H19M13 6L19 12L13 18"/></svg>',
-      quote: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 7C7 7 5 9.2 5 12.3C5 15 6.7 17 9.1 17C9.7 17 10.2 16.9 10.6 16.6C9.9 18.4 8.3 19.6 6.6 20L7.4 21.6C10.6 20.6 12.8 17.7 12.8 13.6C12.8 9.7 11.6 7 10 7ZM18.4 7C15.4 7 13.4 9.2 13.4 12.3C13.4 15 15.1 17 17.5 17C18.1 17 18.6 16.9 19 16.6C18.3 18.4 16.7 19.6 15 20L15.8 21.6C19 20.6 21.2 17.7 21.2 13.6C21.2 9.7 20 7 18.4 7Z"/></svg>',
-    };
-
-    // One action per ENABLED mode. assessment=green, coaching=orange, follow-up=
-    // amber; a call that isn't available yet renders as a muted locked tile.
+    // One action per ENABLED mode. assessment=green (1 leaf), coaching=orange
+    // (2 leaves), follow-up=amber; a call that isn't available yet renders as a
+    // muted locked tile with the calendar icon.
     const actionsHtml = modeDefs.map((def, i) => {
       const prevAllDone = preview ? true : modeDefs.slice(0, i).every((d) => modesDone[d.mode]);
       const adminAllowed = preview ? true : i < unlockedStage;
@@ -1280,7 +1270,7 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
         const why = !prevAllDone ? 'Available after you finish a call.' : 'Your coach will open this.';
         return `
           <div class="scn-action scn-action-locked">
-            <span class="scn-action-icon">${SVG.cal}</span>
+            <img class="scn-action-icon" src="${IMG}/icon-calendar.png" alt="" aria-hidden="true">
             <span class="scn-action-body">
               <span class="scn-action-label">${escapeHtml(def.label)}</span>
               <span class="scn-action-hint">${why}</span>
@@ -1290,15 +1280,15 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       const label = preview ? `Test ${def.label}` : done ? `${def.label} &middot; retake` : def.label;
       return `
         <button type="button" class="scn-action scn-action-${tone} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}">
-          <span class="scn-action-icon">${SVG.leaf}</span>
+          <img class="scn-action-icon" src="${leafFor(def.mode)}" alt="" aria-hidden="true">
           <span class="scn-action-label">${label}</span>
-          <span class="scn-action-arrow">${SVG.arrow}</span>
+          <img class="scn-action-arrow" src="${IMG}/icon-arrow.png" alt="" aria-hidden="true">
         </button>`;
     }).join('');
 
-    const rowHtml = (icon, label, text) => `
+    const rowHtml = (iconFile, label, text) => `
       <div class="scn-row">
-        <span class="scn-row-icon">${icon}</span>
+        <img class="scn-row-icon" src="${IMG}/${iconFile}" alt="" aria-hidden="true">
         <div class="scn-row-body">
           <span class="scn-row-label">${escapeHtml(label)}</span>
           <p class="scn-row-text">${escapeHtml(text)}</p>
@@ -1314,23 +1304,12 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
     dom.root.innerHTML = `
       <section class="scn-page"${accentVar ? ` style="${accentVar}"` : ''}>
         <div class="scn-decor" aria-hidden="true">
-          <span class="scn-blob scn-blob-tl"></span>
-          <span class="scn-blob scn-blob-tr"></span>
-          <span class="scn-blob scn-blob-br"></span>
-          <span class="scn-photo"></span>
-          <svg class="scn-roots" viewBox="0 0 120 220" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M60 96V70"/>
-            <path d="M60 78C60 70 52 64 46 62C52 64 56 70 60 78Z"/>
-            <path d="M60 84C60 76 68 70 74 68C68 70 64 76 60 84Z"/>
-            <path d="M60 96C54 110 44 120 36 150C32 168 30 188 28 208"/>
-            <path d="M60 96C66 110 76 120 84 150C88 168 90 188 92 208"/>
-            <path d="M60 96V210"/>
-            <path d="M48 130C40 138 34 150 32 168"/>
-            <path d="M72 130C80 138 86 150 88 168"/>
-            <path d="M56 150C50 160 46 176 46 196"/>
-            <path d="M64 150C70 160 74 176 74 196"/>
-          </svg>
-          <div class="scn-quote">${SVG.quote}<p>Great managers grow people, not just performance.</p></div>
+          <img class="scn-d scn-d-photo" src="${IMG}/photo.png" alt="">
+          <img class="scn-d scn-d-leaf" src="${IMG}/leaf-corner.png" alt="">
+          <img class="scn-d scn-d-roots" src="${IMG}/roots.png" alt="">
+          <img class="scn-d scn-d-tan" src="${IMG}/shape-2.png" alt="">
+          <img class="scn-d scn-d-green" src="${IMG}/shape-3.png" alt="">
+          <div class="scn-quote"><img src="${IMG}/icon-quote.png" alt="" aria-hidden="true"><p>Great managers grow people, not just performance.</p></div>
         </div>
         ${backHtml}
         ${preview ? `
@@ -1347,9 +1326,9 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
           <h1 class="scn-name">${escapeHtml(name)}</h1>
           <p class="scn-sub">${escapeHtml([role, age ? `Age ${age}` : ''].filter(Boolean).join('  •  '))}</p>
           ${callCount > 0 && !preview ? `<p class="scn-progress">${callCount} call${callCount === 1 ? '' : 's'} taken</p>` : ''}
-          ${demeanor ? rowHtml(SVG.person, 'Typical performance & demeanor', demeanor) : ''}
+          ${demeanor ? rowHtml('icon-profile.png', 'Typical performance & demeanor', demeanor) : ''}
           ${(demeanor && incident) ? '<div class="scn-divider"></div>' : ''}
-          ${incident ? rowHtml(SVG.help, 'What happened', incident) : ''}
+          ${incident ? rowHtml('icon-help.png', 'What happened', incident) : ''}
           ${nameFieldHtml}
           <div class="scn-actions">${actionsHtml}</div>
         </div>
