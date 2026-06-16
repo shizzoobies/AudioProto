@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260610-24 scenario-quote-icon';
+const BUILD_ID = '20260610-25 scenario-rows-leaves';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1255,7 +1255,15 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
     const unlockedStage = Number(agent.progress?.unlocked_stage) || 1;
     const accentVar = accent ? `--scn-accent:${accent}` : '';
     const IMG = '/assets/img/coaching';
-    const leafFor = (mode) => mode === 'coaching' ? `${IMG}/leaf-2.png` : `${IMG}/leaf-1.png`;
+    // Action-button leaf + arrow drawn inline so they take the BUTTON's color
+    // (white on the green/orange buttons, black on the amber follow-up). Leaf
+    // count by mode: 1 assessment, 2 coaching, 3 follow-up.
+    const LEAF = 'M16 2 C12 8 11 16 12 24 C12.5 27 14 29 16 30 C18 29 19.5 27 20 24 C21 16 20 8 16 2 Z';
+    const leafCluster = (mode) => {
+      const angles = mode === 'followup' ? [-34, 0, 34] : mode === 'coaching' ? [-22, 22] : [0];
+      return `<svg class="scn-action-icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">${angles.map((a) => `<path transform="rotate(${a} 16 30)" d="${LEAF}"/>`).join('')}</svg>`;
+    };
+    const ARROW = '<svg class="scn-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
     // One action per ENABLED mode. assessment=green (1 leaf), coaching=orange
     // (2 leaves), follow-up=amber; a call that isn't available yet renders as a
@@ -1280,9 +1288,9 @@ function renderCoachingProfile(agent, { multi = false } = {}) {
       const label = preview ? `Test ${def.label}` : done ? `${def.label} &middot; retake` : def.label;
       return `
         <button type="button" class="scn-action scn-action-${tone} coaching-test-mode" data-mode="${escapeAttr(def.mode)}" data-persona-id="${escapeAttr(agent.id)}">
-          <img class="scn-action-icon" src="${leafFor(def.mode)}" alt="" aria-hidden="true">
+          ${leafCluster(def.mode)}
           <span class="scn-action-label">${label}</span>
-          <img class="scn-action-arrow" src="${IMG}/icon-arrow.png" alt="" aria-hidden="true">
+          ${ARROW}
         </button>`;
     }).join('');
 

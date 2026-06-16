@@ -4033,7 +4033,11 @@ body.app-page:has(.scn-page) { background: var(--scn-page, #f4eddf); }
 .scn-row-icon { flex: 0 0 auto; width: 32px; height: 32px; display: block; }
 .scn-row-body { min-width: 0; }
 .scn-row-label { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--scn-label); }
-.scn-row-text { margin: 2px 0 0; font-size: 14px; color: var(--scn-ink); line-height: 1.45; }
+/* Collapsed to the first line by default; expands on hover/focus so the card
+   reads cleanly until you want the detail. */
+.scn-row-text { margin: 2px 0 0; font-size: 14px; color: var(--scn-ink); line-height: 1.45; max-height: 1.5em; overflow: hidden; transition: max-height 0.4s ease; }
+.scn-row:hover .scn-row-text,
+.scn-row:focus-within .scn-row-text { max-height: 40em; }
 .scn-divider { height: 1px; background: rgba(36,29,28,0.10); margin: 10px 2px; }
 .scn-card .coaching-test-name { display: block; text-align: left; margin: 18px 0 14px; }
 .scn-card .coaching-test-name-label { display: block; font-size: 12px; font-weight: 600; color: var(--scn-ink); margin-bottom: 6px; }
