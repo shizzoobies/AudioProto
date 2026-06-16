@@ -4266,11 +4266,12 @@ async function onSaveCoachingSyllabus() {
   }
 }
 
-// ---- Development-Plan questions editor (full admin only) -------------------
-// The editable questions managers answer in each Development-Plan part. Three
-// sub-groups map to section_key devplan1/devplan2/devplan3. Backed by
-// /api/admin/dashboard-fields (GET/POST upsert/DELETE). Mirrors the voices
-// panel's add/list/delete handler style; re-renders the section in place.
+// ---- Course questions editor (full admin / full coaching editor) ----------
+// The editable questions participants answer in each form section of the
+// Development by Design course; DEVPLAN_GROUPS maps one group per section_key
+// (kept in sync with DASHBOARD_SECTIONS). Backed by /api/admin/dashboard-fields
+// (GET/POST upsert/DELETE). Mirrors the voices panel's add/list/delete handler
+// style; re-renders the section in place.
 
 // The form-question groups, one per course form section_key (mirrors
 // DASHBOARD_SECTIONS in shared/coaching-dashboard.js).

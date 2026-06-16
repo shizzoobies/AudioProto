@@ -1,6 +1,6 @@
-// Admin CRUD for the editable Development-Plan questions (dashboard_fields).
-// Full admins author the questions managers answer in each Development-Plan
-// part (Part 1/2/3 -> section_key devplan1/devplan2/devplan3). The fields
+// Admin CRUD for the editable course questions (dashboard_fields). Full admins
+// (and full-tier coaching editors) author the questions participants answer in
+// each form section of the Development by Design course. The fields
 // self-bootstrap + seed via ensureDashboardTables(env) (shared/dashboard-store).
 //
 // GET    - { fields: [ ...all rows ordered by section_key, position ] }
@@ -8,14 +8,18 @@
 //          id present -> UPDATE; else INSERT id='df_'+randomId. Returns { field }.
 // DELETE - by ?id= or JSON body { id }. Returns { ok, deleted }.
 //
-// Middleware (functions/api/_middleware.js) enforces the FULL cs_admin cookie on
-// every /api/admin/* route; these endpoints are NOT in the scoped
-// cs_coaching_admin allow-list, so the scoped editor gets a 401.
+// Middleware (functions/api/_middleware.js) enforces cs_admin on every
+// /api/admin/* route; this path is also in the FULL-tier coaching-editor
+// allow-list, so a full coaching editor can reach it (a scenarios-tier editor
+// gets a 401).
 
 import { randomId } from '../../../shared/auth.js';
 import { ensureDashboardTables } from '../../../shared/dashboard-store.js';
+import { DASHBOARD_SECTIONS } from '../../../shared/coaching-dashboard.js';
 
-const SECTION_KEYS = ['devplan1', 'devplan2', 'devplan3'];
+// The valid section_keys are EXACTLY the course's form sections — derived from
+// the single source of truth so they can never drift from the skeleton again.
+const SECTION_KEYS = DASHBOARD_SECTIONS.filter((s) => s.type === 'form').map((s) => s.section_key);
 const MAX_LABEL = 600;
 
 export async function onRequestGet({ env }) {
