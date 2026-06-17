@@ -7615,13 +7615,17 @@ body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
 .dash-section-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--color-text-primary); }
 .dash-section-body { margin-top: 14px; }
 
+/* Locked sections: a defined warm-tan panel that's clearly darker than the cream
+   page + botanical backdrop (so it doesn't dissolve into it), but flatter than the
+   bright active cards. Dashed border + inset read as "recessed / not yet". */
 .dash-section.is-locked {
-  background: var(--color-surface-elevated);
+  background: #ece0c4;
   border-style: dashed;
-  box-shadow: none;
-  opacity: 0.85;
+  border-color: #d0b582;
+  box-shadow: inset 0 1px 2px rgba(60, 45, 20, 0.05);
+  opacity: 1;
 }
-.dash-section.is-locked .dash-section-title { color: var(--color-text-tertiary); }
+.dash-section.is-locked .dash-section-title { color: #8a7d61; }
 .dash-lock-chip {
   flex: none;
   font-size: 12px;
