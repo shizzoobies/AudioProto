@@ -7395,6 +7395,33 @@ body[data-precall] #app-root {
 /* Coaching DASHBOARD — the 3-week / 8-section manager course view.         */
 /* ======================================================================== */
 .coaching-dash {
+  /* Warm "Bobbie's Dashboard" theme: override the app design tokens locally so
+     every descendant card, border, accent, focus ring + primary button inherits
+     the botanical palette automatically (custom properties cascade). Scoped to
+     the cohort dashboard; the rest of the app keeps the maroon theme. */
+  --scn-green: #6a7f46;
+  --scn-green-dark: #586b3a;
+  --scn-orange: #e7a23d;
+  --scn-orange-dark: #d8902c;
+  --scn-amber: #f5e1af;
+  --scn-tan: #e2cca8;
+  --scn-card: #fcf9f3;
+  --scn-page: #f4eddf;
+  --scn-ink: #241d1c;
+  --scn-muted: #7e7764;
+  --color-surface: var(--scn-card);
+  --color-surface-elevated: #f3ead9;
+  --color-border: var(--scn-tan);
+  --color-border-strong: #d8bd92;
+  --color-accent: var(--scn-green);
+  --color-accent-hover: var(--scn-green-dark);
+  --color-accent-muted: rgba(106, 127, 70, 0.14);
+  --color-text-primary: var(--scn-ink);
+  --color-text-secondary: #5b5446;
+  --color-text-tertiary: var(--scn-muted);
+  --shadow-bubble: 0 14px 36px rgba(60, 45, 20, 0.10);
+  --shadow-lift: 0 18px 44px rgba(60, 45, 20, 0.14);
+  position: relative;
   max-width: 760px;
   margin: 0 auto;
   padding: 32px 20px 64px;
@@ -7402,6 +7429,30 @@ body[data-precall] #app-root {
   flex-direction: column;
   gap: 28px;
 }
+/* Warm page + soft botanical backdrop, same world as the scenario card + call. */
+body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
+.coaching-dash::before {
+  content: "";
+  position: fixed; inset: 0;
+  background: url('/assets/img/coaching/background.png') center -13vh / cover no-repeat, #f4eddf;
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+}
+.coaching-dash > * { position: relative; z-index: 1; }
+/* Signature touches: serif card + syllabus titles, green eyebrows / week labels,
+   solid-green avatar (matching the scenario card), warm focus rings. */
+.dash-section-title,
+.dash-syllabus-label { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; }
+.dash-profile-eyebrow,
+.dash-profile-incident-h,
+.dash-week { color: var(--scn-green); }
+.dash-week-final { border-top-color: var(--scn-tan); }
+.dash-week-final .dash-week { color: var(--scn-green-dark); }
+.dash-strip-week.is-on { color: var(--scn-green-dark); }
+.dash-profile-initials { background: var(--scn-green); color: #fffdf8; }
+.dash-form-input:focus,
+.dash-call-name-input:focus { border-color: var(--scn-orange); box-shadow: 0 0 0 3px rgba(231, 162, 61, 0.18); }
 
 /* --- 1. Agent profile card --- */
 .dash-profile {
