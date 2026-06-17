@@ -7474,7 +7474,16 @@ body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
   position: relative;
   width: 148px;
   height: 137px;
+}
+/* Ring + leaf as a FRONT overlay (above the photo) so the inward-pointing leaf
+   and the stroke are never clipped by the avatar. */
+.dash-profile-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: url('/assets/img/coaching/profile-border.png') center / contain no-repeat;
+  pointer-events: none;
+  z-index: 2;
 }
 .dash-profile-photo,
 .dash-profile-initials {
@@ -7485,6 +7494,7 @@ body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
   width: 78%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
+  z-index: 1;
 }
 .dash-profile-photo { object-fit: cover; display: block; background: var(--scn-card); }
 /* Amber fill (not green) so the green ring + leaf stay visible around the
