@@ -3763,8 +3763,13 @@ function renderCoachingAgentsSection() {
 
         <div class="admin-field">
           <label class="admin-field-label" for="ca-photo">Photo</label>
-          <input type="text" id="ca-photo" class="admin-input" placeholder="https://… or data:image/…">
-          <span class="admin-field-hint">Image URL or leave blank for an initials avatar.</span>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <img id="ca-photo-thumb" alt="" style="height:54px;width:54px;object-fit:cover;border-radius:50%;border:1px solid var(--color-border);display:none;">
+            <label class="ghost-button" style="cursor:pointer;margin:0;">Upload photo<input type="file" accept="image/*" id="ca-photo-file" style="display:none;"></label>
+            <button type="button" class="ghost-button" id="ca-photo-remove" style="display:none;">Remove</button>
+          </div>
+          <input type="text" id="ca-photo" class="admin-input" style="margin-top:8px;" placeholder="…or paste a data:image/… URL">
+          <span class="admin-field-hint">Shown framed in the ring on the dashboard. PNG/JPG/WebP, up to 2 MB. Leave blank for an initials avatar.</span>
         </div>
         <div class="admin-field">
           <label class="admin-field-label" for="ca-incident-image">Incident image</label>
@@ -3863,6 +3868,14 @@ function attachCoachingAgentsHandlers() {
   const caImageRemove = document.getElementById('ca-image-remove');
   if (caImageRemove) caImageRemove.addEventListener('click', () => setScenarioImage(''));
 
+  const caPhotoFile = document.getElementById('ca-photo-file');
+  if (caPhotoFile) caPhotoFile.addEventListener('change', () => uploadScenarioPhoto(caPhotoFile.files && caPhotoFile.files[0]));
+  const caPhotoRemove = document.getElementById('ca-photo-remove');
+  if (caPhotoRemove) caPhotoRemove.addEventListener('click', () => setScenarioPhoto(''));
+  // Keep the thumbnail in sync if a data: URL is pasted straight into the field.
+  const caPhotoInput = document.getElementById('ca-photo');
+  if (caPhotoInput) caPhotoInput.addEventListener('change', () => setScenarioPhoto(caPhotoInput.value.trim()));
+
   document.querySelectorAll('[data-ca-edit]').forEach((btn) => {
     btn.addEventListener('click', () => editCoachingAgent(btn.dataset.caEdit));
   });
@@ -3891,6 +3904,38 @@ function setScenarioImage(id) {
     else { thumb.removeAttribute('src'); thumb.style.display = 'none'; }
   }
   if (remove) remove.style.display = id ? '' : 'none';
+}
+
+function setScenarioPhoto(url) {
+  const input = document.getElementById('ca-photo');
+  const thumb = document.getElementById('ca-photo-thumb');
+  const remove = document.getElementById('ca-photo-remove');
+  if (input) input.value = url || '';
+  if (thumb) {
+    if (url) { thumb.src = url; thumb.style.display = ''; }
+    else { thumb.removeAttribute('src'); thumb.style.display = 'none'; }
+  }
+  if (remove) remove.style.display = url ? '' : 'none';
+}
+
+// Reuses the same-origin image store the "Card look" upload uses; the avatar
+// renders whatever is in the photo field, so we store the /coaching-image/<id>
+// URL there (CSP-safe, no schema change).
+async function uploadScenarioPhoto(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || '')) { showCoachingAgentError('Please choose an image file.'); return; }
+  if (file.size > 2 * 1024 * 1024) { showCoachingAgentError('Image too large (max 2 MB). Resize / optimize it first.'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/admin/coaching-landing-image', { method: 'POST', credentials: 'same-origin', body: fd });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.id) { showCoachingAgentError('Upload failed' + (data && data.error ? ': ' + data.error : '') + '.'); return; }
+    setScenarioPhoto('/coaching-image/' + data.id);
+    showCoachingAgentError('');
+  } catch {
+    showCoachingAgentError('Network error during upload.');
+  }
 }
 
 async function uploadScenarioImage(file) {
@@ -4018,7 +4063,7 @@ function populateCoachingAgentForm(agent) {
   set('ca-incident', agent.incident);
   set('ca-personality', agent.personality);
   set('ca-opening-lines', Array.isArray(agent.opening_lines) ? agent.opening_lines.join('\n') : '');
-  set('ca-photo', agent.photo);
+  setScenarioPhoto(agent.photo || '');
   set('ca-incident-image', agent.incident_image);
   setScenarioImage(agent.image_id || '');
   const accentOn = document.getElementById('ca-accent-on');
@@ -4042,8 +4087,7 @@ function clearCoachingAgentForm() {
   if (idEl) idEl.value = '';
   const scenarioNameEl = document.getElementById('ca-scenario-name');
   if (scenarioNameEl) scenarioNameEl.value = '';
-  const photoEl = document.getElementById('ca-photo');
-  if (photoEl) photoEl.value = '';
+  setScenarioPhoto('');
   const incidentImageEl = document.getElementById('ca-incident-image');
   if (incidentImageEl) incidentImageEl.value = '';
   setScenarioImage('');
