@@ -7450,7 +7450,6 @@ body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
 .dash-week-final { border-top-color: var(--scn-tan); }
 .dash-week-final .dash-week { color: var(--scn-green-dark); }
 .dash-strip-week.is-on { color: var(--scn-green-dark); }
-.dash-profile-initials { background: var(--scn-green); color: #fffdf8; }
 .dash-form-input:focus,
 .dash-call-name-input:focus { border-color: var(--scn-orange); box-shadow: 0 0 0 3px rgba(231, 162, 61, 0.18); }
 
@@ -7465,23 +7464,39 @@ body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
   box-shadow: var(--shadow-lift);
   padding: 20px;
 }
-.dash-profile-media { flex: none; }
-.dash-profile-photo {
-  width: 132px;
-  height: 132px;
-  border-radius: var(--radius-md);
-  object-fit: cover;
-  display: block;
-  background: var(--color-surface-elevated);
+/* Avatar framed by the botanical "Profile Border" ring (green circle + leaf).
+   The PNG ring is NOT centred in its canvas (the leaf extends it down-left), so
+   the circle sits at 53.9% / 49.6% of the frame; the photo/initials are placed
+   there as a circle tucked just inside the stroke. Geometry measured from the
+   673x621 asset: centre (363,308), radius ~287. */
+.dash-profile-media {
+  flex: none;
+  position: relative;
+  width: 148px;
+  height: 137px;
+  background: url('/assets/img/coaching/profile-border.png') center / contain no-repeat;
 }
+.dash-profile-photo,
+.dash-profile-initials {
+  position: absolute;
+  top: 49.6%;
+  left: 53.9%;
+  transform: translate(-50%, -50%);
+  width: 78%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+.dash-profile-photo { object-fit: cover; display: block; background: var(--scn-card); }
+/* Amber fill (not green) so the green ring + leaf stay visible around the
+   monogram; a solid-green disc would merge with the ring into one blob. */
 .dash-profile-initials {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: 33px;
   font-weight: 700;
-  color: var(--color-accent);
-  background: var(--color-accent-muted);
+  background: var(--scn-amber);
+  color: var(--scn-green-dark);
 }
 .dash-profile-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 .dash-profile-eyebrow {
