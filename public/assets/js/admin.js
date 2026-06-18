@@ -287,7 +287,6 @@ function paintCoachingPage() {
   root.innerHTML = `
     ${renderSignedInBar()}
     ${showBack ? '<p class="admin-back"><a class="admin-back-link" href="/admin">&larr; Back to admin dashboard</a></p>' : ''}
-    ${showRoster ? renderCoachingLandingSection() : ''}
     ${showRoster ? renderCoachingSyllabusSection() : ''}
     ${showRoster ? renderCohortsSection() : ''}
     ${showRoster ? renderCoachingEditorsSection() : ''}
@@ -296,7 +295,6 @@ function paintCoachingPage() {
     ${showRoster ? renderDashboardFieldsSection() : ''}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
-  if (showRoster) attachCoachingLandingHandlers();
   if (showRoster) attachCoachingSyllabusHandlers();
   if (showRoster) attachCohortsHandlers();
   if (showRoster) attachCoachingEditorsHandlers();
