@@ -735,7 +735,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-demo', label: 'Demo link' },
   { id: 'sec-coaching', label: 'Coaching link' },
   { id: 'sec-coaching-agents-link', label: 'Scenarios' },
-  { id: 'sec-charts', label: 'Charts link' },
+  { id: 'sec-charts', label: 'Cost model link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
   { id: 'sec-reviewlink', label: 'Review access' },
@@ -4519,15 +4519,15 @@ function renderChartsSection() {
   const charts = state.charts;
   const active = !!charts?.active;
   const statusHtml = active
-    ? '<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">Cost & ROI charts page</span>'
-    : '<span class="admin-muted">No charts link yet</span>';
+    ? '<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">Training Minute Allocator</span>'
+    : '<span class="admin-muted">No cost model link yet</span>';
 
   return `
     <section class="admin-section" id="sec-charts">
       <header class="admin-section-head">
-        <p class="admin-eyebrow">Charts</p>
-        <h2 class="admin-section-title">Charts link</h2>
-        <p class="admin-section-sub">One shareable link to the standalone Cost &amp; ROI charts page. No password: anyone with the link can view it.</p>
+        <p class="admin-eyebrow">Cost model</p>
+        <h2 class="admin-section-title">Cost model link</h2>
+        <p class="admin-section-sub">One shareable link to the Training Minute Allocator (the ElevenLabs and Claude cost model). No password: anyone with the link can view it.</p>
       </header>
 
       <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
@@ -4535,7 +4535,7 @@ function renderChartsSection() {
           ${statusHtml}
         </div>
         <div class="admin-invite-actions" style="justify-content:flex-start;">
-          <button type="button" class="primary-button" id="admin-charts-generate-btn">${active ? 'Regenerate charts link' : 'Generate charts link'}</button>
+          <button type="button" class="primary-button" id="admin-charts-generate-btn">${active ? 'Regenerate cost model link' : 'Generate cost model link'}</button>
           ${active ? '<button type="button" class="ghost-button" id="admin-charts-revoke-btn">Revoke</button>' : ''}
         </div>
         <div id="admin-charts-generated" class="admin-generated"></div>
@@ -4576,7 +4576,7 @@ async function onGenerateCharts() {
 }
 
 async function onRevokeCharts() {
-  if (!confirm('Revoke the charts link? Anyone holding it will lose access immediately.')) return;
+  if (!confirm('Revoke the cost model link? Anyone holding it will lose access immediately.')) return;
   const btn = document.getElementById('admin-charts-revoke-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
   try {
@@ -4599,7 +4599,7 @@ function refreshChartsSection() {
   const sections = root.querySelectorAll('.admin-section');
   for (const sec of sections) {
     const eyebrow = sec.querySelector('.admin-eyebrow');
-    if (eyebrow && eyebrow.textContent.trim() === 'Charts') {
+    if (eyebrow && eyebrow.textContent.trim() === 'Cost model') {
       const tmp = document.createElement('div');
       tmp.innerHTML = renderChartsSection();
       sec.replaceWith(tmp.firstElementChild);
@@ -4614,7 +4614,7 @@ function paintChartsGenerated() {
   if (!out) return;
   if (!state.lastChartsUrl) { out.innerHTML = ''; return; }
   out.innerHTML = `
-    <div class="admin-alert admin-alert-success"><strong>Charts link ready.</strong> Share it with anyone. No password needed.</div>
+    <div class="admin-alert admin-alert-success"><strong>Cost model link ready.</strong> Share it with anyone. No password needed.</div>
     <div class="admin-generated-list">
       <div class="admin-generated-row">
         <div class="admin-generated-url-row">
@@ -4658,7 +4658,7 @@ function renderPreviewSection() {
       <header class="admin-section-head">
         <p class="admin-eyebrow">Preview</p>
         <h2 class="admin-section-title">Full library link</h2>
-        <p class="admin-section-sub">One shareable link to the whole library: every scenario, the random call, the showcase. No password. (The demo placeholders and the charts page are not included.)</p>
+        <p class="admin-section-sub">One shareable link to the whole library: every scenario, the random call, the showcase. No password. (The demo placeholders and the cost model page are not included.)</p>
       </header>
 
       <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">

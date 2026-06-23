@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Users, Clock, Gauge, TriangleAlert, Phone, RotateCcw, Server, Layers, Sparkles, TrendingUp, BookOpen, ShieldCheck, Wand2, MousePointerClick, Newspaper, Bot, Wrench, FolderSearch, Workflow } from "lucide-react";
+import { Users, Clock, Gauge, TriangleAlert, Phone, RotateCcw, Printer, Server, Layers, Sparkles, TrendingUp, BookOpen, ShieldCheck, Wand2, MousePointerClick, Newspaper, Bot, Wrench, FolderSearch, Workflow } from "lucide-react";
 
 const CAPABILITIES = [
   { icon: BookOpen, tag: "build + audit: days → hours", title: "Faster course lifecycle", desc: "Create, update, and audit courses an order of magnitude faster, at higher quality, with native HTML and AI built in where it earns its place." },
@@ -161,12 +161,20 @@ export default function TrainingMinuteAllocator() {
               How much voice-agent practice you can hand out before the meter turns red.
             </p>
           </div>
-          <button
-            onClick={reset}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800"
-          >
-            <RotateCcw size={13} /> Reset
-          </button>
+          <div className="no-print shrink-0 flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded border border-teal-500/40 bg-teal-400/10 px-3 py-2 text-xs text-teal-200 hover:bg-teal-400/20"
+            >
+              <Printer size={13} /> Save as PDF
+            </button>
+            <button
+              onClick={reset}
+              className="inline-flex items-center gap-1.5 rounded border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800"
+            >
+              <RotateCcw size={13} /> Reset
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">

@@ -8,3 +8,28 @@
 body {
   margin: 0;
 }
+
+/* Save as PDF: print the current cost model as it looks on screen. Keep the dark
+   theme and colors, hide the on-screen-only buttons, and avoid splitting cards
+   across page breaks. The responsive layout already collapses to a portrait
+   page width, so no extra scaling is needed. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #020617; /* slate-950, fills the printable area */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .min-h-screen {
+    min-height: 0 !important;
+  }
+  .rounded-lg {
+    break-inside: avoid;
+  }
+}
