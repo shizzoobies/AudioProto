@@ -736,6 +736,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invite', label: 'Send invite' },
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
+  { id: 'sec-live', label: 'Live practice' },
   { id: 'sec-coaching', label: 'Coaching link' },
   { id: 'sec-coaching-agents-link', label: 'Scenarios' },
   { id: 'sec-charts', label: 'Cost model link' },
