@@ -25,11 +25,17 @@ export const LIVE_SCENARIO_ID = 'demo_sales';
 // link stays usable through a normal working block, then quietly lapses.
 export const LIVE_COOKIE_TTL_SECONDS = 8 * 60 * 60;
 
+// Per-isolate latch so the idempotent CREATE TABLE / INDEX statements run once
+// per warm Worker isolate instead of on every ~1s poll. Reset to false on any
+// failure so a cold/failed isolate retries.
+let liveTableEnsured = false;
+
 // Create the live_sessions table if it does not exist yet. Best-effort and
 // idempotent: CREATE TABLE / INDEX IF NOT EXISTS, every statement wrapped so a
 // transient error never breaks the request. Cheap to call before any read/write.
 export async function ensureLiveTable(env) {
-  if (!env?.DB) return;
+  if (!env?.DB || liveTableEnsured) return;
+  let ok = true;
   const statements = [
     `CREATE TABLE IF NOT EXISTS live_sessions (
        id                     TEXT PRIMARY KEY,
@@ -56,9 +62,12 @@ export async function ensureLiveTable(env) {
     try {
       await env.DB.prepare(sql).run();
     } catch {
-      // table/index already present, or transient — safe to ignore
+      // table/index already present, or transient — safe to ignore, but do not
+      // latch so the next call retries.
+      ok = false;
     }
   }
+  if (ok) liveTableEnsured = true;
 }
 
 // Mint a paired set of secret URL tokens for a new session. Returns the plain
@@ -152,11 +161,16 @@ export function maskTraineeState(state) {
       const lower = key.toLowerCase();
       const val = fields[key];
       if (typeof val !== 'string') continue;
+      const digits = val.replace(/\D/g, '');
       if (lower.includes('card') && lower.includes('num')) {
-        const digits = val.replace(/\D/g, '');
         fields[key] = digits ? `•••• ${digits.slice(-4)}` : '';
       } else if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) {
         fields[key] = val ? '•••' : '';
+      } else if (digits.length >= 13 && digits.length <= 19 && digits.length === val.replace(/[\s-]/g, '').length) {
+        // Value-shape fallback: anything that looks like a PAN (13-19 digits,
+        // only spaces/dashes as separators) is masked even if the field name
+        // does not match the heuristics above (renamed or split card fields).
+        fields[key] = `•••• ${digits.slice(-4)}`;
       }
     }
     out.fields = fields;

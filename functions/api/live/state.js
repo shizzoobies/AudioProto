@@ -89,7 +89,8 @@ export async function onRequestPost({ request, env }) {
     binds.push(serialized);
   }
   if (body?.end === true) {
-    updates.push('active = 0', 'ended_at = ?');
+    // COALESCE keeps the FIRST end time if an already-ended session is re-ended.
+    updates.push('active = 0', 'ended_at = COALESCE(ended_at, ?)');
     binds.push(now);
   }
   if (!updates.length) return json({ error: 'nothing_to_update' }, 400);

@@ -42,7 +42,8 @@ export async function onRequestGet({ request, env }) {
     presenter_tips: PRESENTER_TIPS,
     opening_lines: Array.isArray(s.opening_lines) ? s.opening_lines : [],
     success_criteria: Array.isArray(s.success_criteria) ? s.success_criteria : [],
-    steps: ['Details', 'Equipment', 'Location', 'Scheduling', 'Checkout', 'Reservation Complete'],
+    // The real POS stepper (5 steps); matches the instructor mirror's stepper.
+    steps: ['Details', 'Equipment', 'Location', 'Time', 'Checkout'],
   });
 }
 

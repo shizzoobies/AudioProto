@@ -357,14 +357,19 @@ function snapshotLivePos() {
     }
   });
 
-  // Mask card data client-side. Names vary, so match defensively.
+  // Mask card data client-side (the server masks again as the trust boundary).
+  // Names vary, so match by name, then fall back to value shape (a PAN-looking
+  // 13-19 digit run) for renamed or split card fields.
   for (const key of Object.keys(fields)) {
     const lower = key.toLowerCase();
+    const val = String(fields[key]);
+    const digits = val.replace(/\D/g, '');
     if (lower.includes('card') && lower.includes('num')) {
-      const digits = String(fields[key]).replace(/\D/g, '');
       fields[key] = digits ? `•••• ${digits.slice(-4)}` : '';
     } else if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) {
       fields[key] = fields[key] ? '•••' : '';
+    } else if (digits.length >= 13 && digits.length <= 19 && digits.length === val.replace(/[\s-]/g, '').length) {
+      fields[key] = `•••• ${digits.slice(-4)}`;
     }
   }
 
