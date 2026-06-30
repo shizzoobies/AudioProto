@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-3 instructor-live-mode';
+const BUILD_ID = '20260630-4 instructor-live-mode';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -401,7 +401,11 @@ function snapshotLivePos() {
   const activeItem = q('.pos-stepper-item.active');
   const stepTitle =
     txt(q('#pos-topbar-title')) || (activeItem ? txt(activeItem.querySelector('.pos-stepper-label')) : '');
-  return { step: { n: stepN, title: stepTitle }, html: clonePosHtml() };
+  // The width the POS actually rendered at on the trainee's screen, so the
+  // instructor view can reproduce the exact layout (and scale to fit).
+  const callEl = q('.call');
+  const width = Math.round((callEl && callEl.getBoundingClientRect().width) || window.innerWidth || 1200);
+  return { step: { n: stepN, title: stepTitle }, width, html: clonePosHtml() };
 }
 
 async function postLiveSnapshot() {

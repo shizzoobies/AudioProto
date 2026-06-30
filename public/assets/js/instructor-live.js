@@ -30,6 +30,7 @@ let dossier = null;
 let pollTimer = null;
 let lastFocusStep = null;
 let lastHtml = null;
+let lastWidth = 1200;
 let saving = false;
 
 boot();
@@ -118,7 +119,7 @@ function renderShell(data) {
         <div class="col-title">Trainee screen (live)</div>
         ${popout}
       </div>
-      <div class="screen-shell"><iframe id="ilm-frame" title="Live trainee screen" scrolling="no"></iframe></div>
+      <div class="screen-shell"><div class="screen-scaler" id="ilm-scaler"><iframe id="ilm-frame" title="Live trainee screen" scrolling="no"></iframe></div></div>
       ${cribBelow}
     </div>`;
   updateStatus(data);
@@ -147,12 +148,13 @@ function renderMirror(data) {
   const stepTitle = (st && st.step && st.step.title) || POS_STEPS[stepN - 1] || '';
   updateNowBar(stepN, stepTitle);
   if (!SCREEN_ONLY) focusDossierForStep(stepN);
-  renderScreen(st && typeof st.html === 'string' ? st.html : '');
+  renderScreen(st && typeof st.html === 'string' ? st.html : '', st && st.width);
 }
 
-function renderScreen(html) {
+function renderScreen(html, width) {
   const frame = document.getElementById('ilm-frame');
   if (!frame) return;
+  if (width) lastWidth = width;
   if (!html) {
     if (lastHtml !== '') {
       lastHtml = '';
@@ -168,35 +170,52 @@ function renderScreen(html) {
   writeFrame(frame, `<main class="app-main">${html}</main>`, true);
 }
 
-// Render content into the isolated about:blank iframe with the app stylesheet, so
-// the POS clone looks exactly like the trainee's screen without the app styles
-// leaking into the instructor chrome. Non-interactive (watch only).
+// Render content into the isolated about:blank iframe with the SAME stylesheet and
+// web fonts the trainee app uses, so the POS clone is visually identical (fonts
+// drive text metrics and wrapping). App styles stay inside the frame and never
+// leak into the instructor chrome. Non-interactive (watch only).
 function writeFrame(frame, bodyHtml, appContext) {
   const doc = frame.contentDocument;
   if (!doc) return;
+  const fonts =
+    '<link rel="preconnect" href="https://fonts.googleapis.com">' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap">';
   const head = appContext
-    ? `<link rel="stylesheet" href="/assets/css/styles.css">
+    ? `${fonts}<link rel="stylesheet" href="/assets/css/styles.css">
        <style>
          html,body{margin:0;background:#fff;}
          .call-header .call-actions,#call-back,#call-dock,#orb-zone,#transcript,#visualizer-wrap{display:none!important;}
          .call,.call *{pointer-events:none!important;}
          .call-body{padding-bottom:10px!important;}
        </style>`
-    : '<style>html,body{margin:0;background:#fff;}</style>';
+    : '<style>html,body{margin:0;background:#fff;font-family:Inter,system-ui,sans-serif;}</style>';
   doc.open();
   doc.write(`<!doctype html><html><head><meta charset="utf-8">${head}</head><body class="app-page" data-app-state="ready" data-view="call">${bodyHtml}</body></html>`);
   doc.close();
   frame.onload = () => resizeFrame(frame);
-  // The stylesheet loads async; re-measure a few times as it applies.
-  [120, 450, 900, 1600].forEach((ms) => setTimeout(() => resizeFrame(frame), ms));
+  // Stylesheet + fonts load async; re-measure a few times as they apply.
+  [150, 500, 1000, 1800].forEach((ms) => setTimeout(() => resizeFrame(frame), ms));
 }
 
+// Render the frame at the trainee's actual width so the layout matches exactly,
+// then scale it down (never up) to fit the instructor panel. Scaling preserves
+// the precise proportional layout, so pointing at "the Continue button" maps 1:1.
 function resizeFrame(frame) {
   try {
     const doc = frame.contentDocument;
     if (!doc || !doc.body) return;
+    const scaler = document.getElementById('ilm-scaler');
+    const W = lastWidth || 1200;
+    frame.style.width = `${W}px`;
     const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight || 0);
-    if (h > 0) frame.style.height = `${h + 4}px`;
+    if (h <= 0) return;
+    frame.style.height = `${h + 4}px`;
+    const avail = scaler ? scaler.clientWidth : W;
+    const scale = Math.min(1, avail / W);
+    frame.style.transformOrigin = 'top left';
+    frame.style.transform = `scale(${scale})`;
+    if (scaler) scaler.style.height = `${Math.ceil((h + 4) * scale)}px`;
   } catch {
     // cross-origin should never happen for about:blank; ignore
   }

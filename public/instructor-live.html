@@ -36,7 +36,7 @@
   .pill[data-state="ended"] { background: rgba(180,83,9,.18); color: #fcd9a8; }
   .pill[data-state="ended"] .dot { background: #f59e0b; }
 
-  .ilm-wrap { max-width: 1100px; margin: 0 auto; padding: 14px 20px 60px; }
+  .ilm-wrap { max-width: 1280px; margin: 0 auto; padding: 14px 20px 60px; }
   .screen-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .screen-head .col-title { margin: 0; }
   .screen-popout { margin-left: auto; background: #fff; color: var(--charcoal); border: 1px solid var(--line);
@@ -44,7 +44,10 @@
   .screen-popout:hover { border-color: var(--orange); color: var(--orange); }
   .screen-shell { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff;
     box-shadow: 0 1px 3px rgba(16,18,22,.06); margin-bottom: 16px; }
-  #ilm-frame { width: 100%; border: 0; display: block; min-height: 320px; background: #fff; }
+  /* The scaler shrinks the trainee-width clone to fit this panel, preserving the
+     exact layout so positions map 1:1 for "click here" guidance. */
+  .screen-scaler { position: relative; overflow: hidden; width: 100%; min-height: 320px; }
+  #ilm-frame { border: 0; display: block; background: #fff; }
   .ilm-wrap.screen-only { padding-top: 8px; }
 
   /* The expandable coaching crib below the screen. */
@@ -181,6 +184,6 @@
   <div id="ilm-root">
     <div class="ilm-message"><div class="box"><p>Loading the live session...</p></div></div>
   </div>
-  <script type="module" src="/assets/js/instructor-live.js?v=20260630-3"></script>
+  <script type="module" src="/assets/js/instructor-live.js?v=20260630-4"></script>
 </body>
 </html>
