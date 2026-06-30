@@ -638,6 +638,8 @@ function paintDashboard() {
 
     ${renderDemoSection()}
 
+    ${renderLiveSessionsSection()}
+
     ${renderCoachingSection()}
 
     ${renderCoachingAgentsLinkCard()}
@@ -713,6 +715,7 @@ function paintDashboard() {
   attachAdminNav();
   attachInviteListHandlers();
   attachDemoHandlers();
+  attachLiveSessionsHandlers();
   attachCoachingHandlers();
   attachChartsHandlers();
   attachPreviewHandlers();
@@ -2002,6 +2005,190 @@ function paintDemoGenerated() {
       }
     });
   });
+}
+
+// ---- Instructor Live Mode sessions -----------------------------------------
+// No-API two-screen practice for the Sales demo. Create a session to mint a
+// paired trainee link + instructor link (passwordless, like the demo link). The
+// list loads lazily on first paint and refreshes after create/end/delete, so it
+// never touches the dashboard's main loadData() path.
+
+function renderLiveSessionsSection() {
+  return `
+    <section class="admin-section" id="sec-live">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Live practice</p>
+        <h2 class="admin-section-title">Instructor Live Mode</h2>
+        <p class="admin-section-sub">No-API, two-screen practice for the Sales demo (Robert). Create a session to get a paired trainee link and instructor link. The trainee drives the reservation, the instructor watches live and role-plays the customer by voice. No AI, no transcript, no cost.</p>
+      </header>
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div class="admin-invite-actions" style="justify-content:flex-start;gap:10px;flex-wrap:wrap;">
+          <input class="admin-input" id="admin-live-label" type="text" placeholder="Session label (optional), e.g. Maria, week 1" style="max-width:320px;">
+          <button type="button" class="primary-button" id="admin-live-create-btn">Create live session</button>
+          <button type="button" class="ghost-button" id="admin-live-refresh-btn">Refresh</button>
+        </div>
+        <div id="admin-live-created" class="admin-generated"></div>
+        <div id="admin-live-list">${renderLiveSessionRows(state.liveSessions)}</div>
+      </div>
+    </section>
+  `;
+}
+
+function renderLiveSessionRows(list) {
+  if (!Array.isArray(list)) return '<p class="admin-muted" style="font-size:13px;">Loading sessions…</p>';
+  if (!list.length) return '<p class="admin-muted" style="font-size:13px;">No live sessions yet. Create one above.</p>';
+  return `<div class="admin-generated-list">${list.map(liveRowHtml).join('')}</div>`;
+}
+
+function liveRowHtml(s) {
+  const status = s.active
+    ? '<span class="admin-pill admin-pill-active">Active</span>'
+    : '<span class="admin-muted">Ended</span>';
+  let created = '';
+  try {
+    if (s.created_at) created = new Date(s.created_at * 1000).toLocaleString();
+  } catch { created = ''; }
+  const label = s.label ? escapeHtml(s.label) : '<span class="admin-muted">Untitled session</span>';
+  const linkRow = (caption, url) =>
+    url
+      ? `<div class="admin-generated-url-row" style="margin-top:6px;">
+           <span style="min-width:84px;font-size:12px;font-weight:600;">${caption}</span>
+           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
+           <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(url)}">Copy</button>
+         </div>`
+      : '';
+  return `
+    <div class="admin-generated-row" data-live-id="${escapeAttr(s.id)}" style="border:1px solid #e2e4e9;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <strong style="font-size:13.5px;">${label}</strong> ${status}
+        ${created ? `<span class="admin-muted" style="font-size:12px;">${escapeHtml(created)}</span>` : ''}
+        <span style="margin-left:auto;display:flex;gap:8px;">
+          ${s.active ? `<button type="button" class="ghost-button" data-live-end="${escapeAttr(s.id)}">End</button>` : ''}
+          <button type="button" class="ghost-button" data-live-delete="${escapeAttr(s.id)}">Delete</button>
+        </span>
+      </div>
+      ${linkRow('Trainee', s.trainee_url)}
+      ${linkRow('Instructor', s.instructor_url)}
+    </div>`;
+}
+
+function attachLiveSessionsHandlers() {
+  const createBtn = document.getElementById('admin-live-create-btn');
+  if (createBtn) createBtn.addEventListener('click', onCreateLiveSession);
+  const refreshBtn = document.getElementById('admin-live-refresh-btn');
+  if (refreshBtn) refreshBtn.addEventListener('click', () => loadLiveSessions());
+  wireLiveRowHandlers();
+  // Lazy initial load the first time the dashboard paints.
+  if (!Array.isArray(state.liveSessions)) loadLiveSessions();
+}
+
+function wireLiveRowHandlers() {
+  const list = document.getElementById('admin-live-list');
+  if (!list) return;
+  list.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', () => liveCopyToClipboard(btn));
+  });
+  list.querySelectorAll('[data-live-end]').forEach((btn) => {
+    btn.addEventListener('click', () => onLiveLifecycle('end', btn.getAttribute('data-live-end')));
+  });
+  list.querySelectorAll('[data-live-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => onLiveLifecycle('delete', btn.getAttribute('data-live-delete')));
+  });
+}
+
+async function loadLiveSessions() {
+  try {
+    const res = await fetch('/api/admin/live-sessions', { credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    state.liveSessions = res.ok && data && Array.isArray(data.sessions) ? data.sessions : [];
+  } catch {
+    state.liveSessions = [];
+  }
+  repaintLiveList();
+}
+
+function repaintLiveList() {
+  const list = document.getElementById('admin-live-list');
+  if (!list) return;
+  list.innerHTML = renderLiveSessionRows(state.liveSessions);
+  wireLiveRowHandlers();
+}
+
+async function onCreateLiveSession() {
+  const btn = document.getElementById('admin-live-create-btn');
+  const out = document.getElementById('admin-live-created');
+  const labelInput = document.getElementById('admin-live-label');
+  const label = labelInput ? labelInput.value.trim() : '';
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+  try {
+    const res = await fetch('/api/admin/live-sessions', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(parts.join(': ') || 'failed')}</div>`;
+      return;
+    }
+    if (labelInput) labelInput.value = '';
+    if (out) {
+      out.innerHTML = liveCreatedHtml(data);
+      out.querySelectorAll('.admin-copy-btn').forEach((b) => b.addEventListener('click', () => liveCopyToClipboard(b)));
+    }
+    await loadLiveSessions();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create live session'; }
+  }
+}
+
+function liveCreatedHtml(s) {
+  const row = (cap, url) =>
+    url
+      ? `<div class="admin-generated-url-row" style="margin-top:6px;">
+           <span style="min-width:84px;font-size:12px;font-weight:600;">${cap}</span>
+           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(url)}">
+           <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(url)}">Copy</button>
+         </div>`
+      : '';
+  return `
+    <div class="admin-alert admin-alert-success"><strong>Live session ready.</strong> Send the Trainee link to the new hire, open the Instructor link on your own screen, then call them. No password needed.</div>
+    <div class="admin-generated-list">${row('Trainee', s.trainee_url)}${row('Instructor', s.instructor_url)}</div>`;
+}
+
+async function onLiveLifecycle(action, id) {
+  if (!id) return;
+  if (action === 'delete' && !confirm('Delete this session? Both links stop working and the record is removed.')) return;
+  if (action === 'end' && !confirm('End this session? Both links stop working immediately.')) return;
+  try {
+    const res = await fetch('/api/admin/live-sessions', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, id }),
+    });
+    if (res.ok) await loadLiveSessions();
+    else alert(action + ' failed.');
+  } catch {
+    alert('Network error.');
+  }
+}
+
+async function liveCopyToClipboard(btn) {
+  const url = btn.dataset.url;
+  try {
+    await navigator.clipboard.writeText(url);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  } catch {
+    alert('Copy failed. Select the URL and copy it manually.');
+  }
 }
 
 // ---- Coaching participants roster ------------------------------------------

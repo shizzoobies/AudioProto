@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instructor Live Mode</title>
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<!-- Self-contained styles (CSP allows inline styles). Intentionally NOT in the
+     shared app stylesheet so the instructor view can never affect the live demo. -->
+<style>
+  :root {
+    --ink: #101216; --charcoal: #1b1f2a; --grey: #5b6270; --line: #e2e4e9;
+    --panel: #fbf3ee; --light: #f4f5f7; --orange: #F26522; --agent: #1d4ed8;
+    --cust: #0f766e; --bg: #f7f8fa; --card: #ffffff; --ok: #15803d; --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  a { color: var(--agent); }
+
+  .ilm-header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center;
+    gap: 14px; padding: 12px 20px; background: var(--charcoal); color: #fff; }
+  .ilm-brand { font-weight: 700; letter-spacing: -0.01em; }
+  .ilm-brand .o { color: var(--orange); }
+  .ilm-sub { font-size: 12.5px; color: #c7cad3; }
+  .ilm-status { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; background: #2a3140; color: #cbd0da; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; }
+  .pill[data-state="active"] { background: rgba(21,128,61,.18); color: #86efac; }
+  .pill[data-state="active"] .dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+  .pill[data-state="ended"] { background: rgba(180,83,9,.18); color: #fcd9a8; }
+  .pill[data-state="ended"] .dot { background: #f59e0b; }
+
+  .ilm-wrap { max-width: 1320px; margin: 0 auto; padding: 18px 20px 60px;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 18px; }
+  @media (max-width: 980px) { .ilm-wrap { grid-template-columns: 1fr; } }
+
+  .col-title { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--grey); margin: 2px 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; margin-bottom: 14px; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; }
+
+  /* Mirror */
+  .stepper { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .stepper .s { flex: 1 1 0; min-width: 78px; text-align: center; padding: 8px 4px; border-radius: 9px;
+    background: var(--light); border: 1px solid var(--line); font-size: 11.5px; color: var(--grey); }
+  .stepper .s.active { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 600; }
+  .stepper .s.done { background: #eaf6ee; border-color: #cfe9d8; color: var(--ok); }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 4px 12px; font-size: 13.5px; }
+  .kv dt { color: var(--grey); }
+  .kv dd { margin: 0; word-break: break-word; }
+  .kv dd:empty::after, .kv dd.empty::after { content: "—"; color: #c2c6cf; }
+  .notes-box { white-space: pre-wrap; background: var(--light); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; font-size: 13.5px; min-height: 38px; }
+  .rec-line { display: flex; align-items: baseline; gap: 10px; }
+  .rec-line .truck { font-weight: 600; }
+  .rec-line .rate { color: var(--cust); font-weight: 600; }
+  .muted { color: var(--grey); }
+  .mirror-empty { color: var(--grey); font-size: 13.5px; padding: 6px 0; }
+
+  /* Dossier */
+  .snap-row { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; font-size: 13px;
+    padding: 7px 0; border-top: 1px solid var(--line); }
+  .snap-row:first-child { border-top: 0; }
+  .snap-row .lbl { font-weight: 600; color: var(--charcoal); }
+  .facts .snap-row .lbl { color: var(--orange); }
+  .timeline { white-space: pre-wrap; font-size: 12.8px; color: var(--ink); background: var(--panel);
+    border-left: 3px solid var(--orange); border-radius: 8px; padding: 10px 12px; }
+  .obj { border-left: 3px solid var(--orange); padding: 6px 0 6px 12px; margin: 8px 0; }
+  .obj .name { font-weight: 600; color: var(--orange); font-size: 13px; }
+  .obj .res { font-size: 13px; }
+  details.phase { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+  details.phase > summary { cursor: pointer; padding: 9px 12px; background: var(--light);
+    font-weight: 600; font-size: 13px; list-style: none; display: flex; gap: 8px; align-items: center; }
+  details.phase > summary::-webkit-details-marker { display: none; }
+  details.phase > summary .pn { background: var(--orange); color: #fff; font-size: 10px; font-weight: 700;
+    border-radius: 5px; padding: 2px 6px; }
+  .line { font-size: 13px; padding: 4px 12px; }
+  .line .who { font-weight: 700; margin-right: 6px; }
+  .line.agent .who { color: var(--agent); }
+  .line.robert .who { color: var(--cust); }
+  .line .note-txt { color: var(--grey); font-style: italic; }
+  .cheat { width: 100%; border-collapse: collapse; font-size: 12.8px; }
+  .cheat th, .cheat td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  .cheat th { background: var(--charcoal); color: #fff; }
+  .cheat td.says { background: var(--light); font-weight: 500; width: 38%; }
+  ul.tips { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+  ul.tips li { margin-bottom: 5px; }
+
+  .check-list { list-style: none; margin: 0; padding: 0; }
+  .check-list li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .check-list li:first-child { border-top: 0; }
+  .check-list input { margin-top: 3px; }
+  textarea.debrief { width: 100%; min-height: 78px; border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font: inherit; font-size: 13.5px; resize: vertical; }
+  .btn-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  button { font: inherit; cursor: pointer; border-radius: 9px; padding: 9px 16px; font-weight: 600; font-size: 13.5px; }
+  button.primary { background: var(--orange); color: #fff; border: 1px solid var(--orange); }
+  button.ghost { background: #fff; color: var(--charcoal); border: 1px solid var(--line); }
+  button.danger { background: #fff; color: #b91c1c; border: 1px solid #f1c4c4; }
+  button:disabled { opacity: .55; cursor: default; }
+  .save-note { font-size: 12px; color: var(--grey); margin-top: 8px; min-height: 16px; }
+
+  .ilm-message { display: grid; place-items: center; min-height: 70vh; padding: 24px; }
+  .ilm-message .box { max-width: 520px; text-align: center; }
+  .ilm-message h1 { font-size: 22px; margin: 0 0 10px; }
+  .ilm-message p { color: var(--grey); line-height: 1.55; }
+</style>
+</head>
+<body>
+  <div id="ilm-root">
+    <div class="ilm-message"><div class="box"><p>Loading the live session...</p></div></div>
+  </div>
+  <script type="module" src="/assets/js/instructor-live.js?v=20260630-1"></script>
+</body>
+</html>

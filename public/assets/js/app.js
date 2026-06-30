@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260616-27 coaching-call-theme';
+const BUILD_ID = '20260630-1 instructor-live-mode';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -54,6 +54,10 @@ const state = {
   precallStash: null,
   callPaused: false,
   callTimer: null,
+  // Instructor Live Mode (trainee side): set only when entered via /app?live=1.
+  liveMode: false,
+  liveSession: null,
+  liveEmit: null,
 };
 
 // Meridian's San Antonio branch network. Surfaced in the CSR panel so the
@@ -276,7 +280,202 @@ const dom = {
   signOut: document.getElementById('sign-out'),
 };
 
+// ---------------------------------------------------------------------------
+// Instructor Live Mode (trainee side). A /live/<token> trainee link lands the
+// browser at /app?live=1 carrying a cs_live cookie. This path is fully
+// self-contained: it skips the normal auth probes, /api/scenarios, the voice
+// agent, and the AI coaching report. The trainee drives the real sales POS while
+// a human instructor (on the paired instructor screen) plays the customer by
+// voice. We snapshot the POS state to /api/live/state ~1s for the instructor
+// mirror. None of this touches the normal demo path: it only runs when ?live=1.
+// ---------------------------------------------------------------------------
+
+const LIVE_EMIT_DEBOUNCE_MS = 800;
+const LIVE_EMIT_HEARTBEAT_MS = 4000;
+
+async function maybeBootLiveTrainee() {
+  let params;
+  try {
+    params = new URLSearchParams(window.location.search);
+  } catch {
+    return false;
+  }
+  if (params.get('live') !== '1') return false;
+
+  // This IS a live trainee entry. Handle it fully here (success or inactive) and
+  // never fall through to the normal boot, even on failure.
+  let data = null;
+  try {
+    const r = await fetch('/api/live/state', { credentials: 'same-origin' });
+    if (r.ok) data = await r.json();
+  } catch {
+    data = null;
+  }
+
+  if (!data || data.active !== true || data.role !== 'trainee' || !data.scenario) {
+    renderLiveInactive(data && data.active === false);
+    return true;
+  }
+
+  state.liveMode = true;
+  state.liveSession = { id: data.session_id, label: data.label || '' };
+  document.body.dataset.live = 'true';
+  document.body.dataset.recipient = 'true'; // hide the global sign-out chrome
+  document.body.dataset.appState = 'ready';
+  setCallMode('phone');
+  state.activeScenario = data.scenario;
+  renderCall(data.scenario, { live: true });
+  startLiveEmit();
+  return true;
+}
+
+// Read the current POS state straight from the DOM (the POS is DOM-driven). The
+// card number is masked to last 4 here, and again server-side, before it ever
+// leaves the trainee's browser.
+function snapshotLivePos() {
+  const q = (sel) => document.querySelector(sel);
+  const txt = (el) => (el && el.textContent ? el.textContent : '').trim();
+
+  let stepN = 1;
+  const activeStep = q('.pos-step:not([hidden])');
+  if (activeStep) stepN = Number(activeStep.getAttribute('data-step')) || 1;
+  const activeItem = q('.pos-stepper-item.active');
+  const stepTitle =
+    txt(q('#pos-topbar-title')) || (activeItem ? txt(activeItem.querySelector('.pos-stepper-label')) : '');
+
+  const fields = {};
+  document.querySelectorAll('#pos-form [data-rsv]').forEach((el) => {
+    const name = el.getAttribute('data-rsv');
+    if (!name) return;
+    if (el.type === 'radio') {
+      if (el.checked) fields[name] = el.value;
+      else if (!(name in fields)) fields[name] = '';
+    } else if (el.type === 'checkbox') {
+      fields[name] = el.checked ? el.value || 'on' : fields[name] || '';
+    } else {
+      fields[name] = el.value || '';
+    }
+  });
+
+  // Mask card data client-side. Names vary, so match defensively.
+  for (const key of Object.keys(fields)) {
+    const lower = key.toLowerCase();
+    if (lower.includes('card') && lower.includes('num')) {
+      const digits = String(fields[key]).replace(/\D/g, '');
+      fields[key] = digits ? `•••• ${digits.slice(-4)}` : '';
+    } else if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) {
+      fields[key] = fields[key] ? '•••' : '';
+    }
+  }
+
+  const equipment = Array.from(document.querySelectorAll('[data-rsv-equipment]:checked')).map((el) =>
+    el.getAttribute('data-rsv-equipment')
+  );
+
+  const lookupResultEl = q('#pos-lookup-result');
+  return {
+    step: { n: stepN, title: stepTitle },
+    lookup: {
+      query: q('#pos-lookup-input')?.value || '',
+      result: lookupResultEl && !lookupResultEl.hasAttribute('hidden') ? txt(lookupResultEl) : '',
+    },
+    rec: { truck: txt(q('#pos-equip-name')), rate: txt(q('#pos-equip-rate')) },
+    fields,
+    equipment,
+    notes: q('#pos-callback-notes')?.value || '',
+    card_status: txt(q('#pos-card-status')),
+  };
+}
+
+async function postLiveSnapshot() {
+  if (!state.liveMode || !state.liveSession) return;
+  try {
+    await fetch('/api/live/state', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: snapshotLivePos() }),
+    });
+  } catch {
+    // best-effort; the next heartbeat retries
+  }
+}
+
+function startLiveEmit() {
+  stopLiveEmit();
+  let timer = null;
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      postLiveSnapshot();
+    }, LIVE_EMIT_DEBOUNCE_MS);
+  };
+  // Any POS interaction (typing, selecting, stepper/nav clicks) schedules a push.
+  document.addEventListener('input', schedule, true);
+  document.addEventListener('change', schedule, true);
+  document.addEventListener('click', schedule, true);
+  // Heartbeat so the instructor view sees "live" and a moving updated_at even
+  // while the trainee pauses to talk.
+  const heartbeat = setInterval(postLiveSnapshot, LIVE_EMIT_HEARTBEAT_MS);
+  state.liveEmit = {
+    stop() {
+      if (timer) clearTimeout(timer);
+      clearInterval(heartbeat);
+      document.removeEventListener('input', schedule, true);
+      document.removeEventListener('change', schedule, true);
+      document.removeEventListener('click', schedule, true);
+    },
+  };
+  // Push the initial state right away.
+  postLiveSnapshot();
+}
+
+function stopLiveEmit() {
+  if (state.liveEmit && typeof state.liveEmit.stop === 'function') state.liveEmit.stop();
+  state.liveEmit = null;
+}
+
+async function handleLiveEnd() {
+  // Trainee ends their side: push one last snapshot, stop emitting, and show a
+  // calm end card. The session row stays for the instructor's debrief; the
+  // instructor controls the formal end.
+  await postLiveSnapshot();
+  stopLiveEmit();
+  renderLiveEnded();
+}
+
+function renderLiveInactive(ended) {
+  document.body.dataset.appState = 'ready';
+  const msg = ended
+    ? 'This practice session has ended. Ask your instructor to start a new one.'
+    : 'This link is not active. It may have expired or been revoked. Please contact your instructor.';
+  dom.root.innerHTML = `
+    <section class="live-message">
+      <div class="live-message-card">
+        <h1>Practice session unavailable</h1>
+        <p>${escapeHtml(msg)}</p>
+      </div>
+    </section>`;
+}
+
+function renderLiveEnded() {
+  state.view = 'live_ended';
+  document.body.dataset.view = 'live_ended';
+  dom.root.innerHTML = `
+    <section class="live-message">
+      <div class="live-message-card">
+        <h1>Session ended</h1>
+        <p>Nice work. You can close this tab. Your instructor has the recap on their screen.</p>
+      </div>
+    </section>`;
+}
+
 async function init() {
+  // Instructor Live Mode trainee entry (?live=1). Handled fully and returns;
+  // otherwise this is a no-op and the normal boot below runs unchanged.
+  if (await maybeBootLiveTrainee()) return;
+
   renderPickerSkeleton();
 
   // Scoped cookies WIN over a normal session. A kiosk magic link or an
@@ -3645,7 +3844,16 @@ function renderCall(scenario, opts = {}) {
 
   const useVoiceAgent = isPhone && VOICE_AGENT_ENABLED && isVoiceAgentScenario(scenario.id);
 
-  if (isPhone) {
+  if (state.liveMode) {
+    // Instructor Live Mode: NO AI. The instructor plays the customer by voice on
+    // the paired screen, so there is no voice agent, no mic, and no turn loop.
+    // The POS stays fully interactive; we only observe and emit its state.
+    setPhoneState(
+      'your_turn',
+      'Live with your instructor',
+      'Your instructor is playing the customer. Work the reservation as they talk you through it.'
+    );
+  } else if (isPhone) {
     setPhoneState('connecting', `Connecting you to ${customerLabel}...`, 'Putting the call through.');
     // Demo scenarios use the real-time ElevenLabs agent (full-duplex, streaming).
     // Everything else uses the agent-first turn loop: the trainee greets first,
@@ -3804,6 +4012,13 @@ function renderCall(scenario, opts = {}) {
   }
 
   endCallBtn.addEventListener('click', async () => {
+    // Instructor Live Mode: no transcript, no AI report. End the trainee side and
+    // show a calm recap card.
+    if (state.liveMode) {
+      teardownAudio();
+      await handleLiveEnd();
+      return;
+    }
     // Voice-agent calls carry their transcript on the agent; turn-based calls on
     // the conversation. teardownAudio() stops the agent.
     const messages = state.voiceAgent ? state.voiceAgent.getTranscript() : conversation.getMessages();
@@ -3861,6 +4076,10 @@ function renderCall(scenario, opts = {}) {
   backBtn.addEventListener('click', () => {
     conversation.cancel();
     teardownAudio();
+    if (state.liveMode) {
+      handleLiveEnd();
+      return;
+    }
     if (state.recipient) {
       if (state.coachingTest) renderCoachingTest();
       else if (state.recipient.is_demo) renderDemoHome();

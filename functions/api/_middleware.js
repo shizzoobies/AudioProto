@@ -58,6 +58,11 @@ const PUBLIC_PATHS = new Set([
   '/api/magic-status',
   '/api/me/status',
   '/api/admin/login',
+  // Instructor Live Mode: self-gated by the cs_live cookie (getLiveScope), which
+  // is neither a session, admin, magic, nor invite cookie. Skip the generic gate
+  // so the handler can do its own role-scoped check.
+  '/api/live/state',
+  '/api/live/dossier',
 ]);
 
 // /api/admin/* (except login) require cs_admin SPECIFICALLY. An agent session,
