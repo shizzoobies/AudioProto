@@ -163,6 +163,17 @@ function maskFieldValue(name, raw) {
   return raw;
 }
 
+// Reduce any PAN-shaped run (13-19 digits, spaces/dashes allowed) to its last 4.
+// Used to scrub the serialized POS HTML clone so no full card number can survive
+// in a value attribute or echoed preview, regardless of client-side masking.
+function scrubPanDigits(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/(?:\d[ -]?){13,19}/g, (m) => {
+    const d = m.replace(/\D/g, '');
+    return d.length >= 13 && d.length <= 19 ? `•••• ${d.slice(-4)}` : m;
+  });
+}
+
 // Defensive card masking at the trust boundary. The trainee already masks before
 // sending, but never trust the client. Handles both snapshot shapes: the rich
 // array of { name, value, ... } field objects, and the legacy { name: value }
@@ -181,5 +192,7 @@ export function maskTraineeState(state) {
     for (const key of Object.keys(fields)) fields[key] = maskFieldValue(key, fields[key]);
     out.fields = fields;
   }
+  // The full-clone snapshot carries the POS as serialized HTML; scrub it too.
+  if (typeof out.html === 'string') out.html = scrubPanDigits(out.html);
   return out;
 }

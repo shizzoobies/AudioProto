@@ -36,9 +36,25 @@
   .pill[data-state="ended"] { background: rgba(180,83,9,.18); color: #fcd9a8; }
   .pill[data-state="ended"] .dot { background: #f59e0b; }
 
-  .ilm-wrap { max-width: 1320px; margin: 0 auto; padding: 18px 20px 60px;
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 18px; }
-  @media (max-width: 980px) { .ilm-wrap { grid-template-columns: 1fr; } }
+  .ilm-wrap { max-width: 1100px; margin: 0 auto; padding: 14px 20px 60px; }
+  .screen-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .screen-head .col-title { margin: 0; }
+  .screen-popout { margin-left: auto; background: #fff; color: var(--charcoal); border: 1px solid var(--line);
+    border-radius: 9px; padding: 7px 13px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .screen-popout:hover { border-color: var(--orange); color: var(--orange); }
+  .screen-shell { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff;
+    box-shadow: 0 1px 3px rgba(16,18,22,.06); margin-bottom: 16px; }
+  #ilm-frame { width: 100%; border: 0; display: block; min-height: 320px; background: #fff; }
+  .ilm-wrap.screen-only { padding-top: 8px; }
+
+  /* The expandable coaching crib below the screen. */
+  details.crib > summary { cursor: pointer; font-size: 14px; font-weight: 700; list-style: none;
+    display: flex; align-items: center; gap: 8px; }
+  details.crib > summary::-webkit-details-marker { display: none; }
+  details.crib > summary::before { content: "▸"; color: var(--grey); display: inline-block; transition: transform .15s ease; }
+  details.crib[open] > summary::before { transform: rotate(90deg); }
+  details.crib[open] > summary { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .crib-body { display: block; }
 
   .col-title { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
     color: var(--grey); margin: 2px 0 10px; }
@@ -165,6 +181,6 @@
   <div id="ilm-root">
     <div class="ilm-message"><div class="box"><p>Loading the live session...</p></div></div>
   </div>
-  <script type="module" src="/assets/js/instructor-live.js?v=20260630-2"></script>
+  <script type="module" src="/assets/js/instructor-live.js?v=20260630-3"></script>
 </body>
 </html>

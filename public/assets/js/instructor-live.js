@@ -1,16 +1,14 @@
-// Instructor Live Mode: the instructor's screen. The left column is a faithful
-// read-only replica of the trainee's POS (what the new team member is looking
-// at, polled ~1s); the right column is the customer dossier / role-play crib,
-// whose sections auto-surface as the trainee reaches the step where they matter.
-// No AI, no audio. Talks only to /api/live/state and /api/live/dossier, both
-// gated by the cs_live instructor cookie.
+// Instructor Live Mode: the instructor's screen. The top is a FULL clone of the
+// trainee's POS (their actual screen, rendered in an isolated frame with the app
+// stylesheet so it looks identical, polled ~1s). Below it is an expandable
+// "Coaching notes & customer crib" whose sections auto-surface as the trainee
+// reaches the step where they matter. A pop-out button opens just the screen in
+// its own window for a second monitor. No AI, no audio. Talks only to
+// /api/live/state and /api/live/dossier, gated by the cs_live instructor cookie.
 
 const POLL_MS = 1200;
 const POS_STEPS = ['Details', 'Equipment', 'Location', 'Time', 'Checkout'];
-
-// Which POS step each ideal-path phase belongs to (drives auto-expand).
 const PHASE_STEPS = { 1: [1], 2: [1], 3: [2], 4: [2, 3], 5: [3, 4], 6: [4], 7: [5], 8: [5] };
-// A short coaching hint shown in the "Now on" banner per step.
 const STEP_HINTS = {
   1: 'Greeting + understand the move. Let them lead; you answer one thing at a time.',
   2: 'They size and price the truck. Watch for a confident 26ft recommendation and a clean quote.',
@@ -19,11 +17,19 @@ const STEP_HINTS = {
   5: 'Checkout. Hand over contact + card one piece at a time. Watch for read-back and confirm.',
 };
 
+const SCREEN_ONLY = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get('view') === 'screen';
+  } catch {
+    return false;
+  }
+})();
+
 const root = document.getElementById('ilm-root');
 let dossier = null;
 let pollTimer = null;
-let lastState = null;
 let lastFocusStep = null;
+let lastHtml = null;
 let saving = false;
 
 boot();
@@ -39,16 +45,19 @@ async function boot() {
     );
     return;
   }
-  lastState = data;
-  try {
-    const r = await fetch('/api/live/dossier', { credentials: 'same-origin' });
-    if (r.ok) dossier = await r.json();
-  } catch {
-    dossier = null;
+  if (!SCREEN_ONLY) {
+    try {
+      const r = await fetch('/api/live/dossier', { credentials: 'same-origin' });
+      if (r.ok) dossier = await r.json();
+    } catch {
+      dossier = null;
+    }
   }
   renderShell(data);
-  renderDossier();
-  hydrateDebrief(data.instructor_meta);
+  if (!SCREEN_ONLY) {
+    renderDossier();
+    hydrateDebrief(data.instructor_meta);
+  }
   renderMirror(data);
   startPolling();
 }
@@ -68,7 +77,6 @@ function startPolling() {
   pollTimer = setInterval(async () => {
     const data = await fetchState();
     if (!data) return;
-    lastState = data;
     renderMirror(data);
     updateStatus(data);
     if (!data.active) stopPolling();
@@ -83,38 +91,43 @@ function stopPolling() {
 
 function renderShell(data) {
   const label = data.label ? ` · ${esc(data.label)}` : '';
+  const popout = SCREEN_ONLY
+    ? ''
+    : `<button class="screen-popout" id="ilm-popout" title="Open the trainee screen in its own window">Pop out screen ⧉</button>`;
+  const cribBelow = SCREEN_ONLY
+    ? ''
+    : `<details class="card crib" id="ilm-crib" open>
+         <summary>Coaching notes &amp; customer crib</summary>
+         <div class="crib-body">
+           <div id="ilm-dossier"></div>
+           <div class="card" id="ilm-debrief"></div>
+         </div>
+       </details>`;
   root.innerHTML = `
     <header class="ilm-header">
       <span class="ilm-brand"><span class="o">Live</span> Mode</span>
-      <span class="ilm-sub">Instructor view${label}</span>
+      <span class="ilm-sub">${SCREEN_ONLY ? 'Trainee screen' : 'Instructor view'}${label}</span>
       <div class="ilm-status">
         <span id="ilm-updated" class="ilm-sub"></span>
         <span class="pill" id="ilm-pill" data-state="active"><span class="dot"></span><span id="ilm-pill-text">Active</span></span>
       </div>
     </header>
     <div class="ilm-nowbar" id="ilm-nowbar"></div>
-    <div class="ilm-wrap">
-      <div>
+    <div class="ilm-wrap${SCREEN_ONLY ? ' screen-only' : ''}">
+      <div class="screen-head">
         <div class="col-title">Trainee screen (live)</div>
-        <div class="screen-frame">
-          <div class="screen-topbar">
-            <span class="screen-dot"></span>
-            <span id="ilm-screen-title">Moving Truck Reservation</span>
-            <span class="screen-step" id="ilm-screen-step"></span>
-          </div>
-          <div class="stepper" id="ilm-stepper"></div>
-          <div id="ilm-screen"></div>
-        </div>
-        <div class="card"><h3>Reservation notes</h3><div class="notes-box" id="ilm-notes"></div></div>
-        <details class="card earlier" id="ilm-earlier-wrap" hidden><summary>Earlier steps (completed)</summary><div id="ilm-earlier"></div></details>
+        ${popout}
       </div>
-      <div>
-        <div class="col-title">Your customer: role-play crib</div>
-        <div id="ilm-dossier"></div>
-        <div class="card" id="ilm-debrief"></div>
-      </div>
+      <div class="screen-shell"><iframe id="ilm-frame" title="Live trainee screen" scrolling="no"></iframe></div>
+      ${cribBelow}
     </div>`;
   updateStatus(data);
+  const pop = document.getElementById('ilm-popout');
+  if (pop) {
+    pop.addEventListener('click', () => {
+      window.open(`${window.location.pathname}?view=screen`, 'ilm_screen', 'width=1180,height=940,noopener=0');
+    });
+  }
 }
 
 function updateStatus(data) {
@@ -126,105 +139,67 @@ function updateStatus(data) {
   if (updated) updated.textContent = data.updated_at ? `Updated ${timeAgo(data.updated_at)}` : 'Waiting for the trainee...';
 }
 
-// ---- Mirror (screen replica) ----------------------------------------------
+// ---- Mirror (full POS clone in an isolated frame) --------------------------
 
 function renderMirror(data) {
   const st = data && data.state;
   const stepN = (st && st.step && st.step.n) || 1;
   const stepTitle = (st && st.step && st.step.title) || POS_STEPS[stepN - 1] || '';
-
-  renderStepper(st && Array.isArray(st.steps) ? st.steps : null, stepN);
-  const stepEl = document.getElementById('ilm-screen-step');
-  if (stepEl) stepEl.textContent = stepTitle ? `Step ${stepN} · ${stepTitle}` : `Step ${stepN}`;
   updateNowBar(stepN, stepTitle);
-  focusDossierForStep(stepN);
+  if (!SCREEN_ONLY) focusDossierForStep(stepN);
+  renderScreen(st && typeof st.html === 'string' ? st.html : '');
+}
 
-  const screen = document.getElementById('ilm-screen');
-  if (!screen) return;
-  if (!st) {
-    screen.innerHTML = `<div class="mirror-empty">Waiting for the trainee to start working the reservation...</div>`;
-    const n = document.getElementById('ilm-notes');
-    if (n) n.textContent = '';
+function renderScreen(html) {
+  const frame = document.getElementById('ilm-frame');
+  if (!frame) return;
+  if (!html) {
+    if (lastHtml !== '') {
+      lastHtml = '';
+      writeFrame(frame, '<div style="font-family:Inter,system-ui,sans-serif;color:#5b6270;padding:28px;">Waiting for the trainee to open the reservation screen...</div>', false);
+    }
     return;
   }
-
-  const fields = Array.isArray(st.fields) ? st.fields : [];
-  const current = fields.filter((f) => (f.step || 0) === stepN);
-  const earlier = fields.filter((f) => f.step && f.step < stepN && f.filled);
-
-  // Truck recommendation card (Equipment step onward).
-  const rec = st.rec || {};
-  const recHtml =
-    rec.truck || rec.rate
-      ? `<div class="scr-rec">
-           <div class="scr-rec-head">Recommended truck</div>
-           <div class="scr-rec-body">
-             <span class="scr-rec-name">${esc(rec.truck || '')}</span>
-             <span class="scr-rec-rate">${esc(rec.rate || '')}</span>
-           </div>
-           ${rec.includes ? `<div class="scr-rec-includes">${esc(rec.includes)}</div>` : ''}
-         </div>`
-      : '';
-
-  const equip =
-    Array.isArray(st.equipment) && st.equipment.length
-      ? `<div class="scr-field"><div class="scr-label">Add-ons</div><div class="scr-value">${esc(st.equipment.map((e) => e.label || e.value).join(', '))}</div></div>`
-      : '';
-
-  const lookup =
-    st.lookup && (st.lookup.query || st.lookup.result)
-      ? `<div class="scr-lookup"><span class="scr-label">Customer lookup</span> ${esc(st.lookup.query || '')}${
-          st.lookup.result ? ` <span class="muted">→ ${esc(st.lookup.result)}</span>` : ''
-        }</div>`
-      : '';
-
-  const cardStatus = st.card_status ? `<div class="scr-cardstatus">${esc(st.card_status)}</div>` : '';
-
-  screen.innerHTML = `
-    <div class="scr-step-title">${esc(stepTitle || `Step ${stepN}`)}</div>
-    ${lookup}
-    <div class="scr-grid">
-      ${current.length ? current.map(fieldRow).join('') : '<div class="mirror-empty">No fields on this step yet.</div>'}
-      ${equip}
-    </div>
-    ${recHtml}
-    ${cardStatus}`;
-
-  const notes = document.getElementById('ilm-notes');
-  if (notes) notes.textContent = st.notes || '';
-
-  // Earlier (completed) steps summary.
-  const earlierWrap = document.getElementById('ilm-earlier-wrap');
-  const earlierBox = document.getElementById('ilm-earlier');
-  if (earlierWrap && earlierBox) {
-    if (earlier.length) {
-      earlierWrap.hidden = false;
-      earlierBox.innerHTML = `<div class="scr-grid earlier-grid">${earlier.map(fieldRow).join('')}</div>`;
-    } else {
-      earlierWrap.hidden = true;
-      earlierBox.innerHTML = '';
-    }
+  if (html === lastHtml) {
+    resizeFrame(frame); // late reflow / image load
+    return;
   }
+  lastHtml = html;
+  writeFrame(frame, `<main class="app-main">${html}</main>`, true);
 }
 
-function fieldRow(f) {
-  const filled = f.filled && String(f.value).trim() !== '';
-  return `<div class="scr-field${filled ? '' : ' empty'}">
-    <div class="scr-label">${esc(f.label || f.name)}</div>
-    <div class="scr-value">${filled ? esc(f.value) : ''}</div>
-  </div>`;
+// Render content into the isolated about:blank iframe with the app stylesheet, so
+// the POS clone looks exactly like the trainee's screen without the app styles
+// leaking into the instructor chrome. Non-interactive (watch only).
+function writeFrame(frame, bodyHtml, appContext) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  const head = appContext
+    ? `<link rel="stylesheet" href="/assets/css/styles.css">
+       <style>
+         html,body{margin:0;background:#fff;}
+         .call-header .call-actions,#call-back,#call-dock,#orb-zone,#transcript,#visualizer-wrap{display:none!important;}
+         .call,.call *{pointer-events:none!important;}
+         .call-body{padding-bottom:10px!important;}
+       </style>`
+    : '<style>html,body{margin:0;background:#fff;}</style>';
+  doc.open();
+  doc.write(`<!doctype html><html><head><meta charset="utf-8">${head}</head><body class="app-page" data-app-state="ready" data-view="call">${bodyHtml}</body></html>`);
+  doc.close();
+  frame.onload = () => resizeFrame(frame);
+  // The stylesheet loads async; re-measure a few times as it applies.
+  [120, 450, 900, 1600].forEach((ms) => setTimeout(() => resizeFrame(frame), ms));
 }
 
-function renderStepper(steps, activeN) {
-  const el = document.getElementById('ilm-stepper');
-  if (!el) return;
-  const list =
-    Array.isArray(steps) && steps.length
-      ? steps.map((s) => ({ n: s.n, label: s.label, active: s.n === activeN, done: s.n < activeN }))
-      : POS_STEPS.map((label, i) => ({ n: i + 1, label, active: i + 1 === activeN, done: i + 1 < activeN }));
-  el.innerHTML = list
-    .map((s) => `<div class="s ${s.active ? 'active' : s.done ? 'done' : ''}">${s.n}. ${esc(s.label || '')}</div>`)
-    .join('');
+function resizeFrame(frame) {
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || !doc.body) return;
+    const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight || 0);
+    if (h > 0) frame.style.height = `${h + 4}px`;
+  } catch {
+    // cross-origin should never happen for about:blank; ignore
+  }
 }
 
 function updateNowBar(stepN, stepTitle) {
@@ -236,7 +211,7 @@ function updateNowBar(stepN, stepTitle) {
   }`;
 }
 
-// ---- Dossier (step-aware collapsible) --------------------------------------
+// ---- Dossier (step-aware collapsible, below the screen) --------------------
 
 function renderDossier() {
   const el = document.getElementById('ilm-dossier');
@@ -252,7 +227,6 @@ function renderDossier() {
       <p style="font-size:13px;margin:0 0 6px;color:var(--grey);">${esc(d.headline || '')}</p>
       <p style="font-size:13px;margin:0;">${esc(d.how_to_use || '')}</p>
     </div>
-
     ${section('Scenario snapshot', rows(d.snapshot, 'snap'), '1')}
     ${
       Array.isArray(d.opening_lines) && d.opening_lines.length
@@ -293,7 +267,6 @@ function renderDossier() {
     }`;
 }
 
-// A collapsible dossier section tagged with the POS steps it is relevant to.
 function section(title, inner, steps) {
   return `<details class="card guide" data-steps="${esc(steps || '')}"><summary>${esc(title)}</summary><div class="guide-body">${inner}</div></details>`;
 }
@@ -307,9 +280,6 @@ function renderPhase(p) {
   return `<details class="phase guide" data-steps="${esc(steps)}"><summary><span class="pn">PHASE ${esc(String(p.phase))}</span>${esc(p.label || '')}</summary><div style="padding:8px 0;">${lines}${note}</div></details>`;
 }
 
-// Open the guidance relevant to the current step, collapse the rest, and
-// highlight what is active. Only re-applies when the step actually changes, so it
-// never fights the instructor toggling something open mid-step.
 function focusDossierForStep(stepN) {
   if (stepN === lastFocusStep) return;
   lastFocusStep = stepN;
@@ -321,7 +291,7 @@ function focusDossierForStep(stepN) {
   });
 }
 
-// ---- Debrief (end-of-session checklist) ------------------------------------
+// ---- Debrief ---------------------------------------------------------------
 
 function hydrateDebrief(meta) {
   const el = document.getElementById('ilm-debrief');

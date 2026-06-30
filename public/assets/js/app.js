@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-2 instructor-live-mode';
+const BUILD_ID = '20260630-3 instructor-live-mode';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -329,16 +329,6 @@ async function maybeBootLiveTrainee() {
   return true;
 }
 
-// Read the current POS state straight from the DOM (the POS is DOM-driven). The
-// card number is masked to last 4 here, and again server-side, before it ever
-// leaves the trainee's browser.
-function liveHumanize(name) {
-  return String(name || '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
-}
-
 // Mask anything that looks like card data, by field name or value shape. The
 // server (maskTraineeState) repeats this as the trust boundary.
 function liveMaskValue(name, raw) {
@@ -353,115 +343,65 @@ function liveMaskValue(name, raw) {
   return val;
 }
 
-// Best-effort human label for a POS control, matching what the trainee sees.
-function liveFieldLabel(el, name) {
-  const aria = el.getAttribute('aria-label');
-  if (aria && aria.trim()) return aria.trim();
-  const wrap = el.closest('label, .pos-field, .crm-field, .csf-field');
-  if (wrap) {
-    const lbl = wrap.querySelector('.pos-field-label, .csf-label, .crm-field-label, .pos-card-title');
-    if (lbl && lbl.textContent.trim()) return lbl.textContent.trim();
-  }
-  if (el.id) {
-    const forLab = document.querySelector(`label[for="${el.id}"]`);
-    if (forLab && forLab.textContent.trim()) return forLab.textContent.trim();
-  }
-  return liveHumanize(name);
+// Reduce any PAN-shaped run (13-19 digits, spaces/dashes allowed) in a string to
+// its last 4. A backstop over the serialized HTML so no full card number can
+// slip through in a value attribute or an echoed preview.
+function liveScrubDigits(text) {
+  return String(text == null ? '' : text).replace(/(?:\d[ -]?){13,19}/g, (m) => {
+    const d = m.replace(/\D/g, '');
+    return d.length >= 13 && d.length <= 19 ? `•••• ${d.slice(-4)}` : m;
+  });
 }
 
-function liveControlText(el) {
-  const lab = el.closest('label');
-  const t = lab ? lab.textContent.trim() : '';
-  return t || '';
+// Build a sanitized, value-reflected HTML clone of the trainee's POS work surface
+// so the instructor sees the exact screen. cloneNode does NOT copy live control
+// values, so we reflect each control's current value into attributes, mask card
+// data, and strip the call chrome (orb, dock, transcript, action buttons) the
+// instructor does not need. The instructor renders this inside an isolated frame
+// with the app stylesheet so it looks identical.
+function clonePosHtml() {
+  const live = document.querySelector('.call');
+  if (!live) return '';
+  const clone = live.cloneNode(true);
+  const liveControls = live.querySelectorAll('input, select, textarea');
+  const cloneControls = clone.querySelectorAll('input, select, textarea');
+  const n = Math.min(liveControls.length, cloneControls.length);
+  for (let i = 0; i < n; i++) {
+    const lc = liveControls[i];
+    const cc = cloneControls[i];
+    const name = lc.getAttribute('data-rsv') || lc.id || lc.name || '';
+    if (lc.tagName === 'SELECT') {
+      Array.from(cc.options).forEach((o) => o.removeAttribute('selected'));
+      if (lc.selectedIndex >= 0 && cc.options[lc.selectedIndex]) {
+        cc.options[lc.selectedIndex].setAttribute('selected', 'selected');
+      }
+    } else if (lc.type === 'checkbox' || lc.type === 'radio') {
+      if (lc.checked) cc.setAttribute('checked', 'checked');
+      else cc.removeAttribute('checked');
+    } else if (lc.tagName === 'TEXTAREA') {
+      cc.textContent = liveScrubDigits(lc.value || '');
+    } else {
+      cc.setAttribute('value', liveMaskValue(name, lc.value || ''));
+    }
+  }
+  clone
+    .querySelectorAll('#orb-zone, #call-dock, #visualizer-wrap, #transcript, .call-actions, #call-back')
+    .forEach((el) => el.remove());
+  return liveScrubDigits(clone.outerHTML);
 }
 
-// Snapshot the POS straight from the DOM as a screen-like model: the current
-// step, the full stepper, and every field tagged with its on-screen label, its
-// display value, and the step it lives on, so the instructor view can render a
-// faithful read-only replica of what the trainee is looking at.
+// Snapshot the POS for the instructor: the current step (drives the dossier
+// focus) plus a full HTML clone of the screen.
 function snapshotLivePos() {
   const q = (sel) => document.querySelector(sel);
   const txt = (el) => (el && el.textContent ? el.textContent : '').trim();
-
   let stepN = 1;
   const activeStep = q('.pos-step:not([hidden])');
   if (activeStep) stepN = Number(activeStep.getAttribute('data-step')) || 1;
   const activeItem = q('.pos-stepper-item.active');
   const stepTitle =
     txt(q('#pos-topbar-title')) || (activeItem ? txt(activeItem.querySelector('.pos-stepper-label')) : '');
-
-  const steps = Array.from(document.querySelectorAll('#pos-stepper .pos-stepper-item')).map((li) => ({
-    n: Number(li.getAttribute('data-step')) || 0,
-    label: txt(li.querySelector('.pos-stepper-label')),
-    active: li.classList.contains('active'),
-    done: li.classList.contains('done'),
-  }));
-
-  const byName = new Map();
-  document.querySelectorAll('#pos-form [data-rsv]').forEach((el) => {
-    const name = el.getAttribute('data-rsv');
-    if (!name) return;
-    const stepEl = el.closest('.pos-step');
-    const step = stepEl ? Number(stepEl.getAttribute('data-step')) || 0 : 0;
-    const tag = el.tagName;
-    const type = el.type || tag.toLowerCase();
-
-    if (type === 'radio') {
-      const prev = byName.get(name);
-      if (el.checked) {
-        byName.set(name, {
-          name,
-          label: (prev && prev.label) || liveFieldLabel(el, name),
-          step,
-          value: liveMaskValue(name, liveControlText(el) || liveHumanize(el.value)),
-          filled: true,
-        });
-      } else if (!prev) {
-        byName.set(name, { name, label: liveFieldLabel(el, name), step, value: '', filled: false });
-      }
-      return;
-    }
-
-    let display = '';
-    let filled = false;
-    if (type === 'checkbox') {
-      filled = el.checked;
-      display = el.checked ? liveControlText(el) || 'Yes' : '';
-    } else if (tag === 'SELECT') {
-      const opt = el.selectedOptions && el.selectedOptions[0];
-      filled = !!el.value;
-      display = el.value ? (opt ? opt.textContent.trim() : el.value) : '';
-    } else {
-      display = el.value || '';
-      filled = !!display;
-    }
-    byName.set(name, { name, label: liveFieldLabel(el, name), step, value: liveMaskValue(name, display), filled });
-  });
-  const fields = Array.from(byName.values());
-
-  const equipment = Array.from(document.querySelectorAll('[data-rsv-equipment]:checked')).map((el) => ({
-    value: el.getAttribute('data-rsv-equipment'),
-    label: liveControlText(el) || liveHumanize(el.getAttribute('data-rsv-equipment')),
-  }));
-
-  const lookupResultEl = q('#pos-lookup-result');
-  return {
-    step: { n: stepN, title: stepTitle },
-    steps,
-    fields,
-    equipment,
-    rec: {
-      truck: txt(q('#pos-equip-name')),
-      rate: txt(q('#pos-equip-rate')),
-      includes: txt(q('#pos-equip-includes')),
-    },
-    lookup: {
-      query: q('#pos-lookup-input')?.value || '',
-      result: lookupResultEl && !lookupResultEl.hasAttribute('hidden') ? txt(lookupResultEl) : '',
-    },
-    notes: q('#pos-callback-notes')?.value || '',
-    card_status: txt(q('#pos-card-status')),
-  };
+  return { step: { n: stepN, title: stepTitle }, html: clonePosHtml() };
 }
 
 async function postLiveSnapshot() {

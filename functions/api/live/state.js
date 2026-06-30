@@ -16,7 +16,7 @@
 import { getLiveScope, ensureLiveTable, maskTraineeState, LIVE_SCENARIO_ID } from '../../../shared/live.js';
 import { getScenario } from '../../../shared/scenarios.js';
 
-const MAX_STATE_BYTES = 32 * 1024; // a POS snapshot is tiny; reject anything large
+const MAX_STATE_BYTES = 400 * 1024; // the snapshot now carries a full POS HTML clone
 
 export async function onRequestGet({ request, env }) {
   const scope = await getLiveScope(request, env);
