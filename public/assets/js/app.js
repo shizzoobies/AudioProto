@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-1 instructor-live-mode';
+const BUILD_ID = '20260630-2 instructor-live-mode';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -332,6 +332,53 @@ async function maybeBootLiveTrainee() {
 // Read the current POS state straight from the DOM (the POS is DOM-driven). The
 // card number is masked to last 4 here, and again server-side, before it ever
 // leaves the trainee's browser.
+function liveHumanize(name) {
+  return String(name || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+// Mask anything that looks like card data, by field name or value shape. The
+// server (maskTraineeState) repeats this as the trust boundary.
+function liveMaskValue(name, raw) {
+  const val = String(raw == null ? '' : raw);
+  const lower = String(name || '').toLowerCase();
+  const digits = val.replace(/\D/g, '');
+  if (lower.includes('card') && lower.includes('num')) return digits ? `•••• ${digits.slice(-4)}` : '';
+  if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) return val ? '•••' : '';
+  if (digits.length >= 13 && digits.length <= 19 && digits.length === val.replace(/[\s-]/g, '').length) {
+    return `•••• ${digits.slice(-4)}`;
+  }
+  return val;
+}
+
+// Best-effort human label for a POS control, matching what the trainee sees.
+function liveFieldLabel(el, name) {
+  const aria = el.getAttribute('aria-label');
+  if (aria && aria.trim()) return aria.trim();
+  const wrap = el.closest('label, .pos-field, .crm-field, .csf-field');
+  if (wrap) {
+    const lbl = wrap.querySelector('.pos-field-label, .csf-label, .crm-field-label, .pos-card-title');
+    if (lbl && lbl.textContent.trim()) return lbl.textContent.trim();
+  }
+  if (el.id) {
+    const forLab = document.querySelector(`label[for="${el.id}"]`);
+    if (forLab && forLab.textContent.trim()) return forLab.textContent.trim();
+  }
+  return liveHumanize(name);
+}
+
+function liveControlText(el) {
+  const lab = el.closest('label');
+  const t = lab ? lab.textContent.trim() : '';
+  return t || '';
+}
+
+// Snapshot the POS straight from the DOM as a screen-like model: the current
+// step, the full stepper, and every field tagged with its on-screen label, its
+// display value, and the step it lives on, so the instructor view can render a
+// faithful read-only replica of what the trainee is looking at.
 function snapshotLivePos() {
   const q = (sel) => document.querySelector(sel);
   const txt = (el) => (el && el.textContent ? el.textContent : '').trim();
@@ -343,50 +390,75 @@ function snapshotLivePos() {
   const stepTitle =
     txt(q('#pos-topbar-title')) || (activeItem ? txt(activeItem.querySelector('.pos-stepper-label')) : '');
 
-  const fields = {};
+  const steps = Array.from(document.querySelectorAll('#pos-stepper .pos-stepper-item')).map((li) => ({
+    n: Number(li.getAttribute('data-step')) || 0,
+    label: txt(li.querySelector('.pos-stepper-label')),
+    active: li.classList.contains('active'),
+    done: li.classList.contains('done'),
+  }));
+
+  const byName = new Map();
   document.querySelectorAll('#pos-form [data-rsv]').forEach((el) => {
     const name = el.getAttribute('data-rsv');
     if (!name) return;
-    if (el.type === 'radio') {
-      if (el.checked) fields[name] = el.value;
-      else if (!(name in fields)) fields[name] = '';
-    } else if (el.type === 'checkbox') {
-      fields[name] = el.checked ? el.value || 'on' : fields[name] || '';
+    const stepEl = el.closest('.pos-step');
+    const step = stepEl ? Number(stepEl.getAttribute('data-step')) || 0 : 0;
+    const tag = el.tagName;
+    const type = el.type || tag.toLowerCase();
+
+    if (type === 'radio') {
+      const prev = byName.get(name);
+      if (el.checked) {
+        byName.set(name, {
+          name,
+          label: (prev && prev.label) || liveFieldLabel(el, name),
+          step,
+          value: liveMaskValue(name, liveControlText(el) || liveHumanize(el.value)),
+          filled: true,
+        });
+      } else if (!prev) {
+        byName.set(name, { name, label: liveFieldLabel(el, name), step, value: '', filled: false });
+      }
+      return;
+    }
+
+    let display = '';
+    let filled = false;
+    if (type === 'checkbox') {
+      filled = el.checked;
+      display = el.checked ? liveControlText(el) || 'Yes' : '';
+    } else if (tag === 'SELECT') {
+      const opt = el.selectedOptions && el.selectedOptions[0];
+      filled = !!el.value;
+      display = el.value ? (opt ? opt.textContent.trim() : el.value) : '';
     } else {
-      fields[name] = el.value || '';
+      display = el.value || '';
+      filled = !!display;
     }
+    byName.set(name, { name, label: liveFieldLabel(el, name), step, value: liveMaskValue(name, display), filled });
   });
+  const fields = Array.from(byName.values());
 
-  // Mask card data client-side (the server masks again as the trust boundary).
-  // Names vary, so match by name, then fall back to value shape (a PAN-looking
-  // 13-19 digit run) for renamed or split card fields.
-  for (const key of Object.keys(fields)) {
-    const lower = key.toLowerCase();
-    const val = String(fields[key]);
-    const digits = val.replace(/\D/g, '');
-    if (lower.includes('card') && lower.includes('num')) {
-      fields[key] = digits ? `•••• ${digits.slice(-4)}` : '';
-    } else if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) {
-      fields[key] = fields[key] ? '•••' : '';
-    } else if (digits.length >= 13 && digits.length <= 19 && digits.length === val.replace(/[\s-]/g, '').length) {
-      fields[key] = `•••• ${digits.slice(-4)}`;
-    }
-  }
-
-  const equipment = Array.from(document.querySelectorAll('[data-rsv-equipment]:checked')).map((el) =>
-    el.getAttribute('data-rsv-equipment')
-  );
+  const equipment = Array.from(document.querySelectorAll('[data-rsv-equipment]:checked')).map((el) => ({
+    value: el.getAttribute('data-rsv-equipment'),
+    label: liveControlText(el) || liveHumanize(el.getAttribute('data-rsv-equipment')),
+  }));
 
   const lookupResultEl = q('#pos-lookup-result');
   return {
     step: { n: stepN, title: stepTitle },
+    steps,
+    fields,
+    equipment,
+    rec: {
+      truck: txt(q('#pos-equip-name')),
+      rate: txt(q('#pos-equip-rate')),
+      includes: txt(q('#pos-equip-includes')),
+    },
     lookup: {
       query: q('#pos-lookup-input')?.value || '',
       result: lookupResultEl && !lookupResultEl.hasAttribute('hidden') ? txt(lookupResultEl) : '',
     },
-    rec: { truck: txt(q('#pos-equip-name')), rate: txt(q('#pos-equip-rate')) },
-    fields,
-    equipment,
     notes: q('#pos-callback-notes')?.value || '',
     card_status: txt(q('#pos-card-status')),
   };

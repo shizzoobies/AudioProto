@@ -111,12 +111,60 @@
   .ilm-message .box { max-width: 520px; text-align: center; }
   .ilm-message h1 { font-size: 22px; margin: 0 0 10px; }
   .ilm-message p { color: var(--grey); line-height: 1.55; }
+
+  /* "Now on" banner under the header. */
+  .ilm-nowbar { max-width: 1320px; margin: 0 auto; padding: 10px 20px 0; font-size: 13px; }
+  .ilm-nowbar:empty { display: none; }
+  .now-tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #fff; background: var(--orange); border-radius: 5px; padding: 2px 7px; vertical-align: middle; }
+  .now-hint { color: var(--grey); }
+
+  /* Screen replica frame (left column). Mimics the trainee's POS. */
+  .screen-frame { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(16,18,22,.04); }
+  .screen-topbar { display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+    background: var(--charcoal); color: #fff; font-weight: 600; font-size: 14px; }
+  .screen-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--orange); }
+  .screen-step { margin-left: auto; font-size: 12px; font-weight: 500; color: #c7cad3; }
+  .screen-frame .stepper { padding: 12px 14px 0; }
+  #ilm-screen { padding: 14px 16px 16px; }
+  .scr-step-title { font-size: 13px; font-weight: 700; color: var(--charcoal); margin: 0 0 10px; }
+  .scr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  @media (max-width: 560px) { .scr-grid { grid-template-columns: 1fr; } }
+  .scr-field { display: flex; flex-direction: column; gap: 3px; }
+  .scr-label { font-size: 11px; font-weight: 600; color: var(--grey); }
+  .scr-value { font-size: 13.5px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: #fff; word-break: break-word; }
+  .scr-field.empty .scr-value { background: var(--light); border-style: dashed; }
+  .scr-field.empty .scr-value::after { content: "not entered"; color: #b9bdc6; font-style: italic; }
+  .scr-lookup { font-size: 12.5px; margin-bottom: 12px; color: var(--ink); }
+  .scr-rec { margin-top: 14px; border: 1px solid #f1d3c2; background: var(--panel); border-radius: 10px; padding: 12px 14px; }
+  .scr-rec-head { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--orange); margin-bottom: 4px; }
+  .scr-rec-body { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .scr-rec-name { font-weight: 700; font-size: 15px; }
+  .scr-rec-rate { font-weight: 700; font-size: 15px; color: var(--cust); }
+  .scr-rec-includes { font-size: 12px; color: var(--grey); margin-top: 4px; }
+  .scr-cardstatus { margin-top: 12px; font-size: 12.5px; color: var(--grey); border-top: 1px dashed var(--line); padding-top: 10px; }
+  .earlier-grid { opacity: .85; }
+  details.earlier > summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+
+  /* Step-aware dossier sections (collapsible <details>). */
+  details.guide { transition: border-color .2s ease; }
+  details.guide > summary { cursor: pointer; padding: 11px 14px; font-weight: 600; font-size: 13.5px;
+    list-style: none; display: flex; gap: 8px; align-items: center; }
+  details.guide.card > summary { margin: -16px -18px 0; padding: 14px 18px; }
+  details.guide[open].card > summary { margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+  details.guide > summary::-webkit-details-marker { display: none; }
+  details.guide > summary::before { content: "▸"; color: var(--grey); transition: transform .15s ease; display: inline-block; }
+  details.guide[open] > summary::before { transform: rotate(90deg); }
+  .guide.active-guide { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(242,101,34,.12); }
+  .guide.active-guide > summary { color: var(--orange); }
 </style>
 </head>
 <body>
   <div id="ilm-root">
     <div class="ilm-message"><div class="box"><p>Loading the live session...</p></div></div>
   </div>
-  <script type="module" src="/assets/js/instructor-live.js?v=20260630-1"></script>
+  <script type="module" src="/assets/js/instructor-live.js?v=20260630-2"></script>
 </body>
 </html>

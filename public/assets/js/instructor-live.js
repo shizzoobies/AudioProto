@@ -1,16 +1,29 @@
-// Instructor Live Mode: the instructor's screen. Read-only mirror of the
-// trainee's sales POS (polled ~1s) plus the customer dossier / role-play crib so
-// the instructor can BE Robert live. No AI, no audio. Self-contained: it talks
-// only to /api/live/state and /api/live/dossier, both gated by the cs_live
-// instructor cookie set when the instructor link was opened.
+// Instructor Live Mode: the instructor's screen. The left column is a faithful
+// read-only replica of the trainee's POS (what the new team member is looking
+// at, polled ~1s); the right column is the customer dossier / role-play crib,
+// whose sections auto-surface as the trainee reaches the step where they matter.
+// No AI, no audio. Talks only to /api/live/state and /api/live/dossier, both
+// gated by the cs_live instructor cookie.
 
 const POLL_MS = 1200;
 const POS_STEPS = ['Details', 'Equipment', 'Location', 'Time', 'Checkout'];
+
+// Which POS step each ideal-path phase belongs to (drives auto-expand).
+const PHASE_STEPS = { 1: [1], 2: [1], 3: [2], 4: [2, 3], 5: [3, 4], 6: [4], 7: [5], 8: [5] };
+// A short coaching hint shown in the "Now on" banner per step.
+const STEP_HINTS = {
+  1: 'Greeting + understand the move. Let them lead; you answer one thing at a time.',
+  2: 'They size and price the truck. Watch for a confident 26ft recommendation and a clean quote.',
+  3: 'Location / availability. Good moment to start building urgency on the real deadline.',
+  4: 'Scheduling + the close. Surface your objections here, then let them ask for the business.',
+  5: 'Checkout. Hand over contact + card one piece at a time. Watch for read-back and confirm.',
+};
 
 const root = document.getElementById('ilm-root');
 let dossier = null;
 let pollTimer = null;
 let lastState = null;
+let lastFocusStep = null;
 let saving = false;
 
 boot();
@@ -34,9 +47,9 @@ async function boot() {
     dossier = null;
   }
   renderShell(data);
-  renderMirror(data);
   renderDossier();
   hydrateDebrief(data.instructor_meta);
+  renderMirror(data);
   startPolling();
 }
 
@@ -79,18 +92,21 @@ function renderShell(data) {
         <span class="pill" id="ilm-pill" data-state="active"><span class="dot"></span><span id="ilm-pill-text">Active</span></span>
       </div>
     </header>
+    <div class="ilm-nowbar" id="ilm-nowbar"></div>
     <div class="ilm-wrap">
       <div>
         <div class="col-title">Trainee screen (live)</div>
-        <div class="card">
-          <h3>Reservation progress</h3>
+        <div class="screen-frame">
+          <div class="screen-topbar">
+            <span class="screen-dot"></span>
+            <span id="ilm-screen-title">Moving Truck Reservation</span>
+            <span class="screen-step" id="ilm-screen-step"></span>
+          </div>
           <div class="stepper" id="ilm-stepper"></div>
+          <div id="ilm-screen"></div>
         </div>
-        <div class="card" id="ilm-mirror"></div>
-        <div class="card">
-          <h3>Reservation notes</h3>
-          <div class="notes-box" id="ilm-notes"></div>
-        </div>
+        <div class="card"><h3>Reservation notes</h3><div class="notes-box" id="ilm-notes"></div></div>
+        <details class="card earlier" id="ilm-earlier-wrap" hidden><summary>Earlier steps (completed)</summary><div id="ilm-earlier"></div></details>
       </div>
       <div>
         <div class="col-title">Your customer: role-play crib</div>
@@ -110,72 +126,117 @@ function updateStatus(data) {
   if (updated) updated.textContent = data.updated_at ? `Updated ${timeAgo(data.updated_at)}` : 'Waiting for the trainee...';
 }
 
-// ---- Mirror ----------------------------------------------------------------
+// ---- Mirror (screen replica) ----------------------------------------------
 
 function renderMirror(data) {
-  renderStepper(data?.state?.step?.n || 1);
-  const mirror = document.getElementById('ilm-mirror');
-  const notes = document.getElementById('ilm-notes');
-  const st = data?.state;
-  if (!mirror) return;
+  const st = data && data.state;
+  const stepN = (st && st.step && st.step.n) || 1;
+  const stepTitle = (st && st.step && st.step.title) || POS_STEPS[stepN - 1] || '';
 
+  renderStepper(st && Array.isArray(st.steps) ? st.steps : null, stepN);
+  const stepEl = document.getElementById('ilm-screen-step');
+  if (stepEl) stepEl.textContent = stepTitle ? `Step ${stepN} · ${stepTitle}` : `Step ${stepN}`;
+  updateNowBar(stepN, stepTitle);
+  focusDossierForStep(stepN);
+
+  const screen = document.getElementById('ilm-screen');
+  if (!screen) return;
   if (!st) {
-    mirror.innerHTML = `<h3>Live fields</h3><div class="mirror-empty">Waiting for the trainee to start working the reservation...</div>`;
-    if (notes) notes.textContent = '';
+    screen.innerHTML = `<div class="mirror-empty">Waiting for the trainee to start working the reservation...</div>`;
+    const n = document.getElementById('ilm-notes');
+    if (n) n.textContent = '';
     return;
   }
 
-  const rec =
-    st.rec && (st.rec.truck || st.rec.rate)
-      ? `<div class="rec-line"><span class="truck">${esc(st.rec.truck || '')}</span><span class="rate">${esc(st.rec.rate || '')}</span></div>`
-      : '<div class="muted">No truck recommended yet.</div>';
+  const fields = Array.isArray(st.fields) ? st.fields : [];
+  const current = fields.filter((f) => (f.step || 0) === stepN);
+  const earlier = fields.filter((f) => f.step && f.step < stepN && f.filled);
 
-  const lookup =
-    st.lookup && (st.lookup.query || st.lookup.result)
-      ? `<div class="kv"><dt>Lookup</dt><dd>${esc(st.lookup.query || '')}</dd>${
-          st.lookup.result ? `<dt>Result</dt><dd>${esc(st.lookup.result)}</dd>` : ''
-        }</div>`
+  // Truck recommendation card (Equipment step onward).
+  const rec = st.rec || {};
+  const recHtml =
+    rec.truck || rec.rate
+      ? `<div class="scr-rec">
+           <div class="scr-rec-head">Recommended truck</div>
+           <div class="scr-rec-body">
+             <span class="scr-rec-name">${esc(rec.truck || '')}</span>
+             <span class="scr-rec-rate">${esc(rec.rate || '')}</span>
+           </div>
+           ${rec.includes ? `<div class="scr-rec-includes">${esc(rec.includes)}</div>` : ''}
+         </div>`
       : '';
-
-  const fields = st.fields && typeof st.fields === 'object' ? st.fields : {};
-  const fieldKeys = Object.keys(fields).filter((k) => String(fields[k]).trim() !== '');
-  const fieldsHtml = fieldKeys.length
-    ? `<div class="kv">${fieldKeys
-        .map((k) => `<dt>${esc(humanize(k))}</dt><dd>${esc(String(fields[k]))}</dd>`)
-        .join('')}</div>`
-    : '<div class="muted">No fields entered yet.</div>';
 
   const equip =
     Array.isArray(st.equipment) && st.equipment.length
-      ? `<div class="kv"><dt>Add-ons</dt><dd>${esc(st.equipment.map(humanize).join(', '))}</dd></div>`
+      ? `<div class="scr-field"><div class="scr-label">Add-ons</div><div class="scr-value">${esc(st.equipment.map((e) => e.label || e.value).join(', '))}</div></div>`
       : '';
 
-  const cardStatus = st.card_status ? `<div class="kv"><dt>Checkout</dt><dd>${esc(st.card_status)}</dd></div>` : '';
+  const lookup =
+    st.lookup && (st.lookup.query || st.lookup.result)
+      ? `<div class="scr-lookup"><span class="scr-label">Customer lookup</span> ${esc(st.lookup.query || '')}${
+          st.lookup.result ? ` <span class="muted">→ ${esc(st.lookup.result)}</span>` : ''
+        }</div>`
+      : '';
 
-  mirror.innerHTML = `
-    <h3>Live fields <span class="muted" style="font-weight:400;">· Step ${esc(String(st.step?.n || 1))}${
-    st.step?.title ? ` · ${esc(st.step.title)}` : ''
-  }</span></h3>
-    <div style="margin-bottom:10px;">${rec}</div>
+  const cardStatus = st.card_status ? `<div class="scr-cardstatus">${esc(st.card_status)}</div>` : '';
+
+  screen.innerHTML = `
+    <div class="scr-step-title">${esc(stepTitle || `Step ${stepN}`)}</div>
     ${lookup}
-    ${fieldsHtml}
-    ${equip}
+    <div class="scr-grid">
+      ${current.length ? current.map(fieldRow).join('') : '<div class="mirror-empty">No fields on this step yet.</div>'}
+      ${equip}
+    </div>
+    ${recHtml}
     ${cardStatus}`;
 
-  if (notes) notes.textContent = st.notes ? st.notes : '';
+  const notes = document.getElementById('ilm-notes');
+  if (notes) notes.textContent = st.notes || '';
+
+  // Earlier (completed) steps summary.
+  const earlierWrap = document.getElementById('ilm-earlier-wrap');
+  const earlierBox = document.getElementById('ilm-earlier');
+  if (earlierWrap && earlierBox) {
+    if (earlier.length) {
+      earlierWrap.hidden = false;
+      earlierBox.innerHTML = `<div class="scr-grid earlier-grid">${earlier.map(fieldRow).join('')}</div>`;
+    } else {
+      earlierWrap.hidden = true;
+      earlierBox.innerHTML = '';
+    }
+  }
 }
 
-function renderStepper(activeN) {
+function fieldRow(f) {
+  const filled = f.filled && String(f.value).trim() !== '';
+  return `<div class="scr-field${filled ? '' : ' empty'}">
+    <div class="scr-label">${esc(f.label || f.name)}</div>
+    <div class="scr-value">${filled ? esc(f.value) : ''}</div>
+  </div>`;
+}
+
+function renderStepper(steps, activeN) {
   const el = document.getElementById('ilm-stepper');
   if (!el) return;
-  el.innerHTML = POS_STEPS.map((label, i) => {
-    const n = i + 1;
-    const cls = n === activeN ? 'active' : n < activeN ? 'done' : '';
-    return `<div class="s ${cls}">${n}. ${esc(label)}</div>`;
-  }).join('');
+  const list =
+    Array.isArray(steps) && steps.length
+      ? steps.map((s) => ({ n: s.n, label: s.label, active: s.n === activeN, done: s.n < activeN }))
+      : POS_STEPS.map((label, i) => ({ n: i + 1, label, active: i + 1 === activeN, done: i + 1 < activeN }));
+  el.innerHTML = list
+    .map((s) => `<div class="s ${s.active ? 'active' : s.done ? 'done' : ''}">${s.n}. ${esc(s.label || '')}</div>`)
+    .join('');
 }
 
-// ---- Dossier ---------------------------------------------------------------
+function updateNowBar(stepN, stepTitle) {
+  const bar = document.getElementById('ilm-nowbar');
+  if (!bar) return;
+  const hint = STEP_HINTS[stepN] || '';
+  bar.innerHTML = `<span class="now-tag">Trainee is on</span> <strong>Step ${stepN}: ${esc(stepTitle || POS_STEPS[stepN - 1] || '')}</strong>${
+    hint ? ` <span class="now-hint">${esc(hint)}</span>` : ''
+  }`;
+}
+
+// ---- Dossier (step-aware collapsible) --------------------------------------
 
 function renderDossier() {
   const el = document.getElementById('ilm-dossier');
@@ -192,25 +253,26 @@ function renderDossier() {
       <p style="font-size:13px;margin:0;">${esc(d.how_to_use || '')}</p>
     </div>
 
-    ${section('Scenario snapshot', rows(d.snapshot, 'snap'))}
-    ${section('Key facts (for the on-screen reservation)', `<div class="facts">${rows(d.key_facts, 'snap')}</div>`)}
-    ${d.timeline ? section('Move timeline', `<div class="timeline">${esc(d.timeline)}</div>`) : ''}
+    ${section('Scenario snapshot', rows(d.snapshot, 'snap'), '1')}
     ${
       Array.isArray(d.opening_lines) && d.opening_lines.length
-        ? section('Opening lines (he says one of these)', `<ul class="tips">${d.opening_lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`)
+        ? section('Opening lines (he says one of these)', `<ul class="tips">${d.opening_lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`, '1')
         : ''
     }
+    ${d.timeline ? section('Move timeline', `<div class="timeline">${esc(d.timeline)}</div>`, '1 2') : ''}
+    ${section('Key facts (truck, price, contact, card)', `<div class="facts">${rows(d.key_facts, 'snap')}</div>`, '2 5')}
     ${
       Array.isArray(d.objections) && d.objections.length
         ? section(
             'The three objections (and what resolves each)',
-            d.objections.map((o) => `<div class="obj"><div class="name">${esc(o.name)}</div><div class="res">${esc(o.resolves)}</div></div>`).join('')
+            d.objections.map((o) => `<div class="obj"><div class="name">${esc(o.name)}</div><div class="res">${esc(o.resolves)}</div></div>`).join(''),
+            '3 4'
           )
         : ''
     }
     ${
       Array.isArray(d.script) && d.script.length
-        ? section('Ideal-path script', d.script.map(renderPhase).join(''))
+        ? `<div class="card"><h3>Ideal-path script</h3>${d.script.map(renderPhase).join('')}</div>`
         : ''
     }
     ${
@@ -219,15 +281,21 @@ function renderDossier() {
             'Objection cheat sheet',
             `<table class="cheat"><thead><tr><th>He says</th><th>You say</th></tr></thead><tbody>${d.cheat_sheet
               .map((c) => `<tr><td class="says">${esc(c.says)}</td><td>${esc(c.reply)}</td></tr>`)
-              .join('')}</tbody></table>`
+              .join('')}</tbody></table>`,
+            '3 4 5'
           )
         : ''
     }
     ${
       Array.isArray(d.presenter_tips) && d.presenter_tips.length
-        ? section('Presenter tips', `<ul class="tips">${d.presenter_tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`)
+        ? section('Presenter tips', `<ul class="tips">${d.presenter_tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`, '')
         : ''
     }`;
+}
+
+// A collapsible dossier section tagged with the POS steps it is relevant to.
+function section(title, inner, steps) {
+  return `<details class="card guide" data-steps="${esc(steps || '')}"><summary>${esc(title)}</summary><div class="guide-body">${inner}</div></details>`;
 }
 
 function renderPhase(p) {
@@ -235,15 +303,22 @@ function renderPhase(p) {
     .map((l) => `<div class="line ${l.who === 'agent' ? 'agent' : 'robert'}"><span class="who">${l.who === 'agent' ? 'AGENT' : 'ROBERT'}</span>${esc(l.text)}</div>`)
     .join('');
   const note = p.note ? `<div class="line"><span class="note-txt">▸ ${esc(p.note)}</span></div>` : '';
-  return `<details class="phase"><summary><span class="pn">PHASE ${esc(String(p.phase))}</span>${esc(p.label || '')}</summary><div style="padding:8px 0;">${lines}${note}</div></details>`;
+  const steps = (PHASE_STEPS[p.phase] || []).join(' ');
+  return `<details class="phase guide" data-steps="${esc(steps)}"><summary><span class="pn">PHASE ${esc(String(p.phase))}</span>${esc(p.label || '')}</summary><div style="padding:8px 0;">${lines}${note}</div></details>`;
 }
 
-function section(title, inner) {
-  return `<div class="card"><h3>${esc(title)}</h3>${inner}</div>`;
-}
-function rows(list, cls) {
-  if (!Array.isArray(list) || !list.length) return '<div class="muted">—</div>';
-  return list.map((r) => `<div class="snap-row ${cls || ''}"><span class="lbl">${esc(r.label)}</span><span>${esc(r.value)}</span></div>`).join('');
+// Open the guidance relevant to the current step, collapse the rest, and
+// highlight what is active. Only re-applies when the step actually changes, so it
+// never fights the instructor toggling something open mid-step.
+function focusDossierForStep(stepN) {
+  if (stepN === lastFocusStep) return;
+  lastFocusStep = stepN;
+  document.querySelectorAll('[data-steps]').forEach((node) => {
+    const raw = node.getAttribute('data-steps') || '';
+    const relevant = raw.split(/\s+/).filter(Boolean).map(Number).includes(stepN);
+    if (node.tagName === 'DETAILS') node.open = relevant;
+    node.classList.toggle('active-guide', relevant);
+  });
 }
 
 // ---- Debrief (end-of-session checklist) ------------------------------------
@@ -251,10 +326,18 @@ function rows(list, cls) {
 function hydrateDebrief(meta) {
   const el = document.getElementById('ilm-debrief');
   if (!el) return;
-  const criteria = (dossier && Array.isArray(dossier.success_criteria) && dossier.success_criteria.length)
-    ? dossier.success_criteria
-    : ['Understood the move before pitching', 'Recommended and priced the right truck', 'Built genuine urgency on the real deadline', 'Handled the Beth stall and the big-truck nerves', 'Clearly asked for the business', 'Read back and confirmed the reservation'];
-  const checked = (meta && Array.isArray(meta.checklist)) ? meta.checklist : [];
+  const criteria =
+    dossier && Array.isArray(dossier.success_criteria) && dossier.success_criteria.length
+      ? dossier.success_criteria
+      : [
+          'Understood the move before pitching',
+          'Recommended and priced the right truck',
+          'Built genuine urgency on the real deadline',
+          'Handled the Beth stall and the big-truck nerves',
+          'Clearly asked for the business',
+          'Read back and confirmed the reservation',
+        ];
+  const checked = meta && Array.isArray(meta.checklist) ? meta.checklist : [];
   const notesVal = meta && typeof meta.notes === 'string' ? meta.notes : '';
 
   el.innerHTML = `
@@ -329,11 +412,9 @@ function renderMessage(title, body) {
   root.innerHTML = `<div class="ilm-message"><div class="box"><h1>${esc(title)}</h1><p>${esc(body)}</p></div></div>`;
 }
 
-function humanize(key) {
-  return String(key)
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
+function rows(list, cls) {
+  if (!Array.isArray(list) || !list.length) return '<div class="muted">—</div>';
+  return list.map((r) => `<div class="snap-row ${cls || ''}"><span class="lbl">${esc(r.label)}</span><span>${esc(r.value)}</span></div>`).join('');
 }
 
 function timeAgo(unixSeconds) {

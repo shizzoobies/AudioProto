@@ -149,30 +149,36 @@ export async function getLiveScope(request, env) {
   };
 }
 
-// Defensive card masking. The trainee already masks before sending, but never
-// trust the client: reduce any card number to its last 4 digits and drop the
-// CVV before the snapshot is persisted. Mutates and returns a plain object.
+// Mask one value by field name, then by value shape (a PAN-looking 13-19 digit
+// run). The single masking rule used for both snapshot shapes below.
+function maskFieldValue(name, raw) {
+  if (typeof raw !== 'string') return raw;
+  const lower = String(name || '').toLowerCase();
+  const digits = raw.replace(/\D/g, '');
+  if (lower.includes('card') && lower.includes('num')) return digits ? `•••• ${digits.slice(-4)}` : '';
+  if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) return raw ? '•••' : '';
+  if (digits.length >= 13 && digits.length <= 19 && digits.length === raw.replace(/[\s-]/g, '').length) {
+    return `•••• ${digits.slice(-4)}`;
+  }
+  return raw;
+}
+
+// Defensive card masking at the trust boundary. The trainee already masks before
+// sending, but never trust the client. Handles both snapshot shapes: the rich
+// array of { name, value, ... } field objects, and the legacy { name: value }
+// object. Returns a plain object with card data reduced to last 4 / dropped CVV.
 export function maskTraineeState(state) {
   if (!state || typeof state !== 'object') return state;
   const out = { ...state };
-  const fields = out.fields && typeof out.fields === 'object' ? { ...out.fields } : null;
-  if (fields) {
-    for (const key of Object.keys(fields)) {
-      const lower = key.toLowerCase();
-      const val = fields[key];
-      if (typeof val !== 'string') continue;
-      const digits = val.replace(/\D/g, '');
-      if (lower.includes('card') && lower.includes('num')) {
-        fields[key] = digits ? `•••• ${digits.slice(-4)}` : '';
-      } else if (lower.includes('cvv') || lower.includes('cvc') || lower.includes('cid')) {
-        fields[key] = val ? '•••' : '';
-      } else if (digits.length >= 13 && digits.length <= 19 && digits.length === val.replace(/[\s-]/g, '').length) {
-        // Value-shape fallback: anything that looks like a PAN (13-19 digits,
-        // only spaces/dashes as separators) is masked even if the field name
-        // does not match the heuristics above (renamed or split card fields).
-        fields[key] = `•••• ${digits.slice(-4)}`;
-      }
-    }
+  if (Array.isArray(out.fields)) {
+    out.fields = out.fields.map((f) =>
+      f && typeof f === 'object' && typeof f.value === 'string'
+        ? { ...f, value: maskFieldValue(f.name, f.value) }
+        : f
+    );
+  } else if (out.fields && typeof out.fields === 'object') {
+    const fields = { ...out.fields };
+    for (const key of Object.keys(fields)) fields[key] = maskFieldValue(key, fields[key]);
     out.fields = fields;
   }
   return out;
