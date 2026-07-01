@@ -83,6 +83,10 @@ export async function onRequestPost({ request, env }) {
       accent_color: hexColor(body?.accent_color),
       photo: imageStr(body?.photo),
       incident_image: imageStr(body?.incident_image),
+      org_goal: cleanStr(body?.org_goal),
+      business_outcome: cleanStr(body?.business_outcome),
+      performance_opportunity: cleanStr(body?.performance_opportunity),
+      performance_summary: cleanStr(body?.performance_summary),
     };
 
     const now = Math.floor(Date.now() / 1000);
@@ -107,7 +111,9 @@ export async function onRequestPost({ request, env }) {
              demeanor = ?, incident = ?, personality = ?, derails = ?,
              mode_assessment = ?, mode_coaching = ?, mode_followup = ?,
              opening_lines = ?, active = ?, image_id = ?, accent_color = ?,
-             photo = ?, incident_image = ?, updated_at = ?
+             photo = ?, incident_image = ?,
+             org_goal = ?, business_outcome = ?, performance_opportunity = ?, performance_summary = ?,
+             updated_at = ?
            WHERE id = ?`
         )
         .bind(
@@ -117,7 +123,9 @@ export async function onRequestPost({ request, env }) {
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
           fields.opening_lines, fields.active, fields.image_id, fields.accent_color,
-          fields.photo, fields.incident_image, now,
+          fields.photo, fields.incident_image,
+          fields.org_goal, fields.business_outcome, fields.performance_opportunity, fields.performance_summary,
+          now,
           id
         )
         .run();
@@ -137,8 +145,10 @@ export async function onRequestPost({ request, env }) {
               receptive_to, gate_strictness, disruptiveness,
               skill_gap, skill_gap_detail, demeanor, incident, personality, derails,
               mode_assessment, mode_coaching, mode_followup, opening_lines, active,
-              image_id, accent_color, photo, incident_image, created_at, updated_at, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              image_id, accent_color, photo, incident_image,
+              org_goal, business_outcome, performance_opportunity, performance_summary,
+              created_at, updated_at, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           id, fields.scenario_name, fields.name, fields.age, fields.role_title, fields.voice_id, fields.attitude,
@@ -147,7 +157,9 @@ export async function onRequestPost({ request, env }) {
           fields.demeanor, fields.incident, fields.personality, fields.derails,
           fields.mode_assessment, fields.mode_coaching, fields.mode_followup,
           fields.opening_lines, fields.active, fields.image_id, fields.accent_color,
-          fields.photo, fields.incident_image, now, now, createdBy
+          fields.photo, fields.incident_image,
+          fields.org_goal, fields.business_outcome, fields.performance_opportunity, fields.performance_summary,
+          now, now, createdBy
         )
         .run();
     }
@@ -252,6 +264,16 @@ async function ensureCoachingAgentsTable(env) {
       // column already present
     }
   }
+  // Development-by-Design tokens woven into the dashboard stories + prompts
+  // ({{OrganizationGoal}}, {{BusinessOutcome}}, {{PerformanceOpportunity}},
+  // {{PerformanceSummary}}). {{TeamMemberName}} is the existing `name`.
+  for (const col of ['org_goal TEXT', 'business_outcome TEXT', 'performance_opportunity TEXT', 'performance_summary TEXT']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE coaching_agents ADD COLUMN ${col}`).run();
+    } catch {
+      // column already present
+    }
+  }
 }
 
 // Shape a DB row into the JSON an admin client expects: booleans coerced,
@@ -295,6 +317,10 @@ function rowToAgent(row) {
     accent_color: row.accent_color || '',
     photo: row.photo || '',
     incident_image: row.incident_image || '',
+    org_goal: row.org_goal || '',
+    business_outcome: row.business_outcome || '',
+    performance_opportunity: row.performance_opportunity || '',
+    performance_summary: row.performance_summary || '',
     created_at: row.created_at ?? null,
     updated_at: row.updated_at ?? null,
     created_by: row.created_by || null,

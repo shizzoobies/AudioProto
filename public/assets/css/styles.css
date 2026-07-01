@@ -7720,6 +7720,69 @@ body:has(.coaching-dash) { background: var(--scn-page, #f4eddf); }
 /* Activities placeholder */
 .dash-activities { margin: 0; font-size: 14px; color: var(--color-text-secondary); }
 
+/* --- Development by Design content blocks (stories, assignments, hints, ...) --- */
+.dash-section-body > * + * { margin-top: 16px; }
+.dash-narrative { font-size: 14.5px; line-height: 1.6; color: var(--scn-ink, #241d1c); }
+.dash-narrative p { margin: 0 0 10px; }
+.dash-narrative p:last-child { margin-bottom: 0; }
+.dash-narrative-h,
+.dash-leadership-h {
+  margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--scn-green, #6a7f46);
+}
+.dash-assignment {
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(245, 225, 175, 0.28); border-left: 3px solid var(--scn-orange, #e7a23d);
+  font-size: 14.5px; line-height: 1.55; color: var(--scn-ink, #241d1c);
+}
+.dash-assignment p { margin: 0; }
+.dash-info {
+  padding: 14px 16px; border-radius: 12px;
+  background: #fffdf8; border: 1px solid var(--scn-tan, #e2cca8);
+  font-size: 14px; line-height: 1.6; color: var(--color-text-secondary, #5b5446);
+}
+.dash-info p { margin: 0 0 8px; }
+.dash-info p:last-child { margin-bottom: 0; }
+.dash-consider {
+  margin: 4px 0 8px; padding-left: 18px;
+  font-size: 12.5px; line-height: 1.5; color: var(--scn-muted, #7e7764);
+}
+.dash-consider li { margin: 1px 0; }
+.dash-leadership {
+  padding: 14px 16px; border-radius: 12px;
+  background: rgba(106, 127, 70, 0.06); border: 1px solid rgba(106, 127, 70, 0.22);
+}
+.dash-leadership .dash-form-field { margin-bottom: 12px; }
+.dash-leadership .dash-form-field:last-child { margin-bottom: 0; }
+.dash-checklist { display: block; }
+.dash-check-item {
+  display: flex; align-items: flex-start; gap: 9px; padding: 5px 0;
+  font-size: 14px; line-height: 1.45; color: var(--scn-ink, #241d1c); cursor: pointer;
+}
+.dash-check-item input { margin-top: 3px; flex: none; accent-color: var(--scn-green, #6a7f46); }
+.dash-yesno-opts { display: flex; gap: 18px; margin-top: 6px; }
+.dash-yesno-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.dash-yesno-opt input { accent-color: var(--scn-green, #6a7f46); }
+.dash-prompt {
+  padding: 12px 16px; border-radius: 12px; background: rgba(226, 204, 168, 0.20);
+  font-size: 13.5px; line-height: 1.55; color: var(--color-text-secondary, #5b5446);
+}
+.dash-prompt p { margin: 0 0 8px; }
+.dash-prompt p:last-child { margin-bottom: 0; }
+.dash-completion {
+  padding: 18px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(245, 225, 175, 0.5), rgba(106, 127, 70, 0.1));
+  border: 1px solid var(--scn-tan, #e2cca8); color: var(--scn-ink, #241d1c);
+  font-size: 14.5px; line-height: 1.6;
+}
+.dash-completion p { margin: 0 0 10px; }
+.dash-completion p:last-child { margin-bottom: 0; }
+.dash-phases {
+  margin: 4px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.6; color: var(--scn-ink, #241d1c);
+}
+.dash-phases li { margin: 2px 0; }
+.dash-practicum-reflect { margin-top: 16px; }
+
 /* --- 4. Export --- */
 .dash-export { display: flex; justify-content: center; }
 

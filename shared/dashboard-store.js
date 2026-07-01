@@ -9,7 +9,7 @@
 // constants live in the pure shared/coaching-dashboard.js.
 
 import { randomId } from './auth.js';
-import { DEFAULT_DASHBOARD_FIELDS, MAX_STAGE, SEED_VERSION } from './coaching-dashboard.js';
+import { DEFAULT_DASHBOARD_FIELDS, DEFAULT_DASHBOARD_BLOCKS, MAX_STAGE, SEED_VERSION } from './coaching-dashboard.js';
 
 // Resolve the effective unlocked stage for a manager (by their invite_id). A
 // cohort member is gated to their cohort's unlocked_stage; an ad-hoc (non-cohort)
@@ -130,6 +130,34 @@ export async function ensureDashboardTables(env) {
     // table already present or a benign race — safe to ignore
   }
 
+  // New dashboard_fields columns for the Development by Design reframe: a
+  // "Consider:" hint list, a Week-4 part number (1 prep / 2 reflect), and a group
+  // tag ('leadership'). ADD COLUMN throws once present — swallow it. ('group' is a
+  // reserved word, so the column is 'grp'.)
+  for (const col of ['hint TEXT', 'part INTEGER', 'grp TEXT']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE dashboard_fields ADD COLUMN ${col}`).run();
+    } catch {
+      // column already present — safe to ignore
+    }
+  }
+
+  // dashboard_blocks: the editable narrative per (section_key, slot) — Story,
+  // Assignment, Leadership intro, Final Prompt, Info, Completion, Practicum.
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS dashboard_blocks (
+         section_key TEXT NOT NULL,
+         slot        TEXT NOT NULL,
+         value       TEXT,
+         updated_at  INTEGER,
+         PRIMARY KEY (section_key, slot)
+       )`
+    ).run();
+  } catch {
+    // table already present or a benign race — safe to ignore
+  }
+
   // dashboard_meta: tiny key/value store for migration bookkeeping (the applied
   // seed version), so a course redesign can re-seed exactly once on deploy.
   try {
@@ -158,6 +186,7 @@ export async function ensureDashboardTables(env) {
       if (applied > 0) {
         // Upgrading from an earlier course: clean reset of dashboard state.
         try { await env.DB.prepare(`DELETE FROM dashboard_fields`).run(); } catch {}
+        try { await env.DB.prepare(`DELETE FROM dashboard_blocks`).run(); } catch {}
         try { await env.DB.prepare(`DELETE FROM dashboard_answers`).run(); } catch {}
         try { await env.DB.prepare(`UPDATE cohorts SET unlocked_stage = 1`).run(); } catch {}
       }
@@ -167,10 +196,23 @@ export async function ensureDashboardTables(env) {
         for (const f of DEFAULT_DASHBOARD_FIELDS) {
           await env.DB
             .prepare(
-              `INSERT INTO dashboard_fields (id, section_key, label, type, position, active, created_at)
-               VALUES (?, ?, ?, ?, ?, 1, ?)`
+              `INSERT INTO dashboard_fields (id, section_key, label, type, position, hint, part, grp, active, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`
             )
-            .bind('df_' + randomId(), f.section_key, f.label, f.type || 'textarea', f.position || 0, now)
+            .bind('df_' + randomId(), f.section_key, f.label, f.type || 'textarea', f.position || 0,
+              f.hint || null, f.part == null ? null : f.part, f.group || null, now)
+            .run();
+        }
+      }
+      const blockCount = await env.DB.prepare(`SELECT COUNT(*) AS n FROM dashboard_blocks`).first();
+      if (!blockCount || Number(blockCount.n) === 0) {
+        for (const b of DEFAULT_DASHBOARD_BLOCKS) {
+          await env.DB
+            .prepare(
+              `INSERT INTO dashboard_blocks (section_key, slot, value, updated_at)
+               VALUES (?, ?, ?, ?)`
+            )
+            .bind(b.section_key, b.slot, b.value == null ? '' : b.value, now)
             .run();
         }
       }

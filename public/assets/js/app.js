@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-4 instructor-live-mode';
+const BUILD_ID = '20260630-5 devbydesign-reframe';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1626,6 +1626,8 @@ function renderCoachingDashboard(data) {
   const answers = (data && typeof data.answers === 'object' && data.answers) || {};
   const calls = (data && typeof data.calls === 'object' && data.calls) || {};
   const savedName = loadCoachingParticipant();
+  const blocks = (data && typeof data.blocks === 'object' && data.blocks) || {};
+  const practicumPhases = Array.isArray(data.practicum_phases) ? data.practicum_phases : [];
 
   // ---- 1. Agent profile card ----
   const rows = [
@@ -1664,12 +1666,12 @@ function renderCoachingDashboard(data) {
   // Friendly heading per week + the Final group (mirrors WEEK_TITLES in
   // shared/coaching-dashboard.js; app.js can't import the server module).
   const WEEK_LABELS = {
-    1: 'Week 1 · Intentional Development',
-    2: 'Week 2 · Diagnosis',
-    3: 'Week 3 · Strategy for Growth',
-    4: 'Week 4 · The Performance Conversation',
-    5: 'Week 5 · Follow-Up & Reinforcement',
-    6: 'Final · Real-World Case Study',
+    1: 'Week 1 · Define Success',
+    2: 'Week 2 · Assess Capability',
+    3: 'Week 3 · Design the Plan',
+    4: 'Week 4 · Prepare & Conduct the Conversation',
+    5: 'Week 5 · Follow Up & Reinforce',
+    6: 'Real World Practicum',
   };
   const stripWeeks = [1, 2, 3, 4, 5];
   const stripHtml = `
@@ -1677,7 +1679,7 @@ function renderCoachingDashboard(data) {
       ${stripWeeks.map((w) => `
         <span class="dash-strip-week${w <= unlockedWeek ? ' is-on' : ' is-dim'}" role="listitem">Week ${w}</span>`).join('<span class="dash-strip-sep" aria-hidden="true">·</span>')}
       <span class="dash-strip-sep" aria-hidden="true">·</span>
-      <span class="dash-strip-week${unlockedWeek >= 6 ? ' is-on' : ' is-dim'}" role="listitem">Final</span>
+      <span class="dash-strip-week${unlockedWeek >= 6 ? ' is-on' : ' is-dim'}" role="listitem">Practicum</span>
     </div>`;
 
   // ---- 3. Sections grouped by week (weeks 1-5, then the Final assignment) ----
@@ -1698,7 +1700,7 @@ function renderCoachingDashboard(data) {
         <div class="dash-section-head">
           <h3 class="dash-section-title">${escapeHtml(section.title || '')}</h3>
         </div>
-        <div class="dash-section-body">${dashSectionBody(section, { agent, fields, answers, calls, savedName })}</div>
+        <div class="dash-section-body">${dashSectionBody(section, { agent, fields, answers, calls, savedName, blocks, practicumPhases })}</div>
       </div>`;
   };
 
@@ -1769,41 +1771,23 @@ function renderCoachingDashboard(data) {
   wireCoachingDashboard(data);
 }
 
-// Render one UNLOCKED section's interactive body by type.
+// Render one UNLOCKED section's interactive body: its editable narrative blocks
+// (Story / Assignment / Info / Leadership / Final Prompt / Completion) plus its
+// questions (textarea / checklist / yes-no), keyed off ctx.blocks + ctx.fields.
 function dashSectionBody(section, ctx) {
   const type = section.type;
-  if (type === 'incident') {
-    const agent = ctx.agent;
-    const img = agent.incident_image
-      ? `<img class="dash-incident-img" src="${escapeAttr(agent.incident_image)}" alt="">`
-      : '';
-    return `
-      ${agent.incident ? `<div class="dash-incident-text">${paragraphsHtml(agent.incident)}</div>` : '<p class="dash-muted">No incident recorded.</p>'}
-      ${img}`;
-  }
+  // Call sections key blocks off `key` (they have no section_key); form/info use
+  // section_key (which equals key). Fall back so the call's story block resolves.
+  const blocks = (ctx.blocks && ctx.blocks[section.section_key || section.key]) || {};
 
-  if (type === 'form') {
-    const mine = ctx.fields
-      .filter((f) => f.section_key === section.section_key)
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-    if (!mine.length) return '<p class="dash-muted">No questions yet.</p>';
-    return mine.map((f) => {
-      const val = ctx.answers[f.key] || '';
-      return `
-        <label class="dash-form-field">
-          <span class="dash-form-label">${escapeHtml(f.label || '')}</span>
-          <textarea class="dash-form-input" data-field-key="${escapeAttr(f.key)}" rows="3">${escapeHtml(val)}</textarea>
-          <span class="dash-save-note" data-for="${escapeAttr(f.key)}" aria-live="polite"></span>
-        </label>`;
-    }).join('');
-  }
-
+  // --- Call section: story (prep-complete note) then the call UI ---
   if (type === 'call') {
     const mode = section.mode;
     const call = (ctx.calls && ctx.calls[mode]) || {};
+    const storyHtml = blocks.story ? `<div class="dash-narrative">${paragraphsHtml(blocks.story)}</div>` : '';
     if (call.completed) {
       const takenBy = call.taken_by || '';
-      return `
+      return `${storyHtml}
         <div class="dash-call dash-call-done" data-mode="${escapeAttr(mode)}">
           <p class="dash-call-label">Recording</p>
           <audio class="dash-rec-audio" controls preload="none" src="/api/coaching/recording?mode=${encodeURIComponent(mode)}"></audio>
@@ -1814,22 +1798,118 @@ function dashSectionBody(section, ctx) {
           </div>
         </div>`;
     }
-    return `
+    return `${storyHtml}
       <div class="dash-call" data-mode="${escapeAttr(mode)}">
         <label class="dash-call-name">
           <span class="dash-call-name-label">Who is taking this call?</span>
           <input class="dash-call-name-input" type="text" autocomplete="name" maxlength="60"
             placeholder="So this session can be reviewed later" value="${escapeAttr(ctx.savedName)}">
         </label>
-        <button class="primary-button dash-call-btn" type="button" data-mode="${escapeAttr(mode)}">Call the agent</button>
+        <button class="primary-button dash-call-btn" type="button" data-mode="${escapeAttr(mode)}">Start the conversation</button>
       </div>`;
   }
 
-  if (type === 'activities') {
-    return '<p class="dash-activities">Follow-up activities (games, a book club, and a workbook) coming soon.</p>';
+  // --- Info section (Real World Practicum): documented phases + final reflection ---
+  if (type === 'info') {
+    const story = blocks.practicum_story || blocks.story || '';
+    const phases = Array.isArray(ctx.practicumPhases) ? ctx.practicumPhases : [];
+    const phasesHtml = phases.length
+      ? `<ol class="dash-phases">${phases.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ol>`
+      : '';
+    const q = dashQuestionsHtml(section, ctx, false);
+    return `
+      ${story ? `<div class="dash-narrative">${paragraphsHtml(story)}</div>` : ''}
+      ${phasesHtml}
+      ${q ? `<div class="dash-practicum-reflect"><p class="dash-narrative-h">Final reflection</p>${q}</div>` : ''}`;
+  }
+
+  // --- Form section: story + assignment + info + questions + leadership + prompt ---
+  if (type === 'form') {
+    const parts = [];
+    if (blocks.story) parts.push(`<div class="dash-narrative">${paragraphsHtml(blocks.story)}</div>`);
+    if (blocks.assignment) parts.push(`<div class="dash-assignment"><p class="dash-narrative-h">Your assignment</p>${paragraphsHtml(blocks.assignment)}</div>`);
+    if (blocks.info) parts.push(`<div class="dash-info">${paragraphsHtml(blocks.info)}</div>`);
+
+    const main = dashQuestionsHtml(section, ctx, false);
+    if (main) parts.push(main);
+
+    // Leadership Reflection: its intro block + the leadership-group questions.
+    const lead = dashQuestionsHtml(section, ctx, true);
+    if (blocks.leadership_intro || lead) {
+      parts.push(`<div class="dash-leadership">
+        <p class="dash-leadership-h">Leadership reflection</p>
+        ${blocks.leadership_intro ? `<div class="dash-narrative">${paragraphsHtml(blocks.leadership_intro)}</div>` : ''}
+        ${lead}
+      </div>`);
+    }
+
+    if (blocks.final_prompt) parts.push(`<div class="dash-prompt">${paragraphsHtml(blocks.final_prompt)}</div>`);
+    if (blocks.completion) parts.push(`<div class="dash-completion">${paragraphsHtml(blocks.completion)}</div>`);
+
+    if (!parts.length) return '<p class="dash-muted">No content yet.</p>';
+    return parts.join('');
   }
 
   return '';
+}
+
+// Render a section's questions. `leadership` selects the leadership-group fields
+// (group === 'leadership') vs the rest, and honors the Week-4 part split.
+function dashQuestionsHtml(section, ctx, leadership) {
+  const partOk = (f) => section.part == null || f.part == null || Number(f.part) === Number(section.part);
+  const mine = ctx.fields
+    .filter((f) => f.section_key === section.section_key)
+    .filter((f) => (leadership ? f.group === 'leadership' : f.group !== 'leadership'))
+    .filter(partOk)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  return mine.map((f) => dashFieldHtml(f, ctx)).join('');
+}
+
+// One editable field: textarea (default), checklist, or yes/no. A `hint` renders
+// as a "Consider:" bullet list. Answers autosave by data-field-key.
+function dashFieldHtml(f, ctx) {
+  const val = ctx.answers[f.key] || '';
+  const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean);
+
+  if (f.type === 'checklist') {
+    const items = lines(f.hint);
+    const checked = new Set(lines(val));
+    const list = items.map((item) => `
+      <label class="dash-check-item">
+        <input type="checkbox" class="dash-check" data-field-key="${escapeAttr(f.key)}" value="${escapeAttr(item)}"${checked.has(item) ? ' checked' : ''}>
+        <span>${escapeHtml(item)}</span>
+      </label>`).join('');
+    return `
+      <div class="dash-form-field dash-checklist" data-field-key="${escapeAttr(f.key)}">
+        <span class="dash-form-label">${escapeHtml(f.label || '')}</span>
+        ${list}
+        <span class="dash-save-note" data-for="${escapeAttr(f.key)}" aria-live="polite"></span>
+      </div>`;
+  }
+
+  if (f.type === 'yesno') {
+    const v = String(val);
+    return `
+      <div class="dash-form-field dash-yesno">
+        <span class="dash-form-label">${escapeHtml(f.label || '')}</span>
+        <span class="dash-yesno-opts">
+          <label class="dash-yesno-opt"><input type="radio" class="dash-radio" name="yn_${escapeAttr(f.key)}" data-field-key="${escapeAttr(f.key)}" value="Yes"${v === 'Yes' ? ' checked' : ''}> Yes</label>
+          <label class="dash-yesno-opt"><input type="radio" class="dash-radio" name="yn_${escapeAttr(f.key)}" data-field-key="${escapeAttr(f.key)}" value="No"${v === 'No' ? ' checked' : ''}> No</label>
+        </span>
+        <span class="dash-save-note" data-for="${escapeAttr(f.key)}" aria-live="polite"></span>
+      </div>`;
+  }
+
+  const hint = f.hint
+    ? `<ul class="dash-consider">${lines(f.hint).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+    : '';
+  return `
+    <label class="dash-form-field">
+      <span class="dash-form-label">${escapeHtml(f.label || '')}</span>
+      ${hint}
+      <textarea class="dash-form-input" data-field-key="${escapeAttr(f.key)}" rows="3">${escapeHtml(val)}</textarea>
+      <span class="dash-save-note" data-for="${escapeAttr(f.key)}" aria-live="polite"></span>
+    </label>`;
 }
 
 // Wire autosave (form), recording retry/error (calls), call buttons, and the
@@ -1857,6 +1937,29 @@ function wireCoachingDashboard(data) {
           if (note) note.textContent = 'Save failed';
         }
       }, 600);
+    });
+  });
+
+  // --- Checklist autosave: value = newline-joined checked items ---
+  root.querySelectorAll('.dash-checklist').forEach((wrap) => {
+    const key = wrap.dataset.fieldKey;
+    const note = root.querySelector(`.dash-save-note[data-for="${cssEscape(key)}"]`);
+    wrap.querySelectorAll('.dash-check').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const value = Array.from(wrap.querySelectorAll('.dash-check'))
+          .filter((c) => c.checked).map((c) => c.value).join('\n');
+        saveDashboardField(key, value, note);
+      });
+    });
+  });
+
+  // --- Yes/No autosave ---
+  root.querySelectorAll('.dash-radio').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      const key = radio.dataset.fieldKey;
+      const note = root.querySelector(`.dash-save-note[data-for="${cssEscape(key)}"]`);
+      saveDashboardField(key, radio.value, note);
     });
   });
 
@@ -1972,6 +2075,23 @@ function exportCoachingPlan(data) {
   window.addEventListener('afterprint', cleanup);
   document.body.classList.add('printing');
   window.print();
+}
+
+// Autosave one dashboard answer (checklist joins checked items; yes/no saves the
+// choice). Mirrors the textarea autosave path in wireCoachingDashboard.
+async function saveDashboardField(key, value, note) {
+  if (note) note.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/coaching/answer', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field_key: key, value }),
+    });
+    if (note) note.textContent = res.ok ? 'Saved' : 'Save failed';
+  } catch {
+    if (note) note.textContent = 'Save failed';
+  }
 }
 
 // Minimal CSS.escape fallback for attribute selectors built from our own

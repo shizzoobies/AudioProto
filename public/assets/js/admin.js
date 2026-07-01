@@ -3371,6 +3371,27 @@ function renderCoachingAgentsSection() {
           <label class="admin-field-label" for="ca-personality">Personality</label>
           <textarea id="ca-personality" class="admin-input" rows="2" placeholder="Quirks, background, how they talk."></textarea>
         </div>
+
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label">Development by Design tokens <span class="admin-field-hint">woven into the dashboard stories and prompts. {{TeamMemberName}} is this agent's name.</span></label>
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-org-goal">Organization goal <span class="admin-field-hint">{{OrganizationGoal}}</span></label>
+          <input id="ca-org-goal" class="admin-input" type="text" placeholder="e.g. increasing transactions while delivering an exceptional customer experience">
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-business-outcome">Business outcome <span class="admin-field-hint">{{BusinessOutcome}}</span></label>
+          <input id="ca-business-outcome" class="admin-input" type="text" placeholder="e.g. their close rate on reservations">
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-performance-opportunity">Performance opportunity <span class="admin-field-hint">{{PerformanceOpportunity}}</span></label>
+          <input id="ca-performance-opportunity" class="admin-input" type="text" placeholder="e.g. rushing customers instead of qualifying the move">
+        </div>
+        <div class="admin-field admin-ca-wide">
+          <label class="admin-field-label" for="ca-performance-summary">Performance summary <span class="admin-field-hint">{{PerformanceSummary}} (the info the manager reviews in Week 2)</span></label>
+          <textarea id="ca-performance-summary" class="admin-input" rows="3" placeholder="A short summary of recent performance the manager reviews to assess capability."></textarea>
+        </div>
+
         <div class="admin-field admin-ca-wide">
           <label class="admin-field-label" for="ca-opening-lines">Opening lines <span class="admin-field-hint">(one per line)</span></label>
           <textarea id="ca-opening-lines" class="admin-input" rows="3" placeholder="Hey... you wanted to see me?"></textarea>
@@ -3607,6 +3628,10 @@ async function onSaveCoachingAgent(e) {
     demeanor: val('ca-demeanor'),
     incident: val('ca-incident'),
     personality: val('ca-personality'),
+    org_goal: val('ca-org-goal'),
+    business_outcome: val('ca-business-outcome'),
+    performance_opportunity: val('ca-performance-opportunity'),
+    performance_summary: val('ca-performance-summary'),
     derails: checked('ca-derails'),
     mode_assessment: checked('ca-mode-assessment'),
     mode_coaching: checked('ca-mode-coaching'),
@@ -3677,6 +3702,10 @@ function populateCoachingAgentForm(agent) {
   set('ca-demeanor', agent.demeanor);
   set('ca-incident', agent.incident);
   set('ca-personality', agent.personality);
+  set('ca-org-goal', agent.org_goal);
+  set('ca-business-outcome', agent.business_outcome);
+  set('ca-performance-opportunity', agent.performance_opportunity);
+  set('ca-performance-summary', agent.performance_summary);
   set('ca-opening-lines', Array.isArray(agent.opening_lines) ? agent.opening_lines.join('\n') : '');
   setScenarioPhoto(agent.photo || '');
   set('ca-incident-image', agent.incident_image);
@@ -3935,17 +3964,13 @@ async function onSaveCoachingSyllabus() {
 // The form-question groups, one per course form section_key (mirrors
 // DASHBOARD_SECTIONS in shared/coaching-dashboard.js).
 const DEVPLAN_GROUPS = [
-  { key: 'diagnosis',        title: 'Week 1 · Diagnosis', sub: 'After the assessment call' },
-  { key: 'devplan',          title: 'Week 2 · Development Plan', sub: 'Strategy + rationale' },
-  { key: 'callprep',         title: 'Week 3 · Coaching-Call Prep', sub: 'Key points, opening, agent notes, skill gap/root cause' },
-  { key: 'followupplan',     title: 'Week 4 · Follow-Up Plan', sub: 'After the coaching call' },
-  { key: 'casestudyprep',    title: 'Week 5 · Case-Study Prep', sub: 'Preparing the real-world case study' },
-  { key: 'cs_diagnosis',     title: 'Final · Diagnosis', sub: 'Real-world case study' },
-  { key: 'cs_devplan',       title: 'Final · Development Plan', sub: 'Real-world case study' },
-  { key: 'cs_perfconvo',     title: 'Final · Performance Conversation', sub: 'Real-world case study' },
-  { key: 'cs_followup',      title: 'Final · Follow-Up Strategy', sub: 'Real-world case study' },
-  { key: 'cs_documentation', title: 'Final · Documentation', sub: 'Real-world case study' },
-  { key: 'cs_playbook',      title: 'Final · Personal Playbook', sub: 'Real-world case study' },
+  { key: 'w1_define',   title: 'Week 1 · Define Success', sub: 'Assignment questions + leadership reflection' },
+  { key: 'w2_assess',   title: 'Week 2 · Assess Capability', sub: 'Observations + evidence' },
+  { key: 'w3_design',   title: 'Week 3 · Design the Plan', sub: 'The development plan' },
+  { key: 'w4_prepare',  title: 'Week 4 · Prepare (Part 1)', sub: 'Checklist + prep questions, before the call' },
+  { key: 'w4_reflect',  title: 'Week 4 · Reflect (Part 2)', sub: 'After the development conversation' },
+  { key: 'w5_followup', title: 'Week 5 · Follow Up & Reinforce', sub: 'Reinforcement strategy + leadership reflection' },
+  { key: 'practicum',   title: 'Real World Practicum', sub: 'Final reflection' },
 ];
 
 const MAX_STAGE = 6;

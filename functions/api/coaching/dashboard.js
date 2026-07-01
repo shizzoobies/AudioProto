@@ -13,7 +13,7 @@
 // the manager's saved answers, and their completed calls.
 
 import { getInviteScope } from '../../../shared/auth.js';
-import { DASHBOARD_SECTIONS, MAX_STAGE } from '../../../shared/coaching-dashboard.js';
+import { DASHBOARD_SECTIONS, MAX_STAGE, PRACTICUM_PHASES, fillTokens } from '../../../shared/coaching-dashboard.js';
 import { ensureDashboardTables } from '../../../shared/dashboard-store.js';
 
 export async function onRequestGet({ request, env }) {
@@ -76,19 +76,34 @@ export async function onRequestGet({ request, env }) {
       scenario_name: row.scenario_name || '',
     };
 
+    // Token values woven into the stories/prompts + question labels. Filled
+    // server-side so the client renders ready copy. TeamMemberName = agent name.
+    const tokenVals = {
+      TeamMemberName: agent.name,
+      OrganizationGoal: row.org_goal || '',
+      BusinessOutcome: row.business_outcome || '',
+      PerformanceOpportunity: row.performance_opportunity || '',
+      PerformanceSummary: row.performance_summary || '',
+      Incident: row.incident || '',
+    };
+    const fill = (t) => fillTokens(t, tokenVals);
+
     // --- Editable Development-Plan fields -------------------------------------
     const fieldsRes = await env.DB
       .prepare(
-        `SELECT section_key, label, type, position FROM dashboard_fields
+        `SELECT section_key, label, type, position, hint, part, grp FROM dashboard_fields
            WHERE active = 1 ORDER BY section_key, position`
       )
       .all();
     const fields = (fieldsRes?.results || []).map((f) => ({
       key: `${f.section_key}__${f.position}`,
       section_key: f.section_key,
-      label: f.label,
+      label: fill(f.label),
       type: f.type || 'textarea',
       position: f.position ?? 0,
+      hint: f.hint ? fill(f.hint) : '',
+      part: f.part ?? null,
+      group: f.grp || '',
     }));
 
     // --- The manager's saved answers -----------------------------------------
@@ -118,6 +133,17 @@ export async function onRequestGet({ request, env }) {
       };
     }
 
+    // --- Editable narrative blocks (Story / Assignment / Leadership / Prompt) --
+    // Keyed { section_key: { slot: value } }, token-filled server-side.
+    const blocksRes = await env.DB
+      .prepare(`SELECT section_key, slot, value FROM dashboard_blocks`)
+      .all();
+    const blocks = {};
+    for (const b of blocksRes?.results || []) {
+      if (!blocks[b.section_key]) blocks[b.section_key] = {};
+      blocks[b.section_key][b.slot] = fill(b.value || '');
+    }
+
     // --- Shared course syllabus (Pre-Week 1, read-only) ----------------------
     // Authored by admins; shown collapsed at the top of the dashboard. Read
     // defensively so a missing table (none saved yet) just yields null.
@@ -143,6 +169,8 @@ export async function onRequestGet({ request, env }) {
       fields,
       answers,
       calls,
+      blocks,
+      practicum_phases: PRACTICUM_PHASES,
       syllabus,
     });
   } catch (e) {
