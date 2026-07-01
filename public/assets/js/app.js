@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-6 devbydesign-phase234';
+const BUILD_ID = '20260630-7 coaching-loading-no-flash';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1224,14 +1224,23 @@ function renderCoachingTest(selectedId) {
   // get the Development by Design course DASHBOARD; everyone else (legacy
   // coaching_practice, empty state) keeps the existing landing. We fetch
   // /api/coaching/dashboard: a non-null `agent` ⇒ dashboard; else ⇒ legacy.
-  renderCoachingLanding(agents); // optimistic legacy paint; replaced if a dashboard loads
-  fetchCoachingDashboard();
+  // Paint a NEUTRAL loading state (not the legacy landing, which would flash for
+  // a beat before the dashboard resolves), then fetch. fetchCoachingDashboard
+  // paints the course dashboard, or falls back to the legacy landing only if this
+  // manager has no authored agent.
+  renderCoachingLoading();
+  fetchCoachingDashboard(agents);
+}
+
+function renderCoachingLoading() {
+  dom.root.innerHTML =
+    '<div class="coaching-loading" style="min-height:60vh;display:flex;align-items:center;justify-content:center;color:#7e7764;font-family:var(--font-mono,monospace);font-size:13px;letter-spacing:0.02em;">Loading…</div>';
 }
 
 // Fetch /api/coaching/dashboard and, if this manager has an authored agent,
 // swap the legacy landing for the course dashboard. Guarded by a render token
 // so a stale fetch (e.g. user navigated away) can't clobber a newer view.
-async function fetchCoachingDashboard() {
+async function fetchCoachingDashboard(agents) {
   const token = (state.coachingDashToken = (state.coachingDashToken || 0) + 1);
   let data = null;
   try {
@@ -1242,9 +1251,13 @@ async function fetchCoachingDashboard() {
   }
   // A newer render started while we were fetching — abandon this result.
   if (token !== state.coachingDashToken) return;
-  // No authored agent (or the call failed): keep the legacy landing already
-  // painted by renderCoachingTest — nothing to do.
-  if (!data || !data.active || !data.agent) return;
+  // No authored agent (or the call failed): fall back to the legacy landing now
+  // (painted here, after the fetch — never optimistically — so dashboard users
+  // never see it flash).
+  if (!data || !data.active || !data.agent) {
+    renderCoachingLanding(Array.isArray(agents) ? agents : []);
+    return;
+  }
   renderCoachingDashboard(data);
 }
 
