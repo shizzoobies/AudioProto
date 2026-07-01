@@ -112,6 +112,11 @@ export function stageForMode(mode) {
 //   completion        - the post-course Congratulations message (Week 5)
 //   practicum_story   - the Real World Practicum overview
 export const DEFAULT_DASHBOARD_BLOCKS = [
+  // Welcome (top of the dashboard) - the program intro. The five-step process
+  // list is rendered by the client; this is the editable intro copy.
+  { section_key: 'welcome', slot: 'intro',
+    value: 'Leadership isn’t built during a classroom session. It’s built through intentional action.\n\nThroughout this learning experience, you’ll apply the Development by Design framework with an AI-generated team member. Every participant shares the organizational goal of increasing transactions while delivering an exceptional customer experience, but each participant has a unique team member and business challenge.\n\nYou’ll work through the same repeatable process:' },
+
   // Week 1 - Define Success
   { section_key: 'w1_define', slot: 'story',
     value: 'Earlier today, you met with your Senior Manager to discuss your team’s performance. Together, you reviewed how your team contributes to the organization’s goal of increasing transactions and ensuring customers have the best experience during their interaction with us.\n\nBased on recent performance data, you agreed your primary focus should be helping {{TeamMemberName}} improve {{BusinessOutcome}}.' },

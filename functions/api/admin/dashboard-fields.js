@@ -21,13 +21,14 @@ import { DASHBOARD_SECTIONS } from '../../../shared/coaching-dashboard.js';
 // the single source of truth so they can never drift from the skeleton again.
 const SECTION_KEYS = DASHBOARD_SECTIONS.filter((s) => s.type === 'form').map((s) => s.section_key);
 const MAX_LABEL = 600;
+const MAX_HINT = 4000;
 
 export async function onRequestGet({ env }) {
   if (!env.DB) return jsonError('db_not_configured', 500);
   try {
     await ensureDashboardTables(env);
     const res = await env.DB
-      .prepare(`SELECT id, section_key, label, type, position, active, created_at
+      .prepare(`SELECT id, section_key, label, type, position, hint, part, grp, active, created_at
                 FROM dashboard_fields
                 ORDER BY section_key ASC, position ASC, created_at ASC`)
       .all();
@@ -52,36 +53,38 @@ export async function onRequestPost({ request, env }) {
     const label = typeof body?.label === 'string' ? body.label.trim().slice(0, MAX_LABEL) : '';
     if (!label) return jsonError('label_required', 400);
 
-    const type = typeof body?.type === 'string' && body.type.trim() ? body.type.trim() : 'textarea';
     // active defaults to 1; only honor an explicit 0/1 (or boolean) in the body.
     let active = 1;
     if (body?.active === 0 || body?.active === false || body?.active === '0') active = 0;
     else if (body?.active === 1 || body?.active === true || body?.active === '1') active = 1;
 
+    // Optional attributes: written ONLY when explicitly present in the body, so a
+    // toggle or label-only edit never clobbers type/hint/position. hint = '' clears.
+    const hasType = typeof body?.type === 'string' && !!body.type.trim();
+    const type = hasType ? body.type.trim() : 'textarea';
+    const hasHint = typeof body?.hint === 'string';
+    const hint = hasHint ? body.hint.slice(0, MAX_HINT) : null;
+    const hasPosition = Number.isInteger(body?.position);
+
     const now = Math.floor(Date.now() / 1000);
 
     if (id) {
-      // UPDATE the existing field. Position is preserved unless explicitly given.
-      const hasPosition = Number.isInteger(body?.position);
-      if (hasPosition) {
-        await env.DB
-          .prepare(`UPDATE dashboard_fields
-                    SET section_key = ?, label = ?, type = ?, position = ?, active = ?
-                    WHERE id = ?`)
-          .bind(section_key, label, type, body.position, active, id)
-          .run();
-      } else {
-        await env.DB
-          .prepare(`UPDATE dashboard_fields
-                    SET section_key = ?, label = ?, type = ?, active = ?
-                    WHERE id = ?`)
-          .bind(section_key, label, type, active, id)
-          .run();
-      }
+      // UPDATE only the columns the caller actually sent (plus the always-safe
+      // section_key/label/active). Preserves type/hint/part/grp otherwise.
+      const sets = ['section_key = ?', 'label = ?', 'active = ?'];
+      const binds = [section_key, label, active];
+      if (hasType) { sets.push('type = ?'); binds.push(type); }
+      if (hasHint) { sets.push('hint = ?'); binds.push(hint); }
+      if (hasPosition) { sets.push('position = ?'); binds.push(body.position); }
+      binds.push(id);
+      await env.DB
+        .prepare(`UPDATE dashboard_fields SET ${sets.join(', ')} WHERE id = ?`)
+        .bind(...binds)
+        .run();
     } else {
       // INSERT a new field. Position defaults to MAX(position)+1 within section.
       let position;
-      if (Number.isInteger(body?.position)) {
+      if (hasPosition) {
         position = body.position;
       } else {
         const row = await env.DB
@@ -92,19 +95,19 @@ export async function onRequestPost({ request, env }) {
       }
       const newId = 'df_' + randomId();
       await env.DB
-        .prepare(`INSERT INTO dashboard_fields (id, section_key, label, type, position, active, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`)
-        .bind(newId, section_key, label, type, position, active, now)
+        .prepare(`INSERT INTO dashboard_fields (id, section_key, label, type, position, hint, active, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(newId, section_key, label, type, position, hint, active, now)
         .run();
       const field = await env.DB
-        .prepare(`SELECT id, section_key, label, type, position, active, created_at FROM dashboard_fields WHERE id = ?`)
+        .prepare(`SELECT id, section_key, label, type, position, hint, part, grp, active, created_at FROM dashboard_fields WHERE id = ?`)
         .bind(newId)
         .first();
       return json({ field }, 201);
     }
 
     const field = await env.DB
-      .prepare(`SELECT id, section_key, label, type, position, active, created_at FROM dashboard_fields WHERE id = ?`)
+      .prepare(`SELECT id, section_key, label, type, position, hint, part, grp, active, created_at FROM dashboard_fields WHERE id = ?`)
       .bind(id)
       .first();
     return json({ field });

@@ -225,4 +225,23 @@ export async function ensureDashboardTables(env) {
   } catch {
     // seed failed (table contention / partial state) — non-fatal, callers degrade
   }
+
+  // Idempotent top-up: add any newly-introduced default narrative blocks WITHOUT
+  // a full reseed. INSERT OR IGNORE keys off the (section_key, slot) PK so it
+  // never overwrites an admin's edits. Only runs the loop when the block count is
+  // short of the defaults, so it's a single COUNT on the common path.
+  try {
+    const bc = await env.DB.prepare(`SELECT COUNT(*) AS n FROM dashboard_blocks`).first();
+    if (!bc || Number(bc.n) < DEFAULT_DASHBOARD_BLOCKS.length) {
+      const t = Math.floor(Date.now() / 1000);
+      for (const b of DEFAULT_DASHBOARD_BLOCKS) {
+        await env.DB
+          .prepare(`INSERT OR IGNORE INTO dashboard_blocks (section_key, slot, value, updated_at) VALUES (?, ?, ?, ?)`)
+          .bind(b.section_key, b.slot, b.value == null ? '' : b.value, t)
+          .run();
+      }
+    }
+  } catch {
+    // best-effort top-up — non-fatal
+  }
 }

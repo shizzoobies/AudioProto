@@ -3969,6 +3969,7 @@ async function onSaveCoachingSyllabus() {
 // ({{TeamMemberName}} etc.) are filled per scenario at render time. Backed by
 // /api/admin/dashboard-blocks (GET list / POST batch upsert). One Save writes all.
 const NARRATIVE_SECTIONS = [
+  { key: 'welcome',     title: 'Welcome (top of dashboard)' },
   { key: 'w1_define',   title: 'Week 1 · Define Success' },
   { key: 'w2_assess',   title: 'Week 2 · Assess Capability' },
   { key: 'w3_design',   title: 'Week 3 · Design the Plan' },
@@ -3979,6 +3980,7 @@ const NARRATIVE_SECTIONS = [
   { key: 'practicum',   title: 'Real World Practicum' },
 ];
 const NARRATIVE_SLOT_LABELS = {
+  intro: 'Welcome message',
   story: 'Story',
   assignment: 'Assignment',
   info: 'Information to review',
@@ -3987,7 +3989,7 @@ const NARRATIVE_SLOT_LABELS = {
   completion: 'Completion message',
   practicum_story: 'Practicum overview',
 };
-const NARRATIVE_SLOT_ORDER = ['story', 'assignment', 'info', 'leadership_intro', 'final_prompt', 'completion', 'practicum_story'];
+const NARRATIVE_SLOT_ORDER = ['intro', 'story', 'assignment', 'info', 'leadership_intro', 'final_prompt', 'completion', 'practicum_story'];
 
 function renderCoachingNarrativeSection() {
   const blocks = Array.isArray(state.coachingBlocks) ? state.coachingBlocks : [];
@@ -4089,12 +4091,12 @@ const DEVPLAN_GROUPS = [
 
 const MAX_STAGE = 6;
 const STAGE_LABELS = {
-  1: 'Week 1 · Intentional Development (assessment call + diagnosis)',
-  2: 'Week 2 · Diagnosis (development plan)',
-  3: 'Week 3 · Strategy for Growth (coaching-call prep)',
-  4: 'Week 4 · The Performance Conversation (coaching call + follow-up plan)',
-  5: 'Week 5 · Follow-Up & Reinforcement (case-study prep)',
-  6: 'Final · Real-World Case Study',
+  1: 'Week 1 · Define Success',
+  2: 'Week 2 · Assess Capability',
+  3: 'Week 3 · Design the Plan',
+  4: 'Week 4 · Prepare & Conduct the Conversation',
+  5: 'Week 5 · Follow Up & Reinforce',
+  6: 'Real World Practicum',
 };
 
 function renderDashboardFieldsSection() {
@@ -4135,10 +4137,19 @@ function renderDashboardFieldsSection() {
 
 function renderDashboardFieldRow(f) {
   const inactive = !f.active;
+  const badges = [];
+  if (f.type && f.type !== 'textarea') badges.push(`<span class="admin-pill">${escapeHtml(f.type)}</span>`);
+  if (f.grp === 'leadership') badges.push('<span class="admin-pill">leadership</span>');
+  if (f.part) badges.push(`<span class="admin-pill">part ${escapeHtml(String(f.part))}</span>`);
+  if (inactive) badges.push('<span class="admin-pill">Inactive</span>');
+  const hintPreview = f.hint
+    ? `<div class="admin-field-hint" style="margin-top:3px;">Consider: ${escapeHtml(String(f.hint).split('\n').map((s) => s.trim()).filter(Boolean).join(' · '))}</div>`
+    : '';
   return `
     <div class="admin-ca-row${inactive ? ' is-inactive' : ''}" data-df-id="${escapeAttr(f.id)}">
       <div class="admin-ca-row-main">
-        <div class="admin-ca-row-name">${escapeHtml(f.label)}${inactive ? ' <span class="admin-pill">Inactive</span>' : ''}</div>
+        <div class="admin-ca-row-name">${escapeHtml(f.label)}${badges.length ? ' ' + badges.join(' ') : ''}</div>
+        ${hintPreview}
       </div>
       <div class="admin-ca-row-actions">
         <button type="button" class="ghost-button" data-df-edit="${escapeAttr(f.id)}">Edit</button>
@@ -4220,20 +4231,50 @@ async function onAddDashboardField(e, sectionKey) {
   }
 }
 
-async function onEditDashboardField(id) {
+// Expand the row into an inline editor for the label, field type, and the
+// "Consider" hints / checklist items. (df_ ids are alnum+underscore, so they're
+// safe to interpolate straight into an attribute selector.)
+function onEditDashboardField(id) {
   const field = (state.dashboardFields || []).find((f) => f.id === id);
   if (!field) return;
-  const next = prompt('Edit question:', field.label);
-  if (next === null) return;
-  const label = next.trim();
-  if (!label) return;
+  const row = document.querySelector(`#sec-dashboard-fields [data-df-id="${id}"]`);
+  if (!row) return;
+  const typeOpts = ['textarea', 'checklist', 'yesno']
+    .map((t) => `<option value="${t}"${(field.type || 'textarea') === t ? ' selected' : ''}>${t}</option>`).join('');
+  row.innerHTML = `
+    <form class="admin-df-edit" data-df-editing="${escapeAttr(id)}" style="display:flex;flex-direction:column;gap:8px;width:100%;">
+      <label class="admin-field-label">Question</label>
+      <textarea class="admin-input df-edit-label" rows="2">${escapeHtml(field.label || '')}</textarea>
+      <label class="admin-field-label">Field type</label>
+      <select class="admin-input df-edit-type" style="max-width:220px;">${typeOpts}</select>
+      <label class="admin-field-label">Consider hints / checklist items <span class="admin-field-hint">one per line; shown as the "Consider:" list, or (for a checklist) the checkbox items</span></label>
+      <textarea class="admin-input df-edit-hint" rows="3" placeholder="One item per line">${escapeHtml(field.hint || '')}</textarea>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="primary-button">Save</button>
+        <button type="button" class="ghost-button df-edit-cancel">Cancel</button>
+      </div>
+    </form>
+  `;
+  const form = row.querySelector('.admin-df-edit');
+  if (form) form.addEventListener('submit', (e) => { e.preventDefault(); saveEditedDashboardField(field); });
+  const cancel = row.querySelector('.df-edit-cancel');
+  if (cancel) cancel.addEventListener('click', () => refreshDashboardFieldsSection());
+}
+
+async function saveEditedDashboardField(field) {
+  const form = document.querySelector(`#sec-dashboard-fields [data-df-editing="${field.id}"]`);
+  if (!form) return;
+  const label = (form.querySelector('.df-edit-label')?.value || '').trim();
+  const type = form.querySelector('.df-edit-type')?.value || 'textarea';
+  const hint = form.querySelector('.df-edit-hint')?.value || '';
+  if (!label) { showDashboardFieldsError('Question label is required.'); return; }
   showDashboardFieldsError('');
   try {
     const res = await fetch('/api/admin/dashboard-fields', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: field.id, section_key: field.section_key, label, active: field.active ? 1 : 0 }),
+      body: JSON.stringify({ id: field.id, section_key: field.section_key, label, type, hint, active: field.active ? 1 : 0 }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => null);

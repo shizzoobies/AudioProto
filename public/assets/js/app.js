@@ -8,7 +8,7 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-5 devbydesign-reframe';
+const BUILD_ID = '20260630-6 devbydesign-phase234';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
@@ -1685,12 +1685,13 @@ function renderCoachingDashboard(data) {
   // ---- 3. Sections grouped by week (weeks 1-5, then the Final assignment) ----
   const sectionHtml = (section) => {
     const unlocked = stage >= Number(section.stage);
+    const titleText = section.part ? `Part ${section.part}: ${section.title || ''}` : (section.title || '');
     if (!unlocked) {
-      const where = Number(section.week) >= 6 ? 'the Final' : `Week ${escapeHtml(String(section.week))}`;
+      const where = Number(section.week) >= 6 ? 'the Practicum' : `Week ${escapeHtml(String(section.week))}`;
       return `
         <div class="dash-section is-locked">
           <div class="dash-section-head">
-            <h3 class="dash-section-title">${escapeHtml(section.title || '')}</h3>
+            <h3 class="dash-section-title">${escapeHtml(titleText)}</h3>
             <span class="dash-lock-chip">🔒 Unlocks in ${where}</span>
           </div>
         </div>`;
@@ -1698,7 +1699,7 @@ function renderCoachingDashboard(data) {
     return `
       <div class="dash-section" data-section-key="${escapeAttr(section.section_key || section.key || '')}">
         <div class="dash-section-head">
-          <h3 class="dash-section-title">${escapeHtml(section.title || '')}</h3>
+          <h3 class="dash-section-title">${escapeHtml(titleText)}</h3>
         </div>
         <div class="dash-section-body">${dashSectionBody(section, { agent, fields, answers, calls, savedName, blocks, practicumPhases })}</div>
       </div>`;
@@ -1740,6 +1741,18 @@ function renderCoachingDashboard(data) {
       </div>
     </details>` : '';
 
+  // Program welcome (top of the dashboard): editable intro + the fixed 5-step
+  // process list. Hidden when the admin clears the welcome copy.
+  const welcomeIntro = (blocks.welcome && blocks.welcome.intro) || '';
+  const WELCOME_STEPS = ['Define Success', 'Assess Capability', 'Design the Plan', 'Execute the Plan', 'Follow Up & Reinforce'];
+  const welcomeHtml = welcomeIntro
+    ? `<section class="dash-welcome" style="background:var(--scn-card,#fcf9f3);border:1px solid var(--scn-tan,#e2cca8);border-radius:16px;box-shadow:0 14px 36px rgba(60,45,20,0.1);padding:20px;">
+        <p class="dash-narrative-h">Welcome</p>
+        <div class="dash-narrative">${paragraphsHtml(welcomeIntro)}</div>
+        <ol class="dash-phases">${WELCOME_STEPS.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+      </section>`
+    : '';
+
   dom.root.innerHTML = `
     <div class="coaching-dash">
       ${isPreview ? `
@@ -1751,6 +1764,7 @@ function renderCoachingDashboard(data) {
           <button type="button" class="coaching-preview-reset ghost-button">Start fresh test</button>
         </div>` : ''}
       ${syllabusHtml}
+      ${welcomeHtml}
       ${profileHtml}
       ${stripHtml}
       ${weekGroupsHtml}
