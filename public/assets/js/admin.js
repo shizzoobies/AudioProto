@@ -247,6 +247,13 @@ async function renderCoachingPage() {
       if (r.ok) { const d = await r.json(); state.coachingSyllabus = d.content || { title: '', sections: [] }; }
     } catch (e) { console.warn('coaching syllabus load failed', e); }
   }
+  // Course narrative blocks (stories, assignments, leadership intros, prompts).
+  if (canManageAll) {
+    try {
+      const r = await fetch('/api/admin/dashboard-blocks', { credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); state.coachingBlocks = Array.isArray(d.blocks) ? d.blocks : []; }
+    } catch (e) { console.warn('coaching narrative load failed', e); }
+  }
   // Development-Plan questions editor (full-admin only — scoped editor 401s).
   if (canManageAll) {
     try {
@@ -285,6 +292,7 @@ function paintCoachingPage() {
     ${renderCoachingVoicesSection()}
     ${renderCoachingAgentsSection()}
     ${showRoster ? renderDashboardFieldsSection() : ''}
+    ${showRoster ? renderCoachingNarrativeSection() : ''}
     ${showAccess ? renderCoachingAccessSection() : ''}
   `;
   if (showRoster) attachCoachingSyllabusHandlers();
@@ -293,6 +301,7 @@ function paintCoachingPage() {
   attachCoachingVoicesHandlers();
   attachCoachingAgentsHandlers();
   if (showRoster) attachDashboardFieldsHandlers();
+  if (showRoster) attachCoachingNarrativeHandlers();
   if (showAccess) attachCoachingAccessHandlers();
 
   // Make every section collapsible + add the sticky side-nav slider.
@@ -3951,6 +3960,111 @@ async function onSaveCoachingSyllabus() {
   } catch (err) {
     if (alert) alert.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
     if (btn) { btn.disabled = false; btn.textContent = 'Save syllabus'; }
+  }
+}
+
+// ---- Course narrative editor (full admin / full coaching editor) ----------
+// The editable Story / Assignment / Information / Leadership intro / Final Prompt
+// / Completion / Practicum text per course section (dashboard_blocks). Tokens
+// ({{TeamMemberName}} etc.) are filled per scenario at render time. Backed by
+// /api/admin/dashboard-blocks (GET list / POST batch upsert). One Save writes all.
+const NARRATIVE_SECTIONS = [
+  { key: 'w1_define',   title: 'Week 1 · Define Success' },
+  { key: 'w2_assess',   title: 'Week 2 · Assess Capability' },
+  { key: 'w3_design',   title: 'Week 3 · Design the Plan' },
+  { key: 'w4_prepare',  title: 'Week 4 · Prepare (Part 1)' },
+  { key: 'w4_conduct',  title: 'Week 4 · Development Conversation' },
+  { key: 'w4_reflect',  title: 'Week 4 · Reflect (Part 2)' },
+  { key: 'w5_followup', title: 'Week 5 · Follow Up & Reinforce' },
+  { key: 'practicum',   title: 'Real World Practicum' },
+];
+const NARRATIVE_SLOT_LABELS = {
+  story: 'Story',
+  assignment: 'Assignment',
+  info: 'Information to review',
+  leadership_intro: 'Leadership reflection intro',
+  final_prompt: 'Final prompt / unlock message',
+  completion: 'Completion message',
+  practicum_story: 'Practicum overview',
+};
+const NARRATIVE_SLOT_ORDER = ['story', 'assignment', 'info', 'leadership_intro', 'final_prompt', 'completion', 'practicum_story'];
+
+function renderCoachingNarrativeSection() {
+  const blocks = Array.isArray(state.coachingBlocks) ? state.coachingBlocks : [];
+  const bySection = {};
+  for (const b of blocks) {
+    if (!bySection[b.section_key]) bySection[b.section_key] = {};
+    bySection[b.section_key][b.slot] = b.value == null ? '' : b.value;
+  }
+  const groups = NARRATIVE_SECTIONS.map((sec, gi) => {
+    const slots = bySection[sec.key];
+    if (!slots) return '';
+    const fields = NARRATIVE_SLOT_ORDER
+      .filter((slot) => Object.prototype.hasOwnProperty.call(slots, slot))
+      .map((slot) => `
+        <div class="admin-field">
+          <label class="admin-field-label">${escapeHtml(NARRATIVE_SLOT_LABELS[slot] || slot)}</label>
+          <textarea class="admin-input admin-nar-field" data-section-key="${escapeAttr(sec.key)}" data-slot="${escapeAttr(slot)}" rows="4" placeholder="Blank hides this block on the dashboard.">${escapeHtml(slots[slot])}</textarea>
+        </div>`).join('');
+    const sep = gi === 0 ? '' : 'margin-top:22px;padding-top:16px;border-top:1px solid var(--color-border);';
+    return `
+      <div class="admin-nar-group" style="${sep}">
+        <h3 class="admin-df-group-title">${escapeHtml(sec.title)}</h3>
+        ${fields}
+      </div>`;
+  }).join('');
+  return `
+    <section class="admin-section" id="sec-coaching-narrative">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Coaching</p>
+        <h2 class="admin-section-title">Course narrative</h2>
+        <p class="admin-section-sub">The Story, Assignment, Leadership reflection intro, Final prompt, and Completion text shown on the participant dashboard for each week. Tokens are filled per scenario: {{TeamMemberName}}, {{OrganizationGoal}}, {{BusinessOutcome}}, {{PerformanceOpportunity}}, {{PerformanceSummary}}. Leave a field blank to hide that block.</p>
+      </header>
+      <div id="admin-nar-alert"></div>
+      ${groups || '<div class="admin-empty">No narrative blocks yet.</div>'}
+      <div class="admin-syl-actions">
+        <button type="button" class="primary-button" id="admin-nar-save">Save narrative</button>
+      </div>
+    </section>
+  `;
+}
+
+function attachCoachingNarrativeHandlers() {
+  const saveBtn = document.getElementById('admin-nar-save');
+  if (saveBtn) saveBtn.addEventListener('click', onSaveCoachingNarrative);
+}
+
+async function onSaveCoachingNarrative() {
+  const btn = document.getElementById('admin-nar-save');
+  const alert = document.getElementById('admin-nar-alert');
+  const blocks = Array.from(document.querySelectorAll('#sec-coaching-narrative .admin-nar-field')).map((ta) => ({
+    section_key: ta.dataset.sectionKey,
+    slot: ta.dataset.slot,
+    value: ta.value,
+  }));
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (alert) alert.innerHTML = '';
+  try {
+    const res = await fetch('/api/admin/dashboard-blocks', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocks }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      if (alert) alert.innerHTML = `<div class="admin-alert admin-alert-error">${escapeHtml(parts.length ? parts.join(' - ') : 'Save failed')}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = 'Save narrative'; }
+      return;
+    }
+    // Keep state in sync so a later re-render shows the saved values.
+    state.coachingBlocks = blocks.slice();
+    if (alert) alert.innerHTML = `<div class="admin-alert admin-alert-success">Narrative saved${data && typeof data.saved === 'number' ? ` (${data.saved} blocks).` : '.'}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save narrative'; }
+  } catch (err) {
+    if (alert) alert.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save narrative'; }
   }
 }
 
