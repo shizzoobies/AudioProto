@@ -1449,7 +1449,7 @@ const PERSONA_DEFS = {
     // Caller ID shown on the incoming-call screen + call header. Matches the number
     // Lauren reads aloud when asked (two one zero, five five five, ...).
     phone: '(210) 555-7193',
-    voice_id: 'aMSt68OGf4xUZAnLpTU8',
+    voice_id: 'l4Coq6695JDX9xtLqXDE',
     voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
     tagline: 'She thinks she is being billed for something she never got. Hear her out, explain the Safe Move coverage in plain language, and she is satisfied.',
     points: [
