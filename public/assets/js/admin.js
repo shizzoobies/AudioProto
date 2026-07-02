@@ -4462,6 +4462,8 @@ function renderCohortCard(c) {
       </div>
       <div class="admin-cohort-stage">
         <span class="admin-muted">${escapeHtml(stageLabel(stage))}</span>
+        <button type="button" class="ghost-button" data-cohort-reset="${escapeAttr(c.id)}"${stage <= 1 ? ' disabled' : ''}>Reset to Week 1</button>
+        <button type="button" class="ghost-button" data-cohort-back="${escapeAttr(c.id)}"${stage <= 1 ? ' disabled' : ''}>Back a stage</button>
         <button type="button" class="primary-button" data-cohort-advance="${escapeAttr(c.id)}"${atMax ? ' disabled' : ''}>Advance to next stage</button>
       </div>
       <div class="admin-cohort-roster">${roster}</div>
@@ -4498,6 +4500,12 @@ function attachCohortsHandlers() {
   if (createForm) createForm.addEventListener('submit', onCreateCohort);
   sec.querySelectorAll('[data-cohort-advance]').forEach((btn) => {
     btn.addEventListener('click', () => onAdvanceCohort(btn.dataset.cohortAdvance));
+  });
+  sec.querySelectorAll('[data-cohort-back]').forEach((btn) => {
+    btn.addEventListener('click', () => onSetCohortStage(btn.dataset.cohortBack, 'back'));
+  });
+  sec.querySelectorAll('[data-cohort-reset]').forEach((btn) => {
+    btn.addEventListener('click', () => onSetCohortStage(btn.dataset.cohortReset, 'reset'));
   });
   sec.querySelectorAll('[data-cohort-delete]').forEach((btn) => {
     btn.addEventListener('click', () => onDeleteCohort(btn.dataset.cohortDelete));
@@ -4723,6 +4731,41 @@ async function onAdvanceCohort(cohortId) {
       const data = await res.json().catch(() => null);
       const parts = [data?.error, data?.detail].filter(Boolean);
       showCohortError(parts.length ? parts.join(': ') : 'Advance failed');
+      return;
+    }
+    await reloadCohorts();
+  } catch (err) {
+    showCohortError('Network error: ' + (err?.message || String(err)));
+  }
+}
+
+// Reverse ('back' = one stage) or reset ('reset' = Week 1) a cohort's gate. Both
+// go through set_stage, which re-syncs every member's journey gate down to the new
+// stage (re-locking later weeks; saved answers are untouched). Lowering the gate
+// is confirmed since it affects everyone in the cohort.
+async function onSetCohortStage(cohortId, mode) {
+  if (!cohortId) return;
+  const cohort = (state.cohorts || []).find((c) => c.id === cohortId);
+  const cur = Number(cohort?.unlocked_stage) || 1;
+  const target = mode === 'reset' ? 1 : Math.max(1, cur - 1);
+  if (target >= cur) return; // already at/below the target — nothing to do
+  const name = cohort?.name || 'this cohort';
+  const msg = mode === 'reset'
+    ? `Reset "${name}" to Week 1? This re-locks all later weeks for everyone in the cohort. Their saved answers are kept.`
+    : `Move "${name}" back to ${stageLabel(target)}? This re-locks the current week for everyone in the cohort. Their saved answers are kept.`;
+  if (!confirm(msg)) return;
+  showCohortError('');
+  try {
+    const res = await fetch('/api/admin/cohorts', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'set_stage', cohort_id: cohortId, stage: target }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      showCohortError(parts.length ? parts.join(': ') : 'Update failed');
       return;
     }
     await reloadCohorts();
