@@ -31,7 +31,7 @@ export async function onRequestGet({ request, env }) {
   if (!apiKey) return jsonError('elevenlabs_key_missing', 500);
   try {
     const agentId = isDemo
-      ? (env.ELEVENLABS_AGENT_ID || DEMO_AGENT_ID)
+      ? DEMO_AGENT_ID
       : (env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID);
     const r = await fetch(`${AGENT_ENDPOINT}${agentId}`, {
       headers: { 'xi-api-key': apiKey },

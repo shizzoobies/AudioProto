@@ -55,12 +55,14 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Pick the agent: coaching_practice (Taylor) + every authored ca_ agent run on
-  // the shared coaching agent (env override wins); demo personas use the default
-  // demo agent.
+  // the shared coaching agent (env override wins). Demo personas are pinned in
+  // code to the Pro-tier demo agent (DEFAULT_AGENT_ID) so a stale ELEVENLABS_AGENT_ID
+  // env var can never misroute the live demo onto the wrong account/agent. To move
+  // the demo to a different agent, change DEFAULT_AGENT_ID and redeploy.
   const isAnyCoaching = isCoachingAgent || scenarioId === 'coaching_practice';
   const agentId = isAnyCoaching
     ? (env.COACHING_AGENT_ID || SHARED_COACHING_AGENT_ID)
-    : (env.ELEVENLABS_AGENT_ID || DEFAULT_AGENT_ID);
+    : DEFAULT_AGENT_ID;
 
   // Coaching runs on its own ElevenLabs account, so it uses a separate API key
   // when one is configured; demos + the turn-based pipeline keep the main key.
