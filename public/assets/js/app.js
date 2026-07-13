@@ -8,13 +8,21 @@ import { renderLandingContentHtml } from './coaching-landing-view.js?v=20260610-
 
 // Bump this whenever app.js changes meaningfully; it prints on load so we can
 // confirm which build a browser is actually running (cache-bust verification).
-const BUILD_ID = '20260630-7 coaching-loading-no-flash';
+const BUILD_ID = '20260713-1 back-to-back-demo-reel';
 console.log('[First Call] build', BUILD_ID);
 
 // Demo scenarios that run the real-time ElevenLabs voice agent (phone mode only).
 // Flip VOICE_AGENT_ENABLED to false to fall back to the turn-based pipeline.
 const VOICE_AGENT_ENABLED = true;
 const VOICE_AGENT_SCENARIOS = new Set(['demo_sales', 'demo_service', 'coaching_practice']);
+
+// Back-to-back demo reel: five real personas played on the voice agent in this
+// exact order, auto-advancing with no report between calls. Mirrors
+// REEL_SCENARIO_IDS in shared/scenarios.js. Only meaningful while state.reel is
+// set (the reel share-link scope); every other code path is byte-for-byte
+// unchanged when state.reel is falsy.
+const REEL_SEQUENCE = ['demo_sales', 'lost_reservation_marcus', 'damage_dispute_vincent', 'price_shopper_greta', 'first_time_mover_jordan'];
+const REEL_SCENARIO_IDS = new Set(REEL_SEQUENCE);
 
 // A coaching id is either the hardcoded coaching_practice (Taylor) or any
 // admin-authored coaching agent (ids start with ca_). Coaching ids run the
@@ -26,7 +34,10 @@ function isCoachingId(id) {
 // True when a scenario should run the real-time ElevenLabs voice agent: the demo
 // personas + any coaching id (hardcoded or authored).
 function isVoiceAgentScenario(id) {
-  return VOICE_AGENT_SCENARIOS.has(id) || isCoachingId(id);
+  // In reel mode the four library reel personas also run on the voice agent
+  // (they are turn-based everywhere else). Guarded by state.reel so no non-reel
+  // path is affected.
+  return VOICE_AGENT_SCENARIOS.has(id) || isCoachingId(id) || (!!state.reel && REEL_SCENARIO_IDS.has(id));
 }
 
 const state = {
@@ -533,6 +544,19 @@ async function init() {
         // with no sign-out. Intentionally NOT a sealed recipient, so we leave
         // state.recipient unset and let routing fall through to renderHome().
         state.previewMode = true;
+      } else if (me.is_reel) {
+        // Back-to-back demo reel: a sealed premium experience (intro splash ->
+        // five auto-advancing voice calls -> a complete screen), NOT a recipient
+        // card list. Kept OFF state.recipient so no recipient/demo code path is
+        // touched; the reel drives everything through state.reel. Reuses the
+        // demo's chrome-drop for a clean pitch surface.
+        state.reel = {
+          seq: REEL_SEQUENCE.slice(),
+          index: 0,
+          scenarios: Array.isArray(me.scenarios) ? me.scenarios : [],
+        };
+        document.body.dataset.demo = 'true';
+        document.body.dataset.reel = 'true';
       } else {
         state.recipient = me;
         // The demo is a sealed pitch surface: drop the global app header chrome.
@@ -602,6 +626,17 @@ async function init() {
     // off startCall, which initializes the mic on first user gesture.
     setCallMode('phone');
     renderKioskSplash(state.kioskScenario);
+  } else if (state.reel) {
+    // Reel visitor: the intro splash, then five auto-advancing voice calls.
+    setCallMode('phone');
+    // Merge the five reel scenarios into personaById so startReelCall/renderCall
+    // resolve them. The four library personas are already loaded via
+    // /api/scenarios; this brings in demo_sales (which is in no scenario TYPE).
+    for (const s of (state.reel.scenarios || [])) {
+      if (!s || !s.id) continue;
+      if (!state.personaById.has(s.id)) state.personaById.set(s.id, { ...s });
+    }
+    renderReelIntro();
   } else if (state.recipient) {
     // Invite recipient: their personal simulation page lists the scenarios the
     // admin assigned them. Same phone default. The pitch-demo recipient gets
@@ -781,6 +816,129 @@ function renderKioskSplash(scenarioId) {
   `;
 
   document.getElementById('kiosk-take-call').addEventListener('click', () => startCall(scenarioId));
+}
+
+// ---- Back-to-back demo reel (state.reel only) ------------------------------
+//
+// Five real-time voice calls played back to back, auto-advancing, with no
+// coaching report between them. Entered when /api/me/status reports is_reel
+// (the reel share link). Everything below is inert unless state.reel is set.
+
+// The premium intro splash: reuses the kiosk-splash aesthetic. Start begins the
+// first call. Renders on reel entry and again on "Restart the reel".
+function renderReelIntro() {
+  state.view = 'reel_intro';
+  document.body.dataset.view = 'home';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+  if (state.reel) state.reel.index = 0;
+
+  dom.root.innerHTML = `
+    <section class="kiosk-splash reel-splash">
+      <header class="kiosk-splash-header">
+        <div class="kiosk-eyebrow">Live demo</div>
+        <h1 class="kiosk-title">Five calls, back to back.</h1>
+        <p class="kiosk-subtitle">Each one a different customer, on a real voice line. Answer, handle it, hang up: the next call is already ringing. No breaks, no scorecards, just five straight conversations.</p>
+      </header>
+      <div class="kiosk-disclaimer" role="note">
+        <strong>These are voice calls.</strong> When prompted, please allow microphone access for this page so each customer can hear you.
+      </div>
+      <button class="primary-button kiosk-cta" id="reel-start" type="button">Take the first call <span aria-hidden="true">›</span></button>
+    </section>
+  `;
+
+  const startBtn = document.getElementById('reel-start');
+  if (startBtn) {
+    startBtn.addEventListener('click', () => {
+      state.reel.index = 0;
+      startReelCall(state.reel.seq[0]);
+    });
+  }
+}
+
+// Launch one reel call: build the active scenario for this persona and go
+// straight to the incoming-call ring (no pre-call modal - the reel is a
+// continuous sequence). Answering runs renderCall exactly like the Robert demo,
+// with the POS reset fresh and the header reflecting this caller.
+function startReelCall(personaId) {
+  const persona = state.personaById.get(personaId);
+  if (!persona) {
+    // A missing persona should never happen (all five are merged on reel entry),
+    // but fail forward to the completion screen rather than a blank view.
+    renderReelComplete();
+    return;
+  }
+  const lines = Array.isArray(persona.opening_lines) && persona.opening_lines.length
+    ? persona.opening_lines
+    : [persona.opening_line || ''];
+  const chosen = lines[Math.floor(Math.random() * lines.length)] || '';
+  state.activeScenario = {
+    ...persona,
+    title: persona.type_title || persona.title || '',
+    opening_line: chosen,
+    blind: false,
+    coachingMode: 'fresh',
+    priorTranscript: [],
+    participant: '',
+    asRole: '',
+  };
+  // Render the live call shell as a blurred backdrop, then ring over it. Answer
+  // -> renderCall live (fresh POS, fresh voice agent). A fresh renderCall is what
+  // resets the reservation POS to step 1 for each new call.
+  state.precallStash = null;
+  renderCall(state.activeScenario, { preview: true });
+  beginRinging(state.activeScenario);
+}
+
+// Called from End Call in reel mode instead of the coaching report. The current
+// call's audio + voice agent are already torn down by teardownAudio(); step to
+// the next call (a fresh ring) or, past the last one, the completion screen.
+function advanceReel() {
+  if (!state.reel) return;
+  state.reel.index += 1;
+  if (state.reel.index < state.reel.seq.length) {
+    startReelCall(state.reel.seq[state.reel.index]);
+  } else {
+    renderReelComplete();
+  }
+}
+
+// The premium "that's the reel" screen after call five. Restart replays from the
+// first call.
+function renderReelComplete() {
+  state.view = 'reel_complete';
+  document.body.dataset.view = 'home';
+  state.activeScenario = null;
+  setDocumentTitle('');
+  if (state.conversation) {
+    state.conversation.cancel();
+    state.conversation = null;
+  }
+  teardownAudio();
+
+  dom.root.innerHTML = `
+    <section class="kiosk-splash reel-splash">
+      <header class="kiosk-splash-header">
+        <div class="kiosk-eyebrow">Demo reel</div>
+        <h1 class="kiosk-title">That's the reel.</h1>
+        <p class="kiosk-subtitle">Five customers, five live conversations, one continuous take. Run it again whenever you're ready.</p>
+      </header>
+      <button class="primary-button kiosk-cta" id="reel-restart" type="button">Restart the reel <span aria-hidden="true">›</span></button>
+    </section>
+  `;
+
+  const restartBtn = document.getElementById('reel-restart');
+  if (restartBtn) {
+    restartBtn.addEventListener('click', () => {
+      state.reel.index = 0;
+      startReelCall(state.reel.seq[0]);
+    });
+  }
 }
 
 // Invite recipient's personal simulation page. They land here from /me/<token>
@@ -2898,6 +3056,12 @@ function dismissPreCall() {
 // nav/escape), recipients to their home, everyone else to the picker.
 function returnFromPreCall() {
   dismissPreCall();
+  if (state.reel) {
+    // Declining or dismissing mid-ring in the reel just re-rings the same call:
+    // the reel is a continuous sequence with no picker to fall back to.
+    startReelCall(state.reel.seq[state.reel.index]);
+    return;
+  }
   if (state.recipient) {
     // Re-render so the sealed home (and its WebGL orb) rebuilds cleanly; the
     // stashed backdrop, if any, is discarded.
@@ -4197,6 +4361,14 @@ function renderCall(scenario, opts = {}) {
     state.reservationNotes = (document.getElementById('pos-callback-notes')?.value || '').trim();
     conversation.cancel();
     teardownAudio();
+    // Reel mode: NO coaching report between calls. The voice agent + audio are
+    // already torn down above; advance straight to the next call's ring (or the
+    // completion screen after the last). This is the guard that keeps the reel
+    // seamless; every non-reel path below is unchanged.
+    if (state.reel) {
+      advanceReel();
+      return;
+    }
     // Coaching practice has NO scored report — it's an open soft-skills rehearsal.
     // Authored (ca_) scenarios persist progress SERVER-SIDE (keyed to the invite
     // link) so the agent remembers every prior call across browsers/devices; the
@@ -4246,6 +4418,11 @@ function renderCall(scenario, opts = {}) {
     teardownAudio();
     if (state.liveMode) {
       handleLiveEnd();
+      return;
+    }
+    if (state.reel) {
+      // No picker in the reel: back returns to the reel intro splash.
+      renderReelIntro();
       return;
     }
     if (state.recipient) {
