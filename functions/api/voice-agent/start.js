@@ -7,7 +7,7 @@
 // requires a valid session/invite cookie; we further restrict to demo scenarios
 // and the visitor's scope).
 
-import { getScenario, DEMO_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
+import { getScenario, DEMO_SCENARIO_IDS, REEL_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
 import { buildCoachingAgentPrompt, COACHING_AGENT_MODES, SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
 import { stageForMode } from '../../../shared/coaching-dashboard.js';
@@ -15,8 +15,12 @@ import { resolveManagerStage } from '../../../shared/dashboard-store.js';
 
 const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
 const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
-// Scenarios allowed on the real-time voice agent: the demo personas + coaching.
-const VOICE_AGENT_SCENARIOS = new Set([...DEMO_SCENARIO_IDS, 'coaching_practice']);
+// Scenarios allowed on the real-time voice agent: the demo personas, the five
+// back-to-back reel personas, and coaching. The reel ids overlap demo_sales;
+// Set dedupes. Adding the four library reel personas here lets start.js mint
+// signed URLs for them so they run on the voice agent (they were turn-based
+// before). Their existing system_prompt + voice_id drive the call unchanged.
+const VOICE_AGENT_SCENARIOS = new Set([...DEMO_SCENARIO_IDS, ...REEL_SCENARIO_IDS, 'coaching_practice']);
 
 export async function onRequestPost({ request, env }) {
   let body;

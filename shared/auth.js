@@ -57,6 +57,15 @@ export const COACHING_FULL_RECIPIENT_EMAIL = '__coaching_full__@simulation.local
 // can never drift.
 export const COACHING_RECIPIENT_EMAIL = '__coaching__@simulation.local';
 
+// Sentinel recipient_email for the single open "Back-to-back demo reel" link.
+// Like the demo, it reuses the invites table (no new table / no migration): one
+// row whose recipient_email is this constant, assigned exactly the five reel
+// scenario ids so its cs_me cookie authorizes each call in the sequence (both
+// the /api/voice-agent/start scope check and the client). Defined once here and
+// imported by the admin reel endpoint, the /reel/[token] landing, and
+// /api/me/status so the value can never drift.
+export const REEL_RECIPIENT_EMAIL = '__reel__@simulation.local';
+
 function bytesToBase64Url(bytes) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) {

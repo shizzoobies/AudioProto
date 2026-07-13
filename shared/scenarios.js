@@ -2395,6 +2395,20 @@ export function getScenarioType(id) {
 // never surface in listScenarioTypesForDisplay / the picker / the admin list).
 export const DEMO_SCENARIO_IDS = ['demo_sales', 'demo_service'];
 
+// The "Back-to-back demo reel": five real personas played on the voice agent in
+// this exact, fixed order (Sales, then four library callers). The open reel link
+// locks its cs_me cookie to exactly these ids. demo_sales lives in SCENARIOS
+// only; the other four are normal library personas (also in SCENARIO_TYPES), so
+// getScenario resolves all five. Order is authoritative - the client advances
+// through it index by index.
+export const REEL_SCENARIO_IDS = [
+  'demo_sales',
+  'lost_reservation_marcus',
+  'damage_dispute_vincent',
+  'price_shopper_greta',
+  'first_time_mover_jordan',
+];
+
 // The dedicated scenario a coaching-test invite always targets (the coaching
 // page auto-loads it). Not part of any SCENARIO_TYPE, so it never shows in the
 // normal picker; assigned automatically when an invite is mode='coaching'.
@@ -2431,6 +2445,22 @@ export function demoSalesDateBlock(now) {
 // any displayed scenario type.
 export function listDemoScenariosForDisplay() {
   return DEMO_SCENARIO_IDS.map((id) => {
+    const s = getScenario(id);
+    return {
+      id,
+      customer_name: s?.customer_name || id,
+      customer_short: s?.customer_short || '',
+      tagline: s?.tagline || '',
+      premium: !!s?.premium,
+    };
+  });
+}
+
+// Display tuples for the five reel callers, in sequence order, for the admin
+// reel-link status. Resolved straight from SCENARIOS so they work even for
+// demo_sales (which is in no displayed scenario type).
+export function listReelScenariosForDisplay() {
+  return REEL_SCENARIO_IDS.map((id) => {
     const s = getScenario(id);
     return {
       id,

@@ -5,7 +5,7 @@
 // display name (if any), expiry, and their assigned scenarios hydrated with
 // persona display data so the frontend can render cards in one round trip.
 
-import { getInviteScope, DEMO_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL, COACHING_RECIPIENT_EMAIL } from '../../../shared/auth.js';
+import { getInviteScope, DEMO_RECIPIENT_EMAIL, PREVIEW_RECIPIENT_EMAIL, COACHING_RECIPIENT_EMAIL, REEL_RECIPIENT_EMAIL } from '../../../shared/auth.js';
 import { listScenarioTypesForDisplay, getScenario } from '../../../shared/scenarios.js';
 
 export async function onRequestGet({ request, env }) {
@@ -126,6 +126,10 @@ export async function onRequestGet({ request, env }) {
   }
 
   const isDemo = scope.recipient_email === DEMO_RECIPIENT_EMAIL;
+  // The back-to-back demo reel link: its own sentinel, its own sealed client
+  // experience (an intro splash -> five auto-advancing calls -> a complete
+  // screen). Detected here so the client sets state.reel instead of the demo home.
+  const isReel = scope.recipient_email === REEL_RECIPIENT_EMAIL;
   // Full-library detection: the dedicated preview sentinel, OR any invite that
   // has been granted EVERY real scenario (e.g. the admin "Entire library"
   // checkbox on a per-person invite). Either way the visitor gets the whole
@@ -181,13 +185,14 @@ export async function onRequestGet({ request, env }) {
   return json({
     active: true,
     is_demo: isDemo,
+    is_reel: isReel,
     is_preview: isPreview,
     is_coaching: isCoaching,
     coaching_preview: isCoachingPreview,
     coaching_landing: coachingLanding,
     // Don't surface the internal sentinel address to the client.
-    recipient_name: (isDemo || isPreview || isCoachingSentinel || isCoachingPreview) ? null : (scope.recipient_name || null),
-    recipient_email: (isDemo || isPreview || isCoachingSentinel || isCoachingPreview) ? null : scope.recipient_email,
+    recipient_name: (isDemo || isReel || isPreview || isCoachingSentinel || isCoachingPreview) ? null : (scope.recipient_name || null),
+    recipient_email: (isDemo || isReel || isPreview || isCoachingSentinel || isCoachingPreview) ? null : scope.recipient_email,
     expires_at: scope.expires_at,
     scenarios,
   });
