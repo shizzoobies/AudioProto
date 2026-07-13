@@ -26,6 +26,8 @@ const state = {
   demo: null,          // { active, scenarios:[{id,customer_name,tagline}], created_at }
   lastDemoUrl: null,   // last generated demo URL (shown once with a Copy button)
   demoVoices: null,    // { assignments:{<scenario_id>:{voice_id,label}}, defaults:{demo_sales,demo_service} } — per-caller voice overrides
+  reel: null,          // { active, scenarios:[{id,customer_name,tagline}], created_at } — the back-to-back demo reel link
+  lastReelUrl: null,   // last generated reel URL (shown once with a Copy button)
   coaching: null,      // { active, created_at } — the open coaching-test share link
   lastCoachingUrl: null, // last generated coaching URL (shown once with a Copy button)
   coachingAgents: [],  // [{id, name, role_title, attitude, resistance, receptiveness, ...}] — authored coachable agents
@@ -165,6 +167,8 @@ async function logout() {
   state.demo = null;
   state.lastDemoUrl = null;
   state.demoVoices = null;
+  state.reel = null;
+  state.lastReelUrl = null;
   state.coaching = null;
   state.lastCoachingUrl = null;
   state.coachingAgents = [];
@@ -501,6 +505,15 @@ async function loadData() {
   }
 
   try {
+    const r = await fetch('/api/admin/reel', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.reel = await r.json();
+    }
+  } catch (e) {
+    console.warn('reel load failed', e);
+  }
+
+  try {
     const r = await fetch('/api/admin/coaching', { credentials: 'same-origin' });
     if (r.ok) {
       state.coaching = await r.json();
@@ -647,6 +660,8 @@ function paintDashboard() {
 
     ${renderDemoSection()}
 
+    ${renderReelSection()}
+
     ${renderLiveSessionsSection()}
 
     ${renderCoachingSection()}
@@ -724,6 +739,7 @@ function paintDashboard() {
   attachAdminNav();
   attachInviteListHandlers();
   attachDemoHandlers();
+  attachReelHandlers();
   attachLiveSessionsHandlers();
   attachCoachingHandlers();
   attachChartsHandlers();
@@ -745,6 +761,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invite', label: 'Send invite' },
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
+  { id: 'sec-reel', label: 'Demo reel' },
   { id: 'sec-live', label: 'Live practice' },
   { id: 'sec-coaching', label: 'Coaching link' },
   { id: 'sec-coaching-agents-link', label: 'Scenarios' },
@@ -1999,6 +2016,144 @@ function paintDemoGenerated() {
         <div class="admin-generated-url-row">
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastDemoUrl)}">
           <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastDemoUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
+// ---- Back-to-back demo reel link ------------------------------------------
+
+// One shareable, no-password link to the five-call demo reel: the visitor takes
+// five real-time voice calls back to back (Robert, then four library callers),
+// auto-advancing, with no coaching report between them. Backed by the invites
+// system (sentinel recipient_email), so generate rotates the token and revoke
+// kills the link immediately. Mirrors the Demo link section.
+function renderReelSection() {
+  const reel = state.reel;
+  const active = !!reel?.active;
+  const scenarios = reel?.scenarios || [];
+  const scenarioNames = scenarios.length
+    ? scenarios.map((s) => escapeHtml(s.customer_name || s.id)).join(' · ')
+    : '';
+
+  const statusHtml = active
+    ? `<span class="admin-pill admin-pill-active">Active</span>${scenarioNames ? ` <span class="admin-muted">${scenarioNames}</span>` : ''}`
+    : `<span class="admin-muted">No reel link yet</span>${scenarioNames ? ` <span class="admin-muted">· ${scenarioNames}</span>` : ''}`;
+
+  return `
+    <section class="admin-section" id="sec-reel">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Demo reel</p>
+        <h2 class="admin-section-title">Back-to-back demo reel</h2>
+        <p class="admin-section-sub">One shareable link that plays five voice calls back to back, each a different customer, auto-advancing with no report in between. No password: anyone with the link can run it.</p>
+      </header>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+          ${statusHtml}
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="button" class="primary-button" id="admin-reel-generate-btn">${active ? 'Regenerate reel link' : 'Generate reel link'}</button>
+          ${active ? '<button type="button" class="ghost-button" id="admin-reel-revoke-btn">Revoke</button>' : ''}
+        </div>
+        <div id="admin-reel-generated" class="admin-generated"></div>
+      </div>
+    </section>
+  `;
+}
+
+function attachReelHandlers() {
+  const genBtn = document.getElementById('admin-reel-generate-btn');
+  if (genBtn) genBtn.addEventListener('click', onGenerateReel);
+  const revokeBtn = document.getElementById('admin-reel-revoke-btn');
+  if (revokeBtn) revokeBtn.addEventListener('click', onRevokeReel);
+  // Re-render the last generated URL (if any) so a paintDashboard re-run keeps it.
+  paintReelGenerated();
+}
+
+async function onGenerateReel() {
+  const btn = document.getElementById('admin-reel-generate-btn');
+  const out = document.getElementById('admin-reel-generated');
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  try {
+    const res = await fetch('/api/admin/reel', { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastReelUrl = data.url;
+    await loadData();
+    refreshReelSection();
+    paintReelGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+async function onRevokeReel() {
+  if (!confirm('Revoke the demo reel link? Anyone holding it will lose access immediately.')) return;
+  const btn = document.getElementById('admin-reel-revoke-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
+  try {
+    const res = await fetch('/api/admin/reel', { method: 'DELETE', credentials: 'same-origin' });
+    if (res.ok) {
+      state.lastReelUrl = null;
+      await loadData();
+      refreshReelSection();
+    } else {
+      alert('Revoke failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    }
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+  }
+}
+
+// Swap just the Reel section's DOM in place and re-wire its handlers, so the
+// rest of the dashboard (and the generated URL state) is left untouched.
+function refreshReelSection() {
+  const sections = root.querySelectorAll('.admin-section');
+  for (const sec of sections) {
+    const eyebrow = sec.querySelector('.admin-eyebrow');
+    if (eyebrow && eyebrow.textContent.trim() === 'Demo reel') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderReelSection();
+      sec.replaceWith(tmp.firstElementChild);
+      break;
+    }
+  }
+  attachReelHandlers();
+}
+
+function paintReelGenerated() {
+  const out = document.getElementById('admin-reel-generated');
+  if (!out) return;
+  if (!state.lastReelUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Reel link ready.</strong> Share it with anyone. No password needed.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastReelUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastReelUrl)}">Copy</button>
         </div>
       </div>
     </div>`;
