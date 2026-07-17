@@ -16,6 +16,13 @@ export const DEMO_RECIPIENT_EMAIL = '__demo__@simulation.local';
 // dedicated cs_charts cookie (see getChartsScope + functions/charts/_middleware).
 export const CHARTS_RECIPIENT_EMAIL = '__charts__@simulation.local';
 
+// Sentinel recipient_email for the token-gated "Designing Growth" game link. One
+// invites row whose recipient_email is this constant; its cs_game cookie releases
+// ONLY the static /designing-growth page (and its data.json). It carries no
+// scenario assignments and grants no app or admin access. See getGameScope, the
+// /game-pass/[token] entry, and functions/designing-growth/_middleware.js.
+export const GAME_RECIPIENT_EMAIL = '__game__@simulation.local';
+
 // Sentinel recipient_email for the open "full library preview" link. Like the
 // demo, it reuses the invites table: one row whose recipient_email is this
 // constant, assigned EVERY real scenario so its cs_me cookie unlocks the whole
@@ -343,6 +350,40 @@ export async function getChartsScope(request, env) {
     .first();
   if (!row) return null;
   if (row.recipient_email !== CHARTS_RECIPIENT_EMAIL) return null;
+  if (row.token_hash !== payload.h) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (row.expires_at && row.expires_at < now) return null;
+
+  return { invite_id: row.id, expires_at: row.expires_at };
+}
+
+// Validate a cs_game cookie against the game sentinel invites row. Returns
+// { invite_id, expires_at } when the cookie is present, signed, scoped to 'game',
+// and still matches a non-revoked, non-expired game row whose token_hash equals
+// the cookie's. Re-reads D1 every call so revoke/regenerate is instant. Used only
+// to gate the static /designing-growth page; grants no app access.
+export async function getGameScope(request, env) {
+  if (!env?.SESSION_SECRET || !env?.DB) return null;
+  const cookies = parseCookieHeader(request.headers.get('Cookie') || '');
+  const t = cookies.cs_game;
+  if (!t) return null;
+  let payload;
+  try {
+    payload = await verifyToken(t, env.SESSION_SECRET);
+  } catch {
+    return null;
+  }
+  if (payload?.scope !== 'game' || !payload?.invite_id || !payload?.h) return null;
+
+  const row = await env.DB
+    .prepare(
+      `SELECT id, recipient_email, expires_at, token_hash
+       FROM invites WHERE id = ? AND revoked = 0 LIMIT 1`
+    )
+    .bind(payload.invite_id)
+    .first();
+  if (!row) return null;
+  if (row.recipient_email !== GAME_RECIPIENT_EMAIL) return null;
   if (row.token_hash !== payload.h) return null;
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at && row.expires_at < now) return null;

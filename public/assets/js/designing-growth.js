@@ -15,7 +15,10 @@
 // outcome slide applies its deltas ON ENTRY. A `final` slide ends the run: the
 // ending is chosen by evaluating `endings` in order.
 
-const DATA_URL = '/assets/data/designing-growth.json?v=20260701-1';
+// Lives inside the token-gated /designing-growth/ folder (see
+// functions/designing-growth/_middleware.js), so the game content is only served
+// to a valid cs_game cookie.
+const DATA_URL = 'data.json?v=20260701-2';
 const STAT_KEYS = ['Growth', 'Yield', 'Resilience', 'Efficiency'];
 
 let model = null;

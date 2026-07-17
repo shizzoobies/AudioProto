@@ -175,6 +175,7 @@ async function logout() {
   state.editingCoachingAgentId = null;
   state.coachingVoices = [];
   state.charts = null;
+  state.gameLink = null;
   state.lastChartsUrl = null;
   state.preview = null;
   state.lastPreviewUrl = null;
@@ -533,6 +534,15 @@ async function loadData() {
   }
 
   try {
+    const r = await fetch('/api/admin/game-link', { credentials: 'same-origin' });
+    if (r.ok) {
+      state.gameLink = await r.json();
+    }
+  } catch (e) {
+    console.warn('game link load failed', e);
+  }
+
+  try {
     const r = await fetch('/api/admin/charts', { credentials: 'same-origin' });
     if (r.ok) {
       state.charts = await r.json();
@@ -668,6 +678,7 @@ function paintDashboard() {
 
     ${renderCoachingAgentsLinkCard()}
 
+    ${renderGameLinkSection()}
     ${renderChartsSection()}
 
     ${renderPreviewSection()}
@@ -742,6 +753,7 @@ function paintDashboard() {
   attachReelHandlers();
   attachLiveSessionsHandlers();
   attachCoachingHandlers();
+  attachGameLinkHandlers();
   attachChartsHandlers();
   attachPreviewHandlers();
   attachRubricHandlers();
@@ -765,6 +777,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-live', label: 'Live practice' },
   { id: 'sec-coaching', label: 'Coaching link' },
   { id: 'sec-coaching-agents-link', label: 'Scenarios' },
+  { id: 'sec-game', label: 'Game link' },
   { id: 'sec-charts', label: 'Cost model link' },
   { id: 'sec-preview', label: 'Preview link' },
   { id: 'sec-rubric', label: 'Call Review' },
@@ -5081,6 +5094,134 @@ function cssEscape(s) {
 // (the built React app served at /charts). Backed by the invites system
 // (sentinel recipient_email), so generate rotates the token and revoke kills
 // the link immediately. Mirrors the demo link's generate / copy / revoke flow.
+// ---- Designing Growth game link -------------------------------------------
+// One shareable, no-password link to the /designing-growth game. Backed by the
+// invites system (sentinel recipient_email + cs_game cookie), so generate rotates
+// the token and revoke kills the link immediately. Mirrors the cost-model link.
+
+function renderGameLinkSection() {
+  const link = state.gameLink;
+  const active = !!link?.active;
+  const statusHtml = active
+    ? '<span class="admin-pill admin-pill-active">Active</span> <span class="admin-muted">Designing Growth · The Cultivar Lab Game</span>'
+    : '<span class="admin-muted">No game link yet</span>';
+
+  return `
+    <section class="admin-section" id="sec-game">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Game</p>
+        <h2 class="admin-section-title">Game link</h2>
+        <p class="admin-section-sub">One shareable link to <strong>Designing Growth</strong>, the cultivar decision game. No password: anyone with the link can play. Without a link the page is closed, so revoking cuts off access immediately.</p>
+      </header>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+          ${statusHtml}
+        </div>
+        <div class="admin-invite-actions" style="justify-content:flex-start;">
+          <button type="button" class="primary-button" id="admin-game-generate-btn">${active ? 'Regenerate game link' : 'Generate game link'}</button>
+          ${active ? '<button type="button" class="ghost-button" id="admin-game-revoke-btn">Revoke</button>' : ''}
+        </div>
+        <div id="admin-game-generated" class="admin-generated"></div>
+      </div>
+    </section>
+  `;
+}
+
+function attachGameLinkHandlers() {
+  const genBtn = document.getElementById('admin-game-generate-btn');
+  if (genBtn) genBtn.addEventListener('click', onGenerateGameLink);
+  const revokeBtn = document.getElementById('admin-game-revoke-btn');
+  if (revokeBtn) revokeBtn.addEventListener('click', onRevokeGameLink);
+  paintGameLinkGenerated();
+}
+
+async function onGenerateGameLink() {
+  const btn = document.getElementById('admin-game-generate-btn');
+  const out = document.getElementById('admin-game-generated');
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  try {
+    const res = await fetch('/api/admin/game-link', { method: 'POST', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastGameUrl = data.url;
+    await loadData();
+    refreshGameLinkSection();
+    paintGameLinkGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  }
+}
+
+async function onRevokeGameLink() {
+  if (!confirm('Revoke the game link? Anyone holding it will lose access immediately.')) return;
+  const btn = document.getElementById('admin-game-revoke-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
+  try {
+    const res = await fetch('/api/admin/game-link', { method: 'DELETE', credentials: 'same-origin' });
+    if (res.ok) {
+      state.lastGameUrl = null;
+      await loadData();
+      refreshGameLinkSection();
+    } else {
+      alert('Revoke failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+    }
+  } catch {
+    alert('Network error.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Revoke'; }
+  }
+}
+
+function refreshGameLinkSection() {
+  const sections = root.querySelectorAll('.admin-section');
+  for (const sec of sections) {
+    const eyebrow = sec.querySelector('.admin-eyebrow');
+    if (eyebrow && eyebrow.textContent.trim() === 'Game') {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderGameLinkSection();
+      sec.replaceWith(tmp.firstElementChild);
+      break;
+    }
+  }
+  attachGameLinkHandlers();
+}
+
+function paintGameLinkGenerated() {
+  const out = document.getElementById('admin-game-generated');
+  if (!out) return;
+  if (!state.lastGameUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Game link ready.</strong> Share it with anyone. No password needed.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastGameUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastGameUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
 function renderChartsSection() {
   const charts = state.charts;
   const active = !!charts?.active;
