@@ -1,0 +1,187 @@
+/* Designing Growth — The Cultivar Lab Game.
+   Standalone page, so this file is self-contained (it does not depend on
+   styles.css). Palette mirrors the warm botanical "Bobbie's Dashboard" theme used
+   by the coaching dashboard + scenario card. */
+
+.dg-page {
+  --dg-green: #6a7f46;
+  --dg-green-dark: #586b3a;
+  --dg-orange: #e7a23d;
+  --dg-orange-dark: #d8902c;
+  --dg-amber: #f5e1af;
+  --dg-tan: #e2cca8;
+  --dg-card: #fcf9f3;
+  --dg-bg: #f4eddf;
+  --dg-ink: #241d1c;
+  --dg-muted: #7e7764;
+  --dg-danger: #b0462f;
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--dg-bg);
+  color: var(--dg-ink);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Soft botanical wash, same world as the coaching pages. */
+.dg-page::before {
+  content: "";
+  position: fixed; inset: 0;
+  background: url('/assets/img/coaching/background.png') center -13vh / cover no-repeat, var(--dg-bg);
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dg-main { position: relative; z-index: 1; }
+
+.dg-shell {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 5vh 20px 8vh;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: dg-fade 0.32s ease;
+}
+@keyframes dg-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---- stat bar ---- */
+.dg-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.dg-stat {
+  background: var(--dg-card);
+  border: 1px solid var(--dg-tan);
+  border-radius: 12px;
+  padding: 9px 6px;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.dg-stat-k {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dg-green);
+  white-space: nowrap;
+}
+.dg-stat-v {
+  display: block;
+  margin-top: 2px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--dg-ink);
+  font-variant-numeric: tabular-nums;
+}
+/* A stat at 4 or below forfeits the Breakthrough Cultivar ending. */
+.dg-stat.is-low { border-color: rgba(176, 70, 47, 0.5); background: rgba(176, 70, 47, 0.07); }
+.dg-stat.is-low .dg-stat-k { color: var(--dg-danger); }
+.dg-stat-total { background: rgba(245, 225, 175, 0.5); }
+.dg-stat-total .dg-stat-k { color: var(--dg-muted); }
+
+/* ---- card ---- */
+.dg-card {
+  background: var(--dg-card);
+  border: 1px solid var(--dg-tan);
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(60, 45, 20, 0.14);
+  padding: 30px 30px 26px;
+}
+.dg-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dg-green);
+}
+.dg-title {
+  margin: 0 0 14px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(26px, 4.4vw, 34px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--dg-ink);
+}
+.dg-body {
+  margin: 0 0 12px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: #4f4939;
+}
+.dg-body:last-of-type { margin-bottom: 0; }
+
+/* ---- choices ---- */
+.dg-choices { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+.dg-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  padding: 15px 17px;
+  border: 1px solid var(--dg-tan);
+  border-radius: 14px;
+  background: #fffdf8;
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.dg-choice:hover {
+  transform: translateY(-1px);
+  border-color: var(--dg-green);
+  background: rgba(106, 127, 70, 0.05);
+  box-shadow: 0 8px 20px rgba(60, 45, 20, 0.12);
+}
+.dg-choice:focus-visible { outline: 3px solid rgba(231, 162, 61, 0.5); outline-offset: 2px; }
+.dg-choice-letter {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--dg-green);
+  color: #fffdf8;
+  font-size: 12px; font-weight: 700;
+}
+.dg-choice-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dg-choice-title { font-size: 15px; font-weight: 600; color: var(--dg-ink); }
+.dg-choice-desc { font-size: 13.5px; line-height: 1.5; color: var(--dg-muted); }
+
+/* ---- continue / restart ---- */
+.dg-actions { margin-top: 22px; display: flex; justify-content: flex-start; }
+.dg-next {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  background: var(--dg-green);
+  color: #fffdf8;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.dg-next:hover { background: var(--dg-green-dark); transform: translateY(-1px); }
+.dg-next:focus-visible { outline: 3px solid rgba(231, 162, 61, 0.5); outline-offset: 2px; }
+
+/* ---- intro + ending ---- */
+.dg-shell.is-intro .dg-card { text-align: center; padding: 44px 30px 36px; }
+.dg-shell.is-intro .dg-actions { justify-content: center; }
+.dg-shell.is-ending .dg-card { border-color: var(--dg-orange); }
+.dg-shell.is-ending .dg-eyebrow { color: var(--dg-orange-dark); }
+
+@media (max-width: 620px) {
+  .dg-page::before { background: var(--dg-bg); }
+  .dg-shell { padding: 3vh 14px 7vh; }
+  .dg-card { padding: 24px 20px 22px; border-radius: 16px; }
+  .dg-stats { grid-template-columns: repeat(3, 1fr); }
+  .dg-stat-v { font-size: 19px; }
+}

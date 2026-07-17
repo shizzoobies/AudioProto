@@ -1,0 +1,1540 @@
+{
+ "title": "Designing Growth",
+ "start": "6GJNMWxkDL9",
+ "stats": {
+  "Growth": 5,
+  "Yield": 5,
+  "Resilience": 5,
+  "Efficiency": 5,
+  "TotalScore": 20
+ },
+ "slides": {
+  "5aHau4rMrAT": {
+   "title": "R1O if B",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "next": "5lwT7JdVouY",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The plants produce an impressive number of fruit clusters. The greenhouse team notices the plants are consuming more water and nutrients than expected.",
+    "Yield:  +2",
+    "Growth:  +1",
+    "Efficiency:  -1",
+    "\"Production forecasts exceed expectations!\"",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5bO2TaoJ94T": {
+   "title": "DI A",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 3
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The team secured additional water supplies to keep production levels high. Harvest volumes remained impressive, but rising costs significantly reduced the profitability of the project.",
+    "Yield:  +2",
+    "Efficiency:  -3",
+    "Greenhouse Status:",
+    "Budget Crisis",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5cyxkHjCTzz": {
+   "title": "OC/RS A",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Demand surged beyond expectations, and your team moved quickly to scale production. Orders were filled, but the increased pace placed additional strain on resources and operations.",
+    "Growth:  +2",
+    "Efficiency:  -1",
+    "Greenhouse Status:",
+    "Expansion Underway",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5gUnIsFxEij": {
+   "title": "OC/RS B",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The cultivar met growing demand without overwhelming existing infrastructure, creating steady and sustainable momentum.",
+    "Growth:  +1",
+    "Yield:  +1",
+    "Greenhouse Status:",
+    "Sustainable Growth",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5iE252rdT5j": {
+   "title": "FOA A",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The outbreak is controlled, but treatment costs surge.",
+    "Resilience:  +1",
+    "Efficiency:  -2",
+    "Greenhouse Status:",
+    "High Maintenance Operation",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5ivVTJY5IZN": {
+   "title": "EvoReg if B",
+   "deltas": [
+    {
+     "stat": "Efficiency",
+     "op": "set",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Your team made the necessary adjustments to remain compliant while avoiding major disruptions. The transition was smooth, though it provided little competitive advantage.",
+    "Efficiency:  +1",
+    "Greenhouse Status:",
+    "Fully Compliant",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5l789nIin0c": {
+   "title": "R2B if C",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Yield",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "next": "5rIC3xLMCMy",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The cultivar redirects resources away from fruit production and toward survival. The greenhouse comfortably weathers the drought.",
+    "Resilience:  +2",
+    "Efficiency:  +1",
+    "Yield:  -1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Resource Stable"
+   ]
+  },
+  "5ld30aDlsV2": {
+   "title": "EvoReg if C",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The team postponed major changes to preserve short-term growth. The greenhouse now faces mounting pressure to address future compliance requirements.",
+    "Growth:  +1",
+    "Efficiency:  -2",
+    "Greenhouse Status:",
+    "Regulatory Risk",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5lsli9L72I8": {
+   "title": "Commercial Success",
+   "next": "5rJ0bLCdThd",
+   "ending": "Commercial Success",
+   "head": "Commercial Success",
+   "eyebrow": "GREENHOUSE STATUS",
+   "prose": [
+    "Production goals are being met Operations remain healthy The cultivar continues to perform consistently",
+    "Your cultivar achieved reliable commercial performance. While a few trade-offs limited its overall potential, it consistently met client expectations and earned a stable place in the market.",
+    "Stable",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5lwT7JdVouY": {
+   "title": "R2 if B",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Keep maximizing yield",
+     "desc": "The market wants volume. We'll figure out the water issue later.",
+     "target": "6BvHUFxN02F",
+     "targetTitle": "R2B if A"
+    },
+    {
+     "letter": "B",
+     "title": "Improve efficiency",
+     "desc": "Let's make the plant do more with less.",
+     "target": "6BbPuyLjkry",
+     "targetTitle": "R2B if B"
+    },
+    {
+     "letter": "C",
+     "title": "Reduce production demands",
+     "desc": "A smaller harvest is better than an unsustainable one.",
+     "target": "5l789nIin0c",
+     "targetTitle": "R2B if C"
+    }
+   ],
+   "head": "Water Restrictions",
+   "eyebrow": "ROUND TWO",
+   "prose": [
+    "A regional drought causes water allocations to be reduced. Your high-yield cultivar consumes significantly more resources than expected. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "5mzQjCOdJSb": {
+   "title": "Water Reserves Critical",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Purchase Emergency Water",
+     "desc": "Protect production by securing additional resources.",
+     "target": "5bO2TaoJ94T",
+     "targetTitle": "DI A"
+    },
+    {
+     "letter": "B",
+     "title": "Reduce Harvest Targets",
+     "desc": "Scale back output to preserve the health of the cultivar.",
+     "target": "5xepTGwEiUQ",
+     "targetTitle": "DI B"
+    },
+    {
+     "letter": "C",
+     "title": "Improve Water Recycling",
+     "desc": "Invest in efficiency to make limited resources last longer.",
+     "target": "6aPoAUu1Mdr",
+     "targetTitle": "DI C"
+    }
+   ],
+   "head": "Drought Intensifies",
+   "eyebrow": "ROUND THREE",
+   "prose": [
+    "Reservoir levels are falling, water prices have skyrocketed, and restrictions continue to tighten. Your team must decide how to protect the cultivar while managing increasingly scarce resources. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "5nbeEP2bmI1": {
+   "title": "TR if C",
+   "deltas": [
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Yield",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Some production targets were sacrificed to reduce stress on the greenhouse. The slower pace gave researchers time to stabilize operations and reduce reliance on chemical treatments.",
+    "Efficiency:  +1",
+    "Yield:  -1",
+    "Greenhouse Status:",
+    "Sustainable Recovery",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5nhVIrYx4lN": {
+   "title": "TR if A",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Researchers intensified treatment schedules to suppress the resistant fungus. The strong yield became increasingly dependent on costly interventions to maintain results.",
+    "Yield:  +1",
+    "Efficiency:  -2",
+    "Greenhouse Status:",
+    "Escalating Costs",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5p0ZQ3SSdsN": {
+   "title": "R1O if A",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Resilience",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "next": "6CdTEvh4RJd",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The plants shoot upward almost overnight. Investors are thrilled. Unfortunately, root development hasn't kept pace.",
+    "Growth:  +2",
+    "Yield:  +1",
+    "Resilience:  -1",
+    "\"Fastest-growing cultivar in company history!\"",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5rIC3xLMCMy": {
+   "title": "Outbreak Contained/Resource Stable",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Rapid Expansion",
+     "desc": "Scale production as fast as possible.",
+     "target": "5cyxkHjCTzz",
+     "targetTitle": "OC/RS A"
+    },
+    {
+     "letter": "B",
+     "title": "Controlled Growth",
+     "desc": "Expand cautiously.",
+     "target": "5gUnIsFxEij",
+     "targetTitle": "OC/RS B"
+    },
+    {
+     "letter": "C",
+     "title": "Maintain Current Operations",
+     "desc": "Protect quality over quantity.",
+     "target": "6LxrYfTXBpJ",
+     "targetTitle": "OC/RS C"
+    }
+   ],
+   "head": "Market Demand Spike",
+   "eyebrow": "ROUND THREE",
+   "prose": [
+    "Industry demand unexpectedly doubles. Retailers want inventory immediately. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "5rJ0bLCdThd": {
+   "title": "END",
+   "head": "Growth Doesn't Happen by Accident",
+   "eyebrow": null,
+   "prose": [
+    "As a manager, you're not just solving today's problems. You're designing tomorrow's results.",
+    "Restart",
+    "Every choice you made changed the future of your cultivar. Some decisions created stronger roots . Some improved short-term performance . Others introduced trade-offs that didn't become visible until much later. Employee development works the same way. The skills you choose to develop today shape your team's performance tomorrow. Intentional development isn't about fixing everything at once. It's about making thoughtful decisions that build long-term success."
+   ]
+  },
+  "5tavaTv0Thh": {
+   "title": "R2A if C",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Resilience",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "next": "6iX9XWpQhJy",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The outbreak remains under control and growth targets are mostly maintained. However, treatment costs begin increasing and plants become more dependent on intervention.",
+    "Growth:  +2",
+    "Yield:  +1",
+    "Resilience:  -1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Outbreak Under Treatment"
+   ]
+  },
+  "5uS92ahSNpq": {
+   "title": "AEx if A",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Your cultivar became the talk of the expo after demonstrating remarkable growth rates. Industry leaders took notice, and interest in the project increased dramatically.",
+    "Growth:  +2",
+    "Greenhouse Status:",
+    "Industry Attention",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5vFZaombXEb": {
+   "title": "Scenario Intro",
+   "next": "6ZybzA6mKRm",
+   "head": null,
+   "eyebrow": null,
+   "prose": [
+    "Your client wants a profitable, reliable cultivar. You have three development cycles before launch. Choose carefully."
+   ]
+  },
+  "5WpFBwpgchk": {
+   "title": "Cautionary Tale",
+   "next": "5rJ0bLCdThd",
+   "ending": "Cautionary Tale",
+   "head": "Cautionary Tale",
+   "eyebrow": "GREENHOUSE STATUS",
+   "prose": [
+    "Production remains inconsistent Operating costs continue to rise The project is under review for future viability",
+    "Your cultivar showed early promise but struggled as new challenges emerged. Small development decisions accumulated over time, creating vulnerabilities that reduced long-term performance and market adoption.",
+    "Under Pressure",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5wQ1ZRV3SS8": {
+   "title": "EvoReg if A",
+   "deltas": [
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 3
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The team proactively upgraded systems and processes before the regulations took effect. The cultivar became a model for sustainable production practices.",
+    "Efficiency:  +2",
+    "Resilience:  +1",
+    "Greenhouse Status:",
+    "Industry Leader",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5xepTGwEiUQ": {
+   "title": "DI B",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Yield",
+     "op": "sub",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Production goals were lowered to preserve available resources. While overall output decreased, the cultivar remained healthy and capable of weathering the worsening drought.",
+    "Resilience:  +1",
+    "Yield:  -2",
+    "Greenhouse Status:",
+    "Surviving Conditions",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "5ZeEiIYlDzg": {
+   "title": "R2A if A",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Resilience",
+     "op": "sub",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 1
+    }
+   ],
+   "next": "6EucadbP3Pl",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The cultivar continues to grow at record speed and early harvest numbers look promising. Unfortunately, the fungus spreads through several test plots before researchers can contain it.",
+    "Growth:  +2",
+    "Yield:  +1",
+    "Resilience:  -2",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Fungal Outbreak Active"
+   ]
+  },
+  "61vYxqNXukm": {
+   "title": "R2C if C",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 3
+    }
+   ],
+   "next": "6iQSWf2UOta",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "Researchers continue refining disease resistance and environmental tolerance. Investors remain skeptical, but the cultivar performs consistently under every test condition.",
+    "Resilience:  +2",
+    "Efficiency:  +1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Exceptionally Stable"
+   ]
+  },
+  "6aPoAUu1Mdr": {
+   "title": "DI C",
+   "deltas": [
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 3
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Researchers invested in water reclamation and more efficient irrigation systems. The greenhouse adapted successfully to the drought and emerged more sustainable operating model.",
+    "Efficiency:  +2",
+    "Resilience:  +1",
+    "Greenhouse Status:",
+    "Sustainable Operations",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6BbPuyLjkry": {
+   "title": "R2B if B",
+   "deltas": [
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 3
+    }
+   ],
+   "next": "6iQSWf2UOta",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "Researchers redesign irrigation systems and improve nutrient uptake. Production stabilizes despite reduced water availability.",
+    "Efficiency:  +2",
+    "Yield:  +1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Sustainable Operations"
+   ]
+  },
+  "6bJi2AX6aEA": {
+   "title": "AEx if B",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Visitors were impressed by the cultivar's production capacity and harvest potential. Several major buyers expressed interest, creating new opportunities for expansion.",
+    "Yield:  +2",
+    "Greenhouse Status:",
+    "New Contracts Signed",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6BvHUFxN02F": {
+   "title": "R2B if A",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Efficiency",
+     "op": "sub",
+     "n": 3
+    }
+   ],
+   "next": "5mzQjCOdJSb",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "Production numbers remain impressive despite worsening drought conditions. The greenhouse begins burning through reserves at an alarming rate.",
+    "Yield:  +2",
+    "Growth:  +1",
+    "Efficiency:  -3",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Water Reserves Critical"
+   ]
+  },
+  "6CdTEvh4RJd": {
+   "title": "R2 if A",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Continue pushing growth",
+     "desc": "Demand is high. We can deal with the fungus later if we keep on schedule.",
+     "target": "5ZeEiIYlDzg",
+     "targetTitle": "R2A if A"
+    },
+    {
+     "letter": "B",
+     "title": "Pause and strengthen defenses",
+     "desc": "A short delay now could prevent bigger losses later.",
+     "target": "6VlWoO0hMyp",
+     "targetTitle": "R2A if B"
+    },
+    {
+     "letter": "C",
+     "title": "Increase fungicide treatments",
+     "desc": "Let's keep growing while controlling the outbreak through intervention.",
+     "target": "5tavaTv0Thh",
+     "targetTitle": "R2A if C"
+    }
+   ],
+   "head": "Fungal Outbreak",
+   "eyebrow": "ROUND TWO",
+   "prose": [
+    "A fast-spreading greenhouse fungus appears. Plants under stress are especially vulnerable. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "6dvSyNdn3wP": {
+   "title": "Rules",
+   "next": "5vFZaombXEb",
+   "head": "Your Mission",
+   "eyebrow": null,
+   "prose": [
+    "You'll guide the development of a new plant cultivar through a series of choices and challenges. As conditions change, you'll need to decide what to prioritize, what to address next, and how to make the most of your limited opportunities to develop your plant. Choose carefully! Every decision has consequences, and the health of your cultivar depends on the strategy you build along the way."
+   ]
+  },
+  "6EucadbP3Pl": {
+   "title": "Fungal Infection Active",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Emergency Fungicide Campaign",
+     "desc": "Treat every greenhouse immediately.",
+     "target": "5iE252rdT5j",
+     "targetTitle": "FOA A"
+    },
+    {
+     "letter": "B",
+     "title": "Remove Infected Plants",
+     "desc": "Accept short-term losses to protect the healthy crop.",
+     "target": "6GwOr2lmwsz",
+     "targetTitle": "FOA B"
+    },
+    {
+     "letter": "C",
+     "title": "Launch Anyway",
+     "desc": "The client is expecting delivery. We can't delay.",
+     "target": "6FYLh10Bo5C",
+     "targetTitle": "FOA C"
+    }
+   ],
+   "head": "Humid Growing Season",
+   "eyebrow": "ROUND THREE",
+   "prose": [
+    "Unusually warm and humid weather creates ideal conditions for fungal spread. The outbreak threatens commercial launch. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "6FH2KnQPNQq": {
+   "title": "Breakthrough Cultivar",
+   "next": "5rJ0bLCdThd",
+   "ending": "Breakthrough Cultivar",
+   "head": "Breakthrough Cultivar",
+   "eyebrow": "GREENHOUSE STATUS",
+   "prose": [
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Production exceeds forecasts Operating costs remain sustainable Greenhouse expansion has been approved",
+    "Your cultivar exceeded performance expectations. By balancing development decisions throughout the project, it proved highly productive, resilient, and adaptable under changing conditions, becoming a benchmark for future cultivars.",
+    "Thriving"
+   ]
+  },
+  "6FYLh10Bo5C": {
+   "title": "FOA C",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Resilience",
+     "op": "sub",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The launch proceeds, but infection spreads through customer greenhouses.",
+    "Yield:  +1",
+    "Resilience:  -2",
+    "Greenhouse Status:",
+    "Customer Complaints Increasing",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6GJNMWxkDL9": {
+   "title": "Intro Slide",
+   "next": "6dvSyNdn3wP",
+   "head": "Designing Growth",
+   "eyebrow": null,
+   "prose": [
+    "The Cultivar Lab Game"
+   ]
+  },
+  "6GwOr2lmwsz": {
+   "title": "FOA B",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Yield",
+     "op": "sub",
+     "n": 2
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Several test plots are sacrificed, but the remaining crop is healthy.",
+    "Resilience:  +2",
+    "Yield:  -2",
+    "Greenhouse Status:",
+    "Clean Launch",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6iQSWf2UOta": {
+   "title": "Sustainable/Stable",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Showcase Growth Speed",
+     "desc": "Highlight your cultivar's rapid development.",
+     "target": "5uS92ahSNpq",
+     "targetTitle": "AEx if A"
+    },
+    {
+     "letter": "B",
+     "title": "Showcase Productivity",
+     "desc": "Emphasize exceptional harvest potential.",
+     "target": "6bJi2AX6aEA",
+     "targetTitle": "AEx if B"
+    },
+    {
+     "letter": "C",
+     "title": "Showcase Reliability",
+     "desc": "Promote consistent performance in any condition.",
+     "target": "6XLBUS4kU8s",
+     "targetTitle": "AEx if C"
+    }
+   ],
+   "head": "National Agriculture Expo",
+   "eyebrow": "ROUND THREE",
+   "prose": [
+    "Your cultivar has been selected for a national agriculture expo. This is your opportunity to shape how buyers, researchers, and competitors from across the industry perceive your cultivar. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "6iX9XWpQhJy": {
+   "title": "Treatment Program",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Increase Treatment Frequency",
+     "desc": "Use more treatments to keep the fungus under control.",
+     "target": "5nhVIrYx4lN",
+     "targetTitle": "TR if A"
+    },
+    {
+     "letter": "B",
+     "title": "Develop Natural Resistance",
+     "desc": "Invest in long-term protection by strengthening the cultivar.",
+     "target": "6jNi7WN9cXe",
+     "targetTitle": "TR if B"
+    },
+    {
+     "letter": "C",
+     "title": "Accept Reduced Production",
+     "desc": "Lower output temporarily to reduce stress on the plants.",
+     "target": "5nbeEP2bmI1",
+     "targetTitle": "TR if C"
+    }
+   ],
+   "head": "Treatment Resistance",
+   "eyebrow": "ROUND THREE",
+   "prose": [
+    "The fungus begins showing resistance to the chemical treatment program and researchers are concerned that the problem may continue to worsen. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "6jDSj42rGLW": {
+   "title": "R1O if C",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Growth",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "next": "6PafegqZ92Y",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "Growth is slower than expected, but the plants develop extensive root systems. The greenhouse manager calls them \"boringly reliable.\"",
+    "Resilience:  +2",
+    "Efficiency:  +1",
+    "Growth:  -1",
+    "\"Project behind schedule, but healthy.\"",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6jNi7WN9cXe": {
+   "title": "TR if B",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Growth",
+     "op": "sub",
+     "n": 3
+    },
+    {
+     "stat": "TotalScore",
+     "op": "sub",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "The team shifted its focus toward strengthening the cultivar's natural defenses. Progress slowed temporarily, but the plants gradually became resistant without constant treatment.",
+    "Resilience:  +2",
+    "Growth:  -3",
+    "Greenhouse Status:",
+    "Long-Term Solution",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6K2QwSzhyvL": {
+   "title": "R2C if B",
+   "deltas": [
+    {
+     "stat": "Yield",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 3
+    }
+   ],
+   "next": "6WkB2U8Tk18",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The cultivar starts producing significantly larger harvests while maintaining its strong root structure. Customers begin taking notice.",
+    "Yield:  +2",
+    "Growth:  +1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Demand Increasing"
+   ]
+  },
+  "6LxrYfTXBpJ": {
+   "title": "OC/RS C",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 1
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "While some sales opportunities were missed, the cultivar maintained excellent quality standards and reliable performance.",
+    "Resilience:  +1",
+    "Greenhouse Status:",
+    "Stable Operations",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6PafegqZ92Y": {
+   "title": "R2 if C",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Accelerate Growth",
+     "desc": "We've built a strong foundation. It's time to speed things up.",
+     "target": "6UAHQ7pB98P",
+     "targetTitle": "R2C if A"
+    },
+    {
+     "letter": "B",
+     "title": "Increase Yield",
+     "desc": "Let's prove value through productivity instead of speed.",
+     "target": "6K2QwSzhyvL",
+     "targetTitle": "R2C if B"
+    },
+    {
+     "letter": "C",
+     "title": "Stay Focused on Resilience",
+     "desc": "The competitor is flashy. Reliability wins in the long run.",
+     "target": "61vYxqNXukm",
+     "targetTitle": "R2C if C"
+    }
+   ],
+   "head": "Competitor Launch",
+   "eyebrow": "ROUND TWO",
+   "prose": [
+    "A rival company releases a cultivar that grows twice as fast as yours. Stakeholders are beginning to question your strategy. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "6UAHQ7pB98P": {
+   "title": "R2C if A",
+   "deltas": [
+    {
+     "stat": "Growth",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Resilience",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 1
+    }
+   ],
+   "next": "6WkB2U8Tk18",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "The strong root systems allow growth rates to increase without major instability. The cultivar begins closing the gap with competitors.",
+    "Growth:  +2",
+    "Resilience:  -1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Development Accelerated"
+   ]
+  },
+  "6VlWoO0hMyp": {
+   "title": "R2A if B",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "Efficiency",
+     "op": "add",
+     "n": 1
+    },
+    {
+     "stat": "Growth",
+     "op": "sub",
+     "n": 1
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "next": "5rIC3xLMCMy",
+   "head": "What Happened?",
+   "eyebrow": null,
+   "prose": [
+    "Growth slows while researchers focus on root health and disease resistance. The fungus is largely contained before significant losses occur.",
+    "Resilience:  +2",
+    "Efficiency:  +1",
+    "Growth:  -1",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%",
+    "Greenhouse Status:",
+    "Outbreak Contained"
+   ]
+  },
+  "6WkB2U8Tk18": {
+   "title": "Development Accelerated/Demand Increasing",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Invest Early",
+     "desc": "Prepare now to stay ahead of future requirements.",
+     "target": "5wQ1ZRV3SS8",
+     "targetTitle": "EvoReg if A"
+    },
+    {
+     "letter": "B",
+     "title": "Meet Minimum Requirements",
+     "desc": "Do what's required while minimizing disruption.",
+     "target": "5ivVTJY5IZN",
+     "targetTitle": "EvoReg if B"
+    },
+    {
+     "letter": "C",
+     "title": "Delay Compliance",
+     "desc": "Prioritize today's performance over tomorrow's changes.",
+     "target": "5ld30aDlsV2",
+     "targetTitle": "EvoReg if C"
+    }
+   ],
+   "head": "Environmental Regulations",
+   "eyebrow": "ROUND THREE",
+   "prose": [
+    "New sustainability regulations will soon take effect. The greenhouse must decide how to respond while balancing future compliance with current production goals. What do you do?",
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "6XLBUS4kU8s": {
+   "title": "AEx if C",
+   "deltas": [
+    {
+     "stat": "Resilience",
+     "op": "add",
+     "n": 2
+    },
+    {
+     "stat": "TotalScore",
+     "op": "add",
+     "n": 2
+    }
+   ],
+   "final": true,
+   "head": "What Happened?",
+   "eyebrow": "FINAL RESULT",
+   "prose": [
+    "Instead of chasing headlines, your team highlighted the cultivar's consistent performance under challenging conditions, strengthening its long-term reputation.",
+    "Resilience:  +2",
+    "Greenhouse Status:",
+    "Trusted Reputation",
+    "%_player.Growth%",
+    "%_player.Yield%",
+    "%_player.Resilience%",
+    "%_player.Efficiency%",
+    "%_player.TotalScore%"
+   ]
+  },
+  "6ZybzA6mKRm": {
+   "title": "R1",
+   "choices": [
+    {
+     "letter": "A",
+     "title": "Accelerate Growth",
+     "desc": "Researchers believe the plant could mature much faster.",
+     "target": "5p0ZQ3SSdsN",
+     "targetTitle": "R1O if A"
+    },
+    {
+     "letter": "B",
+     "title": "Increase Yield",
+     "desc": "Researchers have identified a way to produce significantly more fruit.",
+     "target": "5aHau4rMrAT",
+     "targetTitle": "R1O if B"
+    },
+    {
+     "letter": "C",
+     "title": "Strengthen Resilience",
+     "desc": "Researchers recommend building stronger roots and disease resistance.",
+     "target": "6jDSj42rGLW",
+     "targetTitle": "R1O if C"
+    }
+   ],
+   "head": "Early Development",
+   "eyebrow": "ROUND ONE",
+   "prose": [
+    "Your young cultivar is growing steadily, but initial testing reveals competing opportunities for improvement. What would you like to prioritize?",
+    "A",
+    "B",
+    "C"
+   ]
+  }
+ },
+ "endings": [
+  {
+   "id": "6FH2KnQPNQq",
+   "name": "Breakthrough Cultivar",
+   "when": [
+    [
+     "TotalScore",
+     "gte",
+     26
+    ],
+    [
+     "Growth",
+     "gt",
+     4
+    ],
+    [
+     "Yield",
+     "gt",
+     4
+    ],
+    [
+     "Resilience",
+     "gt",
+     4
+    ],
+    [
+     "Efficiency",
+     "gt",
+     4
+    ]
+   ]
+  },
+  {
+   "id": "5lsli9L72I8",
+   "name": "Commercial Success",
+   "when": [
+    [
+     "TotalScore",
+     "gte",
+     24
+    ]
+   ]
+  },
+  {
+   "id": "5WpFBwpgchk",
+   "name": "Cautionary Tale",
+   "when": []
+  }
+ ]
+}
