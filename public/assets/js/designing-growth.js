@@ -1,24 +1,20 @@
 // Designing Growth — The Cultivar Lab Game.
 //
-// A native rebuild of the Articulate Storyline course of the same name. The whole
-// game is data: /assets/data/designing-growth.json holds every slide's copy, the
-// stat deltas, the branching graph and the ending rules (all extracted faithfully
-// from the Storyline package). This module is just the engine + renderer.
-//
-// Model shape:
-//   { title, start, stats:{Growth,Yield,Resilience,Efficiency,TotalScore},
-//     endings:[{id,name,when:[[stat,op,value],...]}],   // first match wins
-//     slides:{ <id>: { title, body:[..], deltas:[{stat,op,n}], choices:[{letter,title,desc,target}],
-//                      next:<id>, final:true, ending:'<name>' } } }
+// A native rebuild of the Articulate Storyline course. The whole game is data:
+// data.json (gated, alongside index.html) holds every slide's copy, the stat
+// deltas, the branching graph and the ending rules. This module is the engine +
+// renderer. The visual styling deliberately mirrors the original Rise/Storyline
+// design (cream canvas, organic corner shapes, leaf motifs, the cultivar photo,
+// a green footer HUD) — see designing-growth.css.
 //
 // Rules of play (from the source): every stat starts at 5 (TotalScore 20). Each
 // outcome slide applies its deltas ON ENTRY. A `final` slide ends the run: the
 // ending is chosen by evaluating `endings` in order.
 
 // Lives inside the token-gated /designing-growth/ folder (see
-// functions/designing-growth/_middleware.js), so the game content is only served
-// to a valid cs_game cookie.
-const DATA_URL = 'data.json?v=20260701-3';
+// functions/designing-growth/_middleware.js), so game content only reaches a
+// valid cs_game cookie.
+const DATA_URL = 'data.json?v=20260701-4';
 const STAT_KEYS = ['Growth', 'Yield', 'Resilience', 'Efficiency'];
 
 let model = null;
@@ -35,9 +31,16 @@ const esc = (s) => String(s == null ? '' : s)
 const subst = (t) => String(t == null ? '' : t)
   .replace(/%_player\.(\w+)%/g, (m, k) => (k in stats ? String(stats[k]) : m));
 
-// A prose line that is ONLY a stat readout (after substitution it's just a
-// number) is redundant with the stat bar above, so drop it.
+// A prose line that is ONLY a stat readout (after substitution just a number) is
+// redundant with the HUD, so drop it.
 const isStatEcho = (t) => /^\s*[\d\s]+\s*$/.test(subst(t));
+
+// Decorative leaf motifs (inline SVG so no extra assets, CSP-safe). One is a
+// white outline (olive corner), one gold (charcoal corner) — matching the Rise art.
+const LEAF = (cls, color) => `<svg class="${cls}" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+  <path d="M8 56 C8 30 30 8 56 8 C56 34 34 56 8 56 Z" stroke="${color}" stroke-width="2.4" fill="none"/>
+  <path d="M8 56 C22 42 40 24 54 10" stroke="${color}" stroke-width="2.4"/>
+</svg>`;
 
 // ---- engine ---------------------------------------------------------------
 
@@ -75,7 +78,6 @@ function go(id) {
   currentId = id;
   applyDeltas(slide);
   render();
-  if (root) root.scrollTop = 0;
   window.scrollTo(0, 0);
 }
 
@@ -86,37 +88,27 @@ function restart() {
 
 // ---- rendering ------------------------------------------------------------
 
-function statsHtml() {
+// Green footer HUD: the four stats + total, mirroring the Rise footer bar. A stat
+// at 4 or below is flagged (Breakthrough Cultivar needs every stat above 4).
+function footerHtml() {
   const chips = STAT_KEYS.map((k) => {
     const v = Number(stats[k]) || 0;
-    // Below 5 is the danger zone: Breakthrough Cultivar needs every stat above 4.
-    const low = v <= 4 ? ' is-low' : '';
-    return `<div class="dg-stat${low}">
-      <span class="dg-stat-k">${esc(k)}</span>
-      <span class="dg-stat-v">${v}</span>
+    return `<div class="dg-stat${v <= 4 ? ' is-low' : ''}">
+      <span class="dg-stat-k">${esc(k)}</span><span class="dg-stat-v">${v}</span>
     </div>`;
   }).join('');
-  return `<div class="dg-stats" aria-label="Your cultivar">
-    ${chips}
-    <div class="dg-stat dg-stat-total"><span class="dg-stat-k">Total</span><span class="dg-stat-v">${Number(stats.TotalScore) || 0}</span></div>
-  </div>`;
+  return `<footer class="dg-footer">
+    <div class="dg-hud">${chips}
+      <div class="dg-stat dg-stat-total"><span class="dg-stat-k">Total</span><span class="dg-stat-v">${Number(stats.TotalScore) || 0}</span></div>
+    </div>
+  </footer>`;
 }
 
-// head / eyebrow / prose are resolved at extraction time (the heading is the
-// largest text on the Storyline slide; decorative glyphs and the stat echo lines
-// are filtered out there). A slide with no real heading renders prose only.
 function proseHtml(list) {
   return (list || [])
     .filter((p) => p && !isStatEcho(p))
     .map((p) => `<p class="dg-body">${esc(subst(p))}</p>`)
     .join('');
-}
-
-function bodyHtml(slide) {
-  return `
-    ${slide.eyebrow ? `<p class="dg-eyebrow">${esc(subst(slide.eyebrow))}</p>` : ''}
-    ${slide.head ? `<h1 class="dg-title">${esc(subst(slide.head))}</h1>` : ''}
-    ${proseHtml(slide.prose)}`;
 }
 
 function choicesHtml(slide) {
@@ -130,30 +122,63 @@ function choicesHtml(slide) {
     </button>`).join('')}</div>`;
 }
 
+// The organic corner decorations + the cultivar photo edge that frame every
+// in-game slide (the Rise look).
+function decorHtml() {
+  return `
+    <div class="dg-corner dg-corner-tl">${LEAF('dg-leaf', '#f4efe0')}</div>
+    <div class="dg-corner dg-corner-bl">${LEAF('dg-leaf', '#e79a3a')}</div>
+    <div class="dg-photo" aria-hidden="true"></div>`;
+}
+
 function render() {
   const slide = model.slides[currentId];
   if (!slide || !root) return;
   const isEnding = !!slide.ending;
   const isIntro = currentId === model.start;
 
+  // Intro: the original Rise title card as a hero, with a Begin button.
+  if (isIntro) {
+    root.innerHTML = `
+      <div class="dg-stage is-intro">
+        <div class="dg-hero">
+          <img class="dg-hero-img" src="/assets/img/game/intro.png" alt="Designing Growth — The Cultivar Lab Game">
+        </div>
+        ${proseHtml((slide.prose || []).filter((t) => !/designing growth|cultivar lab game/i.test(t)))}
+        <div class="dg-actions"><button type="button" class="dg-next" data-go="${esc(slide.next || '')}">Begin</button></div>
+      </div>`;
+    wire();
+    return;
+  }
+
   let actions = '';
   if (slide.choices && slide.choices.length) actions = choicesHtml(slide);
   else if (slide.final) actions = `<div class="dg-actions"><button type="button" class="dg-next" data-ending="1">See your outcome</button></div>`;
   else if (slide.next) actions = `<div class="dg-actions"><button type="button" class="dg-next" data-go="${esc(slide.next)}">Continue</button></div>`;
-  else if (isEnding) actions = `<div class="dg-actions"><button type="button" class="dg-next" data-restart="1">Play again</button></div>`;
-  else actions = `<div class="dg-actions"><button type="button" class="dg-next" data-restart="1">Start over</button></div>`;
+  else actions = `<div class="dg-actions"><button type="button" class="dg-next" data-restart="1">${isEnding ? 'Play again' : 'Start over'}</button></div>`;
+
+  const content = isEnding
+    ? `<p class="dg-eyebrow">Outcome</p><h1 class="dg-title">${esc(slide.ending)}</h1>
+       ${proseHtml((slide.prose || []).filter((t) => t !== slide.ending))}`
+    : `${slide.eyebrow ? `<p class="dg-eyebrow">${esc(subst(slide.eyebrow))}</p>` : ''}
+       ${slide.head ? `<h1 class="dg-title">${esc(subst(slide.head))}</h1>` : ''}
+       ${proseHtml(slide.prose)}`;
 
   root.innerHTML = `
-    <div class="dg-shell${isEnding ? ' is-ending' : ''}${isIntro ? ' is-intro' : ''}">
-      ${isIntro ? '' : statsHtml()}
-      <article class="dg-card">
-        ${isEnding ? `<p class="dg-eyebrow">Outcome</p><h1 class="dg-title">${esc(slide.ending)}</h1>
-             ${proseHtml((slide.prose || []).filter((t) => t !== slide.ending))}`
-          : bodyHtml(slide)}
-        ${actions}
-      </article>
+    <div class="dg-stage${isEnding ? ' is-ending' : ''}">
+      <div class="dg-slide">
+        ${decorHtml()}
+        <div class="dg-content">
+          ${content}
+          ${actions}
+        </div>
+        ${footerHtml()}
+      </div>
     </div>`;
+  wire();
+}
 
+function wire() {
   root.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
   root.querySelectorAll('[data-ending]').forEach((b) => b.addEventListener('click', () => go(resolveEnding())));
   root.querySelectorAll('[data-restart]').forEach((b) => b.addEventListener('click', restart));
@@ -169,9 +194,9 @@ async function boot() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     model = await res.json();
   } catch (err) {
-    root.innerHTML = `<div class="dg-shell"><article class="dg-card">
+    root.innerHTML = `<div class="dg-stage"><div class="dg-slide"><div class="dg-content">
       <h1 class="dg-title">Could not load the game</h1>
-      <p class="dg-body">Please refresh to try again.</p></article></div>`;
+      <p class="dg-body">Please refresh to try again.</p></div></div></div>`;
     console.warn('[designing-growth] load failed', err);
     return;
   }
