@@ -18,7 +18,7 @@
 // Lives inside the token-gated /designing-growth/ folder (see
 // functions/designing-growth/_middleware.js), so the game content is only served
 // to a valid cs_game cookie.
-const DATA_URL = 'data.json?v=20260701-2';
+const DATA_URL = 'data.json?v=20260701-3';
 const STAT_KEYS = ['Growth', 'Yield', 'Resilience', 'Efficiency'];
 
 let model = null;
