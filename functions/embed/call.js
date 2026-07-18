@@ -17,7 +17,7 @@
 
 import { ensureEmbedTables, getEmbedScope } from '../../shared/embed-auth.js';
 
-const BUILD = '20260718-3';
+const BUILD = '20260718-4';
 
 // Every origin in the ancestor chain (Reach page -> Rise lesson -> Mighty
 // block -> us) must be allowed. The default covers the known Articulate

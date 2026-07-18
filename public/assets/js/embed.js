@@ -11,10 +11,10 @@
 // xAPI bridge relays them to Reach. This file never talks to the LMS directly.
 
 import { posToolHtml, wirePosTool } from './pos-tool.js?v=20260718-3';
-import { createVoiceAgent } from './voice-agent.js?v=20260718-2';
+import { createVoiceAgent } from './voice-agent.js?v=20260718-4';
 import { renderReportHtml } from './coach.js';
 
-const BUILD = '20260718-3 embed-geocode-proxy';
+const BUILD = '20260718-4 voice-agent-start-headers';
 console.log('[First Call embed] build', BUILD);
 
 // ---- boot context ---------------------------------------------------------

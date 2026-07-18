@@ -18,11 +18,14 @@ export function createVoiceAgent(opts = {}) {
     priorTranscript = [],
     participant = '',
     asRole = '',
-    // Mint endpoint override + extra POST-body fields, so the Rise embed can
-    // point at /api/embed/start and carry its course token in the body. The
-    // defaults keep every existing caller byte-identical in behavior.
+    // Mint endpoint override + extra POST-body fields + extra request headers,
+    // so alternate hosts can point at their own mint route and carry their own
+    // auth (the Rise embed sends a course token in the body; the Azure port
+    // sends a bearer token in the headers). The defaults keep every existing
+    // caller byte-identical in behavior.
     startUrl = '/api/voice-agent/start',
     startExtra = null,
+    startHeaders = null,
     onStatus = () => {},
     onUserText = () => {},
     onAgentText = () => {},
@@ -123,7 +126,7 @@ export function createVoiceAgent(opts = {}) {
       const r = await fetch(startUrl, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(startHeaders || {}) },
         body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript, participant, as_role: asRole, ...(startExtra || {}) }),
       });
       data = await r.json().catch(() => null);
