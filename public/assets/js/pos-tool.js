@@ -1044,7 +1044,7 @@ export function wirePosTool(root, opts = {}) {
           .slice(0, 5)
           .map((it) => `${it.loc.lat},${it.loc.lng}`)
           .join('|');
-        const src = `${STATICMAP_URL}?c=${encodeURIComponent(originGeo.lat + ',' + originGeo.lng)}`
+        const src = `${STATICMAP_URL}${STATICMAP_URL.includes('?') ? '&' : '?'}c=${encodeURIComponent(originGeo.lat + ',' + originGeo.lng)}`
           + (pts ? `&pts=${encodeURIComponent(pts)}` : '')
           + '&w=600&h=200';
         mapEl.innerHTML = '<img class="pos-loc-map-img" alt="Map of nearby pickup locations" loading="lazy">';

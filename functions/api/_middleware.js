@@ -72,6 +72,8 @@ const PUBLIC_PATHS = new Set([
   '/api/embed/start',
   '/api/embed/coach',
   '/api/embed/complete',
+  '/api/embed/geocode',
+  '/api/embed/staticmap',
 ]);
 
 // /api/admin/* (except login) require cs_admin SPECIFICALLY. An agent session,

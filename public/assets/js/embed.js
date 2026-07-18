@@ -10,11 +10,11 @@
 // score are signaled UP to the course wrapper via postMessage; the wrapper's
 // xAPI bridge relays them to Reach. This file never talks to the LMS directly.
 
-import { posToolHtml, wirePosTool } from './pos-tool.js?v=20260718-1';
+import { posToolHtml, wirePosTool } from './pos-tool.js?v=20260718-3';
 import { createVoiceAgent } from './voice-agent.js?v=20260718-2';
 import { renderReportHtml } from './coach.js';
 
-const BUILD = '20260718-2 embed-v1';
+const BUILD = '20260718-3 embed-geocode-proxy';
 console.log('[First Call embed] build', BUILD);
 
 // ---- boot context ---------------------------------------------------------
@@ -150,6 +150,7 @@ function stopTimer() {
 
 function teardownCall() {
   stopRingtone();
+  stopTimer();
   if (state.agent) {
     try { state.agent.stop(); } catch { /* already stopped */ }
     state.agent = null;
@@ -318,6 +319,9 @@ function renderRing() {
 }
 
 function renderLiveCall() {
+  // Idempotent guard: a rapid double-click on Answer must not mint twice or
+  // leak the first agent's mic/socket.
+  teardownCall();
   const sc = state.scenario;
   const callerNumber = sc.phone ? formatPhoneDisplay(sc.phone) : '';
   root.innerHTML = `
@@ -344,6 +348,12 @@ function renderLiveCall() {
   state.posCtl = wirePosTool(root, {
     scenario: sc,
     onFieldTip: (el) => { state.fieldTip = el; },
+    // The cookie-gated /api/geocode and /api/staticmap 401 inside the iframe;
+    // these token-authed proxies delegate to the same handlers server-side.
+    endpoints: {
+      geocode: `/api/embed/geocode?ct=${encodeURIComponent(CT)}`,
+      staticmap: `/api/embed/staticmap?ct=${encodeURIComponent(CT)}`,
+    },
   });
 
   startTimer();
