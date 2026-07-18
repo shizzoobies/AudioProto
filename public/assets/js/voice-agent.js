@@ -18,6 +18,11 @@ export function createVoiceAgent(opts = {}) {
     priorTranscript = [],
     participant = '',
     asRole = '',
+    // Mint endpoint override + extra POST-body fields, so the Rise embed can
+    // point at /api/embed/start and carry its course token in the body. The
+    // defaults keep every existing caller byte-identical in behavior.
+    startUrl = '/api/voice-agent/start',
+    startExtra = null,
     onStatus = () => {},
     onUserText = () => {},
     onAgentText = () => {},
@@ -115,11 +120,11 @@ export function createVoiceAgent(opts = {}) {
 
     let data;
     try {
-      const r = await fetch('/api/voice-agent/start', {
+      const r = await fetch(startUrl, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript, participant, as_role: asRole }),
+        body: JSON.stringify({ scenario_id: scenarioId, mode, prior_transcript: priorTranscript, participant, as_role: asRole, ...(startExtra || {}) }),
       });
       data = await r.json().catch(() => null);
       if (!r.ok || !data?.signed_url) {
@@ -170,6 +175,10 @@ export function createVoiceAgent(opts = {}) {
     ws.onmessage = (ev) => handleMessage(ev.data);
     ws.onerror = (e) => { log('ws error', e); try { onError(e); } catch {} };
     ws.onclose = (e) => { log('ws close', e && e.code, e && e.reason); if (!stopped) finish(); };
+
+    // Resolve with the mint response so hosts that need server-issued fields
+    // (the embed's usage_id) can read them. Existing callers ignore the value.
+    return data;
   }
 
   function handleMessage(raw) {

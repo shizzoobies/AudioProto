@@ -64,6 +64,14 @@ const PUBLIC_PATHS = new Set([
   // so the handler can do its own role-scoped check.
   '/api/live/state',
   '/api/live/dossier',
+  // Rise/Reach embed: runs in a third-party iframe where SameSite makes cookies
+  // unusable, so each handler self-authenticates via the course token (`ct`)
+  // against embed_tokens (getEmbedScope) on every request. Listed explicitly
+  // (no prefix rule) so a future /api/embed/* route is gated by default.
+  '/api/embed/scenario',
+  '/api/embed/start',
+  '/api/embed/coach',
+  '/api/embed/complete',
 ]);
 
 // /api/admin/* (except login) require cs_admin SPECIFICALLY. An agent session,

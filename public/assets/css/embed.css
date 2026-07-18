@@ -1,0 +1,108 @@
+/* Rise/Reach embed overrides. Loaded AFTER styles.css on /embed/call only.
+   styles.css stays the single source of truth for the POS, call chrome, ring,
+   and report look; this sheet only adapts the shell to an iframe: fluid width,
+   no site chrome, no viewport locks, and small-column Rise widths. */
+
+/* The iframe is the whole world: let the page size to its content and scroll
+   naturally inside the frame. */
+body.embed-page {
+  min-height: 100vh;
+  height: auto;
+}
+
+.embed-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* The call view fills the frame edge to edge. */
+.embed-page .call {
+  max-width: none;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Message cards (inactive / capped / analyzing / short call / errors). */
+.embed-card {
+  margin: auto;
+  max-width: 460px;
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+.embed-card-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+.embed-card-text {
+  margin: 0;
+  color: var(--color-text-secondary, #52525b);
+  line-height: 1.55;
+}
+.embed-card .precall-actions {
+  margin-top: var(--space-4);
+  justify-content: center;
+}
+
+.embed-mic-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary, #71717a);
+}
+
+.embed-connecting {
+  font-size: 13px;
+  color: var(--color-text-tertiary, #71717a);
+  padding: 4px 2px;
+}
+.embed-connecting[hidden] { display: none; }
+
+/* Report wrapper: the done banner sits above the shared report component. */
+.embed-report-wrap {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+.embed-done-bar {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: var(--space-4);
+}
+.embed-done-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* The report's own nav buttons point at the full app; the embed's next step is
+   returning to the course, so they are dropped entirely. */
+.embed-page .report-actions { display: none; }
+
+/* Rise columns get narrow. Collapse the 3-column POS into one column and let
+   the rails stack under the form. A fuller small-viewport pass lands in the
+   hardening phase; this keeps everything reachable meanwhile. */
+@media (max-width: 900px) {
+  .embed-page .pos {
+    grid-template-columns: 1fr;
+  }
+  .embed-page .call-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .embed-page .call {
+    padding: var(--space-2);
+  }
+}

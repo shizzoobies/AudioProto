@@ -7,14 +7,22 @@
 // requires a valid session/invite cookie; we further restrict to demo scenarios
 // and the visitor's scope).
 
-import { getScenario, DEMO_SCENARIO_IDS, REEL_SCENARIO_IDS, demoSalesDateBlock } from '../../../shared/scenarios.js';
+import { getScenario, DEMO_SCENARIO_IDS, REEL_SCENARIO_IDS } from '../../../shared/scenarios.js';
 import { getMagicScope, getInviteScope } from '../../../shared/auth.js';
 import { buildCoachingAgentPrompt, COACHING_AGENT_MODES, SHARED_COACHING_AGENT_ID } from '../../../shared/coaching-agents.js';
 import { stageForMode } from '../../../shared/coaching-dashboard.js';
 import { resolveManagerStage } from '../../../shared/dashboard-store.js';
+// Mint core + demo override pieces are shared with the Rise embed routes
+// (shared/voice-mint.js) so both surfaces mint identically.
+import {
+  DEMO_AGENT_ID,
+  CUSTOMER_TURN_TAKING,
+  demoDateBlock,
+  mintSignedUrl,
+  getScenarioVoiceOverride,
+} from '../../../shared/voice-mint.js';
 
-const DEFAULT_AGENT_ID = 'agent_3501kt4nqd7rfqtrdbd0sbw69n0x';
-const SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conversation/get-signed-url';
+const DEFAULT_AGENT_ID = DEMO_AGENT_ID;
 // Scenarios allowed on the real-time voice agent: the demo personas, the five
 // back-to-back reel personas, and coaching. The reel ids overlap demo_sales;
 // Set dedupes. Adding the four library reel personas here lets start.js mint
@@ -96,21 +104,9 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Mint the signed wss URL with the API key (never exposed to the browser).
-  let signed;
-  try {
-    const r = await fetch(`${SIGNED_URL_ENDPOINT}?agent_id=${encodeURIComponent(agentId)}`, {
-      headers: { 'xi-api-key': elevenLabsKey },
-    });
-    if (!r.ok) {
-      const t = await safeText(r);
-      return jsonError('signed_url_failed', 502, `${r.status} ${t.slice(0, 200)}`);
-    }
-    signed = await r.json();
-  } catch (e) {
-    return jsonError('upstream_unreachable', 502, String(e?.message || e));
-  }
-  const signedUrl = signed?.signed_url;
-  if (!signedUrl) return jsonError('no_signed_url', 502);
+  const mint = await mintSignedUrl(agentId, elevenLabsKey);
+  if (mint.error) return jsonError(mint.error.code, mint.error.status, mint.error.detail);
+  const signedUrl = mint.signedUrl;
 
   // Voice-call turn-taking: the trainee (CS agent) answers the phone and greets
   // FIRST, so the customer (the agent) must NOT speak first. An empty
@@ -241,22 +237,16 @@ export async function onRequestPost({ request, env }) {
 
   const turnTaking = isCoaching
     ? '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about who greeted): You are Taylor, just called into a one-on-one with your manager. You speak FIRST with a short, guarded greeting (your first message), then let your manager talk. Respond in character to whatever feedback they give - guarded and a little defensive. Keep replies short; do not give speeches.'
-    : '\n\nVOICE CALL TURN-TAKING (this overrides any earlier note about already greeting the agent): You are the customer calling in. The customer service agent answers the phone and greets you FIRST. Stay silent until they have greeted you. As soon as they greet you, respond naturally and explain why you are calling, in character.';
+    : CUSTOMER_TURN_TAKING;
 
   // Robert's move date stays current (about two weekends out), computed now.
-  const dateBlock = scenarioId === 'demo_sales' ? '\n\n' + demoSalesDateBlock(new Date()) : '';
+  const dateBlock = demoDateBlock(scenarioId, new Date());
 
   // Demo voice override: the admin may have picked a labeled ElevenLabs voice for
   // this demo caller (scenario_voices table). Read-only here — if the table is
   // missing or has no row, we silently fall back to the persona's hardcoded
   // voice_id. Coaching never hits this (it returns above / uses its agent voice).
-  let demoVoiceOverride = null;
-  if (env.DB) {
-    try {
-      const r = await env.DB.prepare(`SELECT voice_id FROM scenario_voices WHERE scenario_id = ?`).bind(scenarioId).first();
-      if (r && r.voice_id) demoVoiceOverride = r.voice_id;
-    } catch { /* table missing -> default */ }
-  }
+  const demoVoiceOverride = await getScenarioVoiceOverride(env, scenarioId);
 
   return json({
     signed_url: signedUrl,
@@ -298,9 +288,6 @@ function buildPriorBlock(messages) {
   return '\n\nPREVIOUS ONE-ON-ONE: you remember this earlier conversation with your manager; it actually happened. THIS CALL IS A FOLLOW-UP. Do not restart or re-introduce yourself; pick up as if some time has passed since then. React based on how it went: if your manager coached you well last time you can be a little less guarded now; if it went poorly you may still be irritated or skeptical. Reference specifics from last time when it is natural. Stay in character as Taylor.\nTRANSCRIPT OF LAST TIME:\n' + lines;
 }
 
-async function safeText(res) {
-  try { return await res.text(); } catch { return ''; }
-}
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
     status,
