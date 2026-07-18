@@ -2,7 +2,7 @@
 
 Snapshot of the call-simulator's state. Read this when picking up the project after time away or in a fresh Claude session. The original spec is in `CALL_SIMULATOR_HANDOFF.md`; this doc captures what's actually been built and where the current decisions land.
 
-**Last update:** 2026-05-23
+**Last update:** 2026-07-18 (Rise/Reach 360 embed; see the dated section near the end)
 **Repo:** https://github.com/shizzoobies/AudioProto
 **Production:** `ka-testing.com/app` (Cloudflare Pages, git auto-deploy off `main`)
 **Working branch (this session):** `claude/ecstatic-noether-2e7a0d`, kept in sync with `main` (every change is pushed to both: `git push origin HEAD:main` and `git push origin HEAD:claude/ecstatic-noether-2e7a0d`). See the "2026-05-23 update" section for the POS rebuild.
@@ -272,3 +272,43 @@ Everything below shipped to `main` on 2026-05-23.
    - **Post Reservation Situations** → still a "coming soon" stub.
 5. For the showcase: Explore More → Meet Elena → demo password (`vp-demo-2026`) → the orb fills the screen → small-talk → ask her to run the customer scenario (or just ask an intake question) → the orb shrinks and the POS appears → end the call for the coaching report.
 6. Two tracks teed up but not built: **Post-Reservation** (5 inert people in `PREMIUM_PEOPLE` awaiting situations) and tuning of the **Sales** five. Then take whatever Alex asks for next.
+
+## 2026-07-18 update — Rise/Reach 360 embed ("First Call" in a course)
+
+The Robert sales call now runs fully inside a Rise course delivered through
+Reach 360, with completion + score reported to the LMS and usage tracked in D1.
+Spec and decisions: `Rise Embed/RISE_REACH_EMBED_HANDOFF.md` (superseded by the
+implementation); block authoring guide: `rise-block/README.md`.
+
+How it fits together:
+
+- `public/assets/js/pos-tool.js` — the POS reservation surface, extracted from
+  app.js byte-identically (`posToolHtml()` + `wirePosTool(root, opts)`), shared
+  by the live app and the embed the same way cs-tool.js is. All `#pos-*` ids
+  are unchanged (instructor live mode scrapes them).
+- `/embed/call?ct=<course token>&sid=demo_sales&learner=<name>` — the embed
+  page, served by `functions/embed/call.js` so it alone relaxes
+  frame-ancestors (env `EMBED_FRAME_ANCESTORS`; default allows the Articulate
+  origins + 'self'). Site-wide lockdown in `public/_headers` is untouched.
+- `public/assets/js/embed.js` — the flow: intro card, ring, live call
+  (voice-agent.js + pos-tool.js), analyzing, coaching report, done state.
+  Signals `firstcall:complete {score}` up via postMessage.
+- `/api/embed/scenario|start|coach|complete` — course-token auth on every
+  request (no cookies; third-party iframe). Mint + scoring reuse the same
+  cores as the demo (`shared/voice-mint.js`, `shared/coach-core.js`), so the
+  embed call is byte-identical in prompt/overrides to the live Robert demo.
+  Guardrails: trailing-24h per-token call cap (429), coach bound to a recent
+  unscored usage row on the same token, revoke = instant 403 everywhere.
+- D1: `embed_tokens` (per-course, hash-only, scenario allowlist, daily_cap) and
+  `embed_usage` (learner, started/ended, duration, server-written score,
+  conversation_id). Self-bootstrap via `shared/embed-auth.js`.
+- Admin: "Course embeds" section (create named token, URL shown once, revoke,
+  cap edit, usage table).
+- `rise-block/` — the Mighty HTML block zip source (config.js is the only
+  per-course file). `public/block-test/?ct=<token>` is a byte-identical
+  same-origin test surface; `public/embed-test.html` is the bare iframe
+  harness.
+
+Still owner-gated: publish a test Rise course to Reach, verify mic + reporting
+end to end, and pin `EMBED_FRAME_ANCESTORS` to the real ancestor origins if
+the defaults miss (steps in `rise-block/README.md`).
