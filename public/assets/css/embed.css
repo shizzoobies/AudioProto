@@ -99,10 +99,31 @@ body.embed-page {
     flex-wrap: wrap;
     gap: 8px;
   }
+  /* The 7 CSF category tabs are a fixed row in the real CSF; in a narrow Rise
+     column they scroll within their own strip instead of widening the page. */
+  .embed-page .csf-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+  }
 }
 
 @media (max-width: 480px) {
   .embed-page .call {
     padding: var(--space-2);
+  }
+  /* Phone-narrow columns: let the header actions and CSF topbar wrap instead
+     of pushing the page wide, and drop the decorative intranet nav links. */
+  .embed-page .call-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .embed-page .csf-topbar,
+  .embed-page .csf-topbar-nav,
+  .embed-page .csf-topbar-actions {
+    flex-wrap: wrap;
+  }
+  .embed-page .csf-nav-row {
+    display: none;
   }
 }

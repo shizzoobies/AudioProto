@@ -473,6 +473,22 @@ function sendCompletion(score, durationS) {
   });
 }
 
+// If the learner closes the course tab mid-call, best-effort close out the
+// usage row so duration is not left open. sendBeacon survives page teardown;
+// the server reads the same JSON body shape as a normal complete.
+window.addEventListener('pagehide', () => {
+  if (!state.agent || !state.usageId || state.completed) return;
+  try {
+    const payload = JSON.stringify({
+      ct: CT,
+      usage_id: state.usageId,
+      duration_s: Math.round(timerElapsedMs() / 1000),
+      conversation_id: state.agent.getConversationId ? state.agent.getConversationId() : null,
+    });
+    navigator.sendBeacon('/api/embed/complete', new Blob([payload], { type: 'application/json' }));
+  } catch { /* page is going away; nothing else to do */ }
+});
+
 // ---- boot -----------------------------------------------------------------
 
 async function boot() {

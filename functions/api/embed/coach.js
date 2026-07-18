@@ -30,6 +30,23 @@ export async function onRequestPost(context) {
     return jsonError('forbidden_scenario', 403);
   }
 
+  // Anthropic-spend guardrail: scoring must be tied to a real, recent, not yet
+  // scored call on THIS token. A leaked course token alone cannot farm the
+  // coach; it would first have to burn a capped /api/embed/start mint per
+  // report, and re-scoring the same call is refused outright.
+  const usageId = typeof body?.usage_id === 'string' ? body.usage_id : '';
+  if (!usageId) return jsonError('missing_usage_id', 400);
+  const usageRow = await env.DB
+    .prepare(`SELECT id, started_at, score FROM embed_usage WHERE id = ? AND token_id = ?`)
+    .bind(usageId, scope.id)
+    .first();
+  if (!usageRow) return jsonError('unknown_call', 403);
+  if (usageRow.score != null) return jsonError('already_scored', 409);
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (nowSec - Number(usageRow.started_at || 0) > 4 * 3600) {
+    return jsonError('call_expired', 403);
+  }
+
   const result = await runCoach(context, env, {
     scenario,
     transcript: body?.transcript,
@@ -48,9 +65,8 @@ export async function onRequestPost(context) {
 
   // Persist the server-derived score onto this call's usage row. Scoped to the
   // token so one course's token can never write another course's rows.
-  const usageId = typeof body?.usage_id === 'string' ? body.usage_id : '';
   const score = Number(result.body?.overall_score);
-  if (usageId && Number.isFinite(score)) {
+  if (Number.isFinite(score)) {
     try {
       await env.DB
         .prepare(`UPDATE embed_usage SET score = ? WHERE id = ? AND token_id = ?`)
