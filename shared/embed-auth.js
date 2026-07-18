@@ -40,9 +40,17 @@ export async function ensureEmbedTables(env) {
          ended_at        INTEGER,
          duration        INTEGER,
          score           REAL,
+         scored_at       INTEGER,
          conversation_id TEXT
        )`
     ).run();
+  } catch {
+    // ignore
+  }
+  // Additive migration for DBs created before the scoring claim existed.
+  // ADD COLUMN throws "duplicate column" once present - swallow it.
+  try {
+    await env.DB.prepare(`ALTER TABLE embed_usage ADD COLUMN scored_at INTEGER`).run();
   } catch {
     // ignore
   }

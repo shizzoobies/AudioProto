@@ -312,3 +312,9 @@ How it fits together:
 Still owner-gated: publish a test Rise course to Reach, verify mic + reporting
 end to end, and pin `EMBED_FRAME_ANCESTORS` to the real ancestor origins if
 the defaults miss (steps in `rise-block/README.md`).
+
+Embed watch-outs (from the security review): the persona system_prompt travels
+to the browser as ElevenLabs conversation overrides (same as the live demo);
+with a semi-public course token that makes the prompt effectively public, so
+never put anything genuinely sensitive in a persona. The daily cap has a small
+concurrent-burst overshoot by design; coach scoring is atomic per usage row.

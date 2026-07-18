@@ -47,6 +47,16 @@ export async function onRequestPost(context) {
     return jsonError('call_expired', 403);
   }
 
+  // Atomic claim BEFORE the Anthropic spend: concurrent requests racing on the
+  // same usage_id would all pass the read-only checks above, so the claim is a
+  // conditional UPDATE and only the single winner proceeds to runCoach. The
+  // claim is released on failure below so a legitimate retry can re-claim.
+  const claim = await env.DB
+    .prepare(`UPDATE embed_usage SET scored_at = ? WHERE id = ? AND token_id = ? AND scored_at IS NULL AND score IS NULL`)
+    .bind(nowSec, usageId, scope.id)
+    .run();
+  if (!claim?.meta?.changes) return jsonError('already_scored', 409);
+
   const result = await runCoach(context, env, {
     scenario,
     transcript: body?.transcript,
@@ -54,6 +64,15 @@ export async function onRequestPost(context) {
   });
 
   if (!result.ok) {
+    // Release the scoring claim so the learner's retry can re-claim it.
+    try {
+      await env.DB
+        .prepare(`UPDATE embed_usage SET scored_at = NULL WHERE id = ? AND token_id = ? AND score IS NULL`)
+        .bind(usageId, scope.id)
+        .run();
+    } catch {
+      // If the release fails the row stays claimed; admin can see it unscored.
+    }
     if (result.code === 'upstream_error') {
       return new Response(
         JSON.stringify({ error: 'upstream_error', status: result.upstreamStatus, detail: result.detail }),
