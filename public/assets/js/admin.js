@@ -515,6 +515,16 @@ async function loadData() {
   }
 
   try {
+    const r = await fetch('/api/admin/embeds', { credentials: 'same-origin' });
+    if (r.ok) {
+      const data = await r.json();
+      state.embeds = data.tokens || [];
+    }
+  } catch (e) {
+    console.warn('embeds load failed', e);
+  }
+
+  try {
     const r = await fetch('/api/admin/coaching', { credentials: 'same-origin' });
     if (r.ok) {
       state.coaching = await r.json();
@@ -672,6 +682,8 @@ function paintDashboard() {
 
     ${renderReelSection()}
 
+    ${renderEmbedsSection()}
+
     ${renderLiveSessionsSection()}
 
     ${renderCoachingSection()}
@@ -751,6 +763,7 @@ function paintDashboard() {
   attachInviteListHandlers();
   attachDemoHandlers();
   attachReelHandlers();
+  attachEmbedsHandlers();
   attachLiveSessionsHandlers();
   attachCoachingHandlers();
   attachGameLinkHandlers();
@@ -774,6 +787,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'sec-invites', label: 'Active invites' },
   { id: 'sec-demo', label: 'Demo link' },
   { id: 'sec-reel', label: 'Demo reel' },
+  { id: 'sec-embeds', label: 'Course embeds' },
   { id: 'sec-live', label: 'Live practice' },
   { id: 'sec-coaching', label: 'Coaching link' },
   { id: 'sec-coaching-agents-link', label: 'Scenarios' },
@@ -2029,6 +2043,233 @@ function paintDemoGenerated() {
         <div class="admin-generated-url-row">
           <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastDemoUrl)}">
           <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastDemoUrl)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
+  out.querySelectorAll('.admin-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch {
+        alert('Copy failed. Select the URL and copy it manually.');
+      }
+    });
+  });
+}
+
+// ---- Course embeds (Rise/Reach) -------------------------------------------
+
+// Named per-course embed tokens for the Rise/Reach 360 integration. Unlike the
+// single sentinel demo/reel links, each course gets its OWN token row with a
+// scenario allowlist and a daily call cap; the embed URL carries the token as
+// ?ct= and every /api/embed/* request revalidates it (instant revoke). The
+// plaintext URL is shown once at creation, same as the demo link.
+function renderEmbedsSection() {
+  const tokens = state.embeds || [];
+  const rowsHtml = tokens.length
+    ? tokens.map((t) => renderEmbedRow(t)).join('')
+    : '<tr><td colspan="9" class="admin-muted" style="padding:10px 8px;">No course embeds yet. Create one to get an embeddable link for a Rise course.</td></tr>';
+
+  return `
+    <section class="admin-section" id="sec-embeds">
+      <header class="admin-section-head">
+        <p class="admin-eyebrow">Course embeds</p>
+        <h2 class="admin-section-title">Rise / Reach 360 embeds</h2>
+        <p class="admin-section-sub">Tokened links that run the Robert call inside a Rise course block. Each course gets its own named token with a daily call cap; revoke kills the embed instantly. The link is shown once at creation.</p>
+      </header>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+          <div class="admin-field" style="flex:1;min-width:220px;">
+            <label class="admin-field-label" for="admin-embed-label">Course name</label>
+            <input type="text" id="admin-embed-label" class="admin-input" placeholder="e.g. New Hire Onboarding 2026" autocomplete="off">
+          </div>
+          <div class="admin-field" style="width:130px;">
+            <label class="admin-field-label" for="admin-embed-cap">Calls per day</label>
+            <input type="number" id="admin-embed-cap" class="admin-input" value="50" min="0" max="10000">
+          </div>
+          <button type="button" class="primary-button" id="admin-embed-create-btn" style="margin-bottom:2px;">Create embed link</button>
+        </div>
+        <div id="admin-embeds-generated" class="admin-generated"></div>
+      </div>
+
+      <div class="admin-invite-card is-active" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:14px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead>
+            <tr style="text-align:left;color:var(--color-text-tertiary,#71717a);">
+              <th style="padding:6px 8px;">Course</th>
+              <th style="padding:6px 8px;">Status</th>
+              <th style="padding:6px 8px;">Scenarios</th>
+              <th style="padding:6px 8px;">Cap/day</th>
+              <th style="padding:6px 8px;">Calls</th>
+              <th style="padding:6px 8px;">Learners</th>
+              <th style="padding:6px 8px;">Minutes</th>
+              <th style="padding:6px 8px;">Avg score</th>
+              <th style="padding:6px 8px;">Last call</th>
+              <th style="padding:6px 8px;"></th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderEmbedRow(t) {
+  const status = t.revoked
+    ? '<span class="admin-pill">Revoked</span>'
+    : '<span class="admin-pill admin-pill-active">Active</span>';
+  return `
+    <tr data-embed-id="${escapeAttr(t.id)}" style="border-top:1px solid var(--color-border,#e4e4e7);">
+      <td style="padding:8px;font-weight:600;">${escapeHtml(t.label)}</td>
+      <td style="padding:8px;">${status}</td>
+      <td style="padding:8px;">${escapeHtml((t.scenarios || []).join(', '))}</td>
+      <td style="padding:8px;">
+        <span style="display:inline-flex;gap:6px;align-items:center;">
+          <input type="number" class="admin-input" data-embed-cap-input="${escapeAttr(t.id)}" value="${escapeAttr(t.daily_cap)}" min="0" max="10000" style="width:76px;padding:4px 6px;">
+          <button type="button" class="ghost-button" data-embed-cap-save="${escapeAttr(t.id)}" style="padding:4px 8px;font-size:12px;">Save</button>
+        </span>
+      </td>
+      <td style="padding:8px;">${t.calls || 0}</td>
+      <td style="padding:8px;">${t.learners || 0}</td>
+      <td style="padding:8px;">${t.minutes || 0}</td>
+      <td style="padding:8px;">${t.avg_score != null ? escapeHtml(t.avg_score.toFixed ? t.avg_score.toFixed(1) : String(t.avg_score)) : '<span class="admin-muted">-</span>'}</td>
+      <td style="padding:8px;">${t.last_call_at ? escapeHtml(fmtDate(t.last_call_at)) : '<span class="admin-muted">-</span>'}</td>
+      <td style="padding:8px;text-align:right;">
+        <button type="button" class="ghost-button" data-embed-revoke="${escapeAttr(t.id)}" data-revoked="${t.revoked ? '1' : '0'}" style="padding:4px 10px;font-size:12px;">${t.revoked ? 'Reactivate' : 'Revoke'}</button>
+      </td>
+    </tr>
+  `;
+}
+
+function attachEmbedsHandlers() {
+  const createBtn = document.getElementById('admin-embed-create-btn');
+  if (createBtn) createBtn.addEventListener('click', onCreateEmbed);
+  document.querySelectorAll('[data-embed-revoke]').forEach((btn) => {
+    btn.addEventListener('click', () => onToggleEmbedRevoke(btn.dataset.embedRevoke, btn.dataset.revoked === '0'));
+  });
+  document.querySelectorAll('[data-embed-cap-save]').forEach((btn) => {
+    btn.addEventListener('click', () => onSaveEmbedCap(btn.dataset.embedCapSave, btn));
+  });
+  paintEmbedsGenerated();
+}
+
+async function onCreateEmbed() {
+  const btn = document.getElementById('admin-embed-create-btn');
+  const out = document.getElementById('admin-embeds-generated');
+  const label = (document.getElementById('admin-embed-label')?.value || '').trim();
+  const cap = Number(document.getElementById('admin-embed-cap')?.value);
+  if (!label) {
+    if (out) out.innerHTML = '<div class="admin-alert admin-alert-error">Give the embed a course name first.</div>';
+    return;
+  }
+  if (out) out.innerHTML = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+  try {
+    const res = await fetch('/api/admin/embeds', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, daily_cap: Number.isFinite(cap) ? cap : 50 }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parts = [data?.error, data?.detail].filter(Boolean);
+      const errMsg = parts.length ? parts.join(': ') : (res.statusText || 'no message');
+      if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Error ${res.status}: ${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+    state.lastEmbedUrl = data.url;
+    await loadEmbeds();
+    refreshEmbedsSection();
+    paintEmbedsGenerated();
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="admin-alert admin-alert-error">Network error: ${escapeHtml(err?.message || String(err))}</div>`;
+  } finally {
+    const b = document.getElementById('admin-embed-create-btn');
+    if (b) { b.disabled = false; b.textContent = 'Create embed link'; }
+  }
+}
+
+async function onToggleEmbedRevoke(id, revoke) {
+  if (revoke && !confirm('Revoke this course embed? Every learner using it loses access immediately.')) return;
+  try {
+    const res = await fetch(`/api/admin/embeds/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revoked: revoke }),
+    });
+    if (!res.ok) { alert(revoke ? 'Revoke failed.' : 'Reactivate failed.'); return; }
+    await loadEmbeds();
+    refreshEmbedsSection();
+  } catch {
+    alert('Network error.');
+  }
+}
+
+async function onSaveEmbedCap(id, btn) {
+  const input = document.querySelector(`[data-embed-cap-input="${id}"]`);
+  const cap = Number(input?.value);
+  if (!Number.isFinite(cap)) { alert('Enter a number for the daily cap.'); return; }
+  const orig = btn.textContent;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/admin/embeds/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ daily_cap: cap }),
+    });
+    if (!res.ok) { alert('Save failed.'); return; }
+    btn.textContent = 'Saved';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+    await loadEmbeds();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function loadEmbeds() {
+  try {
+    const r = await fetch('/api/admin/embeds', { credentials: 'same-origin' });
+    if (r.ok) {
+      const data = await r.json();
+      state.embeds = data.tokens || [];
+    }
+  } catch (e) {
+    console.warn('embeds load failed', e);
+  }
+}
+
+// Swap just the Course embeds section in place (same pattern as
+// refreshDemoSection) so the rest of the dashboard is untouched.
+function refreshEmbedsSection() {
+  const sec = document.getElementById('sec-embeds');
+  if (sec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderEmbedsSection();
+    sec.replaceWith(tmp.firstElementChild);
+  }
+  attachEmbedsHandlers();
+}
+
+function paintEmbedsGenerated() {
+  const out = document.getElementById('admin-embeds-generated');
+  if (!out) return;
+  if (!state.lastEmbedUrl) { out.innerHTML = ''; return; }
+  out.innerHTML = `
+    <div class="admin-alert admin-alert-success"><strong>Embed link ready.</strong> Paste it into the course's embed block config. This is the only time the full link is shown.</div>
+    <div class="admin-generated-list">
+      <div class="admin-generated-row">
+        <div class="admin-generated-url-row">
+          <input class="admin-input admin-generated-url" readonly value="${escapeAttr(state.lastEmbedUrl)}">
+          <button type="button" class="ghost-button admin-copy-btn" data-url="${escapeAttr(state.lastEmbedUrl)}">Copy</button>
         </div>
       </div>
     </div>`;
